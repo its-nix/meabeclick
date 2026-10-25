@@ -59,14 +59,14 @@ test('the strong peach clears AA as small text on every light ground it sits on'
   const grounds = {
     'white (cards)': token('bg-card'),
     'page background': token('bg-base'),
-    'moss surface': token('bg-surface'),
+    'blue surface': token('bg-surface'),
     // --accent2-dim is the peach at 10% over whatever is beneath it. The
-    // landing page's section labels put that wash on the moss surface,
+    // landing page's section labels put that wash on the blue surface,
     // which is the darkest ground any orange text actually sits on — the
     // Playwright audit found it at 4.37:1 with a token that cleared every
     // other ground here.
     'peach wash on page background': over(peach, 0.10, token('bg-base')),
-    'peach wash on moss surface': over(peach, 0.10, token('bg-surface')),
+    'peach wash on blue surface': over(peach, 0.10, token('bg-surface')),
   };
   for (const [name, ground] of Object.entries(grounds)) {
     const ratio = contrast(strong, ground);
@@ -84,38 +84,44 @@ test('button text on the peach fill still clears AA', () => {
   assert.ok(ratio >= AA_TEXT, `--btn-text on --accent2 is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
 });
 
-test('the moss accents clear AA as text on every light brand ground', () => {
+test('the primary accent clears AA as text on its intended light grounds', () => {
   const accent = token('accent');
-  const deep = token('accent-deep');
   const grounds = {
     'white (cards)': token('bg-card'),
     'page background': token('bg-base'),
-    'moss surface': token('bg-surface'),
-    '8% moss wash on white': over(accent, 0.08, token('bg-card')),
-    '8% moss wash on page background': over(accent, 0.08, token('bg-base')),
-    '8% moss wash on moss surface': over(accent, 0.08, token('bg-surface')),
+    'blue surface': token('bg-surface'),
   };
-  for (const [variant, colour] of Object.entries({ accent, 'accent-deep': deep })) {
-    for (const [name, ground] of Object.entries(grounds)) {
-      const ratio = contrast(colour, ground);
-      assert.ok(ratio >= AA_TEXT, `--${variant} ${colour} on ${name} ${ground} is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
-    }
+  for (const [name, ground] of Object.entries(grounds)) {
+    const ratio = contrast(accent, ground);
+    assert.ok(ratio >= AA_TEXT, `--accent ${accent} on ${name} ${ground} is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
   }
 });
 
-test('white text clears AA on both moss button fills', () => {
-  for (const name of ['accent', 'accent-soft']) {
-    const ratio = contrast(token('bg-card'), token(name));
-    assert.ok(ratio >= AA_TEXT, `white on --${name} is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+test('the deep primary clears AA as small text on primary washes', () => {
+  const accent = token('accent');
+  const deep = token('accent-deep');
+  const washes = {
+    'primary wash on white': over(accent, 0.08, token('bg-card')),
+    'primary wash on page background': over(accent, 0.08, token('bg-base')),
+    'primary wash on blue surface': over(accent, 0.08, token('bg-surface')),
+  };
+  for (const [name, ground] of Object.entries(washes)) {
+    const ratio = contrast(deep, ground);
+    assert.ok(ratio >= AA_TEXT, `--accent-deep ${deep} on ${name} ${ground} is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
   }
 });
 
-test('muted text clears AA on the moss surface', () => {
-  const ratio = contrast(token('text-muted'), token('bg-surface'));
-  assert.ok(ratio >= AA_TEXT, `--text-muted on --bg-surface is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+test('white text clears AA on the primary accent fill', () => {
+  const ratio = contrast(token('bg-card'), token('accent'));
+  assert.ok(ratio >= AA_TEXT, `white on --accent is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
 });
 
-test('the moss accent is a visible boundary against white', () => {
+test('strong muted text clears AA on the blue surface', () => {
+  const ratio = contrast(token('text-muted-strong'), token('bg-surface'));
+  assert.ok(ratio >= AA_TEXT, `--text-muted-strong on --bg-surface is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+});
+
+test('the primary accent is a visible boundary against white', () => {
   const ratio = contrast(token('accent'), token('bg-card'));
   assert.ok(ratio >= AA_UI, `accent boundary contrast is ${ratio.toFixed(2)}:1, needs ${AA_UI}:1`);
 });
@@ -139,9 +145,9 @@ test('the strong WhatsApp green clears AA as text on every ground its buttons si
   const grounds = {
     'white (cards)': token('bg-card'),
     'page background': token('bg-base'),
-    'moss surface': token('bg-surface'),
+    'blue surface': token('bg-surface'),
     'green wash on white (hover)': over(green, 0.12, token('bg-card')),
-    'green wash on moss surface': over(green, 0.12, token('bg-surface')),
+    'green wash on blue surface': over(green, 0.12, token('bg-surface')),
   };
   for (const [name, ground] of Object.entries(grounds)) {
     const ratio = contrast(strong, ground);

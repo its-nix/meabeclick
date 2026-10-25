@@ -28,6 +28,9 @@
 import { requireAuth } from '$server/auth.ts';
 import { gameUrl } from '$server/urls.ts';
 import { getRegistry } from '$server/lesson/registry.ts';
+import { getStudentByCode } from '$server/entities.ts';
+import { lessonForStudent, lessonGameSkillsForStudent } from '$server/lesson-games.ts';
+import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 const DEMO_STUDENT = 'דוגמה';
@@ -44,6 +47,29 @@ export interface CatalogEntry {
 
 export const load: PageServerLoad = async (event) => {
   requireAuth(event);
+
+  const lessonSlug = event.url.searchParams.get('lesson');
+  const studentCode = event.url.searchParams.get('student');
+  let selection: {
+    lessonSlug: string; lessonTitle: string; lessonAt: string | null;
+    studentId: number; studentCode: string; studentName: string; nodeId: number | null;
+  } | null = null;
+  if (lessonSlug || studentCode) {
+    if (!lessonSlug || !studentCode) error(400, 'חסר הקשר לשיעור');
+    const student = getStudentByCode(studentCode);
+    const lesson = student ? lessonForStudent(lessonSlug, student.id) : null;
+    if (!student || !lesson) error(404, 'השיעור לא נמצא עבור התלמיד/ה');
+    const requestedNodeId = event.url.searchParams.get('node');
+    const nodeId = requestedNodeId == null ? null : Number(requestedNodeId);
+    if (nodeId != null && !lessonGameSkillsForStudent(student.id).some(skill => skill.id === nodeId)) {
+      error(404, 'המיומנות לא נמצאה עבור התלמיד/ה');
+    }
+    selection = {
+      lessonSlug, lessonTitle: lesson.title ?? lesson.topic ?? lesson.slug,
+      lessonAt: lesson.lesson_at, studentId: student.id,
+      studentCode: student.code, studentName: student.name, nodeId,
+    };
+  }
 
   const entries: CatalogEntry[] = Object.entries(getRegistry().templates).map(([key, t]) => {
     const ready = t.status === 'ready';
@@ -69,5 +95,6 @@ export const load: PageServerLoad = async (event) => {
   return {
     ready: entries.filter(e => e.ready),
     soon: entries.filter(e => !e.ready),
+    selection,
   };
 };

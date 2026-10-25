@@ -54,7 +54,12 @@
     [k: string]: unknown;
   }
   type LessonItem = FamilyLesson;
-  interface GameItem { title: string; url?: string | null; [k: string]: unknown }
+  interface GameItem {
+    title: string; url?: string | null; assignmentId?: string; lessonSlug?: string;
+    lessonTitle?: string; lessonAt?: string | null; skill?: string | null;
+    plays?: number; bestScore?: number | null; total?: number | null;
+    lastPlayedAt?: string | null; [k: string]: unknown;
+  }
   interface StudentData {
     name: string; emoji?: string; subject?: string; level?: string; tutor?: string; tutorPhone?: string;
     nextLesson?: { date?: string; time?: string; type?: string } | null;
@@ -357,6 +362,25 @@
     && !(DATA.homework ?? []).length
     && !(DATA.lessons ?? []).filter(l => !l.upcoming).length
     && !(DATA.games ?? []).length);
+  const gameGroups = $derived.by(() => {
+    const groups = new Map<string, { title: string; at: string | null; games: GameItem[] }>();
+    for (const game of DATA?.games ?? []) {
+      const key = game.lessonSlug ?? 'legacy';
+      const group = groups.get(key) ?? {
+        title: game.lessonTitle ?? 'משחקים קודמים', at: game.lessonAt ?? null, games: [],
+      };
+      group.games.push(game);
+      groups.set(key, group);
+    }
+    return [...groups.values()];
+  });
+
+  function playedLabel(game: GameItem): string {
+    if (!game.plays) return 'חדש · עוד לא שוחק';
+    const when = game.lastPlayedAt ? new Date(game.lastPlayedAt).toLocaleDateString('he-IL') : '';
+    const score = game.bestScore != null && game.total != null ? ` · השיא: ${game.bestScore}/${game.total}` : '';
+    return `שוחק${when ? ` ב־${when}` : ''}${score}`;
+  }
 </script>
 
 <svelte:head>
@@ -509,15 +533,24 @@
 
       {#if activeView === 'games'}
         {#if !(DATA.games ?? []).length}
-          <div class="msg-empty">אין משחקים עדיין</div>
+          <div class="msg-empty">{isDayOne ? 'אחרי השיעור הראשון יופיעו כאן משחקי התרגול.' : 'אין משחקי תרגול פתוחים כרגע. כשיהיה משחק חדש הוא יופיע כאן.'}</div>
         {:else}
-          {#each DATA.games ?? [] as g}
-            <div class="card">
-              <div class="card-title"><Icon name="games" /> {g.title}</div>
-              {#if g.url}
-                <a class="play" href={toHref(g.url)}>שחקו עכשיו ←</a>
-              {/if}
-            </div>
+          {#each gameGroups as group (group.title)}
+            <section class="game-group">
+              <h2 class="view-title">{group.title}{group.at ? ` · ${new Date(group.at).toLocaleDateString('he-IL')}` : ''}</h2>
+              {#each group.games as g (g.assignmentId ?? g.url ?? g.title)}
+                <article class="card">
+                  <div class="card-title"><Icon name="games" /> <FormulaText text={g.title} /></div>
+                  {#if g.skill}<div class="card-meta">מתרגלים: {g.skill}</div>{/if}
+                  <div class="card-meta">{playedLabel(g)}</div>
+                  {#if g.url}
+                    <a class="play" href={toHref(g.url)}>{g.plays ? 'לשחק שוב' : 'מתחילים'}</a>
+                  {:else}
+                    <div class="game-unavailable">המשחק לא זמין כרגע. לא איבדתם שום תוצאה.</div>
+                  {/if}
+                </article>
+              {/each}
+            </section>
           {/each}
         {/if}
       {/if}

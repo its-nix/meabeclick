@@ -42,6 +42,7 @@ import { toFamilyLesson } from '$lib/family-lesson.ts';
 import { planFor } from '$lib/plans.ts';
 import { homeworkForStudent } from '$server/lessons.ts';
 import { progressFor } from '$server/progress.ts';
+import { lessonGamesForStudent } from '$server/lesson-games.ts';
 import type { RequestHandler } from './$types';
 
 const CODE_FORMAT = /^[a-z0-9-]+$/;
@@ -140,11 +141,32 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     if (typeof data.name !== 'string' || !data.name.trim()) {
       throw new Error('portal file missing name');
     }
+    const authorizedStudent = getStudentByCode(code);
 
     if (Array.isArray(data.games)) {
       data.games = data.games
         .map((g: unknown) => normalizeGameLike(g, code))
         .filter((g: unknown) => g !== null);
+    }
+    if (authorizedStudent) {
+      const linked = lessonGamesForStudent(authorizedStudent.id).map(game => ({
+        title: game.title,
+        template: game.template,
+        dataId: game.dataId,
+        assignmentId: game.assignmentId,
+        lessonSlug: game.lessonSlug,
+        lessonTitle: game.lessonTitle,
+        lessonAt: game.lessonAt,
+        skill: game.skill,
+        plays: game.plays,
+        bestScore: game.bestScore,
+        total: game.total,
+        lastPlayedAt: game.lastPlayedAt,
+        url: gameUrl({ template: game.template, dataId: game.dataId, student: code }),
+      }));
+      const publishedIds = new Set(linked.map(game => game.dataId));
+      data.games = [...linked, ...(Array.isArray(data.games) ? data.games : [])
+        .filter((game: Record<string, unknown>) => !publishedIds.has(String(game.dataId ?? '')))];
     }
     /* Homework comes from the `homework` TABLE, not from this file.
      
@@ -164,7 +186,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
        scripts/backfill-homework-table.mjs has run everywhere — it is a
        migration aid, not a second source of truth, and it cannot produce
        duplicates because it only applies when the table is empty. */
-    const student = getStudentByCode(code);
+    const student = authorizedStudent;
     const rows = student ? homeworkForStudent(student.id) : [];
     if (rows.length) {
       data.homework = rows.map(h => ({

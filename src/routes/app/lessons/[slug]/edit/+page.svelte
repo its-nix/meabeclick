@@ -13,6 +13,7 @@
   import { tick, untrack } from 'svelte';
   import { invalidateAll } from '$app/navigation';
   import { formatDateTime } from '$lib/dates.ts';
+  import GameContentEditor from '$lib/components/GameContentEditor.svelte';
 
   let { data } = $props();
 
@@ -46,6 +47,66 @@
   let previewShown = $state(false);
   let previewForm: HTMLFormElement | undefined = $state();
   let previewEdit = $state('');
+
+  const initialGames = untrack(() => data.lessonGames);
+  const initialGame = untrack(() => initialGames.find((item) => item.id === data.focusedGameId) ?? null);
+  let lessonGames = $state(initialGames);
+  let game = $state(initialGame);
+  let gameTitle = $state(initialGame?.title ?? '');
+  let gameBody = $state<Record<string, unknown>>(initialGame ? structuredClone(initialGame.body) : {});
+  let gameNodeId = $state<number | null>(initialGame?.nodeId ?? null);
+  let gameBusy = $state(false);
+  let gameMessage = $state('');
+  let gameFailed = $state(false);
+
+  function editGame(item: (typeof data.lessonGames)[number]) {
+    game = item;
+    gameTitle = item.title;
+    gameBody = structuredClone(item.body);
+    gameNodeId = item.nodeId ?? null;
+    gameMessage = '';
+    history.replaceState(history.state, '', `/app/lessons/${encodeURIComponent(data.slug)}/edit?game=${encodeURIComponent(item.id)}`);
+  }
+
+  async function gameRequest(action: 'save' | 'publish' | 'archive') {
+    if (!game || gameBusy) return null;
+    gameBusy = true; gameFailed = false; gameMessage = '';
+    try {
+      const response = await fetch(`/api/lessons/${encodeURIComponent(data.slug)}/games`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, assignmentId: game.id, expectedRevision: game.revision, title: gameTitle, body: gameBody, nodeId: gameNodeId }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        gameFailed = true;
+        gameMessage = response.status === 409 ? 'המשחק השתנה מאז שפתחתם אותו. טענו מחדש לפני שמירה.' : (result.error ?? 'השינויים לא נשמרו.');
+        return null;
+      }
+      if (action === 'archive') {
+        lessonGames = lessonGames.filter((item) => item.id !== game!.id);
+        game = null;
+        gameMessage = 'המשחק הוסר מהדף. תוצאות קודמות נשמרו.';
+        return null;
+      }
+      game = result.assignment;
+      lessonGames = lessonGames.map((item) => item.id === game!.id ? game! : item);
+      gameMessage = action === 'publish'
+        ? `המשחק פורסם ומופיע עכשיו בדף של ${data.lessonStudent?.name ?? 'התלמיד/ה'}.`
+        : 'הטיוטה נשמרה. היא עדיין לא מופיעה לתלמיד/ה.';
+      return game;
+    } catch {
+      gameFailed = true;
+      gameMessage = 'אין חיבור — השינויים לא נשמרו.';
+      return null;
+    } finally {
+      gameBusy = false;
+    }
+  }
+
+  async function previewGame() {
+    const savedGame = await gameRequest('save');
+    if (savedGame) window.open(`/app/play/${encodeURIComponent(savedGame.template)}?preview=${encodeURIComponent(savedGame.id)}`, '_blank', 'noopener');
+  }
 
   /** Fills the form from a stored version — the newest on first load, any
    *  one from history on request (spec D7: loading is not publishing). */
@@ -172,6 +233,58 @@
   <a class="back" href="/app/dashboard">→ חזרה ללוח הבקרה</a>
   <h1>עריכת שיעור</h1>
   <p class="meta">{data.lesson.student} · {data.lesson.subject ?? ''} {data.lesson.level ?? ''}</p>
+
+  <section class="game-section" aria-labelledby="practice-games-heading">
+    <div class="game-heading">
+      <div>
+        <h2 id="practice-games-heading">משחקי תרגול</h2>
+        <p class="meta">כל משחק הוא עותק לשיעור הזה בלבד. שינויים כאן לא ישנו משחקים אחרים.</p>
+      </div>
+      {#if data.lessonStudent}
+        <a class="add-game" href="/app/games?lesson={encodeURIComponent(data.slug)}&student={encodeURIComponent(data.lessonStudent.code)}">הוספת משחק</a>
+      {/if}
+    </div>
+
+    {#if !data.lessonStudent}
+      <p class="empty">אי אפשר לשייך את השיעור לתלמיד/ה יחיד/ה בבטחה, ולכן לא ניתן להוסיף משחק ידני.</p>
+    {:else if !lessonGames.length}
+      <p class="empty">עדיין אין משחקים ידניים לשיעור הזה. משחקים שנוצרו אוטומטית נשארים זמינים כרגיל.</p>
+    {:else}
+      <div class="game-list" aria-label="משחקים בשיעור">
+        {#each lessonGames as item (item.id)}
+          <button type="button" class:current={game?.id === item.id} onclick={() => editGame(item)}>
+            <strong>{item.title}</strong>
+            <span>{item.status === 'published' ? 'פורסם' : item.status === 'archived' ? 'הוסר מהדף' : 'טיוטה'}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+    {#if game}
+      <div class="game-editor">
+        <h3 tabindex="-1">עריכת {gameTitle}</h3>
+        <label class="field">כותרת לתלמיד/ה · שדה חובה<input dir="auto" bind:value={gameTitle} /></label>
+        {#if data.lessonSkills.length}
+          <label class="field">מיומנות מתורגלת
+            <select bind:value={gameNodeId}>
+              <option value={null}>ללא שיוך למיומנות</option>
+              {#each data.lessonSkills as skill (skill.id)}
+                <option value={skill.id}>{skill.title}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+        <GameContentEditor body={gameBody} onchange={(next) => (gameBody = next)} />
+        <div class="actions">
+          <button type="button" onclick={() => gameRequest('save')} disabled={gameBusy}>{gameBusy ? 'שומרים…' : 'שמירת טיוטה'}</button>
+          <button type="button" onclick={previewGame} disabled={gameBusy}>תצוגה מקדימה</button>
+          <button type="button" class="primary" onclick={() => gameRequest('publish')} disabled={gameBusy}>פרסום לתלמיד/ה</button>
+          <button type="button" class="danger" onclick={() => confirm(`להסיר את המשחק מהדף של ${data.lessonStudent?.name}? תוצאות שכבר נשמרו יישארו בהיסטוריה.`) && gameRequest('archive')} disabled={gameBusy}>הסרה מהדף</button>
+        </div>
+      </div>
+    {/if}
+    {#if gameMessage}<p class="msg" class:bad={gameFailed} role={gameFailed ? 'alert' : 'status'} tabindex="-1">{gameMessage}</p>{/if}
+  </section>
 
   {#if data.seedVersion === null}
     <p class="empty">לשיעור הזה אין גרסה שאפשר לערוך — הוא נוצר לפני שמירת הגרסאות.</p>
@@ -412,6 +525,16 @@
   h2 { margin: 28px 0 10px; font-size: 1.1rem; color: var(--text-primary); }
   .meta, .state, .empty { color: var(--text-muted); margin: 0 0 12px; }
   .state { color: var(--accent); font-weight: 600; }
+  .game-section { margin: 24px 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
+  .game-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; flex-wrap: wrap; }
+  .game-heading h2 { margin-top: 0; }
+  .add-game { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: var(--r-sm); background: var(--accent); color: white; font-weight: 800; text-decoration: none; }
+  .game-list { display: grid; gap: 8px; margin-block: 12px; }
+  .game-list button { display: flex; justify-content: space-between; align-items: center; text-align: start; }
+  .game-list button.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+  .game-list span { color: var(--text-muted); font-size: .8rem; }
+  .game-editor { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .game-editor h3 { margin-top: 0; }
   .field { display: grid; gap: 6px; margin: 0 0 12px; font-size: .9rem; font-weight: 600; color: var(--text-primary); }
   .field input, .field textarea {
     font: inherit; font-weight: 400; width: 100%; min-width: 0; box-sizing: border-box;

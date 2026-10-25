@@ -1,26 +1,25 @@
 <script lang="ts">
   import FormulaText from '$lib/components/FormulaText.svelte';
-  /**
-   * Port of games/labelling.html. `data.svg` is tutor-authored inline SVG
-   * markup, inserted with `{@html}` — same trust level games/game.js
-   * always gave it (`Game.el('diagram').innerHTML = data.svg`). Its
-   * elements are never part of Svelte's own template, so:
-   *  - none of the CSS below reaching into `.diagram` can rely on Svelte's
-   *    scoping class landing on that markup — every such rule is wrapped
-   *    in `:global(...)`, or it silently never matches (the exact trap
-   *    this migration already hit once on the homepage).
-   *  - the `active`/`solved` state on a target, and the click listeners
-   *    themselves, are attached imperatively in the `$effect` below, not
-   *    via `class:`/`onclick` directives — those only work on elements
-   *    Svelte's compiler actually owns.
-   * The label buttons on the other hand ARE ordinary Svelte-rendered
-   * elements, so those safely use `class:used`.
-   */
-  import { getContext } from 'svelte';
+  /** Tutor-authored SVG is untrusted. Parse it into a deliberately small
+   * SVG subset instead of handing markup to a raw HTML rendering API. */
+  import { getContext, onMount } from 'svelte';
   import { GAME_CONTEXT_KEY, type GameEngineContext, type GameData } from './engine.ts';
 
   type Target = { id: string; label: string };
   type LabelBtn = { id: string; label: string; used: boolean; flash: boolean };
+
+  const ALLOWED_SVG_ELEMENTS = new Set([
+    'svg', 'g', 'path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon',
+    'text', 'tspan', 'title', 'desc',
+  ]);
+  const ALLOWED_SVG_ATTRIBUTES = new Set([
+    'xmlns', 'viewbox', 'preserveaspectratio', 'width', 'height',
+    'id', 'class', 'd', 'points', 'transform',
+    'x', 'y', 'x1', 'x2', 'y1', 'y2', 'cx', 'cy', 'r', 'rx', 'ry',
+    'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity',
+    'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'opacity',
+    'font-size', 'font-weight', 'text-anchor', 'dominant-baseline',
+  ]);
 
   let { data }: { data: GameData } = $props();
   const engine = getContext<GameEngineContext>(GAME_CONTEXT_KEY);
@@ -39,9 +38,43 @@
   let activeNode: Element | null = null;
   let activeTarget: Target | null = null;
   let attached = false;
+  let diagramReady = $state(false);
+
+  function safeSvg(markup: string): SVGElement | null {
+    const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
+    const root = parsed.documentElement;
+    if (root.localName !== 'svg' || parsed.querySelector('parsererror')) return null;
+
+    for (const element of [root, ...root.querySelectorAll('*')]) {
+      if (!ALLOWED_SVG_ELEMENTS.has(element.localName)) {
+        element.remove();
+        continue;
+      }
+      for (const attribute of [...element.attributes]) {
+        const name = attribute.name.toLowerCase();
+        const value = attribute.value.toLowerCase();
+        if (!ALLOWED_SVG_ATTRIBUTES.has(name) || /javascript:|data:|url\s*\(/.test(value)) {
+          element.removeAttribute(attribute.name);
+        }
+      }
+    }
+    return root as unknown as SVGElement;
+  }
+
+  onMount(() => {
+    if (!diagramEl || !svgMarkup) return;
+    const svg = safeSvg(svgMarkup);
+    if (!svg) {
+      noMatch = true;
+      return;
+    }
+    diagramEl.replaceChildren(document.importNode(svg, true));
+    diagramReady = true;
+    return () => diagramEl?.replaceChildren();
+  });
 
   $effect(() => {
-    if (!diagramEl || attached || !svgMarkup || !targets.length) return;
+    if (!diagramEl || !diagramReady || attached || !targets.length) return;
     attached = true;
 
     let found = 0;
@@ -136,8 +169,7 @@
 
   <div class="prompt">מה זה החלק הזה? 🏷️</div>
   <div class="hint">{hint}</div>
-  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-  <div class="diagram" bind:this={diagramEl}>{@html svgMarkup}</div>
+  <div class="diagram" bind:this={diagramEl}></div>
   <div class="labels">
     {#each labelBtns as b (b.id + b.label)}
       <button class="label" class:used={b.used} class:flash={b.flash} onclick={() => selectLabel(b)}><FormulaText text={b.label} /></button>

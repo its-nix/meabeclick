@@ -10,6 +10,7 @@ import { editBase, formPlan, EDITABLE_GAMES } from '$server/lesson/editing.ts';
 import { TEMPLATE_FILES } from '$server/lesson/prep.ts';
 import { getRegistry } from '$server/lesson/registry.ts';
 import { isLibrarySlug } from '$server/library/slug.ts';
+import { lessonGamesForLesson, lessonGameSkillsForStudent, studentForLesson } from '$server/lesson-games.ts';
 import type { PageServerLoad } from './$types';
 
 /** Versions sent to the page. Each carries its whole plan, so an unbounded
@@ -38,6 +39,7 @@ export const load: PageServerLoad = async (event) => {
 
   /* What the form starts from — the same rule every save applies to. */
   const base = editBase(slug);
+  const lessonStudent = studentForLesson(slug);
 
   return {
     slug,
@@ -57,5 +59,9 @@ export const load: PageServerLoad = async (event) => {
     liveVersion,
     olderVersions: Math.max(0, all.length - HISTORY_LIMIT),
     unpublishedEdits: hasUnpublishedEdits(slug, 'plan'),
+    lessonStudent,
+    lessonSkills: lessonStudent ? lessonGameSkillsForStudent(lessonStudent.id) : [],
+    lessonGames: lessonGamesForLesson(slug),
+    focusedGameId: event.url.searchParams.get('game'),
   };
 };

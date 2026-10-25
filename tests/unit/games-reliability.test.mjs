@@ -67,3 +67,11 @@ test('numbers keep their sign in a right-to-left page, and maths lines take thei
   }
   assert.doesNotMatch(read('src/lib/games/Matching.svelte'), /מימין, ואז/);
 });
+
+test('tutor-authored diagrams are parsed through an SVG allowlist instead of injected as HTML', () => {
+  const labelling = read('src/lib/games/Labelling.svelte');
+  assert.doesNotMatch(labelling, /\{@html/);
+  assert.match(labelling, /ALLOWED_SVG_ELEMENTS/);
+  assert.match(labelling, /ALLOWED_SVG_ATTRIBUTES/);
+  assert.match(labelling, /DOMParser/);
+});

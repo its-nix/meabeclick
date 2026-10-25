@@ -25,6 +25,8 @@ import { getBest } from '$server/db.ts';
 import { resolveStudent, studentRefById, getBest as getBestById } from '$server/results.ts';
 import { isKnownTemplate } from '$server/lesson/registry.ts';
 import { practiceGoal } from '$server/lesson/targeting.ts';
+import { getLessonGame, readPublishedLessonGame } from '$server/lesson-games.ts';
+import { requireAuth } from '$server/auth.ts';
 import type { GameData } from '$lib/games/engine.ts';
 import type { PageServerLoad } from './$types';
 
@@ -44,9 +46,29 @@ async function readLegacyAlias(dataId: string): Promise<GameData> {
   return JSON.parse(fromDb) as GameData;
 }
 
-export const load: PageServerLoad = async ({ params, url }) => {
+export const load: PageServerLoad = async (event) => {
+  const { params, url } = event;
   if (!isKnownTemplate(params.template)) {
     error(404, 'תבנית משחק לא ידועה');
+  }
+
+  const previewId = url.searchParams.get('preview');
+  if (previewId) {
+    requireAuth(event);
+    const assignment = getLessonGame(previewId);
+    if (!assignment || assignment.template !== params.template || assignment.status === 'archived') {
+      error(404, 'טיוטת המשחק לא נמצאה');
+    }
+    return {
+      template: assignment.template,
+      dataId: `preview-${assignment.id}`,
+      student: 'תלמיד/ה לדוגמה', t: null,
+      title: assignment.title,
+      subject: 'תצוגה מקדימה למורה · תלמיד/ה לדוגמה',
+      best: null, skill: null, gameData: assignment.body,
+      preview: true,
+      backUrl: `/app/lessons/${encodeURIComponent(assignment.lessonSlug)}/edit?game=${encodeURIComponent(assignment.id)}`,
+    };
   }
 
   const dataId = url.searchParams.get('d');
@@ -56,6 +78,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
   if (!dataId || !verifyGameSignature({ dataId, student, t })) {
     error(403, 'קישור לא תקין');
   }
+  const resolvedStudentId = resolveStudent(student);
 
   /* Generic catalog ids (`example-*`) are rows in game_filler. The
      database wins when a file of that same id is also on the volume, so
@@ -69,7 +92,13 @@ export const load: PageServerLoad = async ({ params, url }) => {
      exists, which is what an old link still needs. queue.ts slugs carry
      a timestamp, so a generated lesson never lands on this branch. */
   let gameData: GameData;
-  if (Object.hasOwn(GAME_FILLER_ALIASES, dataId)) {
+  const lessonGame = readPublishedLessonGame(dataId);
+  if (lessonGame) {
+    if (resolvedStudentId === null || lessonGame.studentId !== resolvedStudentId || lessonGame.template !== params.template) {
+      error(403, 'המשחק לא שייך לתלמיד/ה');
+    }
+    gameData = lessonGame.body as GameData;
+  } else if (Object.hasOwn(GAME_FILLER_ALIASES, dataId)) {
     gameData = await readLegacyAlias(dataId);
   } else {
     const fromDb = readGameFiller(dataId);
@@ -90,7 +119,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
      WhatsApp thread. Resolve once: the id keys the personal best, the name
      is what a child should see. Both fall back to the raw value, so an
      unresolvable old link renders exactly as it does today. */
-  const studentId = resolveStudent(student);
+  const studentId = resolvedStudentId;
   const ref = studentId === null ? null : studentRefById(studentId);
   const displayName = ref?.name ?? student;
 
@@ -105,5 +134,7 @@ export const load: PageServerLoad = async ({ params, url }) => {
     /* What this game practises, when it was made for a skill of this child's plan. */
     skill: studentId === null ? null : practiceGoal(studentId, dataId),
     gameData,
+    preview: false,
+    backUrl: '/app/student',
   };
 };

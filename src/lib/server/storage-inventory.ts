@@ -83,6 +83,8 @@ export const STORAGE: Record<string, TableFact> = {
   lesson_reminders:   { status: 'live', note: 'One row per reminder attempted; UNIQUE (booking, kind) IS the idempotency guarantee.' },
   game_skills:        { status: 'live', note: 'Which skill a published game practises, per (student, data_id) — the link results_v2 needs to become evidence.' },
   game_filler:        { status: 'live', note: 'Catalog example exercises. Migration 031 inserts them once; readGameFiller serves them. Per-lesson games stay files.' },
+  lesson_game_assignments: { status: 'live', note: 'Tutor-managed game drafts and the current published revision for a live lesson and student.' },
+  lesson_game_revisions: { status: 'live', note: 'Immutable published lesson-specific game bodies, keyed by data_id.' },
   lesson_reports:     { status: 'live', note: 'The tutor\'s end-of-lesson report.' },
   lesson_report_notes:{ status: 'live', note: 'Free text attached to a report.' },
   report_prompts:     { status: 'live', note: 'Which lessons have already been chased. INSERT OR IGNORE.' },

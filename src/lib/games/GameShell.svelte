@@ -40,6 +40,8 @@
     dataId,
     student,
     t,
+    preview = false,
+    backUrl = '/app/student',
     children,
   }: {
     title: string;
@@ -50,6 +52,8 @@
     dataId: string;
     student: string;
     t: string;
+    preview?: boolean;
+    backUrl?: string;
     children: Snippet;
   } = $props();
 
@@ -84,6 +88,7 @@
   /* Anything an earlier game could not send goes now, and again whenever the
      connection comes back. */
   onMount(() => {
+    if (preview) return;
     flushQueuedResults();
     const retry = () => { flushQueuedResults(); };
     addEventListener('online', retry);
@@ -115,6 +120,10 @@
     done = true;
     tick().then(() => doneEl?.focus());
 
+    if (preview) {
+      saved = null;
+      return;
+    }
     saving = true;
     reportResult({
       dataId,
@@ -151,10 +160,15 @@
 
 <div class="wrap">
   <div class="page-brand"><BrandMark height={26} /></div>
+  {#if preview}<div class="preview-banner" role="status">תצוגה מקדימה למורה — התוצאה לא נשמרת</div>{/if}
   <!-- The way back. The logo and the error page went to the marketing
        homepage; /app/student sends a signed-in child to their own board and
        anyone else to the sign-in page. -->
-  <a class="back" href="/app/student" data-sveltekit-reload>→ חזרה לדף שלי</a>
+  {#if preview}
+    <a class="back" href={backUrl}>→ חזרה לעריכה</a>
+  {:else}
+    <a class="back" href="/app/student" data-sveltekit-reload>→ חזרה לדף שלי</a>
+  {/if}
 
   <header>
     <h1>{title}</h1>
@@ -182,7 +196,11 @@
       </div>
       <!-- Waits for the save: a reload mid-request could cancel it. -->
       <button class="btn" onclick={() => location.reload()} disabled={saving}>שחקו שוב 🔄</button>
-      <a class="back" href="/app/student" data-sveltekit-reload>→ חזרה לדף שלי</a>
+      {#if preview}
+        <a class="back" href={backUrl}>→ חזרה לעריכה</a>
+      {:else}
+        <a class="back" href="/app/student" data-sveltekit-reload>→ חזרה לדף שלי</a>
+      {/if}
     </div>
   {/if}
 </div>
@@ -192,6 +210,7 @@
   .wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; }
   .back { display: inline-block; min-height: 44px; line-height: 44px; color: var(--accent); font-weight: 700; text-decoration: none; }
   .save-line { min-height: 1.4em; margin: 0.4rem 0 0.8rem; color: var(--text-muted); font-size: 0.9rem; }
+  .preview-banner { margin: .5rem 0; padding: .65rem; border: 2px solid var(--accent); border-radius: var(--r-sm); text-align: center; font-weight: 800; }
   .sr-only {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;

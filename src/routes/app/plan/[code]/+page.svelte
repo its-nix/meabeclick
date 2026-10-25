@@ -503,7 +503,7 @@
     color: var(--text-muted); font-family: inherit; font-size: .82rem; font-weight: 700;
     cursor: pointer; text-decoration: none;
   }
-  .chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .chip.active { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-dim); }
 
   .banner { border-radius: 12px; padding: 10px 14px; font-size: .86rem; margin-bottom: 12px; }
   .banner.error { background: rgba(220,38,38,0.08); border: 1.5px solid var(--danger); color: var(--danger); }

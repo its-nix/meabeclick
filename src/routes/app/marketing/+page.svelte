@@ -157,7 +157,7 @@
     color: var(--text-muted); font-family: inherit; font-size: .82rem; font-weight: 700;
     text-decoration: none;
   }
-  .chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .chip.active { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-dim); }
 
   .summary {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;

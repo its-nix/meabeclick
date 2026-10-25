@@ -1227,7 +1227,7 @@
     gap: 0.4rem;
     background: var(--accent-dim);
     border: 1.5px solid var(--accent);
-    color: var(--accent);
+    color: var(--accent-deep);
     border-radius: 999px;
     padding: 0.35rem 0.9rem;
     font-size: 0.88rem;

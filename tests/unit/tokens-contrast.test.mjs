@@ -113,6 +113,38 @@ test('the deep primary clears AA as small text on primary washes', () => {
   }
 });
 
+test('every small primary-on-wash role is bound to an AA-safe text token and composite ground', () => {
+  const roles = [
+    ['landing hero badge', 'src/routes/+page.svelte', String.raw`\.hero-badge`, 'hero radial wash'],
+    ['game goal badge', 'src/lib/games/GameShell.svelte', String.raw`\.goal`, 'page background'],
+    ['dashboard outline button', 'src/routes/app/dashboard/+page.svelte', String.raw`\.btn-outline`, 'page background'],
+    ['marketing active chip', 'src/routes/app/marketing/+page.svelte', String.raw`\.chip\.active`, 'page background'],
+    ['plan filter active chip', 'src/routes/app/plan/[code]/+page.svelte', String.raw`\.chip\.active`, 'page background'],
+    ['plan structure active item', 'src/lib/components/plan/PlanTree.svelte', String.raw`\.menu-item\.active`, 'page background'],
+    ['booking selected-plan badge', 'src/routes/booking/+page.svelte', String.raw`\.selected-plan-badge`, 'page background'],
+  ];
+
+  for (const [role, path, selector, groundName] of roles) {
+    const block = source(path).match(new RegExp(`${selector}\\s*\\{([^}]*)\\}`, 's'))?.[1];
+    assert.ok(block, `${role} selector is not covered by the primary-on-wash role map`);
+    assert.match(block, /background:\s*var\(--accent-dim\)/,
+      `${role} no longer declares the mapped primary wash`);
+
+    const foregroundToken = block.match(/(?:^|;)\s*color:\s*var\(--([^)]+)\)/)?.[1];
+    assert.ok(foregroundToken, `${role} does not use a token for its text colour`);
+    const foreground = token(foregroundToken);
+    assert.ok(foreground, `${role} uses missing token --${foregroundToken}`);
+
+    const baseGround = groundName === 'hero radial wash'
+      ? over(token('accent'), 0.12, token('bg-base'))
+      : token('bg-base');
+    const compositeGround = over(token('accent'), 0.08, baseGround);
+    const ratio = contrast(foreground, compositeGround);
+    assert.ok(ratio >= AA_TEXT,
+      `${role}: --${foregroundToken} ${foreground} on ${groundName} ${compositeGround} is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+  }
+});
+
 test('white text clears AA on every primary button, hover and gradient fill role', () => {
   const booking = source('src/routes/booking/+page.svelte');
   const portal = source('src/routes/portal/+page.svelte');

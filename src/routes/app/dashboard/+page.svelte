@@ -1574,7 +1574,7 @@
   }
   .btn:hover { opacity: .88; transform: translateY(-1px); }
   .btn-gold { background: var(--accent); color: #fff; }
-  .btn-outline { background: var(--accent-dim); border: 1.5px solid rgba(37,99,235,0.22); color: var(--accent); }
+  .btn-outline { background: var(--accent-dim); border: 1.5px solid rgba(37,99,235,0.22); color: var(--accent-deep); }
   .btn-ghost { background: rgba(37,99,235,0.04); border: 1.5px solid var(--border-strong); color: var(--text-muted); cursor: pointer; font-family: 'Heebo', sans-serif; font-weight: 700; border-radius: var(--r-sm); padding: 8px 18px; font-size: .85rem; }
   .btn-danger { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.28); color: var(--danger); }
   .btn-sm { padding: 5px 12px; font-size: .78rem; }

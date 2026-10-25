@@ -626,7 +626,7 @@ h1, h2, h3, h4 {
   gap: 0.4rem;
   background: var(--accent-dim);
   border: 1.5px solid var(--border-strong);
-  color: var(--accent);
+  color: var(--accent-deep);
   font-size: 0.84rem;
   font-weight: 700;
   padding: 0.32rem 1rem;

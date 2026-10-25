@@ -201,5 +201,5 @@
   header { text-align: center; margin-bottom: 0.5rem; }
   h1 { font-size: clamp(1.25rem, 4vw, 1.8rem); font-weight: 900; }
   /* A radius that survives wrapping: skill names run long. */
-  .goal { display: inline-block; margin-top: 0.4rem; padding: 0.25rem 0.8rem; border-radius: 12px; line-height: 1.5; background: var(--accent-dim); color: var(--accent); font-size: 0.85rem; font-weight: 700; }
+  .goal { display: inline-block; margin-top: 0.4rem; padding: 0.25rem 0.8rem; border-radius: 12px; line-height: 1.5; background: var(--accent-dim); color: var(--accent-deep); font-size: 0.85rem; font-weight: 700; }
 </style>

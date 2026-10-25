@@ -757,7 +757,7 @@
   .page { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
 
   .student-header {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
     border-radius: var(--r-lg); padding: 26px 30px;
     display: flex; align-items: center; gap: 18px; margin-bottom: 1.8rem;
     box-shadow: 0 6px 30px var(--accent-glow);
@@ -770,13 +770,12 @@
   }
   .sh-name {
     margin: 0; font-size: 1.6rem; font-weight: 900; color: #fff; line-height: 1.2; }
-  .sh-meta { font-size: 0.85rem; color: rgba(255,255,255,0.75); margin-top: 3px; }
+  .sh-meta { font-size: 0.85rem; color: #fff; margin-top: 3px; }
   .sh-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .sh-badge {
     font-size: 0.72rem; font-weight: 700; padding: 3px 11px; border-radius: 20px;
-    /* 0.18 white over the blue gradient lifts the ground enough to drop
-       white text to 3.76:1. A transparent pill keeps the badge shape
-       without eating the contrast. */
+    /* Keep the wash slight: opaque white text clears AA over it at both
+       endpoints of the darker blue gradient. */
     background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.45);
   }
 
@@ -793,13 +792,14 @@
   .sec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
   .sec-icon { font-size: 1.2rem; }
   .sec-title { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
-  /* --accent-deep keeps this small badge one step stronger while staying in
-     the moss family; both accent text variants clear AA on tinted fills. */
-  .sec-badge { margin-right: auto; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: var(--accent-dim); color: var(--accent-deep); border: 1px solid rgba(63,98,18,0.25); }
+  /* --accent on --accent-dim is 4.44:1 at this size — just under AA.
+     --accent-deep is the same hue one step darker, for small text on the
+     tinted fills. */
+  .sec-badge { margin-right: auto; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: var(--accent-dim); color: var(--accent-deep); border: 1px solid rgba(37,99,235,0.25); }
 
   .next-lesson-box {
     background: linear-gradient(135deg, var(--accent-dim), rgba(250,130,49,0.04));
-    border: 1.5px solid rgba(63,98,18,0.22); border-radius: var(--r-md);
+    border: 1.5px solid rgba(37,99,235,0.22); border-radius: var(--r-md);
     padding: 18px 22px; display: flex; align-items: center; gap: 18px;
   }
   .nl-icon { font-size: 2.2rem; flex-shrink: 0; }
@@ -812,11 +812,11 @@
   .table-wrap { overflow-x: auto; border-radius: var(--r-md); box-shadow: 0 2px 12px var(--shadow); }
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: var(--bg-card); border-radius: var(--r-md); overflow: hidden; }
   .data-table thead { background: var(--accent-dim); }
-  .data-table th { text-align: right; padding: 11px 15px; color: var(--accent); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; border-bottom: 1.5px solid rgba(63,98,18,0.18); }
+  .data-table th { text-align: right; padding: 11px 15px; color: var(--accent); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; border-bottom: 1.5px solid rgba(37,99,235,0.18); }
   .data-table td { padding: 11px 15px; border-bottom: 1px solid var(--border); color: var(--text-primary); vertical-align: top; }
   .data-table tr:last-child td { border-bottom: none; }
   .data-table tr:hover td { background: var(--accent-dim); }
-  .pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(63,98,18,0.2); }
+  .pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(37,99,235,0.2); }
   .lesson-topic { font-weight: 700; }
   .empty-row { text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.9rem; }
 
@@ -859,7 +859,7 @@
   .pay-sum-card { border-radius: var(--r-md); padding: 15px 18px; text-align: center; }
   .pay-sum-card.paid    { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); }
   .pay-sum-card.pending { background: #FEF3C7; border: 1px solid #D97706; }
-  .pay-sum-card.total   { background: var(--accent-dim); border: 1px solid rgba(63,98,18,0.22); }
+  .pay-sum-card.total   { background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.22); }
   .psc-amount { font-size: 1.5rem; font-weight: 900; }
   .pay-sum-card.paid    .psc-amount { color: var(--accent3-strong); }
   .pay-sum-card.pending .psc-amount { color: #D97706; }
@@ -944,7 +944,7 @@
   .dayone-title { font-weight: 800; font-size: 1.02rem; color: var(--text-primary); }
   .dayone-sub { font-size: 0.89rem; color: var(--text-muted-strong); line-height: 1.65; margin-top: 0.25rem; }
 
-  .nl-contact { display: inline-block; margin-top: 6px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent); text-decoration: none; }
+  .nl-contact { display: inline-block; margin-top: 6px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent-deep); text-decoration: none; }
   .board-link { display: inline-block; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent); text-decoration: none; }
   .lesson-slides { font-size: .82rem; color: var(--accent); font-weight: 600; }
   .share-intro { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 0.8rem; }
@@ -1054,5 +1054,5 @@
     border-radius: 12px; padding: 0.8rem 1.8rem; min-height: 48px;
     font-weight: 800; font-size: 0.98rem; text-decoration: none;
   }
-  .fam-book:hover { background: var(--accent-soft); }
+  .fam-book:hover { background: var(--accent-deep); }
 </style>

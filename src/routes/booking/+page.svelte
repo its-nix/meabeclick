@@ -1149,7 +1149,7 @@
   .dur-card:hover {
     border-color: var(--accent);
     /* Was rgba(46,123,116,…) — a teal left over from a palette this
-       project no longer uses, sitting against the moss accent token. */
+       project no longer uses, sitting against the blue accent token. */
     box-shadow: 0 4px 16px var(--shadow-accent);
     transform: translateY(-2px);
   }
@@ -1163,7 +1163,7 @@
     box-shadow: 0 4px 24px var(--accent2-glow);
   }
   /* Selection is a word ("נבחר") plus a solid ring. --accent-dim is an 8%
-     wash and disappears on the peach card; #3f6212 clears 3:1 on white and
+     wash and disappears on the peach card; #2563eb clears 3:1 on white and
      on that wash. */
   .dur-card.selected {
     border-color: var(--accent);
@@ -1227,7 +1227,7 @@
     gap: 0.4rem;
     background: var(--accent-dim);
     border: 1.5px solid var(--accent);
-    color: var(--accent);
+    color: var(--accent-deep);
     border-radius: 999px;
     padding: 0.35rem 0.9rem;
     font-size: 0.88rem;
@@ -1492,7 +1492,7 @@
     cursor: pointer;
     font-family: inherit;
   }
-  .btn-primary:hover { background: var(--accent-soft); }
+  .btn-primary:hover { background: var(--accent-deep); }
   .btn-primary:disabled { opacity: 0.55; cursor: default; }
   .btn-back {
     flex: 0 0 auto;
@@ -1565,7 +1565,7 @@
     text-align: center;
     text-decoration: none;
   }
-  .handoff-primary:hover { background: var(--accent-soft); }
+  .handoff-primary:hover { background: var(--accent-deep); }
   .handoff-actions { display: flex; gap: 0.55rem; margin-top: 0.6rem; }
   .handoff-secondary {
     flex: 1;

@@ -191,5 +191,5 @@
     border: 1.5px solid var(--border-strong); background: var(--bg-surface);
     color: var(--text-muted); font-family: inherit; font-size: .78rem; font-weight: 700; cursor: pointer;
   }
-  .menu-item.active { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-dim); }
+  .menu-item.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 </style>

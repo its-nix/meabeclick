@@ -115,29 +115,51 @@ test('the deep primary clears AA as small text on primary washes', () => {
 
 test('every small primary-on-wash role is bound to an AA-safe text token and composite ground', () => {
   const roles = [
-    ['landing hero badge', 'src/routes/+page.svelte', String.raw`\.hero-badge`, 'hero radial wash'],
-    ['game goal badge', 'src/lib/games/GameShell.svelte', String.raw`\.goal`, 'page background'],
-    ['dashboard outline button', 'src/routes/app/dashboard/+page.svelte', String.raw`\.btn-outline`, 'page background'],
-    ['marketing active chip', 'src/routes/app/marketing/+page.svelte', String.raw`\.chip\.active`, 'page background'],
-    ['plan filter active chip', 'src/routes/app/plan/[code]/+page.svelte', String.raw`\.chip\.active`, 'page background'],
-    ['plan structure active item', 'src/lib/components/plan/PlanTree.svelte', String.raw`\.menu-item\.active`, 'page background'],
-    ['booking selected-plan badge', 'src/routes/booking/+page.svelte', String.raw`\.selected-plan-badge`, 'page background'],
+    ['landing hero badge', 'src/routes/+page.svelte', String.raw`\.hero-badge`, String.raw`\.hero-badge`, 'hero radial wash'],
+    ['header sidebar hover', 'src/lib/components/Header.svelte', String.raw`\.sidebar-btn:hover`, String.raw`\.sidebar-btn:hover`, 'white (sidebar)'],
+    ['plan structure active item', 'src/lib/components/plan/PlanTree.svelte', String.raw`\.menu-item\.active`, String.raw`\.menu-item\.active`, 'white (sheet)'],
+    ['plan status active button', 'src/lib/components/plan/SkillSheet.svelte', String.raw`\.status-btn\.active`, String.raw`\.status-btn\.active`, 'white (sheet)'],
+    ['error-hunt step number', 'src/lib/games/ErrorHunt.svelte', String.raw`\.step-num`, String.raw`\.step-num`, 'white (step)'],
+    ['game goal badge', 'src/lib/games/GameShell.svelte', String.raw`\.goal`, String.raw`\.goal`, 'page background'],
+    ['sequence step number', 'src/lib/games/Sequence.svelte', String.raw`\.num`, String.raw`\.num`, 'white (step)'],
+    ['table-game header', 'src/lib/games/Table.svelte', String.raw`th`, String.raw`th`, 'white (table)'],
+    ['game error code', 'src/lib/styles/games.css', String.raw`\.msg code`, String.raw`\.msg code`, 'page background'],
+    ['dashboard outline button', 'src/routes/app/dashboard/+page.svelte', String.raw`\.btn-outline`, String.raw`\.btn-outline`, 'page background'],
+    ['dashboard lesson link', 'src/routes/app/dashboard/+page.svelte', String.raw`\.lsn-links a`, String.raw`\.lsn-links a`, 'white (lesson card)'],
+    ['dashboard payments header', 'src/routes/app/dashboard/+page.svelte', String.raw`\.payments-table th`, String.raw`\.payments-table th`, 'white (student card)'],
+    ['dashboard next-lesson label', 'src/routes/app/dashboard/+page.svelte', String.raw`\.nl-label`, String.raw`\.next-lesson-box`, 'white (student card)'],
+    ['games URL', 'src/routes/app/games/+page.svelte', String.raw`\.url`, String.raw`\.url`, 'white (game card)'],
+    ['library working chip', 'src/routes/app/library/+page.svelte', String.raw`\.chip\.working`, String.raw`\.chip\.working`, 'white (topic card)'],
+    ['marketing active chip', 'src/routes/app/marketing/+page.svelte', String.raw`\.chip\.active`, String.raw`\.chip\.active`, 'page background'],
+    ['parent next-lesson contact', 'src/routes/app/parent/+page.svelte', String.raw`\.nl-contact`, String.raw`\.next-lesson-box`, 'page background'],
+    ['parent table header', 'src/routes/app/parent/+page.svelte', String.raw`\.data-table th`, String.raw`\.data-table thead`, 'white (table)'],
+    ['parent lesson pill', 'src/routes/app/parent/+page.svelte', String.raw`\.pill`, String.raw`\.pill`, 'white (table)'],
+    ['parent seen tag', 'src/routes/app/parent/+page.svelte', String.raw`\.seen-tag`, String.raw`\.seen-tag`, 'white (progress card)'],
+    ['plan filter active chip', 'src/routes/app/plan/[code]/+page.svelte', String.raw`\.chip\.active`, String.raw`\.chip\.active`, 'page background'],
+    ['booking selected-plan badge', 'src/routes/booking/+page.svelte', String.raw`\.selected-plan-badge`, String.raw`\.selected-plan-badge`, 'page background'],
+    ['booking active who card', 'src/routes/booking/+page.svelte', String.raw`\.who-card\.active`, String.raw`\.who-card\.active`, 'white (booking sheet)'],
+    ['booking fixed subject', 'src/routes/booking/+page.svelte', String.raw`\.fixed-subject`, String.raw`\.fixed-subject`, 'white (booking sheet)'],
   ];
 
-  for (const [role, path, selector, groundName] of roles) {
-    const block = source(path).match(new RegExp(`${selector}\\s*\\{([^}]*)\\}`, 's'))?.[1];
-    assert.ok(block, `${role} selector is not covered by the primary-on-wash role map`);
-    assert.match(block, /background:\s*var\(--accent-dim\)/,
+  for (const [role, path, foregroundSelector, washSelector, groundName] of roles) {
+    const roleSource = source(path);
+    const foregroundBlock = roleSource.match(new RegExp(`${foregroundSelector}\\s*\\{([^}]*)\\}`, 's'))?.[1];
+    assert.ok(foregroundBlock, `${role} foreground selector is not covered by the primary-on-wash role map`);
+    const washBlock = roleSource.match(new RegExp(`${washSelector}\\s*\\{([^}]*)\\}`, 's'))?.[1];
+    assert.ok(washBlock, `${role} wash selector is not covered by the primary-on-wash role map`);
+    assert.match(washBlock, /background:\s*(?:linear-gradient\([^;]*?)?var\(--accent-dim\)/,
       `${role} no longer declares the mapped primary wash`);
 
-    const foregroundToken = block.match(/(?:^|;)\s*color:\s*var\(--([^)]+)\)/)?.[1];
+    const foregroundToken = foregroundBlock.match(/(?:^|;)\s*color:\s*var\(--([^)]+)\)/)?.[1];
     assert.ok(foregroundToken, `${role} does not use a token for its text colour`);
     const foreground = token(foregroundToken);
     assert.ok(foreground, `${role} uses missing token --${foregroundToken}`);
 
     const baseGround = groundName === 'hero radial wash'
       ? over(token('accent'), 0.12, token('bg-base'))
-      : token('bg-base');
+      : groundName.startsWith('white')
+        ? token('bg-card')
+        : token('bg-base');
     const compositeGround = over(token('accent'), 0.08, baseGround);
     const ratio = contrast(foreground, compositeGround);
     assert.ok(ratio >= AA_TEXT,

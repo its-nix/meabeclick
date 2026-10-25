@@ -944,7 +944,7 @@
   .dayone-title { font-weight: 800; font-size: 1.02rem; color: var(--text-primary); }
   .dayone-sub { font-size: 0.89rem; color: var(--text-muted-strong); line-height: 1.65; margin-top: 0.25rem; }
 
-  .nl-contact { display: inline-block; margin-top: 6px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent); text-decoration: none; }
+  .nl-contact { display: inline-block; margin-top: 6px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent-deep); text-decoration: none; }
   .board-link { display: inline-block; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent); text-decoration: none; }
   .lesson-slides { font-size: .82rem; color: var(--accent); font-weight: 600; }
   .share-intro { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 0.8rem; }

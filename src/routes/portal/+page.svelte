@@ -103,18 +103,16 @@
     <!-- Each door says who it is for AND how it works, so a child holding a
          code and a parent holding nothing both pick the right one without
          reading further. Two lines per tab keeps both abreast at 320px. -->
-    <div class="tabs" role="tablist" aria-label="דרכי כניסה">
+    <div class="tabs" aria-label="דרכי כניסה">
       <button
-        role="tab" class="tab" class:active={mode === 'link'}
-        aria-selected={mode === 'link'} aria-controls="pane-link"
+        type="button" class="tab" class:active={mode === 'link'} aria-pressed={mode === 'link'}
         onclick={() => (mode = 'link')}
       >
         <span class="tab-who"><Icon name="family" size={18} /> הורים ותלמידים בוגרים</span>
         <span class="tab-how">כניסה דרך המייל</span>
       </button>
       <button
-        role="tab" class="tab" class:active={mode === 'code'}
-        aria-selected={mode === 'code'} aria-controls="pane-code"
+        type="button" class="tab" class:active={mode === 'code'} aria-pressed={mode === 'code'}
         onclick={() => (mode = 'code')}
       >
         <span class="tab-who"><Icon name="student" size={18} /> תלמידים</span>
@@ -123,13 +121,13 @@
     </div>
 
     {#if mode === 'link'}
-      <div class="pane" id="pane-link" role="tabpanel">
+      <div class="pane" id="pane-link">
         {#if linkState === 'sent'}
           <div class="done" role="status">
             <div class="done-icon"><Icon name="email" size={40} /></div>
-            <p class="done-title">שלחנו קישור</p>
+            <p class="done-title">הקישור בדרך</p>
             <p class="done-sub">
-              אם הכתובת רשומה אצלנו, הקישור בדרך אליה. בדקו גם בספאם.
+              אם הכתובת רשומה אצלנו, נשלח אליה קישור אישי. הוא תקף ל־15 דקות ולכניסה אחת. בדקו גם בספאם.
             </p>
             <button class="ghost" onclick={() => { linkState = 'idle'; }}>שליחה לכתובת אחרת</button>
           </div>
@@ -141,11 +139,11 @@
             aria-invalid={!!linkError} aria-describedby={linkError ? 'err-email' : undefined}
             onkeydown={(e) => e.key === 'Enter' && requestLink()}
           />
-          <div class="live" role="alert" aria-live="assertive">
+          <div class="live" role="alert">
             {#if linkError}<p class="err" id="err-email">{linkError}</p>{/if}
           </div>
-          <button class="go" onclick={requestLink} disabled={linkState === 'sending'}>
-            {linkState === 'sending' ? '...שולח' : 'שליחת קישור למייל'}
+          <button type="button" class="go" onclick={requestLink} disabled={linkState === 'sending'}>
+            {linkState === 'sending' ? 'שולחים…' : 'שליחת קישור אישי'}
           </button>
           <p class="hint">
             נשלח קישור שפותח את הדף — בלי סיסמה ובלי לחכות לתשובה.
@@ -153,25 +151,25 @@
         {/if}
       </div>
     {:else}
-      <div class="pane" id="pane-code" role="tabpanel">
-        <label for="join-code">קוד הכניסה של התלמיד/ה</label>
+      <div class="pane" id="pane-code">
+        <label for="join-code">קוד הצירוף שקיבלתם מההורה</label>
         <input
           id="join-code" type="text" inputmode="text" autocomplete="one-time-code"
-          dir="ltr" placeholder="K7M-2QP" maxlength="8" bind:value={joinCode}
+          dir="ltr" placeholder="K7M2-9QPX" maxlength="12" bind:value={joinCode}
           aria-invalid={!!joinError} aria-describedby={joinError ? 'err-code' : undefined}
           onkeydown={(e) => e.key === 'Enter' && submitCode()}
         />
-        <div class="live" role="alert" aria-live="assertive">
+        <div class="live" role="alert">
           {#if joinError}<p class="err" id="err-code">{joinError}</p>{/if}
         </div>
-        <button class="go" onclick={submitCode} disabled={joinBusy}>
+        <button type="button" class="go" onclick={submitCode} disabled={joinBusy}>
           {joinBusy ? '...בודק' : 'כניסה'}
         </button>
         <!-- The parent's page titles that section "כניסה ל<שם>", so point at
              it by shape rather than by a name it does not have. -->
         <p class="hint">
           ההורה מכין את הקוד בדף שלו, בקטע «כניסה ל…» עם השם שלך.
-          הקוד תקף לשבוע ולכניסה אחת.
+          הקוד תקף ל־15 דקות ולכניסה אחת.
         </p>
       </div>
     {/if}

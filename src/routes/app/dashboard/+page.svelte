@@ -625,11 +625,11 @@
     if (!ok) el.value = String(previous ?? '');
   }
 
-  /* Replaces "regenerate their password". Minting a link revokes nothing,
-     so helping one parent on the phone cannot lock out the child already
-     using theirs. */
+  /* Admin-only assisted issuance. The explicit confirmation is important:
+     issuance revokes older unused credentials for these exact scopes. */
   let links = $state<Record<string, StudentLinks>>({});
   let linkBusy = $state('');
+  let linkConfirm = $state('');
 
   async function loadLinks(code: string) {
     linkBusy = code;
@@ -637,6 +637,7 @@
       const r = await api(`/api/students/${code}/link`, { method: 'POST' });
       if (!r.ok) { toast('לא הצלחתי להכין קישור', { kind: 'error' }); return; }
       links = { ...links, [code]: await r.json() };
+      linkConfirm = '';
     } catch {
       toast('אין חיבור לשרת', { kind: 'error' });
     } finally {
@@ -647,7 +648,7 @@
   function copyText(label: string, value: string) {
     navigator.clipboard.writeText(value)
       .then(() => toast(`${label} הועתק`, { kind: 'success' }))
-      .catch(() => toast(`${label}:\n${value}`, { sticky: true }));
+      .catch(() => toast('לא הצלחנו להעתיק. נסו שוב.', { kind: 'error' }));
   }
 
   /* ═══════════════════ explicit, reviewed import of the browser's local
@@ -1340,9 +1341,18 @@
                     <span class="rs-join">קוד: <b style="direction:ltr">{links[rs.code].joinCode}</b></span>
                   </div>
                 {:else}
-                  <button class="copy-btn" disabled={linkBusy === rs.code} onclick={() => loadLinks(rs.code)}>
-                    {linkBusy === rs.code ? '...מכין' : 'הכנת קישורים'}
-                  </button>
+                  {#if linkConfirm === rs.code}
+                    <div class="rs-links">
+                      <strong>הכנת כניסה חדשה למשפחה של {rs.account_name}, ול{rs.name} בלבד</strong>
+                      <span class="rs-sub">קישורים וקודים קודמים שעדיין לא שימשו יפסיקו לעבוד.</span>
+                      <button class="copy-btn" disabled={linkBusy === rs.code} onclick={() => loadLinks(rs.code)}>
+                        {linkBusy === rs.code ? 'מכינים…' : 'הכנת כניסה חדשה'}
+                      </button>
+                      <button class="copy-btn" onclick={() => { linkConfirm = ''; }}>ביטול</button>
+                    </div>
+                  {:else}
+                    <button class="copy-btn" onclick={() => { linkConfirm = rs.code; }}>הכנת קישורים</button>
+                  {/if}
                 {/if}
               </td>
             </tr>

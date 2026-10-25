@@ -229,16 +229,21 @@ export async function login(baseUrl, password = 'test-password') {
   return raw.split(';')[0];
 }
 
-/**
- * Follows a magic link and returns the raw `maab_family=` Cookie header
- * value, so a test can act as the family that link belongs to.
- *
- * `redirect: 'manual'` matters: /enter answers 303 and sets the cookie on
- * that response. Letting fetch follow it would land on the board and hand
- * back the final response's headers, which carry no Set-Cookie.
- */
+/** Exchanges a fragment-delivered one-time link exactly as the confirmation
+ * page does. Opening /enter itself is intentionally inert. */
+export async function redeemFamilyLink(enterUrl, cookie = null) {
+  const url = new URL(enterUrl);
+  const token = url.hash.slice(1);
+  const headers = { 'Content-Type': 'application/json' };
+  if (cookie) headers.Cookie = cookie;
+  return fetch(`${url.origin}/api/access/redeem`, {
+    method: 'POST', headers, body: JSON.stringify({ token }), redirect: 'manual',
+  });
+}
+
+/** Returns the raw family cookie established by a one-time link. */
 export async function familySession(enterUrl) {
-  const r = await fetch(enterUrl, { redirect: 'manual' });
+  const r = await redeemFamilyLink(enterUrl);
   const raw = r.headers.getSetCookie().find(c => c.startsWith('maab_family='));
   if (!raw) throw new Error(`no family cookie from ${enterUrl} (status ${r.status})`);
   return raw.split(';')[0];

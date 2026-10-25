@@ -22,8 +22,8 @@ test('the portal entry page names both doors and who each is for', async () => {
     assert.match(html, /המייל שאיתו הזמנתם/, 'the email field keeps its label');
 
     // Door two: students, by code.
-    assert.match(html, /<button[^>]*role="tab"[^>]*>[\s\S]*?תלמידים[\s\S]*?כניסה עם קוד[\s\S]*?<\/button>/,
-      'the code door must be a tab that says it is for students and works with a code');
+    assert.match(html, /<button[^>]*>[\s\S]*?תלמידים[\s\S]*?כניסה עם קוד[\s\S]*?<\/button>/,
+      'the code door must say it is for students and works with a code');
 
     // The old ambiguous labels are gone, not merely joined by new ones.
     assert.doesNotMatch(html, /יש לי קוד/, 'the old "I have a code" label no longer appears');

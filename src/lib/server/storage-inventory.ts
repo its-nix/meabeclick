@@ -67,6 +67,14 @@ export const STORAGE: Record<string, TableFact> = {
   homework:      { status: 'live', note: 'One store for both sides since #86; `done` derives from results_v2.' },
   results_v2:    { status: 'live', note: 'A game play, keyed on student_id.' },
   join_codes:    { status: 'live', note: 'A child\'s own way in, minted by the parent.' },
+  access_credentials: {
+    status: 'live',
+    note: 'Hashed, 15-minute, single-use account and student entry credentials; raw secrets are never stored.',
+  },
+  access_credential_audit: {
+    status: 'live',
+    note: 'Secret-free outcomes for access-credential redemption attempts, used for security auditing.',
+  },
   calendar_failures: {
     status: 'live',
     note: 'Calendar writes that failed, surfaced on the dashboard. Written by '

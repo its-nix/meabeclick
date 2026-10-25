@@ -54,7 +54,7 @@ register(
         export function normalizeEmail(v) { return typeof v === 'string' ? v.trim().toLowerCase() : ''; }
         export function findAccountByEmail(e) { return globalThis.__accounts.has(e) ? { id: 1, name: 'משפחה' } : null; }
       \`);
-      if (specifier.endsWith('/family-auth.ts')) return stub("export function accountLink() { return 'https://example.com/enter?t=x'; }");
+      if (specifier.endsWith('/access-credentials.ts')) return stub("export function issueAccountCredential() { return { link: 'https://example.com/enter#x' }; }");
       if (specifier.startsWith('$server/')) {
         const rest = specifier.slice('$server/'.length);
         return nextResolve(new URL(rest, ${JSON.stringify(SERVER_ROOT)}).href, context);

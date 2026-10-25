@@ -84,9 +84,9 @@ test('a student added by hand is reachable by a link, not a password', async () 
     });
     assert.equal(linkRes.status, 200);
     const links = await linkRes.json();
-    assert.ok(links.familyLink.includes('/enter?t='), 'the tutor must be able to hand over a family link');
-    assert.ok(links.studentLink.includes('/enter?t='));
-    assert.match(links.joinCode, /^[A-Z0-9]{3}-[A-Z0-9]{3}$/);
+    assert.ok(links.familyLink.includes('/enter#'), 'the admin must be able to hand over a family link');
+    assert.ok(links.studentLink.includes('/enter#'));
+    assert.match(links.joinCode, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
 
     // And that link actually opens the student's page.
     const cookie2 = await familySession(links.familyLink);

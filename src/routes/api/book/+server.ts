@@ -33,7 +33,7 @@ import { HEARD_DETAIL_MAX, HEARD_FROM_VALUES } from '$lib/marketing-labels.ts';
 import { addPayment, lessonDateInIsrael, voidChargeForBooking } from '$server/payments.ts';
 import { enrollFromBooking, EnrollError, type EnrollResult } from '$server/enroll.ts';
 import { sendBookingEmail, sendFamilyBookingEmail, sendConfirmBookingEmail, type EnrolledForEmail } from '$server/email.ts';
-import { accountLink } from '$server/family-auth.ts';
+import { issueAccountCredential } from '$server/access-credentials.ts';
 import { triggerForBooking, sendWhatsApp, type Booking } from '$server/lesson/queue.ts';
 import { addLessonRequest } from '$server/requests.ts';
 import { readJson } from '$server/http.ts';
@@ -218,7 +218,7 @@ interface BookResult {
    *
    * Returning families are unaffected in practice. Their session already
    * lasts six months, so a device they have used before is still signed in;
-   * a genuinely new device uses the link, which is now good for a year.
+   * a genuinely new device uses the short-lived, single-use link.
    */
   signInAccountId: number | null;
 }
@@ -280,7 +280,7 @@ async function book(
     created: enrolled.created,
     accountCreated: enrolled.accountCreated,
     student: { code: enrolled.student.code, name: enrolled.student.name },
-    portalLink: accountLink(enrolled.account.id),
+    portalLink: issueAccountCredential(enrolled.account.id, { type: 'system' }).link,
     teacherName: enrolled.teacherName,
   } : null;
 
@@ -291,7 +291,7 @@ async function book(
      Only the family this booking created, or the same family signed in.
 
      An existing family is found by the email typed into the form, and the
-     link used to come back to whoever typed it — valid for a year — so
+     link used to come back to whoever typed it — previously valid for a year — so
      anyone who knew a parent's email could book once and open their portal:
      children, lessons, balance (found in the pre-launch review, 2026-09-28).
      For everyone else the link goes only to the email on file, which the

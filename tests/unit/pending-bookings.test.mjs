@@ -55,7 +55,7 @@ test('a confirmation token is not a session, and a session token is not a confir
   const t = A.mintPendingToken(7, Date.parse('2030-01-02T00:00:00Z'));
   assert.equal(A.verifyPendingToken(t), 7);
   assert.equal(A.verifyFamilyToken(t), null, 'cannot sign anyone in');
-  assert.equal(A.verifyPendingToken(A.mintAccountLinkToken(account.id)), null);
+  assert.equal(A.verifyPendingToken('u.a.1.0.invalid'), null);
   assert.equal(A.verifyPendingToken(t.slice(0, -2) + 'xx'), null, 'tampered');
   assert.equal(A.verifyPendingToken(A.mintPendingToken(7, Date.now() - 1000)), null, 'expired');
 });

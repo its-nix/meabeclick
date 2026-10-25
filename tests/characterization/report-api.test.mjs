@@ -220,8 +220,8 @@ test('no report reaches the family', async () => {
   const { baseUrl, dbPath, stop } = await startServer();
   try {
     const { booked, bookingId, cookie } = await pastLesson(baseUrl, dbPath);
-    await post(`${baseUrl}/api/reports`, { bookingId, note: 'הערה פנימית', entries: [] }, cookie);
     const family = await familySession(booked.portal.link);
+    await post(`${baseUrl}/api/reports`, { bookingId, note: 'הערה פנימית', entries: [] }, cookie);
     const student = await studentSession(baseUrl, family, booked.portal.code);
 
     for (const { url, session } of [

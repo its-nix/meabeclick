@@ -6,7 +6,7 @@
 // phone (pre-launch review, 2026-09-28, Todoist 6hfCvVxgRmq8h2fq).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { startServer, familySession } from './harness.mjs';
+import { startServer, familySession, redeemFamilyLink } from './harness.mjs';
 
 async function family(baseUrl, email, name = 'נוגה', day = '01') {
   const booked = await (await fetch(`${baseUrl}/api/book`, {
@@ -32,9 +32,9 @@ test("a parent who opens their child's link keeps their own board", async () => 
   const { baseUrl, stop } = await startServer();
   try {
     const f = await family(baseUrl, 'shared@example.com');
-    const res = await fetch(f.childLink, { headers: { Cookie: f.parent }, redirect: 'manual' });
-    assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), `/app/student?s=${f.code}`);
+    const res = await redeemFamilyLink(f.childLink, f.parent);
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).destination, `/app/student?s=${f.code}`);
     assert.equal(familyCookie(res), undefined, 'the parent session is kept');
 
     const board = await fetch(`${baseUrl}/app/parent`, { headers: { Cookie: f.parent }, redirect: 'manual' });
@@ -46,7 +46,7 @@ test("the child's own phone still gets the child's session, and only that", asyn
   const { baseUrl, stop } = await startServer();
   try {
     const f = await family(baseUrl, 'kidphone@example.com');
-    const res = await fetch(f.childLink, { redirect: 'manual' });
+    const res = await redeemFamilyLink(f.childLink);
     const child = familyCookie(res)?.split(';')[0];
     assert.ok(child, 'a session is set');
     const parentBoard = await fetch(`${baseUrl}/app/parent`, { headers: { Cookie: child }, redirect: 'manual' });
@@ -59,8 +59,8 @@ test("another family's session on the device does not swallow the link", async (
   try {
     const f = await family(baseUrl, 'first@example.com');
     const other = await family(baseUrl, 'second@example.com', 'אלון', '02');
-    const res = await fetch(f.childLink, { headers: { Cookie: other.parent }, redirect: 'manual' });
+    const res = await redeemFamilyLink(f.childLink, other.parent);
     assert.ok(familyCookie(res), "the link's own session replaces a session that does not reach this child");
-    assert.equal(res.headers.get('location'), `/app/student?s=${f.code}`);
+    assert.equal((await res.json()).destination, `/app/student?s=${f.code}`);
   } finally { await stop(); }
 });

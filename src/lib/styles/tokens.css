@@ -16,7 +16,8 @@
   --bg-card: #ffffff;
   --bg-card-solid: #f8fafc;
 
-  /* Primary accent — soft blue (headings, links, brand marks) */
+  /* Primary accent — soft blue (headings, links, brand marks).
+     --accent-soft is decorative only: white text on it is 3.68:1. */
   --accent: #2563eb;
   --accent-soft: #3b82f6;
   /* One step darker, for SMALL text sitting on --accent-dim or another

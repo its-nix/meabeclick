@@ -757,7 +757,7 @@
   .page { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
 
   .student-header {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
     border-radius: var(--r-lg); padding: 26px 30px;
     display: flex; align-items: center; gap: 18px; margin-bottom: 1.8rem;
     box-shadow: 0 6px 30px var(--accent-glow);
@@ -770,13 +770,12 @@
   }
   .sh-name {
     margin: 0; font-size: 1.6rem; font-weight: 900; color: #fff; line-height: 1.2; }
-  .sh-meta { font-size: 0.85rem; color: rgba(255,255,255,0.75); margin-top: 3px; }
+  .sh-meta { font-size: 0.85rem; color: #fff; margin-top: 3px; }
   .sh-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .sh-badge {
     font-size: 0.72rem; font-weight: 700; padding: 3px 11px; border-radius: 20px;
-    /* 0.18 white over the blue gradient lifts the ground enough to drop
-       white text to 3.76:1. A transparent pill keeps the badge shape
-       without eating the contrast. */
+    /* Keep the wash slight: opaque white text clears AA over it at both
+       endpoints of the darker blue gradient. */
     background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.45);
   }
 
@@ -1055,5 +1054,5 @@
     border-radius: 12px; padding: 0.8rem 1.8rem; min-height: 48px;
     font-weight: 800; font-size: 0.98rem; text-decoration: none;
   }
-  .fam-book:hover { background: var(--accent-soft); }
+  .fam-book:hover { background: var(--accent-deep); }
 </style>

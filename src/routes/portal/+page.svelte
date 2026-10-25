@@ -311,7 +311,7 @@
     cursor: pointer;
     font-family: inherit;
   }
-  .go:hover { background: var(--accent-soft); }
+  .go:hover { background: var(--accent-deep); }
   .go:disabled { opacity: 0.6; cursor: default; }
 
   .hint {

@@ -1492,7 +1492,7 @@
     cursor: pointer;
     font-family: inherit;
   }
-  .btn-primary:hover { background: var(--accent-soft); }
+  .btn-primary:hover { background: var(--accent-deep); }
   .btn-primary:disabled { opacity: 0.55; cursor: default; }
   .btn-back {
     flex: 0 0 auto;
@@ -1565,7 +1565,7 @@
     text-align: center;
     text-decoration: none;
   }
-  .handoff-primary:hover { background: var(--accent-soft); }
+  .handoff-primary:hover { background: var(--accent-deep); }
   .handoff-actions { display: flex; gap: 0.55rem; margin-top: 0.6rem; }
   .handoff-secondary {
     flex: 1;

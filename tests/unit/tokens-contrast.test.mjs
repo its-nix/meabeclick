@@ -12,10 +12,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const css = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), '../../src/lib/styles/tokens.css'),
-  'utf8',
-);
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const css = readFileSync(join(ROOT, 'src/lib/styles/tokens.css'), 'utf8');
+
+function source(path) {
+  return readFileSync(join(ROOT, path), 'utf8');
+}
 
 /** The hex value a token is set to in :root, or undefined if absent. */
 function token(name) {
@@ -111,9 +113,52 @@ test('the deep primary clears AA as small text on primary washes', () => {
   }
 });
 
-test('white text clears AA on the primary accent fill', () => {
-  const ratio = contrast(token('bg-card'), token('accent'));
-  assert.ok(ratio >= AA_TEXT, `white on --accent is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+test('white text clears AA on every primary button, hover and gradient fill role', () => {
+  const booking = source('src/routes/booking/+page.svelte');
+  const portal = source('src/routes/portal/+page.svelte');
+  const parent = source('src/routes/app/parent/+page.svelte');
+  const roles = [
+    ['booking submit', booking, /\.btn-primary\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
+    ['booking submit hover', booking, /\.btn-primary:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
+    ['booking handoff', booking, /\.handoff-primary\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
+    ['booking handoff hover', booking, /\.handoff-primary:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
+    ['portal submit', portal, /\.go\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
+    ['portal submit hover', portal, /\.go:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
+    ['parent booking CTA', parent, /\.fam-book\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
+    ['parent booking CTA hover', parent, /\.fam-book:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
+    ['parent student-header gradient start', parent, /\.student-header\s*\{[^}]*linear-gradient\([^,]+,\s*var\(--([^)]+)\)\s+0%/s],
+    ['parent student-header gradient end', parent, /\.student-header\s*\{[^}]*linear-gradient\([^,]+,\s*var\(--[^)]+\)\s+0%,\s*var\(--([^)]+)\)\s+100%/s],
+  ];
+
+  for (const [role, roleSource, pattern] of roles) {
+    const fill = roleSource.match(pattern)?.[1];
+    assert.ok(fill, `${role} primary fill is not covered by the role map`);
+    const fillColour = token(fill);
+    assert.ok(fillColour, `${role} uses missing token --${fill}`);
+    const ratio = contrast(token('bg-card'), fillColour);
+    assert.ok(ratio >= AA_TEXT,
+      `${role}: white on --${fill} ${fillColour} is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+  }
+});
+
+test('small parent-header text stays opaque and clears AA across the gradient and badge wash', () => {
+  const parent = source('src/routes/app/parent/+page.svelte');
+  assert.ok(/\.sh-meta\s*\{[^}]*color:\s*#fff/s.test(parent),
+    'small student-header metadata must use opaque white');
+  assert.ok(/\.sh-badge\s*\{[^}]*color:\s*#fff/s.test(parent),
+    'small student-header badges must use opaque white');
+
+  for (const fill of ['accent', 'accent-deep']) {
+    const fillColour = token(fill);
+    const directRatio = contrast(token('bg-card'), fillColour);
+    assert.ok(directRatio >= AA_TEXT,
+      `small white text on gradient --${fill} is ${directRatio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+
+    const badgeGround = over(token('bg-card'), 0.08, fillColour);
+    const badgeRatio = contrast(token('bg-card'), badgeGround);
+    assert.ok(badgeRatio >= AA_TEXT,
+      `small white badge text over --${fill} wash is ${badgeRatio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+  }
 });
 
 test('strong muted text clears AA on the blue surface', () => {

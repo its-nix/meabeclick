@@ -41,7 +41,7 @@
 {#snippet mark()}
   <img
     class="brand-mark"
-    src="/images/logos/logo-slate.svg"
+    src="/images/logos/logo-slate.svg?v=blue-20261025"
     alt={label ?? ''}
     aria-hidden={label ? undefined : 'true'}
     {height}

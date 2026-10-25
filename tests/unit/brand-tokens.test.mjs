@@ -25,6 +25,10 @@ import { DECK_PALETTE, DECK_TOKEN_SOURCE, DECK_FONT, deckRootCss } from '../../s
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const tokensCss = readFileSync(join(ROOT, 'src/lib/styles/tokens.css'), 'utf8');
+const logoSvg = readFileSync(join(ROOT, 'static/images/logos/logo-slate.svg'), 'utf8');
+const faviconSvg = readFileSync(join(ROOT, 'static/images/favicon.svg'), 'utf8');
+const brandMark = readFileSync(join(ROOT, 'src/lib/components/BrandMark.svelte'), 'utf8');
+const appHtml = readFileSync(join(ROOT, 'src/app.html'), 'utf8');
 
 /** The value of a custom property as tokens.css declares it. */
 function token(name) {
@@ -70,4 +74,20 @@ test('the slide renderer builds its palette from this module, not a literal', ()
   const prep = readFileSync(join(ROOT, 'src/lib/server/lesson/prep.ts'), 'utf8');
   assert.doesNotMatch(prep, /:root\{--bg:#/i, 'the palette must not be written inline again');
   assert.match(prep, /deckRootCss\(\)/, 'it must come from $lib/brand.ts');
+});
+
+test('logo and favicon use the primary blue rather than the retired green', () => {
+  const primary = token('--accent');
+  assert.equal(primary, '#2563eb');
+  assert.match(logoSvg.toLowerCase(), new RegExp(primary, 'g'));
+  assert.match(faviconSvg.toLowerCase(), new RegExp(primary, 'g'));
+  assert.doesNotMatch(logoSvg.toLowerCase(), /#3f6212|#4d7c0f|#365314/);
+  assert.doesNotMatch(faviconSvg.toLowerCase(), /#3f6212|#4d7c0f|#365314/);
+});
+
+test('browser-facing logo URLs carry the same cache-busting theme version', () => {
+  const logoVersion = /logo-slate\.svg\?v=([a-z0-9-]+)/.exec(brandMark)?.[1];
+  const faviconVersion = /favicon\.svg\?v=([a-z0-9-]+)/.exec(appHtml)?.[1];
+  assert.ok(logoVersion, 'BrandMark must bust cached pre-restoration logo assets');
+  assert.equal(faviconVersion, logoVersion, 'logo and favicon cache versions must stay aligned');
 });

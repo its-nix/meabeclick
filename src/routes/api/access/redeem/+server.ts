@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { consumeLinkCredential } from '$server/access-credentials.ts';
-import { setFamilySession, readFamilySession } from '$server/family-auth.ts';
-import { resolveFamilyAccess, studentInScope } from '$server/family.ts';
+import { setFamilySession } from '$server/family-auth.ts';
+import { resolveFamilyAccess } from '$server/family.ts';
 import { readJson } from '$server/http.ts';
 import { allowAccessAttempt } from '$server/access-rate-limit.ts';
 import type { RequestHandler } from './$types';
@@ -19,14 +19,9 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
   const access = resolveFamilyAccess(identity);
   if (!access) return invalid();
 
-  if (identity.kind === 'student') {
-    const held = readFamilySession(cookies);
-    const heldAccess = held?.kind === 'account' ? resolveFamilyAccess(held) : null;
-    if (heldAccess && access.student && studentInScope(heldAccess, access.student.code)) {
-      return json({ ok: true, destination: `/app/student?s=${encodeURIComponent(access.student.code)}` }, { headers });
-    }
-  }
-
+  // The redeemed credential is the requested identity. Always replace any
+  // cookie already on the device: retaining an account session after a child
+  // redeems their link would leave parent, sibling, and payment scope active.
   setFamilySession(cookies, identity);
   if (access.canSeeParentView && !access.isSelf) {
     return json({ ok: true, destination: '/app/parent' }, { headers });

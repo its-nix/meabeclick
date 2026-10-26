@@ -5,6 +5,7 @@
   let token = $state('');
   let pending = $state(false);
   let error = $state('');
+  let errorKind = $state<'invalid' | 'network' | ''>('');
 
   onMount(() => {
     token = location.hash.slice(1);
@@ -14,10 +15,12 @@
   async function enter() {
     if (!token || pending) {
       error = 'הקישור כבר לא תקף. אפשר לבקש קישור אישי חדש — בלי לחכות למורה.';
+      errorKind = 'invalid';
       return;
     }
     pending = true;
     error = '';
+    errorKind = '';
     try {
       const response = await fetch('/api/access/redeem', {
         method: 'POST',
@@ -27,13 +30,15 @@
       token = '';
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        error = body.error || 'הקישור כבר לא תקף. אפשר לבקש קישור אישי חדש — בלי לחכות למורה.';
+        error = 'הקישור כבר לא תקף. אפשר לבקש קישור אישי חדש — בלי לחכות למורה.';
+        errorKind = 'invalid';
         pending = false;
         return;
       }
       location.replace(body.destination);
     } catch {
       error = 'לא הצלחנו להתחבר. בדקו את החיבור ונסו שוב.';
+      errorKind = 'network';
       pending = false;
     }
   }
@@ -46,11 +51,14 @@
 
 <div class="entry-page">
   <main class="card">
-    <a class="brand" href="/" aria-label="מאה בקליק — דף הבית"><BrandMark height={30} /></a>
+    <a class="brand" href="/" aria-label="מאה בקליק — דף הבית"><BrandMark height={30} href={null} label={null} /></a>
     <h1>כניסה לדף האישי</h1>
     <p>לחיצה על הכפתור תכניס אתכם במכשיר הזה. הקישור יעבוד פעם אחת.</p>
     {#if error}
       <p class="error" role="alert">{error}</p>
+      {#if errorKind === 'network'}
+        <button onclick={enter}>ניסיון נוסף</button>
+      {/if}
       <a class="secondary" href="/portal">לקבלת קישור חדש</a>
     {:else}
       <button onclick={enter} disabled={pending}>

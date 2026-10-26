@@ -145,6 +145,7 @@
           <button type="button" class="go" onclick={requestLink} disabled={linkState === 'sending'}>
             {linkState === 'sending' ? 'שולחים…' : 'שליחת קישור אישי'}
           </button>
+          {#if linkState === 'sending'}<p class="sending" role="status">שולחים…</p>{/if}
           <p class="hint">
             נשלח קישור שפותח את הדף — בלי סיסמה ובלי לחכות לתשובה.
           </p>
@@ -194,6 +195,7 @@
   .card {
     max-width: 400px;
     width: 100%;
+    min-width: 0;
     background: var(--bg-card);
     border: 1.5px solid var(--border);
     border-radius: var(--r-lg);
@@ -205,6 +207,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 44px;
     gap: 0.5rem;
     font-weight: 800;
     font-size: 1.05rem;
@@ -238,6 +241,7 @@
     border-radius: 12px;
     padding: 0.3rem;
     margin-bottom: 1.2rem;
+    min-width: 0;
   }
   .tab {
     border: none;
@@ -245,6 +249,7 @@
     border-radius: 9px;
     padding: 0.6rem 0.4rem;
     min-height: 44px;
+    min-width: 0;
     font-family: inherit;
     font-size: 0.87rem;
     font-weight: 700;
@@ -254,7 +259,7 @@
   .tab.active { background: var(--bg-card); color: var(--accent); box-shadow: 0 1px 4px var(--shadow); }
   /* Two lines: who the door is for, then how it opens. */
   .tab { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; line-height: 1.25; }
-  .tab-who { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .tab-who { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; min-width: 0; overflow-wrap: anywhere; }
   .tab-how { font-size: 0.76rem; font-weight: 500; color: var(--text-muted); }
   .tab.active .tab-how { color: var(--accent-deep); }
 
@@ -316,6 +321,7 @@
     font-size: 0.8rem; color: var(--text-muted);
     margin-top: 0.6rem; line-height: 1.55; text-align: center;
   }
+  .sending { margin-top: 0.45rem; text-align: center; color: var(--text-muted); }
 
   .done { text-align: center; padding: 0.5rem 0; }
   .done-icon { font-size: 2.2rem; }
@@ -346,7 +352,17 @@
     align-items: center;
     font-size: 0.85rem;
     color: var(--text-muted);
+    flex-wrap: wrap;
+    min-width: 0;
   }
-  .links a { font-weight: 700; text-decoration: none; color: var(--accent); padding: 0.4rem 0.2rem; }
+  .links a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-weight: 700; text-decoration: none; color: var(--accent); padding: 0.4rem 0.5rem; overflow-wrap: anywhere; }
   .links a:hover { text-decoration: underline; }
+
+  /* At the reflow boundary, 200% text makes the longest Hebrew tab label
+     wider than half the card. Stack the two ordinary buttons instead of
+     letting their min-content width push the whole page sideways. */
+  @media (max-width: 360px) {
+    .card { padding-inline: 0.75rem; }
+    .tabs { grid-template-columns: minmax(0, 1fr); }
+  }
 </style>

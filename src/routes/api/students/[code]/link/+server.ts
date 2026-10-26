@@ -18,6 +18,7 @@ import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
 import { getStudentByCode, accountForStudent } from '$server/entities.ts';
 import { issueAccountCredential, issueStudentCredentials } from '$server/access-credentials.ts';
+import { readJson } from '$server/http.ts';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async (event) => {
@@ -30,14 +31,29 @@ export const POST: RequestHandler = async (event) => {
   const account = accountForStudent(student.id);
   if (!account) return json({ error: 'student has no account' }, { status: 500 });
 
-  const family = issueAccountCredential(account.id, { type: 'admin' });
-  const child = issueStudentCredentials(student.id, { type: 'admin' });
+  const parsed = await readJson(event.request);
+  if (parsed instanceof Response) return parsed;
+  const scope = (parsed as Record<string, unknown>)?.scope;
+
+  if (scope === 'account') {
+    const credential = issueAccountCredential(account.id, { type: 'admin' });
+    return json({
+      scope,
+      accountName: account.name,
+      link: credential.link,
+    }, { headers: { 'Cache-Control': 'no-store' } });
+  }
+
+  if (scope !== 'student') {
+    return json({ error: 'invalid access scope' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+  }
+
+  const credential = issueStudentCredentials(student.id, { type: 'admin' });
 
   return json({
+    scope,
     name: student.name,
-    familyLink: family.link,
-    studentLink: child.link,
-    joinCode: child.joinCode,
-    email: account.email,
+    link: credential.link,
+    joinCode: credential.joinCode,
   }, { headers: { 'Cache-Control': 'no-store' } });
 };

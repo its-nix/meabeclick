@@ -28,17 +28,31 @@ async function family(baseUrl, email, name = 'נוגה', day = '01') {
 
 const familyCookie = (res) => res.headers.getSetCookie().find(c => c.startsWith('maab_family='));
 
-test("a parent who opens their child's link keeps their own board", async () => {
+test("a student link replaces a parent's session and removes parent, sibling, and payment scope", async () => {
   const { baseUrl, stop } = await startServer();
   try {
     const f = await family(baseUrl, 'shared@example.com');
+    const sibling = await (await fetch(`${baseUrl}/api/book`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: f.parent },
+      body: JSON.stringify({
+        name: 'אחות', subject: 'מתמטיקה', level: 'כיתה ז', phone: '0501234567',
+        email: 'shared@example.com', durationMin: 45,
+        start: '2027-12-03T10:00:00+02:00', end: '2027-12-03T10:45:00+02:00',
+      }),
+    })).json();
     const res = await redeemFamilyLink(f.childLink, f.parent);
     assert.equal(res.status, 200);
     assert.equal((await res.json()).destination, `/app/student?s=${f.code}`);
-    assert.equal(familyCookie(res), undefined, 'the parent session is kept');
+    const child = familyCookie(res)?.split(';')[0];
+    assert.ok(child, 'the account cookie is replaced by a student-scoped cookie');
 
-    const board = await fetch(`${baseUrl}/app/parent`, { headers: { Cookie: f.parent }, redirect: 'manual' });
-    assert.equal(board.status, 200);
+    const parentBoard = await fetch(`${baseUrl}/app/parent`, { headers: { Cookie: child }, redirect: 'manual' });
+    assert.equal(parentBoard.status, 303, 'parent route is inaccessible');
+    assert.equal((await fetch(`${baseUrl}/api/portal/${sibling.portal.code}`, { headers: { Cookie: child } })).status, 401,
+      'sibling route is inaccessible');
+    assert.equal((await fetch(`${baseUrl}/api/portal/${f.code}?kind=parent`, { headers: { Cookie: child } })).status, 401,
+      'parent payment data is inaccessible');
   } finally { await stop(); }
 });
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
 
   type Kind = 'subject' | 'topic' | 'subtopic' | 'goal';
   type Activity = { id: string; title: string; url: string | null; source: string; type: 'משחק' | 'תרגול'; dataId: string | null; completed: boolean; score: number | null; total: number | null; lastPlayedAt: string | null };
@@ -23,7 +22,7 @@
   let { student, lessons = [], topics = [], onstatus, library = {} }: { student: Student; lessons?: Lesson[]; topics?: CurriculumTopic[]; onstatus?: (nodeId: number, status: string) => void | Promise<void>; library?: Record<number, string> } = $props();
   let expanded = $state<string[]>([]);
   let selected = $state<Node | null>(null);
-  let manualAssignments = $state<Record<string, Activity[]>>({});
+
   let editingStatus = $state<string | null>(null);
   const statusOptions = [
     ['not_checked', 'לא נבדק'], ['started', 'התחלה'], ['guided', 'בתרגול מודרך'],
@@ -152,7 +151,7 @@
   }
 
   const tree = $derived(buildTree());
-  const allActivities = $derived(Array.from(new Map(collectActivities(tree).map(a => [a.id, a])).values()));
+  const selectedLesson = $derived(selected ? lessonFor(selected) : null);
   const visibleNodes = $derived.by(() => {
     const output: FlatNode[] = [];
     function visit(node: Node, depth: number) {
@@ -163,12 +162,6 @@
     return output;
   });
 
-  onMount(() => {
-    try {
-      const raw = localStorage.getItem(`learning-plan-assignments:${student.id}`);
-      if (raw) manualAssignments = JSON.parse(raw);
-    } catch { /* local assignments are an enhancement, not a blocker */ }
-  });
 
   function toggle(node: Node) {
     const index = expanded.indexOf(node.id);
@@ -187,15 +180,14 @@
   function closeActivities() { selected = null; }
 
   function assignedFor(node: Node): Activity[] {
-    return [...collectActivities(node), ...(manualAssignments[node.id] ?? [])]
+    return collectActivities(node)
       .filter((a, i, arr) => arr.findIndex(x => x.id === a.id) === i);
   }
 
-  function assignActivity(node: Node, activity: Activity) {
-    const current = manualAssignments[node.id] ?? [];
-    if (current.some(a => a.id === activity.id)) return;
-    manualAssignments = { ...manualAssignments, [node.id]: [...current, activity] };
-    localStorage.setItem(`learning-plan-assignments:${student.id}`, JSON.stringify(manualAssignments));
+  function lessonFor(node: Node): Lesson | null {
+    return lessons.find(lesson => lesson.topic === node.title || lesson.title === node.title)
+      ?? lessons.find(lesson => assignedFor(node).some(activity => activity.id.startsWith(`${lesson.slug}:`)))
+      ?? null;
   }
 
   function activityCount(node: Node): number { return assignedFor(node).length; }
@@ -285,16 +277,11 @@
         {:else}
           <div class="drawer-empty"><span>◌</span><strong>עדיין אין פעילות בענף הזה</strong><p>אפשר לבחור פעילות קיימת או לפתוח את מאגר המשחקים כדי לבחור תבנית.</p></div>
         {/if}
-        {#if allActivities.length}
-          <label class="assign-label" for={`assign-${selected.id}`}>הוספת פעילות קיימת לענף</label>
-          <select id={`assign-${selected.id}`} onchange={(e) => { const id = e.currentTarget.value; const a = allActivities.find(x => x.id === id); if (a) assignActivity(selected!, a); e.currentTarget.value = ''; }}>
-            <option value="">בחרו משחק או תרגול…</option>
-            {#each allActivities.filter(a => !assignedFor(selected!).some(x => x.id === a.id)) as activity (activity.id)}
-              <option value={activity.id}>{activity.title} · {activity.source}</option>
-            {/each}
-          </select>
+        {#if selectedLesson}
+          <a class="catalog-link" href="/app/games?lesson={encodeURIComponent(selectedLesson.slug)}&student={encodeURIComponent(student.id)}{selected.sourceId ? `&node=${selected.sourceId}` : ''}">הוספת משחק לשיעור</a>
+        {:else}
+          <a class="catalog-link" href="/app/games">פתיחת מאגר המשחקים</a>
         {/if}
-        <a class="catalog-link" href="/app/games">פתיחת מאגר המשחקים ↗</a>
       </aside>
     {/if}
   </div>
@@ -313,7 +300,7 @@
   .tree-canvas { display:grid; grid-template-columns:minmax(0,1fr); position:relative; min-height:170px; }.tree-canvas.has-drawer{grid-template-columns:minmax(0,1fr) minmax(250px,34%)}
   .tree-branches { padding:1rem 1.35rem 1.35rem; min-width:0; }.tree-row { display:flex; align-items:center; gap:.55rem; position:relative; margin-top:.55rem; padding-right:calc(var(--depth) * 1.25rem); }.tree-row:first-child{margin-top:0}.connector{position:absolute; right:calc(var(--depth) * 1.25rem - .55rem); top:-.55rem; bottom:-.55rem; width:1px;background:var(--tree-line)}.connector:after{content:'';position:absolute;right:0;top:50%;width:.55rem;height:1px;background:var(--tree-line)}
   .tree-node { flex:1; min-width:0; display:flex; align-items:center; gap:.7rem; text-align:right; border:1px solid transparent; border-radius:14px; padding:.75rem .85rem; cursor:pointer; transition:border-color .18s,transform .18s,box-shadow .18s; }.tree-node:hover,.tree-node:focus-visible{transform:translateY(-1px);box-shadow:0 5px 16px #1e3a8a12;outline:none}.tree-node.subject{background:var(--tree-blue);color:#fff}.tree-node.topic{background:var(--tree-blue-soft);color:var(--tree-ink)}.tree-node.subtopic{background:var(--tree-purple);color:var(--tree-ink)}.tree-node.goal{background:var(--tree-teal);color:var(--tree-ink)}.tree-node.selected{border-color:#2563eb;box-shadow:0 0 0 3px #2563eb22}.node-icon{font-size:1.1rem;width:1.4rem;text-align:center;flex:none}.node-copy{display:flex;flex-direction:column;gap:.18rem;min-width:0;flex:1}.node-copy strong{font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.node-copy small{font-size:.7rem;opacity:.78;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.status{font-size:.62rem;font-weight:800;border-radius:99px;padding:.25rem .45rem;white-space:nowrap;background:#ffffffaa;color:var(--tree-ink)}.tree-node.subject .status{background:#ffffff20;color:#fff}.status-progress{color:#1d4ed8}.status-needs-help{color:#c2410c}.status-done{color:#047857}.node-chevron{font-size:1.1rem;line-height:1;width:1rem;flex:none}.activity-trigger{display:flex;align-items:center;gap:.18rem;min-width:74px;justify-content:center;border:1px solid #d7e1eb;background:#fff;color:#2563eb;border-radius:12px;padding:.4rem .45rem;cursor:pointer;min-height:44px}.activity-trigger:hover,.activity-trigger:focus-visible{border-color:#2563eb;outline:3px solid #2563eb22}.activity-trigger span{font-size:1rem}.activity-trigger b{font-size:.76rem}.activity-trigger small{font-size:.62rem;color:var(--tree-muted)}
-  .activity-drawer{border-right:1px solid #dce7f2;background:#fff;padding:1.1rem;position:relative;min-width:0;animation:drawer-in .2s ease-out}.drawer-close{position:absolute;left:.8rem;top:.65rem;border:0;background:transparent;color:var(--tree-muted);font-size:1.5rem;line-height:1;cursor:pointer;min-width:44px;min-height:44px}.activity-drawer h4{font-size:1.1rem;margin:.3rem 2rem .2rem 0}.drawer-path{color:var(--tree-muted);font-size:.72rem;margin:0 0 1rem}.activity-list{display:flex;flex-direction:column;gap:.5rem}.activity-card{display:flex;align-items:center;gap:.55rem;padding:.65rem;border:1px solid #e2e8f0;border-radius:12px;text-decoration:none;color:var(--tree-ink);background:#f8fafc;min-height:52px}.activity-card:hover{border-color:#2563eb;background:#eff6ff}.activity-card span:nth-child(2){display:flex;flex-direction:column;gap:.16rem;min-width:0;flex:1}.activity-card strong{font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.activity-card small{font-size:.65rem;color:var(--tree-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.activity-icon{font-size:1.15rem}.open-arrow{color:#2563eb;font-size:1rem}.unavailable{opacity:.7}.drawer-empty{padding:1.4rem .6rem;text-align:center;color:var(--tree-muted)}.drawer-empty span{font-size:2rem;color:#94a3b8}.drawer-empty strong{display:block;color:var(--tree-ink);font-size:.84rem;margin-top:.4rem}.drawer-empty p{font-size:.72rem;line-height:1.5}.assign-label{display:block;font-size:.7rem;font-weight:800;margin:1rem 0 .35rem}.activity-drawer select{width:100%;border:1px solid #cbd5e1;border-radius:9px;background:white;padding:.6rem;font:inherit;font-size:.75rem;color:var(--tree-ink)}.catalog-link{display:block;margin-top:1rem;color:#2563eb;font-size:.75rem;font-weight:800;text-decoration:none}.catalog-link:hover{text-decoration:underline}
+  .activity-drawer{border-right:1px solid #dce7f2;background:#fff;padding:1.1rem;position:relative;min-width:0;animation:drawer-in .2s ease-out}.drawer-close{position:absolute;left:.8rem;top:.65rem;border:0;background:transparent;color:var(--tree-muted);font-size:1.5rem;line-height:1;cursor:pointer;min-width:44px;min-height:44px}.activity-drawer h4{font-size:1.1rem;margin:.3rem 2rem .2rem 0}.drawer-path{color:var(--tree-muted);font-size:.72rem;margin:0 0 1rem}.activity-list{display:flex;flex-direction:column;gap:.5rem}.activity-card{display:flex;align-items:center;gap:.55rem;padding:.65rem;border:1px solid #e2e8f0;border-radius:12px;text-decoration:none;color:var(--tree-ink);background:#f8fafc;min-height:52px}.activity-card:hover{border-color:#2563eb;background:#eff6ff}.activity-card span:nth-child(2){display:flex;flex-direction:column;gap:.16rem;min-width:0;flex:1}.activity-card strong{font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.activity-card small{font-size:.65rem;color:var(--tree-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.activity-icon{font-size:1.15rem}.open-arrow{color:#2563eb;font-size:1rem}.unavailable{opacity:.7}.drawer-empty{padding:1.4rem .6rem;text-align:center;color:var(--tree-muted)}.drawer-empty span{font-size:2rem;color:#94a3b8}.drawer-empty strong{display:block;color:var(--tree-ink);font-size:.84rem;margin-top:.4rem}.drawer-empty p{font-size:.72rem;line-height:1.5}.catalog-link{display:block;margin-top:1rem;color:#2563eb;font-size:.75rem;font-weight:800;text-decoration:none}.catalog-link:hover{text-decoration:underline}
   .library-card{display:flex;align-items:center;gap:.55rem;padding:.4rem .65rem;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;margin-bottom:.75rem;color:var(--tree-ink)}.library-card>span:nth-child(2){display:flex;flex-direction:column;gap:.16rem;min-width:0;flex:1}.library-card strong{font-size:.78rem}.library-card small{font-size:.65rem;color:var(--tree-muted)}.library-links{display:flex;flex:none}.library-links a{display:inline-flex;align-items:center;min-height:44px;padding:0 .45rem;color:#2563eb;font-size:.75rem;font-weight:800;text-decoration:none}.library-links a:hover{text-decoration:underline}
   @keyframes drawer-in{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
   @media (prefers-reduced-motion:reduce){.activity-drawer{animation:none}.tree-node{transition:none}}

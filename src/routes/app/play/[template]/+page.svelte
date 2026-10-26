@@ -19,6 +19,7 @@
   import ErrorHunt from '$lib/games/ErrorHunt.svelte';
   import GraphMatch from '$lib/games/GraphMatch.svelte';
   import TwoTruths from '$lib/games/TwoTruths.svelte';
+  import type { GameData } from '$lib/games/engine.ts';
 
   let { data }: { data: PageData } = $props();
 
@@ -38,6 +39,7 @@
   } as const;
 
   const Board = $derived(components[data.template as keyof typeof components]);
+  const gameData = $derived(data.gameData as GameData);
 </script>
 
 {#if Board}
@@ -63,8 +65,10 @@
     dataId={data.dataId}
     student={data.student}
     t={data.t ?? ''}
+    preview={data.preview}
+    backUrl={data.backUrl}
   >
-    <Board data={data.gameData} />
+    <Board data={gameData} />
   </GameShell>
   {/key}
 {:else}

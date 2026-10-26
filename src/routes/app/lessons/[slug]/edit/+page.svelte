@@ -10,9 +10,10 @@
    * the safe mistake is not showing a child something, never showing them
    * something unfinished.
    */
-  import { tick, untrack } from 'svelte';
-  import { invalidateAll } from '$app/navigation';
+  import { onMount, tick, untrack } from 'svelte';
+  import { beforeNavigate, invalidateAll } from '$app/navigation';
   import { formatDateTime } from '$lib/dates.ts';
+  import GameContentEditor from '$lib/components/GameContentEditor.svelte';
 
   let { data } = $props();
 
@@ -46,6 +47,125 @@
   let previewShown = $state(false);
   let previewForm: HTMLFormElement | undefined = $state();
   let previewEdit = $state('');
+
+  const initialGames = untrack(() => data.lessonGames);
+  const initialGame = untrack(() => initialGames.find((item) => item.id === data.focusedGameId) ?? null);
+  let lessonGames = $state(initialGames);
+  let game = $state(initialGame);
+  let gameTitle = $state(initialGame?.title ?? '');
+  let gameBody = $state<Record<string, unknown>>(initialGame ? structuredClone(initialGame.body) : {});
+  let gameNodeId = $state<number | null>(initialGame?.nodeId ?? null);
+  let gameBusy = $state(false);
+  let gameMessage = $state('');
+  let gameFailed = $state(false);
+  let gameIssues = $state<Array<{ path: string; message: string }>>([]);
+  let gameConflict = $state(false);
+  let gameHeading: HTMLHeadingElement | undefined = $state();
+  let gameStatus: HTMLParagraphElement | undefined = $state();
+  let previewButton: HTMLButtonElement | undefined = $state();
+  let archiveButton: HTMLButtonElement | undefined = $state();
+  let archiveCancelButton: HTMLButtonElement | undefined = $state();
+  let archiveDialog: HTMLDialogElement | undefined = $state();
+  let gameSaved = $state(initialGame ? JSON.stringify({ title: initialGame.title, body: initialGame.body, nodeId: initialGame.nodeId ?? null }) : '');
+  const gameDirty = $derived(!!game && JSON.stringify({ title: gameTitle, body: gameBody, nodeId: gameNodeId }) !== gameSaved);
+  const titleIssue = $derived(gameIssues.find(issue => issue.path === 'title'));
+  const issueHref = (path: string) => path === 'title' ? '#game-title' : `#game-${path.replaceAll('.', '-')}`;
+
+  function editGame(item: (typeof data.lessonGames)[number]) {
+    game = item;
+    gameTitle = item.title;
+    gameBody = structuredClone(item.body);
+    gameNodeId = item.nodeId ?? null;
+    gameMessage = '';
+    gameIssues = [];
+    gameConflict = false;
+    gameSaved = JSON.stringify({ title: item.title, body: item.body, nodeId: item.nodeId ?? null });
+    history.replaceState(history.state, '', `/app/lessons/${encodeURIComponent(data.slug)}/edit?game=${encodeURIComponent(item.id)}`);
+    tick().then(() => gameHeading?.focus());
+  }
+
+  async function gameRequest(action: 'save' | 'publish' | 'archive' | 'copy') {
+    if (!game || gameBusy) return null;
+    gameBusy = true; gameFailed = false; gameMessage = ''; gameIssues = [];
+    try {
+      const response = await fetch(`/api/lessons/${encodeURIComponent(data.slug)}/games`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, assignmentId: game.id, expectedRevision: game.revision, title: gameTitle, body: gameBody, nodeId: gameNodeId }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        gameFailed = true;
+        gameConflict = response.status === 409;
+        gameIssues = Array.isArray(result.issues) ? result.issues : [];
+        gameMessage = result.error ?? 'השינויים לא נשמרו.';
+        if (gameIssues.length) await tick();
+        document.querySelector<HTMLElement>('#game-error-summary')?.focus();
+        return null;
+      }
+      if (action === 'archive') {
+        lessonGames = lessonGames.filter((item) => item.id !== game!.id);
+        game = null;
+        gameMessage = 'המשחק הוסר מהדף. תוצאות קודמות נשמרו.';
+        return null;
+      }
+      const updated = result.assignment;
+      gameTitle = updated.title;
+      gameBody = structuredClone(updated.body);
+      gameNodeId = updated.nodeId ?? null;
+      game = updated;
+      lessonGames = lessonGames.map((item) => item.id === updated.id ? updated : item);
+      if (!lessonGames.some((item) => item.id === updated.id)) lessonGames = [...lessonGames, updated];
+      gameSaved = JSON.stringify({ title: gameTitle, body: gameBody, nodeId: gameNodeId });
+      gameConflict = false;
+      history.replaceState(history.state, '', `/app/lessons/${encodeURIComponent(data.slug)}/edit?game=${encodeURIComponent(updated.id)}`);
+      gameMessage = action === 'publish'
+        ? `המשחק פורסם ומופיע עכשיו בדף של ${data.lessonStudent?.name ?? 'התלמיד/ה'}.`
+        : action === 'copy' ? 'נשמר עותק חדש של הטיוטה.' : 'הטיוטה נשמרה. היא עדיין לא מופיעה לתלמיד/ה.';
+      if (action === 'publish') {
+        await tick();
+        gameStatus?.focus();
+      }
+      return game;
+    } catch {
+      gameFailed = true;
+      gameMessage = 'אין חיבור — השינויים לא נשמרו.';
+      return null;
+    } finally {
+      gameBusy = false;
+    }
+  }
+
+  async function previewGame() {
+    const savedGame = await gameRequest('save');
+    if (savedGame) location.href = `/app/play/${encodeURIComponent(savedGame.template)}?preview=${encodeURIComponent(savedGame.id)}`;
+  }
+
+  async function reloadGame() {
+    if (!game || gameBusy) return;
+    gameBusy = true;
+    try {
+      const response = await fetch(`/api/lessons/${encodeURIComponent(data.slug)}/games?assignmentId=${encodeURIComponent(game.id)}`);
+      const result = await response.json();
+      if (!response.ok) throw new Error();
+      editGame(result.assignment);
+      gameMessage = 'נטענה הגרסה החדשה.';
+    } catch {
+      gameFailed = true;
+      gameMessage = 'לא הצלחנו לטעון את הגרסה החדשה.';
+    } finally {
+      gameBusy = false;
+    }
+  }
+
+  function openArchiveDialog() {
+    archiveDialog?.showModal();
+    archiveCancelButton?.focus();
+  }
+
+  async function confirmArchive() {
+    archiveDialog?.close();
+    await gameRequest('archive');
+  }
 
   /** Fills the form from a stored version — the newest on first load, any
    *  one from history on request (spec D7: loading is not publishing). */
@@ -81,8 +201,19 @@
   }
 
   function onbeforeunload(e: BeforeUnloadEvent) {
-    if (dirty) e.preventDefault();
+    if (dirty || gameDirty) e.preventDefault();
   }
+
+  beforeNavigate((navigation) => {
+    if (!navigation.willUnload && (dirty || gameDirty)
+      && !confirm('יש שינויים שלא נשמרו. לצאת בלי לשמור?')) navigation.cancel();
+  });
+
+  onMount(async () => {
+    await tick();
+    if (new URLSearchParams(location.search).get('focus') === 'preview') previewButton?.focus();
+    else if (initialGame) gameHeading?.focus();
+  });
 
   /* Seeded ONCE, deliberately untracked: after a save, invalidateAll()
      refreshes `data` for the history list, and re-seeding would throw away
@@ -172,6 +303,82 @@
   <a class="back" href="/app/dashboard">→ חזרה ללוח הבקרה</a>
   <h1>עריכת שיעור</h1>
   <p class="meta">{data.lesson.student} · {data.lesson.subject ?? ''} {data.lesson.level ?? ''}</p>
+
+  <section class="game-section" aria-labelledby="practice-games-heading">
+    <div class="game-heading">
+      <div>
+        <h2 id="practice-games-heading">משחקי תרגול</h2>
+        <p class="meta">כל משחק הוא עותק לשיעור הזה בלבד. שינויים כאן לא ישנו משחקים אחרים.</p>
+      </div>
+      {#if data.lessonStudent}
+        <a class="add-game" href="/app/games?lesson={encodeURIComponent(data.slug)}&student={encodeURIComponent(data.lessonStudent.code)}">הוספת משחק</a>
+      {/if}
+    </div>
+
+    {#if !data.lessonStudent}
+      <p class="empty">אי אפשר לשייך את השיעור לתלמיד/ה יחיד/ה בבטחה, ולכן לא ניתן להוסיף משחק ידני.</p>
+    {:else if !lessonGames.length}
+      <p class="empty">עדיין אין משחקים ידניים לשיעור הזה. משחקים שנוצרו אוטומטית נשארים זמינים כרגיל.</p>
+    {:else}
+      <div class="game-list" aria-label="משחקים בשיעור">
+        {#each lessonGames as item (item.id)}
+          <button type="button" class:current={game?.id === item.id} onclick={() => editGame(item)}>
+            <strong>{item.title}</strong>
+            <span>{item.status === 'published' ? 'פורסם' : item.status === 'archived' ? 'הוסר מהדף' : 'טיוטה'}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+    {#if game}
+      <div class="game-editor">
+        <h3 bind:this={gameHeading} tabindex="-1">עריכת {gameTitle}</h3>
+        {#if gameIssues.length}
+          <div id="game-error-summary" class="error-summary" role="alert" tabindex="-1">
+            <strong>יש לתקן את השדות הבאים:</strong>
+            <ul>{#each gameIssues as issue}<li><a href={issueHref(issue.path)}>{issue.message}</a></li>{/each}</ul>
+          </div>
+        {/if}
+        <label class="field">כותרת לתלמיד/ה · שדה חובה
+          <input id="game-title" dir="auto" bind:value={gameTitle} aria-invalid={!!titleIssue} aria-describedby={titleIssue ? 'game-title-error' : undefined} />
+          {#if titleIssue}<span id="game-title-error" class="field-error">{titleIssue.message}</span>{/if}
+        </label>
+        {#if data.lessonSkills.length}
+          <label class="field">מיומנות מתורגלת
+            <select bind:value={gameNodeId}>
+              <option value={null}>ללא שיוך למיומנות</option>
+              {#each data.lessonSkills as skill (skill.id)}
+                <option value={skill.id}>{skill.title}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+        <GameContentEditor body={gameBody} template={game.template} issues={gameIssues} onchange={(next) => (gameBody = next)} />
+        <div class="actions">
+          <button type="button" onclick={() => gameRequest('save')} disabled={gameBusy}>{gameBusy ? 'שומרים…' : 'שמירת טיוטה'}</button>
+          <button bind:this={previewButton} type="button" onclick={previewGame} disabled={gameBusy}>תצוגה מקדימה</button>
+          <button type="button" class="primary" onclick={() => gameRequest('publish')} disabled={gameBusy}>פרסום לתלמיד/ה</button>
+          <button bind:this={archiveButton} type="button" class="danger" onclick={openArchiveDialog} disabled={gameBusy}>הסרה מהדף</button>
+        </div>
+      </div>
+    {/if}
+    {#if gameMessage}<p bind:this={gameStatus} class="msg" class:bad={gameFailed} role={gameFailed ? 'alert' : 'status'} tabindex="-1">{gameMessage}</p>{/if}
+    {#if gameConflict}
+      <div class="conflict-actions" aria-label="אפשרויות לשחזור מהתנגשות">
+        <button type="button" onclick={reloadGame} disabled={gameBusy}>טעינת הגרסה החדשה</button>
+        <button type="button" onclick={() => gameRequest('copy')} disabled={gameBusy}>שמירת עותק חדש</button>
+      </div>
+    {/if}
+  </section>
+
+  <dialog bind:this={archiveDialog} aria-labelledby="archive-game-title" onclose={() => archiveButton?.focus()}>
+    <h2 id="archive-game-title">הסרת משחק מהדף</h2>
+    <p>להסיר את המשחק מהדף של {data.lessonStudent?.name ?? 'התלמיד/ה'}? תוצאות שכבר נשמרו יישארו בהיסטוריה.</p>
+    <div class="actions">
+      <button bind:this={archiveCancelButton} type="button" onclick={() => archiveDialog?.close()}>ביטול</button>
+      <button type="button" class="danger" onclick={confirmArchive}>הסרה מהדף</button>
+    </div>
+  </dialog>
 
   {#if data.seedVersion === null}
     <p class="empty">לשיעור הזה אין גרסה שאפשר לערוך — הוא נוצר לפני שמירת הגרסאות.</p>
@@ -412,6 +619,16 @@
   h2 { margin: 28px 0 10px; font-size: 1.1rem; color: var(--text-primary); }
   .meta, .state, .empty { color: var(--text-muted); margin: 0 0 12px; }
   .state { color: var(--accent); font-weight: 600; }
+  .game-section { margin: 24px 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
+  .game-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; flex-wrap: wrap; }
+  .game-heading h2 { margin-top: 0; }
+  .add-game { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: var(--r-sm); background: var(--accent); color: white; font-weight: 800; text-decoration: none; }
+  .game-list { display: grid; gap: 8px; margin-block: 12px; }
+  .game-list button { display: flex; justify-content: space-between; align-items: center; text-align: start; }
+  .game-list button.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+  .game-list span { color: var(--text-muted); font-size: .8rem; }
+  .game-editor { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .game-editor h3 { margin-top: 0; }
   .field { display: grid; gap: 6px; margin: 0 0 12px; font-size: .9rem; font-weight: 600; color: var(--text-primary); }
   .field input, .field textarea {
     font: inherit; font-weight: 400; width: 100%; min-width: 0; box-sizing: border-box;
@@ -441,6 +658,12 @@
   button.add { margin-bottom: 8px; }
   .msg { font-weight: 600; color: var(--accent); }
   .msg.bad { color: var(--danger); }
+  .field-error, .error-summary { color: var(--danger); }
+  .error-summary { border-inline-start: 4px solid var(--danger); padding: 10px 14px; margin-bottom: 14px; background: var(--bg-subtle); }
+  .error-summary a { color: inherit; }
+  .conflict-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  dialog { max-width: min(92vw, 480px); border: 1px solid var(--border); border-radius: var(--r-md); padding: 20px; color: var(--text-primary); background: var(--bg-card); }
+  dialog::backdrop { background: rgb(15 23 42 / .55); }
   /* Tall enough for a whole slide on a phone: the deck's slides are 60vh. */
   .preview { width: 100%; height: min(75vh, 680px); border: 1px solid var(--border); border-radius: var(--r-md); background: #fff; }
   .history { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }

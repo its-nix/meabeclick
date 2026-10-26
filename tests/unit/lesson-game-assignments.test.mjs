@@ -63,6 +63,68 @@ test('all twelve ready catalog templates create isolated structured drafts', () 
   assert.equal(drafts.every(draft => draft.status === 'draft' && Object.keys(draft.body).length > 0), true);
 });
 
+test('server validation rejects semantic errors for every supported template', () => {
+  const invalid = {
+    memory: body => { body.pairs[1] = structuredClone(body.pairs[0]); },
+    matching: body => { body.pairs[1] = structuredClone(body.pairs[0]); },
+    sequence: body => { body.steps = [body.steps[0], body.steps[0], body.steps[0]]; },
+    sort: body => { body.items[0].category = 'קטגוריה שלא קיימת'; },
+    labelling: body => { body.targets[0].id = 'missing-svg-target'; },
+    table: body => { body.rows[0].cells = []; },
+    quiz: body => { body.questions[0].answer = 999; },
+    'error-hunt': body => { body.rounds[0].badStep = body.rounds[0].steps.length; },
+    'two-truths': body => { body.rounds[0].lieIndex = 3; },
+    'speed-drill': body => { body.items[0].a = 'לא אחת מהאפשרויות'; },
+    'graph-match': body => { body.rounds[0].answer = body.rounds[0].options.length; },
+    'number-line': body => { body.rounds[0].target = body.max + 1; },
+  };
+
+  for (const [template, mutate] of Object.entries(invalid)) {
+    const draft = G.createLessonGame({ lessonSlug: 'lesson-a', studentId: studentA.id, template });
+    const body = structuredClone(draft.body);
+    mutate(body);
+    assert.throws(
+      () => G.saveAndPublishLessonGame({ assignmentId: draft.id, expectedRevision: draft.revision, title: draft.title, body }),
+      err => err?.name === 'GameValidationError' && Array.isArray(err.issues) && err.issues.length > 0,
+      `${template} must reject malformed semantics`,
+    );
+    assert.equal(G.getLessonGame(draft.id).status, 'draft', `${template} remains unpublished`);
+  }
+});
+
+test('quiz answer 999 is rejected for four options before a snapshot is published', () => {
+  const draft = G.createLessonGame({ lessonSlug: 'lesson-a', studentId: studentA.id, template: 'quiz' });
+  const body = structuredClone(draft.body);
+  body.questions[0].options = ['א', 'ב', 'ג', 'ד'];
+  body.questions[0].answer = 999;
+  assert.throws(
+    () => G.saveAndPublishLessonGame({ assignmentId: draft.id, expectedRevision: draft.revision, title: draft.title, body }),
+    err => err?.issues?.some(issue => issue.path === 'questions.0.answer' && /אפשרויות/.test(issue.message)),
+  );
+  assert.equal(G.getLessonGame(draft.id).publishedDataId, null);
+});
+
+test('server validation rejects ambiguous or non-playable template content', () => {
+  const cases = [
+    ['quiz', body => { body.questions[0].options[1] = body.questions[0].options[0]; }, 'questions.0.options'],
+    ['two-truths', body => { body.rounds[0].statements[1] = body.rounds[0].statements[0]; }, 'rounds.0.statements'],
+    ['speed-drill', body => { body.items[0].options[1] = body.items[0].options[0]; }, 'items.0.options'],
+    ['table', body => { body.rows.forEach(row => { row.cells = row.cells.map(cell => typeof cell === 'object' ? 'טקסט קבוע' : cell); }); }, 'rows'],
+    ['number-line', body => { body.rounds[0].tolerance = body.max - body.min; }, 'rounds.0.tolerance'],
+  ];
+
+  for (const [template, mutate, expectedPath] of cases) {
+    const draft = G.createLessonGame({ lessonSlug: 'lesson-a', studentId: studentA.id, template });
+    const body = structuredClone(draft.body);
+    mutate(body);
+    assert.throws(
+      () => G.saveAndPublishLessonGame({ assignmentId: draft.id, expectedRevision: draft.revision, title: draft.title, body }),
+      err => err?.issues?.some(issue => issue.path === expectedPath),
+      `${template} must reject content that cannot provide an unambiguous playable task`,
+    );
+  }
+});
+
 test('publishing snapshots immutable lesson-specific content and revisions do not cross lessons', () => {
   const a = G.createLessonGame({ lessonSlug: 'lesson-a', studentId: studentA.id, template: 'matching' });
   const b = G.createLessonGame({ lessonSlug: 'lesson-b', studentId: studentB.id, template: 'matching' });

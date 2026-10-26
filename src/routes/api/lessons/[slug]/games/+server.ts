@@ -4,10 +4,12 @@ import { readJson } from '$server/http.ts';
 import {
   archiveLessonGame,
   createLessonGame,
+  GameValidationError,
   getLessonGame,
   publishLessonGame,
   saveAndPublishLessonGame,
   saveLessonGameDraft,
+  validateLessonGame,
 } from '$server/lesson-games.ts';
 import type { RequestHandler } from './$types';
 
@@ -17,8 +19,26 @@ function failure(err: unknown): Response {
     : message.includes('not found') ? 404
     : message.includes('not available') ? 403
     : 400;
-  return json({ error: message }, { status });
+  if (err instanceof GameValidationError) {
+    return json({ error: 'פרטי המשחק אינם תקינים.', issues: err.issues }, { status: 400 });
+  }
+  const error = status === 409 ? 'המשחק השתנה מאז שפתחתם אותו.'
+    : status === 404 ? 'המשחק לא נמצא.'
+    : status === 403 ? 'אין הרשאה לבצע את הפעולה הזו.'
+    : 'לא הצלחנו לשמור את המשחק.';
+  return json({ error }, { status });
 }
+
+export const GET: RequestHandler = async (event) => {
+  const denied = apiAuthDenied(event);
+  if (denied) return denied;
+  const assignmentId = event.url.searchParams.get('assignmentId') ?? '';
+  const assignment = getLessonGame(assignmentId);
+  if (!assignment || assignment.lessonSlug !== event.params.slug) {
+    return json({ error: 'המשחק לא נמצא.' }, { status: 404 });
+  }
+  return json({ assignment });
+};
 
 export const POST: RequestHandler = async (event) => {
   const denied = apiAuthDenied(event);
@@ -47,12 +67,31 @@ export const PATCH: RequestHandler = async (event) => {
   const body = parsed as Record<string, unknown>;
   const assignmentId = String(body.assignmentId ?? '');
   const current = getLessonGame(assignmentId);
-  if (!current || current.lessonSlug !== event.params.slug) return json({ error: 'assignment not found' }, { status: 404 });
+  if (!current || current.lessonSlug !== event.params.slug) return json({ error: 'המשחק לא נמצא.' }, { status: 404 });
 
   try {
     if (body.action === 'archive') {
       archiveLessonGame(assignmentId);
       return json({ ok: true });
+    }
+    if (body.action === 'copy') {
+      validateLessonGame(current.template, body.body);
+      if (!String(body.title ?? '').trim()) {
+        throw new GameValidationError([{ path: 'title', message: 'יש להזין כותרת לתלמיד/ה.' }]);
+      }
+      const copy = createLessonGame({
+        lessonSlug: current.lessonSlug,
+        studentId: current.studentId,
+        template: current.template,
+        nodeId: body.nodeId == null ? null : Number(body.nodeId),
+      });
+      return json({ assignment: saveLessonGameDraft({
+        assignmentId: copy.id,
+        expectedRevision: copy.revision,
+        title: String(body.title ?? ''),
+        body: body.body,
+        nodeId: Object.hasOwn(body, 'nodeId') ? (body.nodeId == null ? null : Number(body.nodeId)) : undefined,
+      }) });
     }
     if (body.action === 'publish') {
       return json({ assignment: body.body !== undefined
@@ -74,7 +113,7 @@ export const PATCH: RequestHandler = async (event) => {
         nodeId: Object.hasOwn(body, 'nodeId') ? (body.nodeId == null ? null : Number(body.nodeId)) : undefined,
       }) });
     }
-    return json({ error: 'unknown action' }, { status: 400 });
+    return json({ error: 'הפעולה שביקשתם אינה זמינה.' }, { status: 400 });
   } catch (err) {
     return failure(err);
   }

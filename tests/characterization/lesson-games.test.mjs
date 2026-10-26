@@ -68,6 +68,29 @@ test('lesson game APIs require tutor auth and published games reach only the ass
     const created = (await createdResponse.json()).assignment;
     assert.equal(created.status, 'draft');
 
+    const missingResponse = await fetch(`${baseUrl}/api/lessons/linked-game-lesson/games`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: tutorCookie },
+      body: JSON.stringify({ action: 'save', assignmentId: 'missing-assignment' }),
+    });
+    assert.equal(missingResponse.status, 404);
+    assert.deepEqual(await missingResponse.json(), { error: 'המשחק לא נמצא.' });
+
+    const malformedBody = structuredClone(created.body);
+    malformedBody.questions[0].options = ['א', 'ב', 'ג', 'ד'];
+    malformedBody.questions[0].answer = 999;
+    const malformedResponse = await fetch(`${baseUrl}/api/lessons/linked-game-lesson/games`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: tutorCookie },
+      body: JSON.stringify({
+        action: 'publish', assignmentId: created.id, expectedRevision: created.revision,
+        title: created.title, body: malformedBody,
+      }),
+    });
+    assert.equal(malformedResponse.status, 400);
+    const malformed = await malformedResponse.json();
+    assert.equal(malformed.error, 'פרטי המשחק אינם תקינים.');
+    assert.deepEqual(malformed.issues[0].path, 'questions.0.answer');
+    assert.doesNotMatch(JSON.stringify(malformed), /must|invalid game content|index into/i);
+
     const publishResponse = await fetch(`${baseUrl}/api/lessons/linked-game-lesson/games`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: tutorCookie },
       body: JSON.stringify({
@@ -80,6 +103,36 @@ test('lesson game APIs require tutor auth and published games reach only the ass
     const published = (await publishResponse.json()).assignment;
     assert.equal(published.status, 'published');
 
+    const savedResponse = await fetch(`${baseUrl}/api/lessons/linked-game-lesson/games`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: tutorCookie },
+      body: JSON.stringify({
+        action: 'save', assignmentId: published.id, expectedRevision: published.revision,
+        title: published.title, body: published.body,
+      }),
+    });
+    assert.equal(savedResponse.status, 200);
+    const saved = (await savedResponse.json()).assignment;
+    const staleResponse = await fetch(`${baseUrl}/api/lessons/linked-game-lesson/games`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: tutorCookie },
+      body: JSON.stringify({
+        action: 'save', assignmentId: published.id, expectedRevision: published.revision,
+        title: published.title, body: published.body,
+      }),
+    });
+    assert.equal(staleResponse.status, 409);
+    assert.deepEqual(await staleResponse.json(), { error: 'המשחק השתנה מאז שפתחתם אותו.' });
+    const copyResponse = await fetch(`${baseUrl}/api/lessons/linked-game-lesson/games`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: tutorCookie },
+      body: JSON.stringify({
+        action: 'copy', assignmentId: saved.id, expectedRevision: published.revision,
+        title: saved.title, body: saved.body,
+      }),
+    });
+    assert.equal(copyResponse.status, 200);
+    const copied = (await copyResponse.json()).assignment;
+    assert.notEqual(copied.id, saved.id);
+    assert.equal(copied.status, 'draft');
+
     const familyCookie = await familySession(portal.link);
     const boardResponse = await fetch(`${baseUrl}/api/portal/${portal.code}`, { headers: { Cookie: familyCookie } });
     assert.equal(boardResponse.status, 200);
@@ -91,6 +144,30 @@ test('lesson game APIs require tutor auth and published games reach only the ass
     assert.match(game.url, /^\/app\/play\/quiz\?/);
     assert.equal(board.games.find(item => item.title === 'משחק ישן').url, 'games/quiz.html?d=legacy-game');
     assert.match(board.games.find(item => item.title === 'משחק קיים').url, /^\/app\/play\/quiz\?/);
+
+    db = new DatabaseSync(join(dataDir, 'results.db'));
+    const secondStart = '2027-04-16T10:00:00.000Z';
+    db.prepare(`INSERT INTO bookings_v2 (student_id, start, end, at, status) VALUES (?, ?, ?, ?, 'confirmed')`)
+      .run(student.id, secondStart, '2027-04-16T10:45:00.000Z', secondStart);
+    db.prepare(`INSERT INTO lessons (slug, student, title, topic, at, lesson_at, status) VALUES (?, ?, ?, ?, ?, ?, 'ready')`)
+      .run('linked-game-lesson-two', 'legacy label', 'שברים', 'שברים', secondStart, secondStart);
+    db.close();
+    db = undefined;
+    const secondCreated = await fetch(`${baseUrl}/api/lessons/linked-game-lesson-two/games`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: tutorCookie },
+      body: JSON.stringify({ studentId: student.id, template: 'sequence' }),
+    }).then(response => response.json());
+    await fetch(`${baseUrl}/api/lessons/linked-game-lesson-two/games`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: tutorCookie },
+      body: JSON.stringify({ action: 'publish', assignmentId: secondCreated.assignment.id,
+        expectedRevision: secondCreated.assignment.revision }),
+    });
+    const duplicateTitles = await fetch(`${baseUrl}/api/portal/${portal.code}`, { headers: { Cookie: familyCookie } }).then(response => response.json());
+    assert.deepEqual(
+      duplicateTitles.games.filter(item => item.lessonTitle === 'שברים').map(item => item.lessonSlug).sort(),
+      ['linked-game-lesson', 'linked-game-lesson-two'],
+      'duplicate visible lesson titles retain separate stable lesson identities',
+    );
 
     const url = new URL(game.url, baseUrl);
     const result = await fetch(`${baseUrl}/api/game-result`, {

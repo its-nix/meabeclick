@@ -11,6 +11,9 @@
   let { data }: { data: PageData } = $props();
   let choosing = $state('');
   let chooseError = $state('');
+  const lessonDate = $derived(data.selection?.lessonAt
+    ? new Date(data.selection.lessonAt).toLocaleDateString('he-IL')
+    : 'תאריך לא ידוע');
 
   async function choose(template: string) {
     if (!data.selection || choosing) return;
@@ -41,7 +44,7 @@
   <header>
     {#if data.selection}
       <div class="eyebrow">הוספת משחק לשיעור</div>
-      <h1>{data.selection.studentName} · {data.selection.lessonTitle}</h1>
+      <h1>{data.selection.studentName} · {data.selection.lessonTitle} · <bdi dir="ltr">{lessonDate}</bdi></h1>
       <div class="subject">בחרו תבנית. אחר כך נתאים את התוכן לשיעור הזה.</div>
       <a class="back" href="/app/lessons/{data.selection.lessonSlug}/edit">חזרה לשיעור</a>
     {:else}
@@ -119,7 +122,7 @@
   .play {
     display: inline-flex; align-items: center; gap: 5px;
     background: var(--accent2); color: #1E293B; text-decoration: none;
-    border-radius: 999px; padding: 0.5rem 1.1rem; min-height: 40px;
+    border-radius: 999px; padding: 0.5rem 1.1rem; min-height: 44px;
     font-weight: 800; font-size: 0.88rem;
   }
   .play:hover { opacity: 0.9; }

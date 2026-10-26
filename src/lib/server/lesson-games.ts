@@ -99,6 +99,21 @@ export function lessonGameSkillsForStudent(studentId: number): StudentPlanSkill[
   `).all(studentId) as StudentPlanSkill[];
 }
 
+export type GameValidationIssue = { path: string; message: string };
+
+export class GameValidationError extends Error {
+  readonly issues: GameValidationIssue[];
+  constructor(issues: GameValidationIssue[]) {
+    super('invalid game content');
+    this.name = 'GameValidationError';
+    this.issues = issues;
+  }
+}
+
+function invalid(path: string, message: string): never {
+  throw new GameValidationError([{ path, message }]);
+}
+
 function validateShape(value: unknown, schema: unknown, path = 'game'): void {
   if (typeof schema === 'string') {
     const optional = schema.includes('optional');
@@ -108,23 +123,163 @@ function validateShape(value: unknown, schema: unknown, path = 'game'): void {
       const answer = (value as Record<string, unknown>).answer;
       if (typeof answer === 'string' && answer.trim()) return;
     }
-    if (expected === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) {
-      throw new Error(`${path} must be a number`);
-    }
-    if (expected === 'string' && (typeof value !== 'string' || (!optional && !value.trim()))) {
-      throw new Error(`${path} must be a non-empty string`);
-    }
+    if (expected === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) invalid(path, 'יש להזין מספר תקין.');
+    if (expected === 'string' && (typeof value !== 'string' || (!optional && !value.trim()))) invalid(path, 'זהו שדה חובה.');
     return;
   }
   if (Array.isArray(schema)) {
-    if (!Array.isArray(value) || value.length === 0) throw new Error(`${path} must contain items`);
+    if (!Array.isArray(value) || value.length === 0) invalid(path, 'יש להוסיף לפחות פריט אחד.');
     for (const [index, item] of value.entries()) validateShape(item, schema[0], `${path}.${index}`);
     return;
   }
   if (schema && typeof schema === 'object') {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${path} must be an object`);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) invalid(path, 'מבנה התוכן אינו תקין.');
     for (const [key, childSchema] of Object.entries(schema as Record<string, unknown>)) {
       validateShape((value as Record<string, unknown>)[key], childSchema, `${path}.${key}`);
+    }
+  }
+}
+
+const asObject = (value: unknown): Record<string, unknown> => value as Record<string, unknown>;
+const asList = (value: unknown): unknown[] => value as unknown[];
+const asStrings = (value: unknown): string[] => value as string[];
+
+function assertIndex(value: unknown, values: unknown[], path: string): void {
+  if (!Number.isInteger(value) || Number(value) < 0 || Number(value) >= values.length) {
+    invalid(path, `יש לבחור מספר בין 0 ל־${Math.max(0, values.length - 1)} לפי האפשרויות הקיימות.`);
+  }
+}
+
+function assertUnique(values: string[], path: string, message: string): void {
+  if (new Set(values.map(value => value.trim())).size !== values.length) invalid(path, message);
+}
+
+function validateSemantics(template: string, body: Record<string, unknown>): void {
+  const primaryKey: Record<string, string> = {
+    memory: 'pairs', matching: 'pairs', sequence: 'steps', sort: 'items', labelling: 'targets',
+    table: 'rows', quiz: 'questions', 'error-hunt': 'rounds', 'two-truths': 'rounds',
+    'speed-drill': 'items', 'graph-match': 'rounds', 'number-line': 'rounds',
+  };
+  const definition = getRegistry().templates[template];
+  const key = primaryKey[template];
+  if (key && definition?.itemRange) {
+    const count = asList(body[key]).length;
+    const [minimum, maximum] = definition.itemRange;
+    if (count < minimum || count > maximum) {
+      invalid(key, `יש להזין בין ${minimum} ל־${maximum} פריטים.`);
+    }
+  }
+  switch (template) {
+    case 'memory': {
+      const pairs = asList(body.pairs).map(asObject);
+      assertUnique(pairs.map(pair => `${pair.a}\u0000${pair.b}`), 'pairs', 'כל זוג צריך להיות שונה מזוג אחר.');
+      assertUnique(pairs.flatMap(pair => [String(pair.a), String(pair.b)]), 'pairs', 'כל כרטיס צריך להכיל טקסט ייחודי כדי למנוע התאמות עמומות.');
+      break;
+    }
+    case 'matching': {
+      const pairs = asList(body.pairs).map(asObject);
+      assertUnique(pairs.map(pair => `${pair.left}\u0000${pair.right}`), 'pairs', 'כל זוג צריך להיות שונה מזוג אחר.');
+      assertUnique(pairs.map(pair => String(pair.left)), 'pairs', 'כל צד ראשון צריך להיות ייחודי.');
+      assertUnique(pairs.map(pair => String(pair.right)), 'pairs', 'כל צד מתאים צריך להיות ייחודי.');
+      break;
+    }
+    case 'sequence':
+      assertUnique(asStrings(body.steps), 'steps', 'כל שלב ברצף צריך להיות ייחודי.');
+      break;
+    case 'sort': {
+      const categories = asStrings(body.categories);
+      if (categories.length < 2 || categories.length > 3) invalid('categories', 'יש להזין שתיים או שלוש קטגוריות.');
+      assertUnique(categories, 'categories', 'שמות הקטגוריות צריכים להיות ייחודיים.');
+      const allowed = new Set(categories);
+      const items = asList(body.items).map(asObject);
+      assertUnique(items.map(item => String(item.text)), 'items', 'כל פריט למיון צריך להיות ייחודי.');
+      items.forEach((item, index) => {
+        if (!allowed.has(String(item.category))) invalid(`items.${index}.category`, 'יש לבחור אחת מהקטגוריות שהוגדרו למעלה.');
+      });
+      break;
+    }
+    case 'labelling': {
+      const svg = String(body.svg);
+      if (/<script\b|\son\w+\s*=|javascript:/i.test(svg)) invalid('svg', 'התרשים מכיל קוד שאינו מותר.');
+      const ids = new Set([...svg.matchAll(/\bid\s*=\s*["']([^"']+)["']/g)].map(match => match[1]));
+      const targets = asList(body.targets).map(asObject);
+      assertUnique(targets.map(target => String(target.id)), 'targets', 'כל יעד בתרשים צריך מזהה ייחודי.');
+      assertUnique(targets.map(target => String(target.label)), 'targets', 'כל תווית בתרשים צריכה להיות ייחודית.');
+      targets.forEach((target, index) => {
+        if (!ids.has(String(target.id))) invalid(`targets.${index}.id`, 'המזהה חייב להתאים לרכיב קיים בתרשים SVG.');
+      });
+      break;
+    }
+    case 'table': {
+      const columns = asStrings(body.columns);
+      assertUnique(columns, 'columns', 'כותרות העמודות צריכות להיות ייחודיות.');
+      const rows = asList(body.rows).map(asObject);
+      assertUnique(rows.map(row => String(row.label)), 'rows', 'כותרות השורות צריכות להיות ייחודיות.');
+      let blanks = 0;
+      rows.forEach((row, index) => {
+        if (asList(row.cells).length !== columns.length) invalid(`rows.${index}.cells`, 'מספר התאים צריך להתאים למספר העמודות.');
+        blanks += asList(row.cells).filter(cell => !!cell && typeof cell === 'object' && !Array.isArray(cell)).length;
+      });
+      if (!blanks) invalid('rows', 'יש להגדיר לפחות תא אחד כתשובת תלמיד/ה.');
+      break;
+    }
+    case 'quiz':
+      asList(body.questions).map(asObject).forEach((question, index) => {
+        const options = asList(question.options);
+        if (options.length < 2) invalid(`questions.${index}.options`, 'יש להוסיף לפחות שתי אפשרויות.');
+        assertUnique(asStrings(options), `questions.${index}.options`, 'אפשרויות התשובה צריכות להיות ייחודיות.');
+        assertIndex(question.answer, options, `questions.${index}.answer`);
+      });
+      break;
+    case 'error-hunt':
+      asList(body.rounds).map(asObject).forEach((round, index) => {
+        const steps = asList(round.steps);
+        if (steps.length < 2) invalid(`rounds.${index}.steps`, 'יש להוסיף לפחות שני שלבים.');
+        assertUnique(asStrings(steps), `rounds.${index}.steps`, 'שלבי הפתרון צריכים להיות ייחודיים.');
+        assertIndex(round.badStep, steps, `rounds.${index}.badStep`);
+      });
+      break;
+    case 'two-truths':
+      asList(body.rounds).map(asObject).forEach((round, index) => {
+        const statements = asList(round.statements);
+        if (statements.length !== 3) invalid(`rounds.${index}.statements`, 'יש להזין בדיוק שלושה משפטים.');
+        assertUnique(asStrings(statements), `rounds.${index}.statements`, 'שלושת המשפטים צריכים להיות ייחודיים.');
+        assertIndex(round.lieIndex, statements, `rounds.${index}.lieIndex`);
+      });
+      break;
+    case 'speed-drill':
+      if (Number(body.seconds) <= 0) invalid('seconds', 'הזמן חייב להיות גדול מאפס.');
+      asList(body.items).map(asObject).forEach((item, index) => {
+        const options = asStrings(item.options);
+        if (options.length < 3 || options.length > 4) invalid(`items.${index}.options`, 'יש להזין שלוש או ארבע אפשרויות.');
+        assertUnique(options, `items.${index}.options`, 'אפשרויות התשובה צריכות להיות ייחודיות.');
+        if (!options.includes(String(item.a))) invalid(`items.${index}.a`, 'התשובה הנכונה חייבת להופיע באפשרויות.');
+      });
+      break;
+    case 'graph-match':
+      asList(body.rounds).map(asObject).forEach((round, index) => {
+        const main = asList(round.main);
+        const options = asList(round.options).map(asList);
+        if (main.length < 2) invalid(`rounds.${index}.main`, 'הגרף הראשי צריך לפחות שתי נקודות.');
+        if (options.length < 2) invalid(`rounds.${index}.options`, 'יש להוסיף לפחות שתי אפשרויות.');
+        assertUnique(options.map(points => JSON.stringify(points)), `rounds.${index}.options`, 'אפשרויות הגרף צריכות להיות שונות זו מזו.');
+        options.forEach((points, optionIndex) => {
+          if (points.length !== main.length) invalid(`rounds.${index}.options.${optionIndex}`, 'בכל גרף צריך להיות אותו מספר נקודות כמו בגרף הראשי.');
+        });
+        assertIndex(round.answer, options, `rounds.${index}.answer`);
+      });
+      break;
+    case 'number-line': {
+      const min = Number(body.min);
+      const max = Number(body.max);
+      if (!(min < max)) invalid('max', 'הערך המרבי חייב להיות גדול מהערך המינימלי.');
+      asList(body.rounds).map(asObject).forEach((round, index) => {
+        const target = Number(round.target);
+        const tolerance = Number(round.tolerance);
+        if (target < min || target > max) invalid(`rounds.${index}.target`, 'ערך המטרה חייב להיות בתוך תחומי ציר המספרים.');
+        if (!(tolerance > 0) || tolerance >= max - min) invalid(`rounds.${index}.tolerance`, 'טווח הטעות חייב להיות גדול מאפס וקטן מטווח הציר.');
+      });
+      break;
     }
   }
 }
@@ -133,6 +288,7 @@ export function validateLessonGame(template: string, body: unknown): asserts bod
   const definition = getRegistry().templates[template];
   if (!definition || definition.status !== 'ready') throw new Error('unknown or unavailable game template');
   validateShape(body, definition.dataSchema);
+  validateSemantics(template, body as Record<string, unknown>);
 }
 
 function assignmentById(assignmentId: string): (AssignmentRow & { lesson_slug: string }) | null {
@@ -207,7 +363,7 @@ export function saveLessonGameDraft(input: {
   assertSkillForStudent(row.student_id, input.nodeId);
   validateLessonGame(row.template, input.body);
   const title = input.title.trim();
-  if (!title) throw new Error('title is required');
+  if (!title) invalid('title', 'יש להזין כותרת לתלמיד/ה.');
   const nodeId = input.nodeId === undefined ? row.node_id : input.nodeId;
   const result = handle().prepare(`
     UPDATE lesson_game_assignments

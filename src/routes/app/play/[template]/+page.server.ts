@@ -67,7 +67,7 @@ export const load: PageServerLoad = async (event) => {
       subject: 'תצוגה מקדימה למורה · תלמיד/ה לדוגמה',
       best: null, skill: null, gameData: assignment.body,
       preview: true,
-      backUrl: `/app/lessons/${encodeURIComponent(assignment.lessonSlug)}/edit?game=${encodeURIComponent(assignment.id)}`,
+      backUrl: `/app/lessons/${encodeURIComponent(assignment.lessonSlug)}/edit?game=${encodeURIComponent(assignment.id)}&focus=preview`,
     };
   }
 

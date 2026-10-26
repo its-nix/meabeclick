@@ -103,18 +103,16 @@
     <!-- Each door says who it is for AND how it works, so a child holding a
          code and a parent holding nothing both pick the right one without
          reading further. Two lines per tab keeps both abreast at 320px. -->
-    <div class="tabs" role="tablist" aria-label="דרכי כניסה">
+    <div class="tabs" aria-label="דרכי כניסה">
       <button
-        role="tab" class="tab" class:active={mode === 'link'}
-        aria-selected={mode === 'link'} aria-controls="pane-link"
+        type="button" class="tab" class:active={mode === 'link'} aria-pressed={mode === 'link'}
         onclick={() => (mode = 'link')}
       >
         <span class="tab-who"><Icon name="family" size={18} /> הורים ותלמידים בוגרים</span>
         <span class="tab-how">כניסה דרך המייל</span>
       </button>
       <button
-        role="tab" class="tab" class:active={mode === 'code'}
-        aria-selected={mode === 'code'} aria-controls="pane-code"
+        type="button" class="tab" class:active={mode === 'code'} aria-pressed={mode === 'code'}
         onclick={() => (mode = 'code')}
       >
         <span class="tab-who"><Icon name="student" size={18} /> תלמידים</span>
@@ -123,13 +121,13 @@
     </div>
 
     {#if mode === 'link'}
-      <div class="pane" id="pane-link" role="tabpanel">
+      <div class="pane" id="pane-link">
         {#if linkState === 'sent'}
           <div class="done" role="status">
             <div class="done-icon"><Icon name="email" size={40} /></div>
-            <p class="done-title">שלחנו קישור</p>
+            <p class="done-title">הקישור בדרך</p>
             <p class="done-sub">
-              אם הכתובת רשומה אצלנו, הקישור בדרך אליה. בדקו גם בספאם.
+              אם הכתובת רשומה אצלנו, נשלח אליה קישור אישי. הוא תקף ל־15 דקות ולכניסה אחת. בדקו גם בספאם.
             </p>
             <button class="ghost" onclick={() => { linkState = 'idle'; }}>שליחה לכתובת אחרת</button>
           </div>
@@ -141,37 +139,38 @@
             aria-invalid={!!linkError} aria-describedby={linkError ? 'err-email' : undefined}
             onkeydown={(e) => e.key === 'Enter' && requestLink()}
           />
-          <div class="live" role="alert" aria-live="assertive">
+          <div class="live" role="alert">
             {#if linkError}<p class="err" id="err-email">{linkError}</p>{/if}
           </div>
-          <button class="go" onclick={requestLink} disabled={linkState === 'sending'}>
-            {linkState === 'sending' ? '...שולח' : 'שליחת קישור למייל'}
+          <button type="button" class="go" onclick={requestLink} disabled={linkState === 'sending'}>
+            {linkState === 'sending' ? 'שולחים…' : 'שליחת קישור אישי'}
           </button>
+          {#if linkState === 'sending'}<p class="sending" role="status">שולחים…</p>{/if}
           <p class="hint">
             נשלח קישור שפותח את הדף — בלי סיסמה ובלי לחכות לתשובה.
           </p>
         {/if}
       </div>
     {:else}
-      <div class="pane" id="pane-code" role="tabpanel">
-        <label for="join-code">קוד הכניסה של התלמיד/ה</label>
+      <div class="pane" id="pane-code">
+        <label for="join-code">קוד הצירוף שקיבלתם מההורה</label>
         <input
           id="join-code" type="text" inputmode="text" autocomplete="one-time-code"
-          dir="ltr" placeholder="K7M-2QP" maxlength="8" bind:value={joinCode}
+          dir="ltr" placeholder="K7M2-9QPX" maxlength="12" bind:value={joinCode}
           aria-invalid={!!joinError} aria-describedby={joinError ? 'err-code' : undefined}
           onkeydown={(e) => e.key === 'Enter' && submitCode()}
         />
-        <div class="live" role="alert" aria-live="assertive">
+        <div class="live" role="alert">
           {#if joinError}<p class="err" id="err-code">{joinError}</p>{/if}
         </div>
-        <button class="go" onclick={submitCode} disabled={joinBusy}>
+        <button type="button" class="go" onclick={submitCode} disabled={joinBusy}>
           {joinBusy ? '...בודק' : 'כניסה'}
         </button>
         <!-- The parent's page titles that section "כניסה ל<שם>", so point at
              it by shape rather than by a name it does not have. -->
         <p class="hint">
           ההורה מכין את הקוד בדף שלו, בקטע «כניסה ל…» עם השם שלך.
-          הקוד תקף לשבוע ולכניסה אחת.
+          הקוד תקף ל־15 דקות ולכניסה אחת.
         </p>
       </div>
     {/if}
@@ -196,6 +195,7 @@
   .card {
     max-width: 400px;
     width: 100%;
+    min-width: 0;
     background: var(--bg-card);
     border: 1.5px solid var(--border);
     border-radius: var(--r-lg);
@@ -207,6 +207,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 44px;
     gap: 0.5rem;
     font-weight: 800;
     font-size: 1.05rem;
@@ -240,6 +241,7 @@
     border-radius: 12px;
     padding: 0.3rem;
     margin-bottom: 1.2rem;
+    min-width: 0;
   }
   .tab {
     border: none;
@@ -247,6 +249,7 @@
     border-radius: 9px;
     padding: 0.6rem 0.4rem;
     min-height: 44px;
+    min-width: 0;
     font-family: inherit;
     font-size: 0.87rem;
     font-weight: 700;
@@ -256,7 +259,7 @@
   .tab.active { background: var(--bg-card); color: var(--accent); box-shadow: 0 1px 4px var(--shadow); }
   /* Two lines: who the door is for, then how it opens. */
   .tab { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; line-height: 1.25; }
-  .tab-who { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .tab-who { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; min-width: 0; overflow-wrap: anywhere; }
   .tab-how { font-size: 0.76rem; font-weight: 500; color: var(--text-muted); }
   .tab.active .tab-how { color: var(--accent-deep); }
 
@@ -318,6 +321,7 @@
     font-size: 0.8rem; color: var(--text-muted);
     margin-top: 0.6rem; line-height: 1.55; text-align: center;
   }
+  .sending { margin-top: 0.45rem; text-align: center; color: var(--text-muted); }
 
   .done { text-align: center; padding: 0.5rem 0; }
   .done-icon { font-size: 2.2rem; }
@@ -348,7 +352,17 @@
     align-items: center;
     font-size: 0.85rem;
     color: var(--text-muted);
+    flex-wrap: wrap;
+    min-width: 0;
   }
-  .links a { font-weight: 700; text-decoration: none; color: var(--accent); padding: 0.4rem 0.2rem; }
+  .links a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-weight: 700; text-decoration: none; color: var(--accent); padding: 0.4rem 0.5rem; overflow-wrap: anywhere; }
   .links a:hover { text-decoration: underline; }
+
+  /* At the reflow boundary, 200% text makes the longest Hebrew tab label
+     wider than half the card. Stack the two ordinary buttons instead of
+     letting their min-content width push the whole page sideways. */
+  @media (max-width: 360px) {
+    .card { padding-inline: 0.75rem; }
+    .tabs { grid-template-columns: minmax(0, 1fr); }
+  }
 </style>

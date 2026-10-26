@@ -101,7 +101,9 @@ test('booking again for a known child reuses the student, and charges the new pl
     assert.equal(again.portal.code, first.portal.code, 'the same child, not a second record');
     assert.equal(again.portal.isNewFamily, false);
 
-    const cookie = await familySession(first.portal.link);
+    // The second booking issued the newest link for this account and
+    // superseded the first unused credential.
+    const cookie = await familySession(again.portal.link);
     const data = await (await fetch(`${baseUrl}/api/portal/${first.portal.code}?kind=parent`, {
       headers: { Cookie: cookie },
     })).json();

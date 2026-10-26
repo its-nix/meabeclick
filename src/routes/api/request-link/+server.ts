@@ -34,7 +34,7 @@
 import { json } from '@sveltejs/kit';
 import { findAccountByEmail } from '$server/entities.ts';
 import { isValidEmailAddress, normalizeEmail } from '$server/email-address.ts';
-import { accountLink } from '$server/family-auth.ts';
+import { issueAccountCredential } from '$server/access-credentials.ts';
 import { sendPortalLinkEmail, mailCredentialsRejected } from '$server/email.ts';
 import { readJson } from '$server/http.ts';
 import { contactTutor } from '$lib/tutors.ts';
@@ -110,7 +110,8 @@ export const POST: RequestHandler = async ({ request }) => {
   if (!account) return ok;
 
   try {
-    await sendPortalLinkEmail(email, account.name, accountLink(account.id));
+    const credential = issueAccountCredential(account.id, { type: 'self_service', id: account.id });
+    await sendPortalLinkEmail(email, account.name, credential.link);
   } catch (err) {
     // Logged for the tutor, never surfaced: "we could not reach that
     // address" would confirm the address is on file.

@@ -58,7 +58,7 @@ test('books an hour and falls back to email when no calendar is configured', asy
     // present even when mail is unavailable — an unreachable family is the
     // exact failure this replaced.
     assert.ok(body.portal, 'a booking must hand back a portal link');
-    assert.ok(body.portal.link.includes('/enter?t='), 'the handoff must be a magic link');
+    assert.ok(body.portal.link.includes('/enter#'), 'the handoff must be a fragment-delivered one-time link');
     assert.equal(body.portal.studentName, 'דנה כהן');
     assert.equal(body.portal.isNewFamily, true);
 
@@ -211,8 +211,9 @@ test('booking twice with the same email is one family, not two', async () => {
     assert.notEqual(sibling.portal.code, first.portal.code);
     assert.equal(sibling.portal.isNewFamily, false);
 
-    // And one link reaches both children.
-    const cookie = await familySession(first.portal.link);
+    // The newest account link reaches both children; issuing it superseded
+    // the older unused link for this same account scope.
+    const cookie = await familySession(sibling.portal.link);
     for (const code of [first.portal.code, sibling.portal.code]) {
       const r = await fetch(`${baseUrl}/api/portal/${code}`, { headers: { Cookie: cookie } });
       assert.equal(r.status, 200, `the account link must open ${code}`);

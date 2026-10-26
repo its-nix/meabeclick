@@ -13,7 +13,7 @@
  * Nothing here is memorized. Identity travels in a link the product sends
  * to an address the family already controls.
  *
- * ## The two token kinds
+ * ## The two session kinds
  *
  * `account` reaches the whole account — every student under it, plus the
  * parent view. It is minted for the address on the account and nowhere
@@ -26,13 +26,11 @@
  * than one shared secret — the split the PRD left open as "הפין משותף
  * להורה+תלמיד — זה מכוון או שצריך הפרדה?".
  *
- * ## How long links and sessions last
+ * ## How long sessions last
  *
- * A link expires after a year, and the session cookie it establishes lasts
- * six months — see LINK_TTL_MS below for why a year and not the fortnight
- * this started with. Since booking collects an email, replacing an expired
- * link is self-service (`/portal` mails a fresh one); the old model could
- * not expire anything, because expiry meant messaging the tutor.
+ * Entry links are separate, server-stored one-time credentials in
+ * access-credentials.ts. This module signs only the six-month session cookie
+ * established after a successful exchange.
  */
 
 import { createHmac, timingSafeEqual, randomBytes } from 'node:crypto';
@@ -54,18 +52,6 @@ if (!process.env.SESSION_SECRET) {
 
 export const FAMILY_COOKIE = 'maab_family';
 
-/* A year, not a fortnight.
- *
- * The link lives in a WhatsApp thread or an inbox, and a tutoring
- * relationship runs a school year — so a fortnight's expiry went stale while
- * the family was still a customer, and turned a one-time email into a
- * recurring errand. Expiring sooner than the six-month SESSION it creates
- * mostly manufactured the problem it was meant to prevent.
- *
- * What the expiry still buys: a link forwarded to the wrong person, or left
- * on a sold phone, does not work forever. /portal mails a fresh one without
- * anyone's help. */
-const LINK_TTL_MS    = 365 * 24 * 60 * 60 * 1000;  // 1 year
 const SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000;  // 6 months
 
 export type FamilyKind = 'account' | 'student';
@@ -82,8 +68,8 @@ const KIND_OF: Record<string, FamilyKind> = { a: 'account', s: 'student' };
 const sign = (payload: string): string =>
   createHmac('sha256', SECRET).update(payload).digest('base64url');
 
-function mint(kind: FamilyKind, id: number, ttlMs: number): string {
-  const payload = `${KIND_CODE[kind]}.${id}.${Date.now() + ttlMs}`;
+function mintSession(kind: FamilyKind, id: number, ttlMs: number): string {
+  const payload = `u.${KIND_CODE[kind]}.${id}.${Date.now() + ttlMs}`;
   return `${payload}.${sign(payload)}`;
 }
 
@@ -107,11 +93,11 @@ export function verifyFamilyToken(token: string | null | undefined): FamilyIdent
   // rather than returning false.
   if (given.length !== want.length || !timingSafeEqual(given, want)) return null;
 
-  const [kindCode, rawId, rawExp] = payload.split('.');
+  const [audience, kindCode, rawId, rawExp] = payload.split('.');
   const kind = KIND_OF[kindCode];
   const id = Number(rawId);
   const exp = Number(rawExp);
-  if (!kind || !Number.isInteger(id) || id <= 0 || !Number.isFinite(exp)) return null;
+  if (audience !== 'u' || !kind || !Number.isInteger(id) || id <= 0 || !Number.isFinite(exp)) return null;
   if (exp <= Date.now()) return null;
 
   return { kind, id };
@@ -145,35 +131,6 @@ export function verifyPendingToken(token: string | null | undefined): number | n
   return id;
 }
 
-export const mintAccountLinkToken = (accountId: number): string =>
-  mint('account', accountId, LINK_TTL_MS);
-
-export const mintStudentLinkToken = (studentId: number): string =>
-  mint('student', studentId, LINK_TTL_MS);
-
-/**
- * The absolute URL that goes in an email or a forwarded WhatsApp message.
- *
- * SITE_URL is required rather than defaulted: boot-checks.ts refuses to
- * start production without it, and the fallback this replaced once leaked
- * the raw server IP into parents' inboxes (see email.ts). Under `vite dev`
- * the checks are skipped, so warn rather than mint `undefined/enter?...`.
- */
-export function enterLink(token: string): string {
-  const site = process.env.SITE_URL;
-  if (!site) {
-    console.warn('[family-auth] SITE_URL not set — family links will be relative only.');
-    return `/enter?t=${token}`;
-  }
-  return `${site.replace(/\/+$/, '')}/enter?t=${token}`;
-}
-
-export const accountLink = (accountId: number): string =>
-  enterLink(mintAccountLinkToken(accountId));
-
-export const studentLink = (studentId: number): string =>
-  enterLink(mintStudentLinkToken(studentId));
-
 /* ── The session cookie ──────────────────────────────────────────────── */
 
 /**
@@ -184,7 +141,7 @@ export const studentLink = (studentId: number): string =>
  * link that was supposed to let them in.
  */
 export function setFamilySession(cookies: Cookies, identity: FamilyIdentity): void {
-  cookies.set(FAMILY_COOKIE, mint(identity.kind, identity.id, SESSION_TTL_MS), {
+  cookies.set(FAMILY_COOKIE, mintSession(identity.kind, identity.id, SESSION_TTL_MS), {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',

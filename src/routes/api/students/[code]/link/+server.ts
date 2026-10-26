@@ -10,15 +10,15 @@
  * different people: the account link opens the parent view of the whole
  * family, and the student link opens one child's own board.
  *
- * Nothing is invalidated by asking. Minting a link does not revoke an
- * older one, so a tutor helping a parent on the phone cannot accidentally
- * lock out the child who is already using theirs.
+ * Issuance supersedes older unused credentials for the same account or
+ * student scope. Established sessions remain active, so helping a family
+ * does not sign out a device that is already using the portal.
  */
 import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
 import { getStudentByCode, accountForStudent } from '$server/entities.ts';
-import { accountLink, studentLink } from '$server/family-auth.ts';
-import { joinCodeForStudent, formatJoinCode } from '$server/join.ts';
+import { issueAccountCredential, issueStudentCredentials } from '$server/access-credentials.ts';
+import { readJson } from '$server/http.ts';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async (event) => {
@@ -31,11 +31,29 @@ export const POST: RequestHandler = async (event) => {
   const account = accountForStudent(student.id);
   if (!account) return json({ error: 'student has no account' }, { status: 500 });
 
+  const parsed = await readJson(event.request);
+  if (parsed instanceof Response) return parsed;
+  const scope = (parsed as Record<string, unknown>)?.scope;
+
+  if (scope === 'account') {
+    const credential = issueAccountCredential(account.id, { type: 'admin' });
+    return json({
+      scope,
+      accountName: account.name,
+      link: credential.link,
+    }, { headers: { 'Cache-Control': 'no-store' } });
+  }
+
+  if (scope !== 'student') {
+    return json({ error: 'invalid access scope' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
+  }
+
+  const credential = issueStudentCredentials(student.id, { type: 'admin' });
+
   return json({
+    scope,
     name: student.name,
-    familyLink: accountLink(account.id),
-    studentLink: studentLink(student.id),
-    joinCode: formatJoinCode(joinCodeForStudent(student.id)),
-    email: account.email,
+    link: credential.link,
+    joinCode: credential.joinCode,
   }, { headers: { 'Cache-Control': 'no-store' } });
 };

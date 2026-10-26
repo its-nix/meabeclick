@@ -72,7 +72,7 @@ test('the family is emailed once when the lesson is reported: its homework and a
   assert.equal(m.to, 'fam@example.com');
   assert.equal(m.studentName, 'נוגה כהן');
   assert.deepEqual(m.tasks, ['תרגילים 1-5'], 'only what the family can already see');
-  assert.match(m.link, /^https:\/\/site\.test\/enter\?t=/);
+  assert.match(m.link, /^https:\/\/site\.test\/enter#[A-Za-z0-9_-]{43}$/);
   assert.equal('note' in m, false);
 });
 

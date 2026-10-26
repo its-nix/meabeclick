@@ -129,6 +129,8 @@
     loadError = '';
     share = null;
     shareOpen = false;
+    shareConfirm = false;
+    showLink = false;
 
     try {
       const d = await fetchPortal(code);
@@ -208,9 +210,11 @@
   interface Share { name: string; link: string; joinCode: string }
   let share = $state<Share | null>(null);
   let shareOpen = $state(false);
+  let shareConfirm = $state(false);
   let shareBusy = $state(false);
   let shareErr = $state('');
   let copied = $state(false);
+  let showLink = $state(false);
 
   async function loadShare() {
     if (!currentId || shareBusy) return;
@@ -225,6 +229,7 @@
       if (!r.ok) throw new Error(String(r.status));
       share = await r.json();
       shareOpen = true;
+      shareConfirm = false;
     } catch {
       shareErr = 'לא הצלחנו להכין את הקישור. נסו שוב.';
     } finally {
@@ -238,7 +243,7 @@
       await navigator.clipboard.writeText(share.link);
       copied = true;
       setTimeout(() => { copied = false; }, 2400);
-    } catch { /* the link is rendered in full below for exactly this case */ }
+    } catch { showLink = true; }
   }
 
   const shareHref = $derived(share
@@ -464,16 +469,30 @@
              it, and it offers the way back. -->
         <a class="board-link" href="/app/student?s={currentId}">לפתוח עכשיו את הלוח של {CURRENT.name} ←</a>
 
-        {#if !shareOpen}
+        {#if !shareOpen && !shareConfirm}
           <p class="share-intro">
             שלחו ל{CURRENT.name} קישור אישי — לוח משלו/ה עם שיעורי הבית והמשחקים,
             בלי גישה לתשלומים.
           </p>
-          <button class="share-open" onclick={loadShare} disabled={shareBusy}>
-            {shareBusy ? '...מכין' : 'הכנת קישור וקוד'}
+          <button class="share-open" onclick={() => { shareConfirm = true; shareErr = ''; }}>
+            הכנת קישור וקוד
           </button>
           {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
+        {:else if shareConfirm && !shareOpen}
+          <div class="share-confirm">
+            <strong>להכין כניסה חדשה ל{CURRENT.name}?</strong>
+            <p>קישור אישי או קוד צירוף קודמים שעדיין לא שימשו יפסיקו לעבוד. מכשירים שכבר נכנסו יישארו מחוברים.</p>
+            <div class="share-actions">
+              <button class="share-primary" onclick={loadShare} disabled={shareBusy}>
+                {shareBusy ? 'מכינים…' : 'הכנת כניסה חדשה'}
+              </button>
+              <button class="share-secondary" onclick={() => { shareConfirm = false; }}>ביטול</button>
+            </div>
+            {#if shareBusy}<p role="status">מכינים…</p>{/if}
+            {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
+          </div>
         {:else if share}
+          <p><strong>הכניסה מוכנה</strong></p>
           <div class="share-actions">
             <a class="share-primary" href={shareHref} target="_blank" rel="noopener">
               <Icon name="message" size={17} /> שליחה בוואטסאפ
@@ -482,12 +501,12 @@
               {#if copied}<Icon name="check" size={16} /> הועתק{:else}<Icon name="link" size={16} /> העתקת קישור{/if}
             </button>
           </div>
-          <div class="share-link" dir="ltr">{share.link}</div>
+          {#if showLink}<div class="share-link" dir="ltr">{share.link}</div>{/if}
 
           <div class="share-code">
-            <div class="share-code-label">אין וואטסאפ? נכנסים ל-<span dir="ltr">{page.url.host}/portal</span> ומקלידים את הקוד:</div>
+            <div class="share-code-label">אין וואטסאפ? פתחו את <span dir="ltr">{page.url.host}/portal</span> והקלידו קוד צירוף:</div>
             <div class="share-code-value" dir="ltr">{share.joinCode}</div>
-            <div class="share-code-note">תקף לשבוע, לשימוש חד-פעמי.</div>
+            <div class="share-code-note">תקף ל־15 דקות ולכניסה אחת.</div>
           </div>
         {/if}
       </div>

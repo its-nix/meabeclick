@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { startServer, familySession, login } from './harness.mjs';
+import { startServer, familySession, redeemFamilyLink, login } from './harness.mjs';
 
 const book = (baseUrl, over = {}, headers = {}) => fetch(`${baseUrl}/api/book`, {
   method: 'POST',
@@ -98,11 +98,12 @@ test('an adult self-learner is one account flagged self, one student, and lands 
 
     // The magic link opens the learner's own board directly — there is no
     // parent view for an account that is its own student.
-    const enter = await fetch(portal.link, { redirect: 'manual' });
-    assert.equal(enter.status, 303);
-    assert.match(enter.headers.get('location'), /^\/app\/student\?s=/, `self-learner must land on the board, got ${enter.headers.get('location')}`);
-
-    const cookie = await familySession(portal.link);
+    const enter = await redeemFamilyLink(portal.link);
+    assert.equal(enter.status, 200);
+    assert.match((await enter.clone().json()).destination, /^\/app\/student\?s=/, 'self-learner must land on the board');
+    const raw = enter.headers.getSetCookie().find(c => c.startsWith('maab_family='));
+    assert.ok(raw, 'the exchange establishes a session');
+    const cookie = raw.split(';')[0];
     assert.equal((await fetch(`${baseUrl}/api/portal/${portal.code}`, { headers: { Cookie: cookie } })).status, 200);
   } finally { await stop(); }
 });
@@ -222,13 +223,13 @@ test('a tampered magic link signs nobody in and lands on the expired notice', as
   try {
     const { portal } = await (await book(baseUrl)).json();
     const url = new URL(portal.link);
-    const token = url.searchParams.get('t');
+    const token = url.hash.slice(1);
     assert.ok(token, 'the link carries a token');
-    url.searchParams.set('t', token.slice(0, -2) + 'xx');
+    url.hash = token.slice(0, -2) + 'xx';
 
-    const r = await fetch(url, { redirect: 'manual' });
-    assert.equal(r.status, 303);
-    assert.equal(r.headers.get('location'), '/portal?expired=1');
+    const r = await redeemFamilyLink(url.href);
+    assert.equal(r.status, 401);
+    assert.match((await r.json()).error, /לא תקף/);
     assert.ok(!r.headers.getSetCookie().some(c => c.startsWith('maab_family=')), 'no session cookie for a tampered link');
   } finally { await stop(); }
 });

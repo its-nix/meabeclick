@@ -1,6 +1,6 @@
 // Found in the pre-launch review, 2026-09-28, and confirmed in a browser:
 // booking with an existing family's email returned THAT family's sign-in
-// link in the response — valid for a year — so anyone who knew a parent's
+// link in the response — historically valid for a year — so anyone who knew a parent's
 // email could open their portal: children, lessons, balance. The session
 // cookie was already withheld; the link in the body was not.
 import { test } from 'node:test';

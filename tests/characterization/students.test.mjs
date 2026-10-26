@@ -80,16 +80,18 @@ test('a student added by hand is reachable by a link, not a password', async () 
     assert.ok(!('password' in student), 'a student record must not carry a password');
 
     const linkRes = await fetch(`${baseUrl}/api/students/${student.code}/link`, {
-      method: 'POST', headers: { Cookie: cookie },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ scope: 'student' }),
     });
     assert.equal(linkRes.status, 200);
-    const links = await linkRes.json();
-    assert.ok(links.familyLink.includes('/enter?t='), 'the tutor must be able to hand over a family link');
-    assert.ok(links.studentLink.includes('/enter?t='));
-    assert.match(links.joinCode, /^[A-Z0-9]{3}-[A-Z0-9]{3}$/);
+    const access = await linkRes.json();
+    assert.equal(access.scope, 'student');
+    assert.ok(access.link.includes('/enter#'), 'the admin must be able to hand over a student link');
+    assert.match(access.joinCode, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
 
     // And that link actually opens the student's page.
-    const cookie2 = await familySession(links.familyLink);
+    const cookie2 = await familySession(access.link);
     const portal = await fetch(`${baseUrl}/api/portal/${student.code}`, { headers: { Cookie: cookie2 } });
     assert.equal(portal.status, 200);
   } finally { await stop(); }

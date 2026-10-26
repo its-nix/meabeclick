@@ -12,8 +12,7 @@
  */
 import { json } from '@sveltejs/kit';
 import { resolveFamilyAccess, studentInScope } from '$server/family.ts';
-import { studentLink } from '$server/family-auth.ts';
-import { joinCodeForStudent, formatJoinCode } from '$server/join.ts';
+import { issueStudentCredentials } from '$server/access-credentials.ts';
 import { readJson } from '$server/http.ts';
 import type { RequestHandler } from './$types';
 
@@ -30,11 +29,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const student = studentInScope(access, code);
   if (!student) return json({ error: 'אין גישה' }, { status: 401 });
 
-  const join = joinCodeForStudent(student.id);
+  const credential = issueStudentCredentials(student.id, { type: 'parent', id: access.account.id });
 
   return json({
     name: student.name,
-    link: studentLink(student.id),
-    joinCode: formatJoinCode(join),
+    link: credential.link,
+    joinCode: credential.joinCode,
   }, { headers: { 'Cache-Control': 'no-store' } });
 };

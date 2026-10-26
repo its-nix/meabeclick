@@ -17,7 +17,7 @@
 // account, which owns nothing the booker did not just create.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { startServer } from './harness.mjs';
+import { startServer, redeemFamilyLink } from './harness.mjs';
 
 const book = (baseUrl, over = {}, cookie) => fetch(`${baseUrl}/api/book`, {
   method: 'POST',
@@ -78,7 +78,7 @@ test('the handoff link still works, for the device that did not book', async () 
     const { portal } = await res.json();
     assert.ok(portal?.link, 'the booking response still carries a link to share');
 
-    const entered = await fetch(portal.link, { redirect: 'manual' });
+    const entered = await redeemFamilyLink(portal.link);
     assert.ok(entered.headers.getSetCookie().some(c => c.startsWith('maab_family=')),
       'the shared link must still establish a session on another device');
   } finally { await stop(); }

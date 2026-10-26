@@ -542,7 +542,7 @@ export async function sendPortalLinkEmail(
     'הנה קישור חדש לדף האישי שלכם:',
     portalLink,
     '',
-    'הקישור תקף לשבועיים. אם לא ביקשתם אותו, אפשר להתעלם מהמייל הזה.',
+    'הקישור תקף ל־15 דקות ולכניסה אחת. אם לא ביקשתם אותו, אפשר להתעלם מהמייל הזה.',
   ].join('\n');
 
   const html = shell(`
@@ -550,8 +550,7 @@ export async function sendPortalLinkEmail(
     <p style="color:#64748B;margin:0 0 16px">${esc(familyName)} · מאה בקליק</p>
     ${linkBlock(portalLink, '📚 כניסה לדף האישי')}
     <p style="margin-top:20px;font-size:14px;color:#64748B;line-height:1.8">
-      הקישור תקף לשבועיים. אם לא ביקשתם אותו — אפשר להתעלם מהמייל הזה,
-      ולא נעשה שום שינוי בחשבון.
+      הקישור תקף ל־15 דקות ולכניסה אחת. אם לא ביקשתם אותו — אפשר להתעלם מהמייל הזה.
     </p>`);
 
   await tx.sendMail({

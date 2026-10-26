@@ -83,13 +83,13 @@ test("the overview never carries another family's child", async () => {
   const { baseUrl, stop } = await startServer();
   try {
     const mine = await book(baseUrl);
-    await book(baseUrl, sibling, await familySession(mine.portal.link));
+    const siblingBooking = await book(baseUrl, sibling, await familySession(mine.portal.link));
     const theirs = await book(baseUrl, {
       name: 'ילד של משפחה אחרת', email: 'other@example.com',
       start: '2027-04-01T10:00:00+02:00', end: '2027-04-01T11:30:00+02:00',
     });
 
-    const cookie = await familySession(mine.portal.link);
+    const cookie = await familySession(siblingBooking.portal.link);
     const html = await (await parentPage(baseUrl, cookie)).text();
 
     assert.match(html, /יובל כהן/);

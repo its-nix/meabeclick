@@ -10,7 +10,7 @@
 import { accountForStudent } from './entities.ts';
 import { handle } from './db.ts';
 import { homeworkForStudent } from './lessons.ts';
-import { accountLink } from './family-auth.ts';
+import { issueAccountCredential } from './access-credentials.ts';
 import { claimReminder, finishReminder } from './reminders.ts';
 import { sendLessonReportedEmail } from './email.ts';
 
@@ -59,7 +59,7 @@ export async function emailFamilyAfterReport(
     .map(h => h.task);
   try {
     const ok = await send({ to: account.email, studentName: student.name, lessonStart: booking.start,
-      tasks, link: accountLink(account.id) });
+      tasks, link: issueAccountCredential(account.id, { type: 'system' }).link });
     finishReminder(bookingId, 'after-report', ok ? 'sent' : 'failed', ok ? null : 'mail transport unavailable');
     return ok ? 'sent' : 'not-sent';
   } catch (err) {

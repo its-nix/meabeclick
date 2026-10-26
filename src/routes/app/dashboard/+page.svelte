@@ -427,13 +427,21 @@
   // server, not from `tutor_dashboard_v2`).
   interface RealStudent {
     code: string; name: string; emoji: string | null;
+    account_id: number;
     progress: number; progress_note: string | null;
     goals: string | null; style: string | null; notes: string | null;
     email: string | null; account_name: string; account_phone: string | null;
     subjects: string | null;
     enrollments: { id: number; subject: string; teacherId: number | null }[];
   }
-  interface StudentLinks { name: string; familyLink: string; studentLink: string; joinCode: string }
+  type AccessScope = 'account' | 'student';
+  interface IssuedAccess {
+    scope: AccessScope;
+    name?: string;
+    accountName?: string;
+    link: string;
+    joinCode?: string;
+  }
   // Seeded from the server load so a first, JS-free GET already carries the
   // roster (and the plan link on each row); loadCodes() below still keeps
   // it fresh after a link is minted or a student is added client-side.
@@ -625,29 +633,52 @@
     if (!ok) el.value = String(previous ?? '');
   }
 
-  /* Replaces "regenerate their password". Minting a link revokes nothing,
-     so helping one parent on the phone cannot lock out the child already
-     using theirs. */
-  let links = $state<Record<string, StudentLinks>>({});
+  /* Admin-only assisted issuance. Account and student are separate actions:
+     issuing one scope must not revoke an unused credential for the other. */
+  let links = $state<Record<string, IssuedAccess>>({});
+  let linkReveal = $state<Record<string, 'available' | 'visible'>>({});
   let linkBusy = $state('');
+  let linkConfirm = $state('');
 
-  async function loadLinks(code: string) {
-    linkBusy = code;
+  const accessKey = (scopeId: string | number, scope: AccessScope) => `${scopeId}:${scope}`;
+
+  async function loadLink(code: string, accountId: number, scope: AccessScope) {
+    const key = accessKey(scope === 'account' ? accountId : code, scope);
+    linkBusy = key;
+    const { [key]: _stale, ...withoutStale } = links;
+    links = withoutStale;
+    const { [key]: _oldReveal, ...withoutReveal } = linkReveal;
+    linkReveal = withoutReveal;
     try {
-      const r = await api(`/api/students/${code}/link`, { method: 'POST' });
-      if (!r.ok) { toast('לא הצלחתי להכין קישור', { kind: 'error' }); return; }
-      links = { ...links, [code]: await r.json() };
+      const r = await api(`/api/students/${code}/link`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope }),
+      });
+      if (!r.ok) { toast('לא הצלחנו להכין כניסה חדשה. נסו שוב.', { kind: 'error' }); return; }
+      links = { ...links, [key]: await r.json() };
+      linkConfirm = '';
     } catch {
-      toast('אין חיבור לשרת', { kind: 'error' });
+      toast('לא הצלחנו להכין כניסה חדשה. נסו שוב.', { kind: 'error' });
     } finally {
       linkBusy = '';
     }
   }
 
-  function copyText(label: string, value: string) {
+  function accessShareHref(access: IssuedAccess): string {
+    const who = access.scope === 'account'
+      ? `למשפחה של ${access.accountName ?? ''}`
+      : `ל${access.name ?? 'התלמיד/ה'} בלבד`;
+    const message = `כניסה אישית ${who} במאה בקליק:\n${access.link}\nהקישור תקף ל־15 דקות ולכניסה אחת.`;
+    return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  }
+
+  function copyAccess(label: string, key: string, value: string) {
     navigator.clipboard.writeText(value)
       .then(() => toast(`${label} הועתק`, { kind: 'success' }))
-      .catch(() => toast(`${label}:\n${value}`, { sticky: true }));
+      .catch(() => {
+        linkReveal = { ...linkReveal, [key]: 'available' };
+        toast('לא הצלחנו להעתיק. אפשר להציג את הקישור ולהעתיק ידנית.', { kind: 'error' });
+      });
   }
 
   /* ═══════════════════ explicit, reviewed import of the browser's local
@@ -1322,6 +1353,8 @@
         <thead><tr><th>תלמיד</th><th>משפחה / מייל</th><th>כניסה</th></tr></thead>
         <tbody>
           {#each realStudents as rs (rs.code)}
+            {@const accountKey = accessKey(rs.account_id, 'account')}
+            {@const studentKey = accessKey(rs.code, 'student')}
             <tr>
               <td>
                 {rs.name}
@@ -1333,17 +1366,56 @@
                 <div class="rs-sub" style="direction:ltr">{rs.email || '— אין מייל'}</div>
               </td>
               <td>
-                {#if links[rs.code]}
-                  <div class="rs-links">
-                    <button class="copy-btn" onclick={() => copyText('הקישור למשפחה', links[rs.code].familyLink)}><Icon name="family" size={15} /> קישור להורה</button>
-                    <button class="copy-btn" onclick={() => copyText('הקישור לתלמיד/ה', links[rs.code].studentLink)}><Icon name="student" size={15} /> קישור לתלמיד/ה</button>
-                    <span class="rs-join">קוד: <b style="direction:ltr">{links[rs.code].joinCode}</b></span>
-                  </div>
-                {:else}
-                  <button class="copy-btn" disabled={linkBusy === rs.code} onclick={() => loadLinks(rs.code)}>
-                    {linkBusy === rs.code ? '...מכין' : 'הכנת קישורים'}
-                  </button>
-                {/if}
+                <div class="rs-scope">
+                  {#if links[accountKey]}
+                    <p class="access-status" role="status">הכניסה מוכנה למשפחה של {rs.account_name}</p>
+                    <div class="rs-links">
+                      <a class="copy-btn" href={accessShareHref(links[accountKey])} target="_blank" rel="noopener"><Icon name="message" size={15} /> שליחה בוואטסאפ</a>
+                      <button class="copy-btn" onclick={() => copyAccess('הקישור למשפחה', accountKey, links[accountKey].link)}>העתקת קישור</button>
+                    </div>
+                    {#if linkReveal[accountKey] === 'available'}
+                      <button class="copy-btn" onclick={() => { linkReveal = { ...linkReveal, [accountKey]: 'visible' }; }}>הצגת הקישור</button>
+                    {:else if linkReveal[accountKey] === 'visible'}
+                      <code class="raw-access-link" dir="ltr">{links[accountKey].link}</code>
+                    {/if}
+                    <span class="rs-sub">קישור למשפחה · תקף ל־15 דקות ולכניסה אחת.</span>
+                  {:else if linkConfirm === accountKey}
+                    <strong>הכנת כניסה חדשה למשפחה של {rs.account_name}</strong>
+                    <span class="rs-sub">קישורים קודמים למשפחה שעדיין לא שימשו יפסיקו לעבוד.</span>
+                    <div class="rs-links">
+                      <button class="copy-btn" disabled={linkBusy === accountKey} onclick={() => loadLink(rs.code, rs.account_id, 'account')}>הכנת כניסה חדשה</button>
+                      <button class="copy-btn" disabled={linkBusy === accountKey} onclick={() => { linkConfirm = ''; }}>ביטול</button>
+                    </div>
+                    {#if linkBusy === accountKey}<p class="access-status" role="status">מכינים…</p>{/if}
+                  {:else}
+                    <button class="copy-btn" onclick={() => { linkConfirm = accountKey; }}>כניסה למשפחה</button>
+                  {/if}
+
+                  {#if links[studentKey]}
+                    <p class="access-status" role="status">הכניסה מוכנה ל{rs.name} בלבד</p>
+                    <div class="rs-links">
+                      <a class="copy-btn" href={accessShareHref(links[studentKey])} target="_blank" rel="noopener"><Icon name="message" size={15} /> שליחה בוואטסאפ</a>
+                      <button class="copy-btn" onclick={() => copyAccess('הקישור לתלמיד/ה', studentKey, links[studentKey].link)}>העתקת קישור</button>
+                    </div>
+                    {#if linkReveal[studentKey] === 'available'}
+                      <button class="copy-btn" onclick={() => { linkReveal = { ...linkReveal, [studentKey]: 'visible' }; }}>הצגת הקישור</button>
+                    {:else if linkReveal[studentKey] === 'visible'}
+                      <code class="raw-access-link" dir="ltr">{links[studentKey].link}</code>
+                    {/if}
+                    <span class="rs-join">אין וואטסאפ? פתחו את <span dir="ltr">meabeclick.com/portal</span> והקלידו קוד צירוף: <b dir="ltr">{links[studentKey].joinCode}</b></span>
+                    <span class="rs-sub">תקף ל־15 דקות ולכניסה אחת.</span>
+                  {:else if linkConfirm === studentKey}
+                    <strong>הכנת כניסה חדשה ל{rs.name} בלבד</strong>
+                    <span class="rs-sub">קישור וקוד צירוף קודמים לתלמיד/ה שעדיין לא שימשו יפסיקו לעבוד.</span>
+                    <div class="rs-links">
+                      <button class="copy-btn" disabled={linkBusy === studentKey} onclick={() => loadLink(rs.code, rs.account_id, 'student')}>הכנת כניסה חדשה</button>
+                      <button class="copy-btn" disabled={linkBusy === studentKey} onclick={() => { linkConfirm = ''; }}>ביטול</button>
+                    </div>
+                    {#if linkBusy === studentKey}<p class="access-status" role="status">מכינים…</p>{/if}
+                  {:else}
+                    <button class="copy-btn" onclick={() => { linkConfirm = studentKey; }}>כניסה לתלמיד/ה בלבד</button>
+                  {/if}
+                </div>
               </td>
             </tr>
           {/each}
@@ -1484,7 +1556,7 @@
 <!-- toasts -->
 <div class="toast-stack">
   {#each toasts as t (t.id)}
-    <div class="toast" class:success={t.kind === 'success'} class:error={t.kind === 'error'}>
+    <div class="toast" class:success={t.kind === 'success'} class:error={t.kind === 'error'} role={t.kind === 'error' ? 'alert' : 'status'}>
       <div style="flex:1;white-space:pre-wrap">{t.message}{#if t.link}<a href={t.link.href}>{t.link.text}</a>{/if}</div>
       <button class="toast-close" aria-label="סגירה" onclick={() => dismissToast(t.id)}><Icon name="close" size={15} /></button>
     </div>
@@ -1774,7 +1846,7 @@
   .toast.error   { border-color: rgba(220,38,38,0.28);   background: linear-gradient(rgba(220,38,38,0.08), rgba(220,38,38,0.08)), var(--bg-card); }
   /* Margin, not a space: Svelte trims the space at an {#if} edge. */
   .toast a { margin-inline-start: 0.4em; color: inherit; font-weight: 800; text-decoration: underline; }
-  .toast-close { border: 0; background: none; cursor: pointer; font-size: 1rem; color: var(--text-muted); line-height: 1; padding: 0 0 0 4px; flex: none; }
+  .toast-close { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; border: 0; background: none; cursor: pointer; font-size: 1rem; color: var(--text-muted); line-height: 1; padding: 0; flex: none; }
 
   .confirm-bg { position: fixed; inset: 0; background: rgba(26,51,51,0.4); backdrop-filter: blur(6px); z-index: 950; display: none; align-items: center; justify-content: center; }
   .confirm-bg.open { display: flex; }
@@ -1797,14 +1869,17 @@
   .codes-panel { background: var(--bg-card); border: 1.5px solid var(--border-strong); border-radius: 18px; padding: 6px 4px; overflow-x: auto; }
   .codes-msg { padding: 16px; color: var(--text-muted); }
   .rs-sub { font-size: .78rem; color: var(--text-muted); margin-top: 3px; }
+  .rs-scope { display: grid; gap: 8px; min-width: 0; }
   .rs-links { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .access-status { margin: 0; font-weight: 800; }
   .rs-join { font-size: .82rem; color: var(--text-muted); }
-  .rs-join b { direction: ltr; letter-spacing: .08em; color: var(--accent-deep); }
+  .rs-join b { direction: ltr; unicode-bidi: isolate; letter-spacing: .08em; color: var(--accent-deep); }
+  .raw-access-link { display: block; max-width: 100%; overflow-wrap: anywhere; unicode-bidi: isolate; }
   .codes-table { width: 100%; border-collapse: collapse; font-size: .9rem; min-width: 560px; }
   .codes-table thead th { text-align: right; color: var(--text-muted); font-size: .78rem; padding: 10px 12px; }
   .codes-table tbody tr { border-top: 1px solid var(--border-strong); }
   .codes-table td { padding: 12px; }
-  .copy-btn { border: 1.5px solid var(--border-strong); background: none; border-radius: 999px; padding: 5px 14px; cursor: pointer; font-size: .82rem; }
+  .copy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; border: 1.5px solid var(--border-strong); background: none; border-radius: 999px; padding: 5px 14px; cursor: pointer; font-size: .82rem; color: inherit; text-decoration: none; }
   /* .copy-btn alone sits around 28-30px tall — fine for the other buttons in
      this row, which sit beside plenty of other click targets, but this is
      the only way from the roster into the plan page on a phone, so it gets
@@ -1847,6 +1922,24 @@
     .nav-actions .save-indicator {
       position: absolute; top: 20px; left: 1rem; margin: 0;
     }
+    .codes-panel { overflow-x: visible; }
+    .codes-table {
+      display: block;
+      min-width: 0;
+      inline-size: 100%;
+      max-inline-size: 100%;
+      table-layout: fixed;
+    }
+    .codes-table thead { display: none; }
+    .codes-table tbody, .codes-table tr, .codes-table td {
+      display: block;
+      box-sizing: border-box;
+      inline-size: 100%;
+      max-inline-size: 100%;
+      min-width: 0;
+    }
+    .codes-table tbody tr { padding: 12px; }
+    .codes-table td { padding: 4px 0; }
     .students-grid { grid-template-columns: 1fr; }
     .field-row { grid-template-columns: 1fr; }
     .field-row.three { grid-template-columns: 1fr 1fr; }

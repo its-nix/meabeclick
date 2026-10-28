@@ -26,10 +26,30 @@ function fail(message) {
 function readState(path) {
   try {
     const state = JSON.parse(readFileSync(path, 'utf8'));
-    if (state?.version !== VERSION || !Array.isArray(state.handledActionableHashes)
-        || state.handledActionableHashes.some((hash) => typeof hash !== 'string')) {
+    if (!state || Array.isArray(state) || state.version !== VERSION
+        || !Array.isArray(state.handledActionableHashes) || !Array.isArray(state.outbox)
+        || state.handledActionableHashes.length > MAX_HANDLED) {
       throw new Error('invalid state shape');
     }
+    const hashes = state.handledActionableHashes;
+    if (hashes.some((hash) => typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash))
+        || new Set(hashes).size !== hashes.length) throw new Error('invalid handled hashes');
+    if (state.outbox.length !== hashes.length) throw new Error('outbox/handled count mismatch');
+    const outboxKeys = new Set();
+    const outboxHashes = new Set();
+    for (const item of state.outbox) {
+      if (!item || Array.isArray(item) || typeof item !== 'object'
+          || !/^[a-f0-9]{64}$/.test(item.fingerprintHash ?? '')
+          || !/^[a-f0-9]{64}$/.test(item.idempotencyKey ?? '')
+          || item.status !== 'LOCAL_SYNTHETIC_HANDOFF') throw new Error('invalid outbox entry');
+      const expectedKey = createHash('sha256')
+        .update(`agent-loop-dry-run:v${VERSION}:${item.fingerprintHash}`).digest('hex');
+      if (item.idempotencyKey !== expectedKey || outboxKeys.has(item.idempotencyKey)
+          || outboxHashes.has(item.fingerprintHash)) throw new Error('inconsistent outbox entry');
+      outboxKeys.add(item.idempotencyKey);
+      outboxHashes.add(item.fingerprintHash);
+    }
+    if (hashes.some((hash) => !outboxHashes.has(hash))) throw new Error('outbox/handled mismatch');
     return state;
   } catch (error) {
     if (error?.code === 'ENOENT') return null;

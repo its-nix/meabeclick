@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -98,6 +99,54 @@ test('invalid state fails closed without replacing the state file', () => {
   }
 });
 
+test('malformed or inconsistent v2 outbox state fails closed without replacing bytes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mea-loop-dry-run-'));
+  const state = join(dir, 'state.json');
+  const validHash = 'a'.repeat(64);
+  const malformedStates = [
+    { version: 2, handledActionableHashes: [], outbox: 'invalid' },
+    { version: 2, handledActionableHashes: [validHash], outbox: [] },
+    { version: 2, handledActionableHashes: [], outbox: [{ fingerprintHash: validHash, idempotencyKey: 'b'.repeat(64), status: 'LOCAL_SYNTHETIC_HANDOFF' }] },
+    { version: 2, handledActionableHashes: [validHash, validHash], outbox: [] },
+    { version: 2, handledActionableHashes: ['not-a-hash'], outbox: [] },
+    { version: 2, handledActionableHashes: [], outbox: [{ fingerprintHash: validHash, idempotencyKey: 'b'.repeat(64), status: 'CORRUPT' }] },
+  ];
+  try {
+    for (const malformed of malformedStates) {
+      const original = JSON.stringify(malformed);
+      writeFileSync(state, original);
+      const result = run(state, { fingerprint: 'synthetic-x', actionable: true });
+      assert.notEqual(result.status, 0, original);
+      assert.equal(result.stdout, '');
+      assert.equal(readFileSync(state, 'utf8'), original);
+      assert.match(result.stderr, /refusing to overwrite/);
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('retention limit fails closed instead of evicting deduplication history', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mea-loop-dry-run-'));
+  const state = join(dir, 'state.json');
+  try {
+    const hashes = Array.from({ length: 1000 }, (_, i) => i.toString(16).padStart(64, '0'));
+    const outbox = hashes.map((fingerprintHash) => ({
+      fingerprintHash,
+      idempotencyKey: createHashForTest(fingerprintHash),
+      status: 'LOCAL_SYNTHETIC_HANDOFF',
+    }));
+    const original = JSON.stringify({ version: 2, handledActionableHashes: hashes, outbox });
+    writeFileSync(state, original);
+    const result = run(state, { fingerprint: 'synthetic-overflow', actionable: true });
+    assert.notEqual(result.status, 0);
+    assert.equal(result.stdout, '');
+    assert.equal(readFileSync(state, 'utf8'), original);
+    assert.match(result.stderr, /retention limit/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+function createHashForTest(fingerprintHash) {
+  return createHash('sha256').update(`agent-loop-dry-run:v2:${fingerprintHash}`).digest('hex');
+}
 test('invalid input does not create state', () => {
   const dir = mkdtempSync(join(tmpdir(), 'mea-loop-dry-run-'));
   const state = join(dir, 'state.json');
@@ -108,7 +157,5 @@ test('invalid input does not create state', () => {
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /expected/);
     assert.throws(() => readFileSync(state, 'utf8'), { code: 'ENOENT' });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

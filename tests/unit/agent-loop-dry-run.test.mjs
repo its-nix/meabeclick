@@ -50,6 +50,39 @@ test('healthy/non-actionable input emits NO_CHANGE and repeated ticks remain qui
   }
 });
 
+test('healthy observation does not consume a later actionable transition', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mea-loop-dry-run-'));
+  const state = join(dir, 'state.json');
+  try {
+    assert.equal(JSON.parse(run(state, { fingerprint: 'synthetic-a', actionable: false }).stdout).status, 'NO_CHANGE');
+    const actionable = run(state, { fingerprint: 'synthetic-a', actionable: true });
+    assert.equal(actionable.status, 0, actionable.stderr);
+    assert.equal(JSON.parse(actionable.stdout).status, 'PROPOSED_ACTION');
+    const saved = JSON.parse(readFileSync(state, 'utf8'));
+    assert.equal(saved.outbox.length, 1);
+    assert.equal(saved.outbox[0].status, 'LOCAL_SYNTHETIC_HANDOFF');
+    assert.equal(saved.outbox[0].idempotencyKey, JSON.parse(actionable.stdout).idempotencyKey);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('interleaved actionable fingerprints are each handed off exactly once', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mea-loop-dry-run-'));
+  const state = join(dir, 'state.json');
+  try {
+    const statuses = [true, true, true, true, true].map((actionable, i) => {
+      const fingerprint = ['A', 'B', 'A', 'C', 'B'][i];
+      const result = run(state, { fingerprint: `synthetic-${fingerprint}`, actionable });
+      assert.equal(result.status, 0, result.stderr);
+      return JSON.parse(result.stdout).status;
+    });
+    assert.deepEqual(statuses, ['PROPOSED_ACTION', 'PROPOSED_ACTION', 'NO_CHANGE', 'PROPOSED_ACTION', 'NO_CHANGE']);
+    const saved = JSON.parse(readFileSync(state, 'utf8'));
+    assert.equal(saved.outbox.length, 3);
+    assert.equal(new Set(saved.outbox.map((entry) => entry.idempotencyKey)).size, 3);
+    assert.equal(saved.handledActionableHashes.length, 3);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('invalid state fails closed without replacing the state file', () => {
   const dir = mkdtempSync(join(tmpdir(), 'mea-loop-dry-run-'));
   const state = join(dir, 'state.json');

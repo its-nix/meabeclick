@@ -3,6 +3,9 @@
  * Local-only, single-process dry run of an idempotent signal classifier.
  * Reads one JSON record from stdin and writes one JSON result to stdout.
  * No network, Hermes, Kanban, cron, project database, or messaging access.
+ * Actionable hashes remain deduplicated in state (max 1000; fail closed when full).
+ * Single-process only: concurrent invocations are not safe. The embedded outbox
+ * is a durable synthetic local handoff record, not a real queued task/message.
  *
  * Usage: node scripts/agent-loop-dry-run.mjs /path/to/scratch-state.json
  * Input: {"fingerprint":"opaque-synthetic-id","actionable":true|false}
@@ -12,7 +15,8 @@ import { closeSync, openSync, readFileSync, renameSync, unlinkSync, writeFileSyn
 import { basename, dirname, join } from 'node:path';
 
 const MAX_INPUT_BYTES = 4096;
-const VERSION = 1;
+const VERSION = 2;
+const MAX_HANDLED = 1000;
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -22,7 +26,8 @@ function fail(message) {
 function readState(path) {
   try {
     const state = JSON.parse(readFileSync(path, 'utf8'));
-    if (state?.version !== VERSION || typeof state.fingerprintHash !== 'string') {
+    if (state?.version !== VERSION || !Array.isArray(state.handledActionableHashes)
+        || state.handledActionableHashes.some((hash) => typeof hash !== 'string')) {
       throw new Error('invalid state shape');
     }
     return state;
@@ -56,13 +61,22 @@ try {
 } catch (error) {
   fail(error.message);
 }
-const duplicate = previous?.fingerprintHash === fingerprintHash;
+const handled = previous?.handledActionableHashes ?? [];
+const duplicate = handled.includes(fingerprintHash);
 const idempotencyKey = createHash('sha256').update(`agent-loop-dry-run:v${VERSION}:${fingerprintHash}`).digest('hex');
+const nextHandled = input.actionable && !duplicate ? [...handled, fingerprintHash] : handled;
+if (nextHandled.length > MAX_HANDLED) fail('handled-action retention limit reached; refusing to discard deduplication history');
+const outbox = previous?.outbox ?? [];
 const result = input.actionable && !duplicate
   ? { status: 'PROPOSED_ACTION', idempotencyKey }
   : { status: 'NO_CHANGE' };
+const nextOutbox = input.actionable && !duplicate
+  ? [...outbox, { idempotencyKey, fingerprintHash, status: 'LOCAL_SYNTHETIC_HANDOFF' }]
+  : outbox;
 
-const nextState = JSON.stringify({ version: VERSION, fingerprintHash }) + '\n';
+// Healthy observations never enter the handled set. The JSON outbox is durable
+// local evidence only; it does not enqueue a real Kanban task or send a message.
+const nextState = JSON.stringify({ version: VERSION, handledActionableHashes: nextHandled, outbox: nextOutbox }) + '\n';
 const tempPath = join(dirname(statePath), `.${basename(statePath)}.${process.pid}.tmp`);
 let fd;
 try {

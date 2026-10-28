@@ -110,6 +110,12 @@ test('malformed or inconsistent v2 outbox state fails closed without replacing b
     { version: 2, handledActionableHashes: [validHash, validHash], outbox: [] },
     { version: 2, handledActionableHashes: ['not-a-hash'], outbox: [] },
     { version: 2, handledActionableHashes: [], outbox: [{ fingerprintHash: validHash, idempotencyKey: 'b'.repeat(64), status: 'CORRUPT' }] },
+    { version: 2, handledActionableHashes: [] },
+    { version: 2, outbox: [] },
+    { version: 2, handledActionableHashes: [validHash], outbox: [{ fingerprintHash: validHash, idempotencyKey: createHashForTest(validHash), status: 'LOCAL_SYNTHETIC_HANDOFF', extra: 'unrecognized' }] },
+    { version: 2, handledActionableHashes: [validHash], outbox: [{ fingerprintHash: validHash, idempotencyKey: createHashForTest('c'.repeat(64)), status: 'LOCAL_SYNTHETIC_HANDOFF' }] },
+    { version: 2, handledActionableHashes: [validHash], outbox: [{ fingerprintHash: 'c'.repeat(64), idempotencyKey: createHashForTest('c'.repeat(64)), status: 'LOCAL_SYNTHETIC_HANDOFF' }] },
+    { version: 2, handledActionableHashes: [validHash], outbox: [{ fingerprintHash: validHash, idempotencyKey: createHashForTest(validHash), status: 'LOCAL_SYNTHETIC_HANDOFF' }], futureField: 'must not be silently dropped' },
   ];
   try {
     for (const malformed of malformedStates) {
@@ -121,6 +127,40 @@ test('malformed or inconsistent v2 outbox state fails closed without replacing b
       assert.equal(readFileSync(state, 'utf8'), original);
       assert.match(result.stderr, /refusing to overwrite/);
     }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('duplicate outbox entries fail closed even when list lengths match', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mea-loop-dry-run-'));
+  const state = join(dir, 'state.json');
+  const a = 'a'.repeat(64);
+  const b = 'b'.repeat(64);
+  try {
+    const original = JSON.stringify({
+      version: 2,
+      handledActionableHashes: [a, b],
+      outbox: [
+        { fingerprintHash: a, idempotencyKey: createHashForTest(a), status: 'LOCAL_SYNTHETIC_HANDOFF' },
+        { fingerprintHash: a, idempotencyKey: createHashForTest(a), status: 'LOCAL_SYNTHETIC_HANDOFF' },
+      ],
+    });
+    writeFileSync(state, original);
+    const result = run(state, { fingerprint: 'synthetic-x', actionable: true });
+    assert.notEqual(result.status, 0);
+    assert.equal(result.stdout, '');
+    assert.equal(readFileSync(state, 'utf8'), original);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('fresh stores produce the same idempotency key for the same fingerprint', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mea-loop-dry-run-'));
+  try {
+    const keys = ['one.json', 'two.json'].map((file) => {
+      const result = run(join(dir, file), { fingerprint: 'same-synthetic-fingerprint', actionable: true });
+      assert.equal(result.status, 0, result.stderr);
+      return JSON.parse(result.stdout).idempotencyKey;
+    });
+    assert.equal(keys[0], keys[1]);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

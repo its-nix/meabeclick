@@ -28,6 +28,7 @@ function readState(path) {
     const state = JSON.parse(readFileSync(path, 'utf8'));
     if (!state || Array.isArray(state) || state.version !== VERSION
         || !Array.isArray(state.handledActionableHashes) || !Array.isArray(state.outbox)
+        || Object.keys(state).sort().join(',') !== 'handledActionableHashes,outbox,version'
         || state.handledActionableHashes.length > MAX_HANDLED) {
       throw new Error('invalid state shape');
     }
@@ -39,6 +40,7 @@ function readState(path) {
     const outboxHashes = new Set();
     for (const item of state.outbox) {
       if (!item || Array.isArray(item) || typeof item !== 'object'
+          || Object.keys(item).sort().join(',') !== 'fingerprintHash,idempotencyKey,status'
           || !/^[a-f0-9]{64}$/.test(item.fingerprintHash ?? '')
           || !/^[a-f0-9]{64}$/.test(item.idempotencyKey ?? '')
           || item.status !== 'LOCAL_SYNTHETIC_HANDOFF') throw new Error('invalid outbox entry');

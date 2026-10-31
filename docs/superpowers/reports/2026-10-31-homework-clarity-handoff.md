@@ -10,7 +10,7 @@ Base: `c933d2d` on `origin/main`. Independent UX/reliability approval is **not**
 
 - Numbered Hebrew RTL task articles, explicit context/data/instruction layout where present in the source, separate spaced data lines, and sequential line-start numbered problems.
 - Existing skill and assignment date shown when present, due date only when present. Assignment date is labelled **ניתן ב־**, not misrepresented as a lesson date. The existing family homework payload has no lesson topic/date association: no new lookup or inferred association was added.
-- Homework-specific submitted-or-graded completion count + native progress element, live count announcement, and explicit distinction from a tutor judgement. Existing skill-progress information remains unchanged below it. Count includes the entire existing visible history, not an invented "active lesson" subset.
+- Written-task-only submitted-or-graded count + native progress element, labelled `מטלות בכתב הוגשו או נבדקו` / `הגשת מטלות בכתב`, live count announcement, and explicit distinction from a tutor judgement. Rows with game `url` are excluded from numerator and denominator regardless of visit/play history: this is not overall homework completion or game mastery. Existing skill-progress information remains unchanged below it. Count includes the existing written-task history (including display-only legacy rows), not an invented "active lesson" subset.
 - Existing reversible, server-confirmed submission path retained for writable written tasks. Stable keyed DOM, task-specific accessible toggle names/states, visible focus, 44px controls, pending duplicate protection via existing function guard. `aria-disabled` keeps keyboard focus during saving. Graded work remains settled, games retain game links, legacy tasks without a database ID are display-only rather than a nonfunctional save control.
 - Text-node-only rendering through existing `FormulaText` in all sections. No HTML interpretation; long content reflows while retaining bidi isolates.
 
@@ -37,6 +37,14 @@ Executed on Node v22.22.0:
 - TDD: parser section/numbering/math-delimiter failures observed before implementations; browser heading assertion failed against the original built board. Existing formula-isolation source test updated to cover every projected section, not bypassed.
 
 No real Safari/iPhone/Android device or manual screen-reader testing run. No WCAG conformance claim. Independent UX/reliability review remains required before merge; exact-head GitHub checks must be read from the PR, not inferred from these local results.
+
+## Bounded review remediation — `t_6f1a2338`
+
+Consumed lead findings against prior PR head `18ad61be1e9becfde2d2c35f5dcef71d36465a80`; no independent UX approval is supplied here. The submission button's accessible name now matches its visible initial (`סיימתי`), pending (`שומר…`), submitted (`ביטול הגשה`), and undone actions. Existing pressed/busy/disabled semantics and server-confirmed PATCH remain unchanged.
+
+Browser regression assertions failed before each correction (pending accessible-name mismatch; aggregate incorrectly `2 מתוך 5 מטלות הושלמו`), then passed. Coverage now checks initial/pending/submitted/undo names, pending undo, unplayed game exclusion, synthetic visit/play-history/return without completion evidence, unchanged separate mastery, and game-only `0 מתוך 0` without an invalid zero-max progress bar. The synthetic game document is only a navigation fixture, not evidence that a real game was completed. Local real-API submission/reload/undo coverage remains in place.
+
+Remediation verification: build PASS; full `npm test` 1622 passed / 0 failed / 0 skipped; `check:ci` PASS at existing 22-warning baseline; browser PASS on Chrome 148.0.7778.96 at 320/390/1440 widths and 200% text; `git diff --check` PASS. Real device and manual AT: **NOT_RUN**. Exact published SHA and hosted checks are recorded in the PR/Kanban handoff after publication. No API/model/auth/generation/persistence/migration/photo change. Ambiguous prose remains intact and lesson topic/date inference remains absent.
 
 ## Privacy, release and recovery
 

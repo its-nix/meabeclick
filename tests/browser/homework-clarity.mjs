@@ -40,6 +40,7 @@ try {
     const url = new URL(request.url());
     if (url.origin !== server.baseUrl) return route.abort();
     if (!fixtureMode) return route.continue();
+    if (url.pathname === '/app/play/quiz') return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<html lang="he" dir="rtl"><h1>משחק סינתטי</h1></html>' });
     if (url.pathname === `/api/portal/${portal.code}`) return route.fulfill({ json: { name: 'תלמיד בדיקה', homework: tasks, lessons: [], games: [], progress: { kind: 'skills', done: 9, total: 10, percent: 90 } } });
     if (url.pathname.endsWith('/homework') && request.method() === 'PATCH') {
       patchCount++;
@@ -57,7 +58,21 @@ try {
   await page.goto(`${server.baseUrl}/app/student?s=${portal.code}&v=hw`);
   await page.getByRole('heading', { name: 'שיעורי הבית שלי', exact: true }).waitFor({ timeout: 5000 });
   const progress = page.getByRole('status');
-  assert.match(await progress.textContent(), /2 מתוך 5/);
+  assert.match(await progress.textContent(), /2 מתוך 4 מטלות בכתב הוגשו או נבדקו/);
+  const writtenProgress = page.getByRole('progressbar', { name: 'הגשת מטלות בכתב', exact: true });
+  assert.equal(await writtenProgress.getAttribute('max'), '4');
+  assert.equal(await writtenProgress.getAttribute('value'), '2');
+  assert.equal(await page.getByRole('progressbar', { name: 'ההתקדמות שלי', exact: true }).getAttribute('aria-valuenow'), '9');
+  // Navigation/play history is not submission or grading evidence.
+  await page.goto(new URL(await page.locator('.homework-card').nth(3).getByRole('link').getAttribute('href'), server.baseUrl).href);
+  await page.getByRole('heading', { name: 'משחק סינתטי', exact: true }).waitFor();
+  tasks[3].plays = 1;
+  tasks[3].lastPlayedAt = '2026-10-31T10:00:00Z';
+  await page.goBack();
+  await page.getByRole('heading', { name: 'שיעורי הבית שלי', exact: true }).waitFor();
+  assert.match(await progress.textContent(), /2 מתוך 4 מטלות בכתב הוגשו או נבדקו/);
+  assert.equal(await writtenProgress.getAttribute('max'), '4');
+  assert.equal(await writtenProgress.getAttribute('value'), '2');
   assert.equal(await page.locator('.homework-card').count(), 5);
   const first = page.locator('.homework-card').first();
   assert.equal(await first.locator('.problem').count(), 2);
@@ -85,6 +100,7 @@ try {
   assert.ok(reflow.page <= reflow.width, '200% text reflow');
   await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
   const toggle = first.getByRole('button');
+  assert.equal(await first.getByRole('button', { name: 'סיימתי — מטלה 1', exact: true }).count(), 1);
   await toggle.focus();
   const focus = await toggle.evaluate(el => ({ outline: getComputedStyle(el).outlineStyle, width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height }));
   assert.equal(focus.outline, 'solid');
@@ -92,31 +108,45 @@ try {
   mode = 'pending';
   await page.keyboard.press('Space');
   await page.getByText('שומר…', { exact: true }).waitFor();
-  assert.match(await progress.textContent(), /2 מתוך 5/);
+  assert.equal(await first.getByRole('button', { name: 'שומר… — מטלה 1', exact: true }).count(), 1);
+  assert.match(await progress.textContent(), /2 מתוך 4/);
   assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
   await page.keyboard.press('Space');
   assert.equal(patchCount, 1);
   release();
-  await page.getByText('ביטול הגשה', { exact: true }).first().waitFor();
-  await page.waitForFunction(() => document.querySelector('[role="status"]').textContent.includes('3 מתוך 5'));
+  await first.getByRole('button', { name: 'ביטול הגשה — מטלה 1', exact: true }).waitFor();
+  assert.equal(await first.getByRole('button', { name: 'ביטול הגשה — מטלה 1', exact: true }).count(), 1);
+  await page.waitForFunction(() => document.querySelector('[role="status"]').textContent.includes('3 מתוך 4'));
   assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
   assert.equal(await toggle.evaluate(el => el === document.activeElement), true);
   mode = 'failure';
   await toggle.click();
   await page.getByRole('alert').waitFor();
-  assert.match(await progress.textContent(), /3 מתוך 5/);
+  assert.match(await progress.textContent(), /3 מתוך 4/);
   assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
-  mode = 'success';
+  mode = 'pending';
   await toggle.click();
-  await page.waitForFunction(() => document.querySelector('[role="status"]').textContent.includes('2 מתוך 5'));
+  await first.getByRole('button', { name: 'שומר… — מטלה 1', exact: true }).waitFor();
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  assert.match(await progress.textContent(), /3 מתוך 4/);
+  release();
+  await page.waitForFunction(() => document.querySelector('[role="status"]').textContent.includes('2 מתוך 4'));
   assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+  assert.equal(await first.getByRole('button', { name: 'סיימתי — מטלה 1', exact: true }).count(), 1);
   await page.reload();
   await page.getByRole('heading', { name: 'שיעורי הבית שלי', exact: true }).waitFor();
-  assert.match(await page.getByRole('status').textContent(), /2 מתוך 5/);
+  assert.match(await page.getByRole('status').textContent(), /2 מתוך 4/);
+  const gameOnly = tasks[3];
+  tasks.splice(0, tasks.length, gameOnly);
+  await page.reload();
+  await page.getByRole('heading', { name: 'שיעורי הבית שלי', exact: true }).waitFor();
+  assert.match(await progress.textContent(), /0 מתוך 0 מטלות בכתב הוגשו או נבדקו/);
+  assert.equal(await writtenProgress.count(), 0);
+  assert.equal(await page.locator('.homework-card').getByRole('link').count(), 1);
   tasks.splice(0);
   await page.reload();
   await page.getByText('עוד אין שיעורי בית — הם יופיעו כאן אחרי השיעור הראשון.', { exact: true }).waitFor();
-  assert.equal(await page.getByRole('progressbar', { name: 'השלמת שיעורי בית' }).count(), 0);
+  assert.equal(await page.getByRole('progressbar', { name: 'הגשת מטלות בכתב' }).count(), 0);
   // Real local API + disposable SQLite, not a synthesized PATCH result.
   const adminCookie = await login(server.baseUrl);
   const created = await fetch(`${server.baseUrl}/api/students/${portal.code}/activity`, {
@@ -139,6 +169,8 @@ try {
   assert.deepEqual(report.errors, []);
   report.keyboardAndServerConfirmedSaveUndoFailure = 'PASS';
   report.legacyGradedGameEmptyAndSafeText = 'PASS';
+  report.accessibleNamesInitialPendingSubmittedUndo = 'PASS';
+  report.writtenOnlyAggregateUnplayedAndReturnedGameExcluded = 'PASS';
   await writeFile(join(evidenceDir, 'browser-report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ ...report, evidenceDir }, null, 2));
 } finally {

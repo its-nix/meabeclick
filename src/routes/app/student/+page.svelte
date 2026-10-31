@@ -186,6 +186,9 @@
 
   /** Still open means not handed in. A graded task is finished either way. */
   const hwOpen = $derived((DATA?.homework ?? []).filter(h => !h.submitted && !h.graded).length);
+  // Game links have no reliable task-level completion evidence here.
+  const writtenHomework = $derived((DATA?.homework ?? []).filter(h => !h.url));
+  const writtenSubmitted = $derived(writtenHomework.filter(h => h.submitted || h.graded).length);
   const today = israelToday();
 
 
@@ -470,10 +473,10 @@
         <h1 class="view-title">שיעורי הבית שלי</h1>
         <div class="card" dir="rtl">
           <p class="progress-words" role="status" aria-atomic="true">
-            {(DATA.homework ?? []).length - hwOpen} מתוך {(DATA.homework ?? []).length} מטלות הושלמו
+            {writtenSubmitted} מתוך {writtenHomework.length} מטלות בכתב הוגשו או נבדקו
           </p>
-          {#if (DATA.homework ?? []).length}
-            <progress aria-label="השלמת שיעורי בית" max={(DATA.homework ?? []).length} value={(DATA.homework ?? []).length - hwOpen}></progress>
+          {#if writtenHomework.length}
+            <progress aria-label="הגשת מטלות בכתב" max={writtenHomework.length} value={writtenSubmitted}></progress>
             <p class="card-meta">סימון שסיימתם אינו ציון או בדיקה של המורה.</p>
           {/if}
         </div>
@@ -539,7 +542,7 @@
                   type="button"
                   class="hw-submit"
                   class:is-submitted={h.submitted}
-                  aria-label="סיימתי — מטלה {taskIndex + 1}"
+                  aria-label="{hwBusy === h.id ? 'שומר…' : h.submitted ? 'ביטול הגשה' : 'סיימתי'} — מטלה {taskIndex + 1}"
                   aria-pressed={h.submitted}
                   aria-busy={hwBusy === h.id}
                   aria-disabled={hwBusy !== null}

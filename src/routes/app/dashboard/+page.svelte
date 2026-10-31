@@ -919,6 +919,7 @@
     <button class="btn btn-outline" onclick={openModal}>+ תלמיד חדש</button>
     <a href="/app/library" class="btn btn-ghost">ספרייה</a>
     <a href="/app/marketing" class="btn btn-ghost">שיווק</a>
+    <a href="/app/metrics" class="btn btn-ghost">יעדים והגדרות מדדים</a>
     <a href="/" class="btn btn-ghost">← האתר</a>
     <button class="btn btn-ghost" onclick={signOut}>יציאה</button>
   </div>

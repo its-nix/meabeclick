@@ -21,7 +21,7 @@ by these tests.
 
 ## Safety design
 
-- Compose project: `meabeclick-synthetic` (production is `mea-beclick`).
+- Compose project: fixed `meabeclick-synthetic`, separate from production.
 - Container names are project-prefixed (`meabeclick-synthetic-*`), not shared with production.
 - Image: local-only `meabeclick-synthetic:local`; it never pulls or tags the production GHCR image.
 - Network: the app and seeder use `meabeclick-synthetic_synthetic_internal` with `internal: true`, so they have no external route. A fixed-target Node gateway joins that network and a separate access bridge only to make Docker's loopback port publishing work; it has no credentials, data volume, shell-configurable target, or application command.
@@ -113,13 +113,14 @@ Clean rebuild from an empty synthetic volume:
 
 The lifecycle script hard-codes `--env-file /dev/null`, `--project-name meabeclick-synthetic`, and the absolute path to `docker-compose.synthetic.yml`. It does not accept an env/project/file override and never invokes broad removal commands such as `docker system prune` or `docker volume rm`.
 
-## Safe VPS metadata observed during design
+## Verification scope and isolation disclosure
 
-A read-only, metadata-only SSH check was run through the configured `mea` alias. The command queried only hostname, Docker server version, and Docker-formatted container/image/port/status/project, network name/driver/scope, and volume name/driver fields. Sanitized findings:
+No VPS or production probe was performed for the current fragment-click auth
+implementation or this documentation correction. Prior isolation exceptions remain
+separately disclosed; this document does not claim strict zero external contact for
+prior runs. No new host or network diagnostic is needed to verify the synthetic
+journey.
 
-- Docker Engine 29.7.2.
-- Production Compose project `mea-beclick` has two running services: an SHA-pinned app on loopback port 3000 and Caddy on public ports 80/443.
-- Production has one bridge network (`mea-beclick_internal`) and two Caddy named volumes.
-- No environment values, secrets, mounts, files, logs, database content, application records, or protected paths were inspected. No container or host state was changed.
-
-These findings are why the synthetic project name, port, network, image, and volume are all distinct and why no Caddy service is included.
+Synthetic isolation relies on its separate fixed project, loopback port, internal
+network, local image, and synthetic-only volume, with no Caddy service or production
+credentials. Production-host metadata is not needed to establish these boundaries.

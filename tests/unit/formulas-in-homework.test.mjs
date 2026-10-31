@@ -14,7 +14,7 @@ const read = (f) => readFileSync(join(process.cwd(), f), 'utf8');
 
 test('every page that shows a homework task shows it through FormulaText', () => {
   const pages = {
-    'src/routes/app/student/+page.svelte': /<FormulaText text=\{h\.task\} \/>/,
+    'src/routes/app/student/+page.svelte': /homeworkProblems\(h\.task\)/,
     'src/routes/app/parent/+page.svelte': /<FormulaText text=\{h\.task\} \/>/,
     'src/routes/app/dashboard/+page.svelte': /<FormulaText text=\{hw\.task\} \/>/,
   };
@@ -22,5 +22,10 @@ test('every page that shows a homework task shows it through FormulaText', () =>
     const s = read(f);
     assert.match(s, re, f);
     assert.doesNotMatch(s, />\s*\{h(w)?\.task\}\s*</, `${f}: no bare task text left`);
+    if (f.includes('/student/')) {
+      for (const part of ['problem.context', 'datum', 'problem.instruction']) {
+        assert.ok(s.includes(`<FormulaText text={${part}} />`), `student ${part} must retain formula isolation`);
+      }
+    }
   }
 });

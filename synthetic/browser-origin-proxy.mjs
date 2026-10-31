@@ -36,6 +36,8 @@ export async function createOriginProxy(origin) {
     req.pipe(outgoing);
   });
   server.on('connection', (socket) => {
+    // A denied browser CONNECT can be reset while its 403 is in flight.
+    socket.on('error', () => socket.destroy());
     sockets.add(socket);
     socket.on('close', () => sockets.delete(socket));
   });

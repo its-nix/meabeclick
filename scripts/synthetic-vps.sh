@@ -1,11 +1,27 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 COMPOSE=(docker compose --env-file /dev/null --project-name meabeclick-synthetic --file "$ROOT/docker-compose.synthetic.yml")
 PORT="${SYNTHETIC_PORT:-4173}"
+
+# Bound daemon/CLI waits as well as application smoke. No timeout override:
+# build 10m; ordinary operations 2m; teardown 1m; TERM then KILL after 5s.
+compose() {
+  local seconds=120
+  case " $* " in
+    *" --build "*) seconds=600 ;;
+    *" down "*) seconds=60 ;;
+  esac
+  timeout --signal=TERM --kill-after=5s "${seconds}s" "${COMPOSE[@]}" "$@"
+}
+
+if ! command -v timeout >/dev/null 2>&1; then
+  printf '[synthetic] GNU timeout is required to bound lifecycle operations\n' >&2
+  exit 69
+fi
 
 if [[ ! "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1024 || PORT > 65535 )); then
   printf '[synthetic] SYNTHETIC_PORT must be an integer from 1024 through 65535\n' >&2
@@ -43,17 +59,17 @@ verify_existing() {
     trap - ERR EXIT
     if (( verified == 0 )); then
       printf '[synthetic] verification failed; removing the synthetic project and volume\n' >&2
-      "${COMPOSE[@]}" down --volumes --remove-orphans || true
+      compose down --volumes --remove-orphans || printf '[synthetic] cleanup failed; synthetic resources may remain; run down and verify removal\n' >&2
     fi
     exit "$status"
   }
   trap cleanup_failed_verify ERR EXIT
 
-  "${COMPOSE[@]}" config --quiet
-  "${COMPOSE[@]}" ps
-  "${COMPOSE[@]}" --profile tools run --rm --no-deps seed node synthetic/verify.mjs
-  node synthetic/http-smoke.mjs "http://127.0.0.1:${PORT}"
-  node synthetic/browser-smoke.mjs "http://127.0.0.1:${PORT}"
+  compose config --quiet
+  compose ps
+  compose --profile tools run --rm --no-deps seed node synthetic/verify.mjs
+  timeout --signal=TERM --kill-after=5s 20s node synthetic/http-smoke.mjs "http://127.0.0.1:${PORT}"
+  timeout --signal=TERM --kill-after=5s 55s node synthetic/browser-smoke.mjs "http://127.0.0.1:${PORT}"
   verified=1
   trap - ERR EXIT
 }
@@ -65,19 +81,19 @@ up() {
     trap - ERR EXIT
     if (( ready == 0 )); then
       printf '[synthetic] startup failed; removing the synthetic project and volume\n' >&2
-      "${COMPOSE[@]}" down --volumes --remove-orphans || true
+      compose down --volumes --remove-orphans || printf '[synthetic] cleanup failed; synthetic resources may remain; run down and verify removal\n' >&2
     fi
     exit "$status"
   }
   trap cleanup_failed_up ERR EXIT
 
-  "${COMPOSE[@]}" rm --stop --force gateway
-  "${COMPOSE[@]}" up -d --build --wait app
-  "${COMPOSE[@]}" --profile tools run --rm --no-deps seed
-  "${COMPOSE[@]}" --profile tools run --rm --no-deps seed node synthetic/verify.mjs
-  "${COMPOSE[@]}" up -d --wait gateway
-  node synthetic/http-smoke.mjs "http://127.0.0.1:${PORT}"
-  node synthetic/browser-smoke.mjs "http://127.0.0.1:${PORT}"
+  compose rm --stop --force gateway
+  compose up -d --build --wait app
+  compose --profile tools run --rm --no-deps seed
+  compose --profile tools run --rm --no-deps seed node synthetic/verify.mjs
+  compose up -d --wait gateway
+  timeout --signal=TERM --kill-after=5s 20s node synthetic/http-smoke.mjs "http://127.0.0.1:${PORT}"
+  timeout --signal=TERM --kill-after=5s 55s node synthetic/browser-smoke.mjs "http://127.0.0.1:${PORT}"
   ready=1
   trap - ERR EXIT
   printf '[synthetic] ready at http://127.0.0.1:%s\n' "$PORT"
@@ -86,12 +102,12 @@ up() {
 case "${1:-}" in
   up) up ;;
   verify) verify_existing ;;
-  down) "${COMPOSE[@]}" down --volumes --remove-orphans ;;
+  down) compose down --volumes --remove-orphans ;;
   rebuild)
-    "${COMPOSE[@]}" down --volumes --remove-orphans
+    compose down --volumes --remove-orphans
     up
     ;;
-  config) "${COMPOSE[@]}" config ;;
+  config) compose config ;;
   *)
     printf 'Usage: %s {up|verify|down|rebuild|config}\n' "$0" >&2
     exit 64

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { loopbackUrlIssue } from './runtime-policy.mjs';
+import { createOriginProxy } from './browser-origin-proxy.mjs';
 
 const SECRET = 'synthetic-test-secret-not-for-production-7ee72572';
 const STUDENT_ID = 92001;
@@ -37,8 +38,16 @@ const chrome = process.env.CHROME_BIN || [
 ].find(existsSync);
 if (!chrome) throw new Error('[synthetic] browser smoke requires Chrome/Chromium or CHROME_BIN');
 
-const profile = await mkdtemp(join(tmpdir(), 'meabeclick-synthetic-browser-'));
+const profile = await mkdtemp(join(tmpdir(), 'mb-'));
+const proxy = await createOriginProxy(baseUrl);
 const browser = spawn(chrome, [
+  `--proxy-server=${proxy.url}`,
+  '--proxy-bypass-list=<-loopback>',
+  '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1',
+  '--disable-quic',
+  '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+  '--disable-extensions',
+  '--disable-popup-blocking',
   '--headless=new',
   '--remote-debugging-port=0',
   `--user-data-dir=${profile}`,
@@ -57,6 +66,8 @@ const browser = spawn(chrome, [
   'about:blank',
 ], { stdio: ['ignore', 'ignore', 'pipe'] });
 let browserStderr = '';
+let browserError;
+browser.on('error', (error) => { browserError = error; });
 browser.stderr.on('data', (chunk) => { browserStderr += chunk; });
 
 async function devtoolsPort() {
@@ -69,8 +80,9 @@ async function devtoolsPort() {
     } catch {
       // Chrome writes the file only after its debugging endpoint is ready.
     }
-    if (browser.exitCode !== null) {
-      throw new Error(`[synthetic] browser exited before startup (${browser.exitCode}): ${browserStderr}`);
+    if (browserError) throw browserError;
+    if (browser.exitCode !== null || browser.signalCode !== null) {
+      throw new Error(`[synthetic] browser exited before startup (${browser.exitCode ?? browser.signalCode}): ${browserStderr}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
@@ -94,11 +106,16 @@ async function pageSocket(port) {
   throw new Error('[synthetic] browser page target did not become available');
 }
 
+let pageOriginViolation = false;
 function cdp(socket) {
   let id = 0;
   const pending = new Map();
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(String(event.data));
+    // Reporting only; the browser-wide proxy already prevents contact, even
+    // for targets not attached to this page's debugging session.
+    const url = message.params?.request?.url ?? (message.method === 'Network.webSocketCreated' ? message.params?.url : null);
+    if (url && /^(https?|wss?):/.test(url) && new URL(url).origin !== baseUrl) pageOriginViolation = true;
     if (!message.id) return;
     const waiter = pending.get(message.id);
     if (!waiter) return;
@@ -152,8 +169,13 @@ async function waitFor(call, expression, timeoutMs = 10_000) {
 }
 
 let socket;
+let interrupt;
+const interrupted = new Promise((_, reject) => { interrupt = reject; });
+const onSignal = () => interrupt(new Error('[synthetic] browser smoke interrupted'));
+process.on('SIGTERM', onSignal);
+process.on('SIGINT', onSignal);
 try {
-  await withTimeout((async () => {
+  await withTimeout(Promise.race([interrupted, (async () => {
     const port = await devtoolsPort();
     socket = new WebSocket(await pageSocket(port));
     await withTimeout(new Promise((resolve, reject) => {
@@ -161,6 +183,7 @@ try {
       socket.addEventListener('error', reject, { once: true });
     }), CDP_TIMEOUT_MS, 'browser debugging connection');
     const call = cdp(socket);
+    await call('Network.enable');
     await call('Page.enable');
     await call('Runtime.enable');
 
@@ -189,20 +212,27 @@ try {
         : false;
     })()`);
 
+    if (pageOriginViolation) throw new Error('[synthetic] browser page attempted to escape the exact synthetic origin');
     console.log(`[synthetic] rendered student homework passed: ${JSON.stringify(rendered)}`);
-  })(), OVERALL_TIMEOUT_MS, 'rendered browser smoke');
+  })()]), OVERALL_TIMEOUT_MS, 'rendered browser smoke');
 } finally {
-  if (socket?.readyState === WebSocket.OPEN) socket.close();
-  if (browser.exitCode === null) browser.kill('SIGTERM');
-  await withTimeout(new Promise((resolve) => {
-    if (browser.exitCode !== null) resolve();
-    else browser.once('close', resolve);
-  }), 2_000, 'browser shutdown').catch(async () => {
-    if (browser.exitCode === null) browser.kill('SIGKILL');
+  try {
+    if (socket && socket.readyState !== WebSocket.CLOSED) socket.close();
+    if (browser.exitCode === null) browser.kill('SIGTERM');
     await withTimeout(new Promise((resolve) => {
-      if (browser.exitCode !== null) resolve();
+      if (browser.exitCode !== null || browser.signalCode !== null) resolve();
       else browser.once('close', resolve);
-    }), 2_000, 'forced browser shutdown');
-  });
-  await rm(profile, { recursive: true, force: true });
+    }), 2_000, 'browser shutdown').catch(async () => {
+      if (browser.exitCode === null) browser.kill('SIGKILL');
+      await withTimeout(new Promise((resolve) => {
+        if (browser.exitCode !== null || browser.signalCode !== null) resolve();
+        else browser.once('close', resolve);
+      }), 2_000, 'forced browser shutdown');
+    });
+  } finally {
+    await proxy.close();
+    await rm(profile, { recursive: true, force: true });
+    process.off('SIGTERM', onSignal);
+    process.off('SIGINT', onSignal);
+  }
 }

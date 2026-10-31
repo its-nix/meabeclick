@@ -2,6 +2,18 @@
 
 This stack is for UX and release testing with fictional data only. It does not deploy, restart, stop, or inspect the production stack. It has a separate fixed Compose project, image, internal network, named volume, database, port, and deterministic seed.
 
+## Current release gate
+
+The containment/schema/deadline regressions are independent of a successful
+normal-app session. **The current normal-app smoke is blocked:** the application
+now renders `/enter` as a confirmation page and redeems fragment credentials via
+POST `/api/access/redeem`, whereas the existing synthetic smokes still expect a
+legacy `GET /enter?t=...` → 303 exchange. A real local synthetic runtime returns
+HTTP 200 at that stage and fails closed. Do not interpret passing local sentinel
+fixtures or schema tests as a successful normal student journey, and do not
+restore the obsolete GET-auth behavior to make the smoke pass. Updating the
+synthetic auth fixture/journey requires a separate scoped follow-up.
+
 ## Safety design
 
 - Compose project: `meabeclick-synthetic` (production is `mea-beclick`).
@@ -16,13 +28,17 @@ This stack is for UX and release testing with fictional data only. It does not d
 - The named volume is marked before first database creation. An unmarked non-empty data directory is refused. After migrations, the seeder removes every application row except migration bookkeeping—including migration-created named tutors and generic catalog exercises—then inserts the deterministic fixture in one transaction with foreign-key enforcement enabled and deferred until the complete graph exists.
 - The seeder also cleans the portal directory and atomically creates exactly `/synthetic-data/portal/synthetic-student-gamma.json`. Its obviously fictional, deterministic content includes the seeded lesson and game. Reruns replace corruption or stale temporary files and remove every unexpected portal entry.
 - Final verification is exhaustive against `src/lib/server/storage-inventory.ts`: every known data table is either constrained to exact synthetic IDs/content or required to be empty. It independently runs SQLite's `foreign_key_check` and verifies the exact portal path/content and absence of other portal files. The allowlist includes the exact published `lesson_materials` slide row used by `/lessons/synthetic-quadratic-formulas`. Unknown/missing tables, broken references, real/default tutor fields, extra bookings/enrollments/payments/reports/results, and altered formula/homework/submission/material fixtures fail verification.
+- The policy explicitly includes migrations 32/33: `access_credentials`, `access_credential_audit`, `lesson_game_assignments`, and `lesson_game_revisions` are purged and required empty, and migration bookkeeping must be exactly versions 1–33. An isolated `DB_PATH=:memory:` regression initializes the real application schema (including legacy DDL), replaces fictional rows twice, and rejects unknown tables.
+- The real browser is launched only after a local exact-origin HTTP proxy is listening. Chrome has a fixed proxy with no DIRECT fallback and with implicit loopback bypass disabled. Redirects, subresources, workers and new targets all traverse the same transport boundary before any upstream contact. Only the exact supplied HTTP origin can be forwarded; all CONNECT tunnels and WebSocket upgrades are denied (not needed for this production-build smoke). QUIC and non-proxied WebRTC UDP are disabled; DNS is disabled except the numeric loopback proxy. Chrome background requests are blocked too, not silently forwarded. Page network events additionally report origin escapes; they are detection, not the containment mechanism.
+- The HTTP smoke has a 15-second total deadline spanning every header and body read, using one abort controller. Unneeded bodies are canceled immediately; all pending work is aborted on every exit. A third smoke-only CLI argument may shorten (never extend) this deadline to 100–15000ms for adversarial tests. Streaming whitespace cannot reset it. Lifecycle commands add an outer 20-second HTTP / 55-second browser backstop. Browser TERM/INT triggers profile/transport/process cleanup.
+- Every Compose operation is bounded with GNU `timeout`: builds 600s, ordinary operations 120s, teardown 60s, followed by KILL 5s after TERM. A timeout is nonzero; failed cleanup explicitly warns that resources may remain. Always verify scoped container/volume absence after cleanup—an attempted command is not evidence of removal.
 - Gmail/SMTP, Calendar, Drive, Meet OAuth, CallMeBot/WhatsApp, Slack alerts, and Codex/OpenAI credentials are absent. The application network blocks egress as a second, independent control. The access gateway cannot read the database or invoke anything except the fixed app target.
 
 The fixed tutor password is `synthetic-tutor-only`. It is intentionally public and valid only in this isolated stack. All seeded names contain `בדיקה`, all email addresses use reserved `example.invalid`, and phone/content values are obvious fixtures.
 
 ## Prerequisites
 
-Docker Engine with Compose v2, `flock` from util-linux for fail-closed lifecycle serialization, and a local Chrome/Chromium executable for the rendered student-UI smoke (`CHROME_BIN` may name a nonstandard path). No production environment file or credential is needed or accepted.
+Docker Engine with Compose v2, GNU `timeout` (coreutils) for bounded operations, `flock` from util-linux for fail-closed lifecycle serialization, and a local Chrome/Chromium executable for the rendered student-UI smoke (`CHROME_BIN` may name a nonstandard path). No production environment file or credential is needed or accepted.
 
 Validate the fully rendered configuration without starting anything:
 

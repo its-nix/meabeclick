@@ -6,6 +6,11 @@ const empty = Object.freeze([]);
  * an explicit empty/allowlisted decision here before verification can pass.
  */
 export const DATA_TABLE_POLICY = Object.freeze({
+  // Access secrets/audit and tutor-managed game drafts/revisions are not fixtures.
+  access_credentials: { key: 'id', expectedKeys: empty },
+  access_credential_audit: { key: 'id', expectedKeys: empty },
+  lesson_game_assignments: { key: 'id', expectedKeys: empty },
+  lesson_game_revisions: { key: 'data_id', expectedKeys: empty },
   accounts: { key: 'id', expectedKeys: [91001] },
   students_v2: { key: 'id', expectedKeys: [92001] },
   teachers: { key: 'id', expectedKeys: [98001, 98002] },
@@ -41,7 +46,7 @@ export const DATA_TABLE_POLICY = Object.freeze({
   results: { key: 'id', expectedKeys: empty },
   calendar_failures_v2: { key: 'id', expectedKeys: empty },
   marketing_events: { key: 'id', expectedKeys: empty },
-  schema_version: { key: 'version', expectedKeys: Array.from({ length: 31 }, (_, i) => i + 1) },
+  schema_version: { key: 'version', expectedKeys: Array.from({ length: 33 }, (_, i) => i + 1) },
 });
 
 const quote = (identifier) => `"${identifier.replaceAll('"', '""')}"`;

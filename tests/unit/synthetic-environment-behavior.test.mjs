@@ -767,12 +767,44 @@ test('database policy covers the complete source storage inventory without drift
   assert.deepEqual(Object.keys(DATA_TABLE_POLICY).sort(), Object.keys(STORAGE).sort());
 });
 
+test('synthetic replacement accepts actual application initialization and rejects unknown tables', () => {
+  const result = run(process.execPath, ['--input-type=module', '-e', `
+    import assert from 'node:assert/strict';
+    const { handle } = await import('./src/lib/server/db.ts');
+    const { replaceSyntheticDatabase } = await import('./synthetic/database-seed.mjs');
+    const { verifySyntheticDatabase, DATA_TABLE_POLICY } = await import('./synthetic/database-policy.mjs');
+    const db = handle();
+    try {
+      replaceSyntheticDatabase(db);
+      assert.equal(db.prepare('SELECT MAX(version) AS v FROM schema_version').get().v, 33);
+      for (const table of ['access_credentials', 'access_credential_audit', 'lesson_game_assignments', 'lesson_game_revisions']) {
+        assert.deepEqual(DATA_TABLE_POLICY[table].expectedKeys, []);
+      }
+      // Fictional rows in every newly classified table must be removed on rerun.
+      db.exec(\`
+        INSERT INTO access_credentials (id, channel, scope_kind, scope_id, secret_hash, created_at, expires_at, issuer_type)
+          VALUES ('synthetic-stale', 'link', 'student', 92001, 'fictional-hash', '2026-01-01', '2026-01-02', 'system');
+        INSERT INTO access_credential_audit (credential_id, outcome, at) VALUES ('synthetic-stale', 'unknown', '2026-01-01');
+        INSERT INTO lesson_game_assignments (id, lesson_id, student_id, template, title, status, draft_body, created_at, updated_at)
+          VALUES ('synthetic-stale', 99001, 92001, 'quiz', 'synthetic stale game', 'published', '{}', '2026-01-01', '2026-01-01');
+        INSERT INTO lesson_game_revisions (data_id, assignment_id, body, published_at)
+          VALUES ('synthetic-stale', 'synthetic-stale', '{}', '2026-01-01');
+      \`);
+      replaceSyntheticDatabase(db);
+      verifySyntheticDatabase(db);
+      db.exec('CREATE TABLE unknown_sentinel (id INTEGER PRIMARY KEY)');
+      assert.throws(() => replaceSyntheticDatabase(db), /unexpected=unknown_sentinel/);
+    } finally { db.close(); }
+  `], { env: { PATH: process.env.PATH, DB_PATH: ':memory:' }, timeout: 10_000 });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 function createPolicyFixture() {
   const db = new DatabaseSync(':memory:');
   for (const [table, policy] of Object.entries(DATA_TABLE_POLICY)) {
     if (table === 'schema_version') {
       db.exec('CREATE TABLE schema_version (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)');
-      for (let version = 1; version <= 31; version++) {
+      for (const version of DATA_TABLE_POLICY.schema_version.expectedKeys) {
         db.prepare('INSERT INTO schema_version VALUES (?, ?, ?)').run(version, `migration-${version}`, '2026-01-01T00:00:00.000Z');
       }
     } else if (table === 'accounts') db.exec('CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT, phone TEXT, credential TEXT, is_self INTEGER, created_at TEXT, email TEXT, legacy_code TEXT)');

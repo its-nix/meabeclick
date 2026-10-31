@@ -1,8 +1,6 @@
-import { createHmac } from 'node:crypto';
+import { openAuthFixture, assertRedeem, assertReplay, assertStudentScope } from './auth-client.mjs';
 import { loopbackUrlIssue } from './runtime-policy.mjs';
 
-const SECRET = 'synthetic-test-secret-not-for-production-7ee72572';
-const STUDENT_ID = 92001;
 const STUDENT_CODE = 'synthetic-student-gamma';
 const requestedBaseUrl = process.argv[2];
 
@@ -16,8 +14,10 @@ if (!Number.isInteger(deadlineMs) || deadlineMs < 100 || deadlineMs > 15_000) {
 }
 const controller = new AbortController();
 const timer = setTimeout(() => controller.abort(new Error(`[synthetic] HTTP smoke total deadline exceeded (${deadlineMs}ms)`)), deadlineMs);
+let fixture;
 try {
-  await smoke(controller.signal);
+  fixture = await openAuthFixture(controller.signal);
+  await smoke(controller.signal, fixture);
 } catch (error) {
   console.error(controller.signal.aborted ? controller.signal.reason.message : error.message);
   process.exitCode = 1;
@@ -25,24 +25,26 @@ try {
   clearTimeout(timer);
   // Cancel unconsumed bodies and pending transport work on every exit path.
   controller.abort();
+  await fixture?.close();
 }
 
-async function smoke(signal) {
+async function smoke(signal, fixture) {
   const fetch = (url, options) => globalThis.fetch(url, { ...options, signal });
-  const payload = `s.${STUDENT_ID}.${Date.now() + 60_000}`;
-  const signature = createHmac('sha256', SECRET).update(payload).digest('base64url');
-  const token = `${payload}.${signature}`;
-
-  const enter = await fetch(`${baseUrl}/enter?t=${encodeURIComponent(token)}`, { redirect: 'manual' });
-  if (enter.status !== 303) throw new Error(`[synthetic] /enter smoke returned HTTP ${enter.status}`);
-  const expectedLocation = `/app/student?s=${STUDENT_CODE}`;
-  if (enter.headers.get('location') !== expectedLocation) {
-    throw new Error(`[synthetic] /enter smoke redirected somewhere unexpected`);
+  const token = fixture.token;
+  const enter = await fetch(`${baseUrl}/enter`, { redirect: 'manual' });
+  if (enter.status !== 200 || !enter.headers.get('content-type')?.includes('text/html')
+    || !(await enter.text()).includes('כניסה לדף האישי') || enter.headers.get('set-cookie')) {
+    throw new Error('[synthetic] /enter did not serve HTTP 200 confirmation HTML without a session');
   }
-  const setCookie = enter.headers.get('set-cookie');
-  const cookie = setCookie?.split(';', 1)[0];
-  await enter.body?.cancel();
-  if (!cookie?.startsWith('maab_family=')) throw new Error('[synthetic] /enter did not establish a family session');
+  const redeem = () => fetch(`${baseUrl}/api/access/redeem`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }), redirect: 'manual',
+  });
+  const redeemed = await redeem();
+  assertRedeem(redeemed, await redeemed.json());
+  const expectedLocation = `/app/student?s=${STUDENT_CODE}`;
+  const cookie = redeemed.headers.get('set-cookie')?.split(';', 1)[0];
+  if (!cookie?.startsWith('maab_family=u.s.92001.')) throw new Error('[synthetic] redeem did not establish exact student family session');
+  await fixture.check('consumed');
 
   const page = await fetch(`${baseUrl}${expectedLocation}`, {
     headers: { cookie },
@@ -116,5 +118,9 @@ async function smoke(signal) {
     throw new Error('[synthetic] signed game page did not contain the expected synthetic game');
   }
 
+  await assertStudentScope(baseUrl, cookie, signal);
+  const replay = await redeem();
+  assertReplay(replay, await replay.json());
+  await fixture.check('replayed');
   console.log('[synthetic] lesson, game, and completed homework HTTP smoke passed');
 }

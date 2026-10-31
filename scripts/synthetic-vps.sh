@@ -67,7 +67,10 @@ verify_existing() {
 
   compose config --quiet
   compose ps
+  compose rm --stop --force gateway
+  compose --profile tools run --rm --no-deps seed
   compose --profile tools run --rm --no-deps seed node synthetic/verify.mjs
+  compose up -d --wait gateway
   timeout --signal=TERM --kill-after=5s 20s node synthetic/http-smoke.mjs "http://127.0.0.1:${PORT}"
   timeout --signal=TERM --kill-after=5s 55s node synthetic/browser-smoke.mjs "http://127.0.0.1:${PORT}"
   verified=1

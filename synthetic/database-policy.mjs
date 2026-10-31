@@ -100,7 +100,7 @@ function requireRow(condition, table, detail) {
  *
  * @param {import('node:sqlite').DatabaseSync} db
  */
-export function verifySyntheticDatabase(db) {
+export function verifySyntheticDatabase(db, accessState = null) {
   const foreignKeyViolations = db.prepare('PRAGMA foreign_key_check').all();
   if (foreignKeyViolations.length) {
     const details = foreignKeyViolations
@@ -118,6 +118,11 @@ export function verifySyntheticDatabase(db) {
   }
 
   for (const [table, policy] of Object.entries(DATA_TABLE_POLICY)) {
+    if (accessState && ['access_credentials', 'access_credential_audit'].includes(table)) {
+      const actual = db.prepare(`SELECT * FROM ${quote(table)} ORDER BY id`).all();
+      requireRow(JSON.stringify(actual) === JSON.stringify(accessState[table]), table, 'exact lifecycle rows changed');
+      continue;
+    }
     if (policy.expectedKeys.length === 0) {
       const count = Number(db.prepare(`SELECT COUNT(*) AS n FROM ${quote(table)}`).get()?.n ?? 0);
       if (count !== 0) throw new Error(`[synthetic] ${table}: expected empty table`);
@@ -234,5 +239,5 @@ export function verifySyntheticDatabase(db) {
 
   return Object.fromEntries(Object.entries(DATA_TABLE_POLICY)
     .filter(([table]) => table !== 'schema_version')
-    .map(([table, policy]) => [table, policy.expectedKeys.length]));
+    .map(([table, policy]) => [table, accessState?.[table]?.length ?? policy.expectedKeys.length]));
 }

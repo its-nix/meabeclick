@@ -1,4 +1,7 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
+import { fakeAuthTransport, respondAuthFixture } from '../helpers/synthetic-auth-transport.mjs';
+const transport = await fakeAuthTransport();
+after(() => transport.close());
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdtemp, writeFile, mkdir, readFile, readdir, chmod, access, rm, symlink, chown } from 'node:fs/promises';
@@ -416,15 +419,12 @@ test('HTTP smoke follows API material/game URLs and validates concrete completed
   const requests = [];
   const server = createServer((request, response) => {
     requests.push({ url: request.url, cookie: request.headers.cookie });
-    if (request.url?.startsWith('/enter?t=s.92001.')) {
-      response.writeHead(303, {
-        location: '/app/student?s=synthetic-student-gamma',
-        'set-cookie': 'maab_family=fixed-test-session; Path=/; HttpOnly; SameSite=Lax',
-      }).end();
+    if (respondAuthFixture(request, response)) {
+      // Explicit confirmation + POST protocol fixture, not real auth evidence.
     } else if (request.url === '/app/student?s=synthetic-student-gamma') {
-      response.writeHead(request.headers.cookie === 'maab_family=fixed-test-session' ? 200 : 401).end('student page');
+      response.writeHead(request.headers.cookie === 'maab_family=u.s.92001.fixture' ? 200 : 401).end('student page');
     } else if (request.url === '/api/portal/synthetic-student-gamma') {
-      response.writeHead(request.headers.cookie === 'maab_family=fixed-test-session' ? 200 : 401, {
+      response.writeHead(request.headers.cookie === 'maab_family=u.s.92001.fixture' ? 200 : 401, {
         'content-type': 'application/json',
       }).end(JSON.stringify({
         name: 'תלמידת בדיקה גמא',
@@ -460,7 +460,7 @@ test('HTTP smoke follows API material/game URLs and validates concrete completed
 
   const result = await new Promise((resolve) => {
     const child = spawn(process.execPath, ['synthetic/http-smoke.mjs', `http://127.0.0.1:${address.port}`], {
-      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: root, env: transport.env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
     let stderr = '';
@@ -473,17 +473,23 @@ test('HTTP smoke follows API material/game URLs and validates concrete completed
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /lesson, game, and completed homework HTTP smoke passed/);
   assert.deepEqual(requests.map(({ url }) => url), [
-    requests[0].url,
+    '/enter',
+    '/api/access/redeem',
     '/app/student?s=synthetic-student-gamma',
     '/api/portal/synthetic-student-gamma',
     '/lessons/synthetic-quadratic-formulas',
     '/app/play/quiz?d=synthetic-linear-formulas&s=synthetic-student-gamma&t=fixed-signature',
+    '/api/family',
+    '/api/portal/synthetic-student-gamma?kind=parent',
+    '/api/portal/synthetic-sibling-sentinel',
+    '/api/payments?student=synthetic-student-gamma',
+    '/api/access/redeem',
   ]);
-  assert.equal(requests.length, 5);
-  assert.equal(requests[1].cookie, 'maab_family=fixed-test-session');
-  assert.equal(requests[2].cookie, 'maab_family=fixed-test-session');
-  assert.equal(requests[3].cookie, undefined);
+  assert.equal(requests.length, 11);
+  assert.equal(requests[2].cookie, 'maab_family=u.s.92001.fixture');
+  assert.equal(requests[3].cookie, 'maab_family=u.s.92001.fixture');
   assert.equal(requests[4].cookie, undefined);
+  assert.equal(requests[5].cookie, undefined);
 });
 
 for (const redirectCase of [
@@ -531,11 +537,8 @@ for (const redirectCase of [
     assert.ok(escapedAddress && typeof escapedAddress === 'object');
 
     const server = createServer((request, response) => {
-      if (request.url?.startsWith('/enter?t=s.92001.')) {
-        response.writeHead(303, {
-          location: '/app/student?s=synthetic-student-gamma',
-          'set-cookie': 'maab_family=fixed-test-session; Path=/; HttpOnly; SameSite=Lax',
-        }).end();
+      if (respondAuthFixture(request, response)) {
+        // Containment fixture only.
       } else if (request.url === redirectCase.path) {
         response.writeHead(302, { location: `http://127.0.0.1:${escapedAddress.port}/sentinel` }).end();
       } else if (request.url === '/app/student?s=synthetic-student-gamma') {
@@ -557,7 +560,7 @@ for (const redirectCase of [
     try {
       const result = await new Promise((resolve) => {
         const child = spawn(process.execPath, ['synthetic/http-smoke.mjs', `http://127.0.0.1:${address.port}`], {
-          cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+          cwd: root, env: transport.env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
         });
         let stdout = '';
         let stderr = '';
@@ -588,11 +591,8 @@ test('HTTP smoke never follows a returned fixture redirect off the synthetic ori
   assert.ok(escapedAddress && typeof escapedAddress === 'object');
 
   const server = createServer((request, response) => {
-    if (request.url?.startsWith('/enter?t=s.92001.')) {
-      response.writeHead(303, {
-        location: '/app/student?s=synthetic-student-gamma',
-        'set-cookie': 'maab_family=fixed-test-session; Path=/; HttpOnly; SameSite=Lax',
-      }).end();
+    if (respondAuthFixture(request, response)) {
+      // Explicit confirmation + POST protocol fixture, not real auth evidence.
     } else if (request.url === '/app/student?s=synthetic-student-gamma') {
       response.writeHead(200).end('student page');
     } else if (request.url === '/api/portal/synthetic-student-gamma') {
@@ -629,7 +629,7 @@ test('HTTP smoke never follows a returned fixture redirect off the synthetic ori
 
   const result = await new Promise((resolve) => {
     const child = spawn(process.execPath, ['synthetic/http-smoke.mjs', `http://127.0.0.1:${address.port}`], {
-      cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: root, env: transport.env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
     let stderr = '';
@@ -657,11 +657,8 @@ test('HTTP smoke rejects a lesson redirect without contacting its foreign target
   assert.ok(escapedAddress && typeof escapedAddress === 'object');
 
   const server = createServer((request, response) => {
-    if (request.url?.startsWith('/enter?t=s.92001.')) {
-      response.writeHead(303, {
-        location: '/app/student?s=synthetic-student-gamma',
-        'set-cookie': 'maab_family=fixed-test-session; Path=/; HttpOnly; SameSite=Lax',
-      }).end();
+    if (respondAuthFixture(request, response)) {
+      // Explicit confirmation + POST protocol fixture, not real auth evidence.
     } else if (request.url === '/app/student?s=synthetic-student-gamma') {
       response.writeHead(200).end('student page');
     } else if (request.url === '/api/portal/synthetic-student-gamma') {
@@ -696,7 +693,7 @@ test('HTTP smoke rejects a lesson redirect without contacting its foreign target
   try {
     const result = await new Promise((resolve) => {
       const child = spawn(process.execPath, ['synthetic/http-smoke.mjs', `http://127.0.0.1:${address.port}`], {
-        cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+        cwd: root, env: transport.env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
       });
       let stdout = '';
       let stderr = '';

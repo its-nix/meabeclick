@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { openAuthFixture, assertRedeem, assertReplay, assertStudentScope } from './auth-client.mjs';
 import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,8 +7,6 @@ import { spawn } from 'node:child_process';
 import { loopbackUrlIssue } from './runtime-policy.mjs';
 import { createOriginProxy } from './browser-origin-proxy.mjs';
 
-const SECRET = 'synthetic-test-secret-not-for-production-7ee72572';
-const STUDENT_ID = 92001;
 const STUDENT_CODE = 'synthetic-student-gamma';
 const TASK = 'פתרו x² = 16 והסבירו את שתי התשובות — משימת בדיקה';
 const EXPECTED_GRADE = 'נבדק — יפה מאוד';
@@ -107,6 +105,11 @@ async function pageSocket(port) {
 }
 
 let pageOriginViolation = false;
+let blockedOptionalFontRequests = 0;
+// The normal layout references this one optional stylesheet. The proxy STILL
+// denies its CONNECT (and every other tunnel); fallback-font rendering is not
+// evidence of font availability or strict zero attempted external requests.
+const OPTIONAL_FONT_URL = 'https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap';
 function cdp(socket) {
   let id = 0;
   const pending = new Map();
@@ -115,7 +118,10 @@ function cdp(socket) {
     // Reporting only; the browser-wide proxy already prevents contact, even
     // for targets not attached to this page's debugging session.
     const url = message.params?.request?.url ?? (message.method === 'Network.webSocketCreated' ? message.params?.url : null);
-    if (url && /^(https?|wss?):/.test(url) && new URL(url).origin !== baseUrl) pageOriginViolation = true;
+    if (url && /^(https?|wss?):/.test(url) && new URL(url).origin !== baseUrl) {
+      if (url === OPTIONAL_FONT_URL && message.params?.type === 'Stylesheet' && message.params?.request?.method === 'GET') blockedOptionalFontRequests++;
+      else pageOriginViolation = true;
+    }
     if (!message.id) return;
     const waiter = pending.get(message.id);
     if (!waiter) return;
@@ -162,13 +168,15 @@ async function waitFor(call, expression, timeoutMs = 10_000) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   const snapshot = await call('Runtime.evaluate', {
-    expression: `({ url: location.href, text: document.body.innerText, cards: [...document.querySelectorAll('.card')].map((card) => ({ text: card.innerText, html: card.outerHTML })) })`,
+    expression: `({ path: location.pathname, text: document.body.innerText, cards: [...document.querySelectorAll('.card')].map((card) => ({ text: card.innerText, html: card.outerHTML })) })`,
     returnByValue: true,
   }).catch(() => null);
   throw new Error(`[synthetic] rendered UI assertion timed out: ${expression}\n${JSON.stringify(snapshot?.result?.value)}`);
 }
 
 let socket;
+let fixture;
+const fixtureController = new AbortController();
 let interrupt;
 const interrupted = new Promise((_, reject) => { interrupt = reject; });
 const onSignal = () => interrupt(new Error('[synthetic] browser smoke interrupted'));
@@ -187,12 +195,56 @@ try {
     await call('Page.enable');
     await call('Runtime.enable');
 
-    const payload = `s.${STUDENT_ID}.${Date.now() + 60_000}`;
-    const signature = createHmac('sha256', SECRET).update(payload).digest('base64url');
-    const token = `${payload}.${signature}`;
-    await call('Page.navigate', { url: `${baseUrl}/enter?t=${encodeURIComponent(token)}` });
-
+    fixture = await openAuthFixture(fixtureController.signal);
+    let posts = 0;
+    let clicked = false;
+    let responseVerified = false;
+    let observationError;
+    // Observe the real network exchange; never supply a mocked response.
+    await call('Fetch.enable', { patterns: [{ urlPattern: `${baseUrl}/api/access/redeem`, requestStage: 'Response' }] });
+    socket.addEventListener('message', async event => {
+      const message = JSON.parse(String(event.data));
+      if (message.method === 'Network.requestWillBeSent' && message.params.request.url === `${baseUrl}/api/access/redeem`) {
+        posts++;
+        const request = message.params.request;
+        if (!clicked || request.method !== 'POST' || request.postData !== JSON.stringify({ token: fixture.token })
+          || !Object.entries(request.headers).some(([k,v]) => k.toLowerCase() === 'content-type' && v === 'application/json')) {
+          observationError = new Error('[synthetic] redeem must be one explicit-click JSON POST');
+        }
+      }
+      if (message.method !== 'Fetch.requestPaused') return;
+      try {
+        const paused = message.params;
+        const raw = await call('Fetch.getResponseBody', { requestId: paused.requestId });
+        const body = JSON.parse(raw.base64Encoded ? Buffer.from(raw.body, 'base64').toString('utf8') : raw.body);
+        const headers = new Headers(paused.responseHeaders.map(h => [h.name, h.value]));
+        assertRedeem({ status: paused.responseStatusCode, headers }, body);
+        responseVerified = true;
+      } catch { observationError = new Error('[synthetic] browser redeem response failed exact no-store success assertion'); }
+      finally { await call('Fetch.continueRequest', { requestId: message.params.requestId }).catch(() => {}); }
+    });
+    await call('Page.navigate', { url: `${baseUrl}/enter#${fixture.token}` });
+    const button = await waitFor(call, `(() => {
+      const button = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'כניסה לדף האישי');
+      if (!button || button.disabled || !button.checkVisibility() || location.href !== ${JSON.stringify(baseUrl + '/enter')}) return false;
+      const box = button.getBoundingClientRect(); return {x:box.x+box.width/2,y:box.y+box.height/2};
+    })()`);
+    const history = await call('Page.getNavigationHistory');
+    if (posts !== 0 || history.entries.some(e => e.url.includes('#') || e.url.includes('?'))) {
+      throw new Error('[synthetic] fragment not scrubbed from address/history before explicit redeem click');
+    }
+    clicked = true;
+    await call('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...button });
+    await call('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, ...button });
     await waitFor(call, `document.querySelector('.bottom-nav') && document.body.innerText.includes('שיעורי בית')`);
+    if (observationError) throw observationError;
+    if (posts !== 1 || !responseVerified) throw new Error('[synthetic] browser did not perform exactly one successful redemption');
+    const cookies = await call('Network.getCookies', { urls: [baseUrl] });
+    if (!cookies.cookies.some(c => c.name === 'maab_family' && c.httpOnly && c.sameSite === 'Lax' && c.value.startsWith('u.s.92001.'))) {
+      throw new Error('[synthetic] browser did not establish exact student family cookie');
+    }
+    await fixture.check('consumed');
+    console.log('[synthetic] real fragment confirmation, scrubbed history, explicit click, JSON POST, no-store destination and student cookie passed');
     const locationResult = await call('Runtime.evaluate', { expression: 'location.origin + location.pathname + location.search', returnByValue: true });
     if (locationResult.result.value !== `${baseUrl}/app/student?s=${STUDENT_CODE}`) {
       throw new Error(`[synthetic] browser reached unexpected student route: ${locationResult.result.value}`);
@@ -212,11 +264,21 @@ try {
         : false;
     })()`);
 
+    await assertStudentScope(baseUrl, `maab_family=${cookies.cookies.find(c => c.name === 'maab_family').value}`, fixtureController.signal);
+    const replay = await fetch(`${baseUrl}/api/access/redeem`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: fixture.token }), redirect: 'manual', signal: AbortSignal.timeout(5_000),
+    });
+    assertReplay(replay, await replay.json());
+    await fixture.check('replayed');
     if (pageOriginViolation) throw new Error('[synthetic] browser page attempted to escape the exact synthetic origin');
+    console.log(`[synthetic] transport boundary active; optional font attempts=${blockedOptionalFontRequests}; proxy denials=${proxy.denied}; no font access enabled`);
     console.log(`[synthetic] rendered student homework passed: ${JSON.stringify(rendered)}`);
   })()]), OVERALL_TIMEOUT_MS, 'rendered browser smoke');
 } finally {
   try {
+    fixtureController.abort();
+    await fixture?.close();
     if (socket && socket.readyState !== WebSocket.CLOSED) socket.close();
     if (browser.exitCode === null) browser.kill('SIGTERM');
     await withTimeout(new Promise((resolve) => {

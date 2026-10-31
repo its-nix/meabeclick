@@ -1,4 +1,7 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
+import { fakeAuthTransport, respondAuthFixture } from '../helpers/synthetic-auth-transport.mjs';
+const transport = await fakeAuthTransport();
+after(() => transport.close());
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
@@ -24,8 +27,18 @@ for (const mode of ['same-origin', 'redirect', 'resources-workers-targets-websoc
       if (mode === 'signal') {
         setTimeout(() => child?.kill('SIGTERM'), 100);
         res.end('synthetic stalled UI');
-      } else if (req.url.startsWith('/enter?')) {
-        res.writeHead(303, { location: mode === 'redirect' ? `${foreign}/redirect` : '/app/student?s=synthetic-student-gamma' }).end();
+      } else if (req.url === '/enter') {
+        res.setHeader('content-type', 'text/html; charset=utf-8');
+        if (mode === 'redirect') res.writeHead(303, { location: `${foreign}/redirect` }).end();
+        else res.end(`<!doctype html><html><head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap"></head><body><button>כניסה לדף האישי</button><script>
+          const token = location.hash.slice(1); history.replaceState(null, '', '/enter');
+          document.querySelector('button').onclick = async () => {
+            const res = await fetch('/api/access/redeem', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+            location.replace((await res.json()).destination);
+          };
+        </script></body></html>`);
+      } else if (respondAuthFixture(req, res)) {
+        // Protocol fixture only, never normal-app smoke evidence.
       } else if (req.url === '/service-worker.js') {
         res.setHeader('content-type', 'text/javascript');
         res.end(`self.addEventListener('install', event => event.waitUntil(fetch('${foreign}/service-worker').catch(()=>{})));`);
@@ -67,7 +80,7 @@ exec "$REAL_CHROME" "$@"
     try {
       const result = await new Promise((resolve) => {
         child = spawn(process.execPath, ['synthetic/browser-smoke.mjs', origin], {
-          env: { PATH: process.env.PATH, HOME: dir, CHROME_BIN: wrapper, REAL_CHROME: chrome, TMPDIR: tmpdir() },
+          env: { ...transport.env, HOME: dir, CHROME_BIN: wrapper, REAL_CHROME: chrome, TMPDIR: tmpdir() },
           stdio: ['ignore', 'pipe', 'pipe'],
         });
         let output = '';
@@ -78,7 +91,7 @@ exec "$REAL_CHROME" "$@"
       });
       assert.equal(result.signal, null, result.output);
       assert.equal(contacts, 0, `off-origin sentinel contacts: ${contacts}\n${result.output}`);
-      assert.ok(requests.some((url) => url.startsWith('/enter?')), `entry was never exercised: ${result.output}`);
+      assert.ok(requests.some((url) => url === '/enter'), `entry was never exercised: ${result.output}`);
       if (mode === 'resources-workers-targets-websocket') {
         assert.ok(requests.includes('/worker.js'), 'dedicated worker was not exercised');
         assert.ok(requests.includes('/service-worker.js'), 'service worker was not exercised');

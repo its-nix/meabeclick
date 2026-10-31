@@ -4,15 +4,20 @@ This stack is for UX and release testing with fictional data only. It does not d
 
 ## Current release gate
 
-The containment/schema/deadline regressions are independent of a successful
-normal-app session. **The current normal-app smoke is blocked:** the application
-now renders `/enter` as a confirmation page and redeems fragment credentials via
-POST `/api/access/redeem`, whereas the existing synthetic smokes still expect a
-legacy `GET /enter?t=...` → 303 exchange. A real local synthetic runtime returns
-HTTP 200 at that stage and fails closed. Do not interpret passing local sentinel
-fixtures or schema tests as a successful normal student journey, and do not
-restore the obsolete GET-auth behavior to make the smoke pass. Updating the
-synthetic auth fixture/journey requires a separate scoped follow-up.
+The normal-app smoke exercises the current one-time auth contract: HTTP 200
+`/enter` confirmation, JSON POST `/api/access/redeem`, and a real browser
+`/enter#<ephemeral-token>` visit followed by an explicit click on the real
+`כניסה לדף האישי` button. It asserts the fragment is removed from address and
+navigation history before any redemption, exact no-store success/destination,
+student-only family cookie, and actual homework rendering. Containment fixtures
+are **not** normal-app auth evidence. No legacy query-GET auth is restored.
+
+Canonical offline Docker builds remain dependent on locally cached base layers
+and npm dependencies; a cached-runtime derivative with a current local build is
+only runtime evidence, not a canonical Dockerfile/build pass. Prior isolation
+exceptions remain disclosed separately: do not claim strict zero external contact
+for earlier runs. No VPS/production probe, merge, deploy or release is authorized
+by these tests.
 
 ## Safety design
 
@@ -28,7 +33,8 @@ synthetic auth fixture/journey requires a separate scoped follow-up.
 - The named volume is marked before first database creation. An unmarked non-empty data directory is refused. After migrations, the seeder removes every application row except migration bookkeeping—including migration-created named tutors and generic catalog exercises—then inserts the deterministic fixture in one transaction with foreign-key enforcement enabled and deferred until the complete graph exists.
 - The seeder also cleans the portal directory and atomically creates exactly `/synthetic-data/portal/synthetic-student-gamma.json`. Its obviously fictional, deterministic content includes the seeded lesson and game. Reruns replace corruption or stale temporary files and remove every unexpected portal entry.
 - Final verification is exhaustive against `src/lib/server/storage-inventory.ts`: every known data table is either constrained to exact synthetic IDs/content or required to be empty. It independently runs SQLite's `foreign_key_check` and verifies the exact portal path/content and absence of other portal files. The allowlist includes the exact published `lesson_materials` slide row used by `/lessons/synthetic-quadratic-formulas`. Unknown/missing tables, broken references, real/default tutor fields, extra bookings/enrollments/payments/reports/results, and altered formula/homework/submission/material fixtures fail verification.
-- The policy explicitly includes migrations 32/33: `access_credentials`, `access_credential_audit`, `lesson_game_assignments`, and `lesson_game_revisions` are purged and required empty, and migration bookkeeping must be exactly versions 1–33. An isolated `DB_PATH=:memory:` regression initializes the real application schema (including legacy DDL), replaces fictional rows twice, and rejects unknown tables.
+- The baseline policy explicitly includes migrations 32/33: `access_credentials`, `access_credential_audit`, `lesson_game_assignments`, and `lesson_game_revisions` are purged and required empty, and migration bookkeeping must be exactly versions 1–33. An isolated `DB_PATH=:memory:` regression initializes the real application schema (including legacy DDL), replaces fictional rows twice, and rejects unknown/missing tables and extra rows. Only the explicit smoke lifecycle adds exactly one real student link plus its unused join companion; both are checked against their exact issuance snapshots and production hashes, with student scope 92001 and system/null issuer. The link has the production 15-minute TTL and fails closed on expiry. The join remains issued, unconsumed and unrevoked throughout. After redemption there is one consumed audit row; replay adds exactly one replayed row without changing the first consumption. All other tables still undergo the same exhaustive fixture verification.
+- A private anonymous-pipe handoff (`compose exec -T app`, never container logs) calls the exact production `issueStudentCredentials` helper after two clear/seed/verify cycles. Raw link token lives in process memory/pipe and the browser's ephemeral fragment only: no persisted fixture file, DB plaintext, URL query, log or CI output. The join secret is never handed out. The production issuer/database/migration source files are explicitly copied into the runtime image for this tool; no duplicate digest implementation or synthetic auth bypass exists. Each HTTP/browser run resets the synthetic fixture, then independently exercises one link. This is destructive only to the fixed synthetic volume; direct smoke invocations must not run concurrently.
 - The real browser is launched only after a local exact-origin HTTP proxy is listening. Chrome has a fixed proxy with no DIRECT fallback and with implicit loopback bypass disabled. Redirects, subresources, workers and new targets all traverse the same transport boundary before any upstream contact. Only the exact supplied HTTP origin can be forwarded; all CONNECT tunnels and WebSocket upgrades are denied (not needed for this production-build smoke). QUIC and non-proxied WebRTC UDP are disabled; DNS is disabled except the numeric loopback proxy. Chrome background requests are blocked too, not silently forwarded. Page network events additionally report origin escapes; they are detection, not the containment mechanism.
 - The HTTP smoke has a 15-second total deadline spanning every header and body read, using one abort controller. Unneeded bodies are canceled immediately; all pending work is aborted on every exit. A third smoke-only CLI argument may shorten (never extend) this deadline to 100–15000ms for adversarial tests. Streaming whitespace cannot reset it. Lifecycle commands add an outer 20-second HTTP / 55-second browser backstop. Browser TERM/INT triggers profile/transport/process cleanup.
 - Every Compose operation is bounded with GNU `timeout`: builds 600s, ordinary operations 120s, teardown 60s, followed by KILL 5s after TERM. A timeout is nonzero; failed cleanup explicitly warns that resources may remain. Always verify scoped container/volume absence after cleanup—an attempted command is not evidence of removal.
@@ -52,7 +58,9 @@ Validate the fully rendered configuration without starting anything:
 ./scripts/synthetic-vps.sh up
 ```
 
-This first stops and removes any existing synthetic `gateway`, then builds the local image and starts only the internal synthetic `app`. While no host port exists, it waits for migrations/health, replaces all application data with the deterministic fixture, and runs exhaustive database and portal-file verification. Only then does it recreate the loopback gateway. The HTTP smoke uses the fixed synthetic signing secret and fictional student ID to visit `/enter`, verifies that a student session cookie and the exact student redirect are established, opens the normal student page, and checks the normal portal API exposes the seeded lesson, signed game URL, and concrete submitted-and-graded homework fields. It then follows the API-returned lesson and signed game URLs and requires HTTP 200 plus the expected synthetic slide and game content. Every post-`/enter` fetch uses manual redirect handling: a redirect or any other non-success response from the student page, portal API, lesson, or game fails immediately without following the redirect target. The smoke also refuses any target except an exact `http://127.0.0.1:<1024-65535>` root URL and refuses returned fixture URLs that are not root-relative paths on that same origin. Finally, a headless real browser follows the same magic-link route, waits for the actual student client to fetch and render the portal data, opens the homework view, and requires one visible card containing the exact task, the submitted-state `לשחק שוב` action, and the exact synthetic `ok` grade label `נבדק — יפה מאוד`. This ordering also applies when `up` is rerun over an existing stack, so the previous loopback listener cannot expose the app during rebuild, migration, seed, or verification.
+This first stops/removes the old synthetic gateway, builds and starts only the internal app, seeds/verifies the complete baseline (both access tables empty), then starts the loopback gateway. Each smoke uses a private fixture process that clears/seeds/verifies twice before issuing one real short-lived student link and its unused join companion. HTTP smoke checks the confirmation HTML, real JSON redemption, exact no-store success/destination/cookie, normal student page/API, lesson slides and signed game content. Browser smoke opens the fragment link in a fresh explicit Chrome profile behind the exact-origin proxy, checks history/address scrubbing and zero pre-click redeems, clicks the actual button via browser input, observes the real POST/response without mocking, then checks the normal homework card, submitted `לשחק שוב` action and `נבדק — יפה מאוד` grade. Both assert exact student family scope, parent/sibling/payment denials, generic replay failure without a new session/destination, and exhaustive post-consume/post-replay database readbacks. Every HTTP fetch uses manual redirects; targets and returned fixture URLs must stay on the exact numeric-loopback origin.
+
+The existing layout requests one exact optional Google Fonts stylesheet. It remains **blocked by the proxy**, not fetched or replaced. The smoke reports the blocked attempt and renders with fallback fonts; only that exact GET stylesheet is classified as expected detection noise. All other page-origin escapes still fail, and all off-origin transport (including fonts, browser background requests, CONNECT and WebSockets) remains denied before contact. This is not a typography review or a claim of zero attempted external requests.
 
 If app startup, seeding, database verification, gateway startup, the HTTP smoke, or the rendered-browser smoke fails, the command fails closed and removes the entire fixed synthetic Compose project, including its named data volume. A partially seeded or unverified environment is never left available.
 
@@ -82,8 +90,10 @@ Expected evidence includes:
 
 - Compose config validation succeeds.
 - Only `meabeclick-synthetic-*` resources are shown.
-- Database verification reports exact allowlisted fixture counts (1 account, 1 student, 2 tutors, 1 enrollment, 1 booking, 1 lesson, 1 published lesson material, 1 submitted homework item, 1 result, 1 report, and 1 synthetic game catalog row) and zero rows in every other application data table.
-- Magic-link exchange, student page, portal API field checks, published lesson material, and API-returned signed game page all succeed against the exact loopback origin.
+- Baseline database verification reports exact fixture counts and empty access tables. After each journey the only additions are exactly two student credentials and two audit rows (`consumed`, `replayed`), with every other table unchanged.
+- Confirmation HTML, real POST exchange, actual browser click/render, student page/API, lesson slides and signed game checks succeed; both exhaustive lifecycle checkpoints pass.
+
+`verify` stops the gateway and reseeds the baseline before running these journeys again; it does not expect a prior consumed credential to disappear without reseeding.
 
 The check prints counts only; it does not print seeded records.
 

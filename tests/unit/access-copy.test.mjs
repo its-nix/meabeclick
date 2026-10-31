@@ -28,7 +28,7 @@ test('admin access actions name one scope and provide safe single-use handoff gu
   assert.match(dashboard, /כניסה חדשה למשפחה של/);
   assert.match(dashboard, /כניסה חדשה ל.*בלבד/);
   assert.match(dashboard, /account_id:\s*number/);
-  assert.match(dashboard, /accessKey\(rs\.account_id,\s*'account'\)/);
+  assert.match(dashboard, /accessKey\(account\.accountId,\s*'account'\)/);
   assert.match(dashboard, /JSON\.stringify\(\{ scope \}\)/);
   assert.match(dashboard, /שליחה בוואטסאפ/);
   assert.match(dashboard, /הצגת הקישור/);
@@ -41,6 +41,18 @@ test('admin access actions name one scope and provide safe single-use handoff gu
   assert.match(dashboard, /\.rs-join b\s*\{[^}]*unicode-bidi:\s*isolate/s);
   assert.match(dashboard, /@media \(max-width: 600px\)[\s\S]*\.codes-table\s*\{[^}]*min-width:\s*0/s);
   assert.match(dashboard, /@media \(max-width: 600px\)[\s\S]*\.codes-table\s*\{[^}]*inline-size:\s*100%[^}]*max-inline-size:\s*100%/s);
+});
+
+test('admin access groups one account action above its per-student actions', () => {
+  const dashboard = readFileSync('src/routes/app/dashboard/+page.svelte', 'utf8');
+
+  assert.match(dashboard, /const accessAccounts = \$derived\.by/);
+  assert.match(dashboard, /new Map<number, AccessAccount>/);
+  assert.match(
+    dashboard,
+    /\{#each accessAccounts as account \(account\.accountId\)\}[\s\S]*כניסה למשפחה[\s\S]*\{#each account\.students as rs \(rs\.code\)\}[\s\S]*כניסה לתלמיד\/ה בלבד[\s\S]*\{\/each\}[\s\S]*\{\/each\}/,
+  );
+  assert.match(dashboard, /בחשבון של \{account\.accountName\}/);
 });
 
 test('portal pending feedback and narrow reflow remain explicit', () => {

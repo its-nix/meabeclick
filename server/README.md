@@ -662,8 +662,16 @@ It unpacks the database and the files archive into a scratch directory
 beside the target, runs `integrity_check` and `foreign_key_check` there,
 and replaces the previous restore only after that. It fails unless
 `integrity_check` is exactly `ok`. A corrupt database or archive leaves
-any previous restore in place. A missing files archive still prints a
-warning and continues. It prints counts only (never records), and finishes
+any previous restore in place. Restore requires `python3` (standard library
+only) to validate archive members before extraction and the extracted tree
+before swapping. Only regular files and directories under `portal/`,
+`games-data/`, `lessons/`, and `drafts/` are accepted; all symbolic/hard
+links, special files, absolute/traversing paths, and unknown roots fail
+closed. Root `results.db` and `results.db-*` regular files remain excluded
+so the archive cannot replace the checked database. The archive is copied
+into private scratch space so validation and extraction use the same copy.
+The checkout boundary uses its physical path even when invoked through a
+symlink. A missing files archive still prints a warning and continues. It prints counts only (never records), and finishes
 by printing the `docker run` that smoke-tests the restore on port 3100
 without touching the live stack.
 

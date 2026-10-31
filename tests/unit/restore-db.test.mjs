@@ -442,6 +442,47 @@ describe('restore-db.sh', { concurrency: false }, () => {
     }
   });
 
+  for (const kind of ['absolute-symlink', 'relative-symlink', 'absolute-hardlink', 'relative-hardlink', 'parent-path', 'absolute-path', 'fifo', 'unknown-root']) {
+    test(`an archive with ${kind} is refused without changing prior restore or outside files`, (t) => {
+      if (skipWithoutSqlite(t)) return;
+      const h = harness();
+      const target = previousRestore(h.work);
+      const outside = join(h.work, 'outside');
+      mkdirSync(outside);
+      writeFileSync(join(outside, 'KEEP'), 'outside');
+      const archive = join(h.backups, `files-${STAMP}.tar.gz`);
+      const made = spawnSync('python3', ['-c', `
+import io, sys, tarfile
+archive, kind, outside = sys.argv[1:]
+with tarfile.open(archive, 'w:gz') as tar:
+    member = tarfile.TarInfo('portal/escape')
+    if kind.endswith('symlink') or kind.endswith('hardlink'):
+        member.type = tarfile.SYMTYPE if kind.endswith('symlink') else tarfile.LNKTYPE
+        member.linkname = outside + '/KEEP' if kind.startswith('absolute') else '../../../outside/KEEP'
+    elif kind == 'fifo':
+        member.type = tarfile.FIFOTYPE
+    else:
+        member.name = '../outside/KEEP' if kind == 'parent-path' else outside + '/KEEP' if kind == 'absolute-path' else 'unexpected/KEEP'
+        member.size = 7
+    tar.addfile(member, io.BytesIO(b'changed') if member.isfile() else None)
+`, archive, kind, outside], { encoding: 'utf8' });
+      assert.equal(made.status, 0, made.stderr);
+      try {
+        const r = run(h, [STAMP, target]);
+        assert.equal(r.status, 1, r.stderr);
+        assert.match(r.stderr, /files archive is (unsafe|corrupt)/);
+        assert.equal(readFileSync(join(target, 'data', 'KEEP'), 'utf8'), 'previous');
+        assert.equal(readFileSync(join(outside, 'KEEP'), 'utf8'), 'outside');
+        assert.deepEqual(readdirSync(outside), ['KEEP']);
+        assert.deepEqual(readdirSync(target), ['data']);
+        assert.deepEqual(readdirSync(join(target, 'data')), ['KEEP']);
+        assert.doesNotMatch(r.rmLog, /previous-restore/);
+      } finally {
+        rmSync(h.work, { recursive: true, force: true });
+      }
+    });
+  }
+
   test('a truncated files archive leaves the previous restore in place', (t) => {
     if (skipWithoutSqlite(t)) return;
     const h = harness();
@@ -552,6 +593,33 @@ describe('restore-db.sh', { concurrency: false }, () => {
       assert.match(inside.stderr, /backup directory/);
       assert.equal(readFileSync(join(backups, 'nested', 'KEEP'), 'utf8'), 'inside');
       assert.equal(direct.rmLog + above.rmLog + inside.rmLog, '');
+    } finally {
+      rmSync(h.work, { recursive: true, force: true });
+    }
+  });
+
+  test('a symlinked checkout refuses a physical server target before mv or rm', (t) => {
+    if (skipWithoutSqlite(t)) return;
+    const h = harness();
+    const layout = repoLayout(h.work);
+    const alias = join(h.work, 'alias');
+    symlinkSync(layout.repo, alias);
+    const keep = join(layout.repo, 'server', 'KEEP');
+    writeFileSync(keep, 'script-dir');
+    const original = readFileSync(layout.script);
+    const mvLog = join(h.work, 'mv.log');
+    writeFileSync(join(h.bin, 'mv'), `#!/usr/bin/env bash\nprintf '%s\\n' "$*" >> "${mvLog}"\nexec /bin/mv "$@"\n`);
+    chmodSync(join(h.bin, 'mv'), 0o755);
+    try {
+      const r = run(h, [STAMP, join(layout.repo, 'server')], {
+        script: join(alias, 'server', 'restore-db.sh'),
+      });
+      assert.equal(r.status, 1, r.stderr);
+      assert.match(r.stderr, /inside the repo/);
+      assert.equal(r.rmLog, '');
+      assert.equal(existsSync(mvLog), false);
+      assert.equal(readFileSync(keep, 'utf8'), 'script-dir');
+      assert.deepEqual(readFileSync(layout.script), original);
     } finally {
       rmSync(h.work, { recursive: true, force: true });
     }

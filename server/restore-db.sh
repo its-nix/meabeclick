@@ -79,7 +79,7 @@ CANON="$(realpath -m -- "$TARGET")" || refuse "could not resolve the path"
 [ -n "$CANON" ] || refuse "could not resolve the path"
 TARGET="$CANON"
 
-REPO="$(pwd)"
+REPO="$(pwd -P)"
 REPO_DATA="$(realpath -m -- "$REPO/data")"
 HOME_CANON="$(realpath -m -- "$HOME")"
 
@@ -150,6 +150,43 @@ fk_src="$(sqlite3 "$ro" 'PRAGMA foreign_key_check;' | wc -l)" || {
 [ "$fk_src" = "0" ] || { echo "FOREIGN KEY VIOLATIONS IN BACKUP" >&2; exit 1; }
 
 if [ -s "$FILES" ]; then
+  # Validate the same private archive copy that will be extracted. Fail closed
+  # on links (including hardlinks), special files, traversal and unknown roots.
+  # Python's tar parser handles long/PAX names without line-oriented parsing.
+  cp -- "$FILES" "$scratch/files.tar.gz"
+  FILES="$scratch/files.tar.gz"
+  if ! python3 - "$FILES" <<'PY'
+import sys
+import tarfile
+
+try:
+    with tarfile.open(sys.argv[1], 'r:gz') as archive:
+        for member in archive:
+            parts = member.name.split('/')
+            if member.name.startswith('/') or '..' in parts:
+                raise ValueError('unsafe member path')
+            parts = [part for part in parts if part not in ('', '.')]
+            if not (member.isfile() or member.isdir()):
+                raise ValueError('links and special files are not supported')
+            if not parts:
+                if not member.isdir():
+                    raise ValueError('invalid root member')
+                continue
+            root = parts[0]
+            # Existing DB exclusions remain supported, but only for regular
+            # root files: no directories/links may masquerade as a database.
+            if root == 'results.db' or root.startswith('results.db-'):
+                if len(parts) != 1 or not member.isfile():
+                    raise ValueError('invalid database member')
+            elif root not in ('portal', 'games-data', 'lessons', 'drafts'):
+                raise ValueError('unknown member root')
+except (OSError, tarfile.TarError, ValueError):
+    sys.exit(1)
+PY
+  then
+    echo "files archive is corrupt or unsafe: $FILES" >&2
+    exit 1
+  fi
   # Extract here, before the previous restore is touched. A truncated
   # archive fails this command and the trap throws the scratch tree away.
   # Never let the archive replace the database that just passed. A backup
@@ -170,6 +207,35 @@ else
   echo "WARNING: no files-$STAMP.tar.gz — portal records and generated content are NOT in this restore." >&2
 fi
 
+# Defense in depth: inspect with lstat, never following links, before any
+# mkdir, database re-check or target swap can follow an extracted path.
+if ! python3 - "$scratch/data" <<'PY'
+import os
+import stat
+import sys
+
+def fail_walk(error):
+    raise error
+
+try:
+    for parent, dirs, files in os.walk(sys.argv[1], followlinks=False, onerror=fail_walk):
+        for name in dirs + files:
+            info = os.lstat(os.path.join(parent, name))
+            if not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)):
+                raise ValueError('unsupported extracted type')
+            if stat.S_ISREG(info.st_mode) and info.st_nlink != 1:
+                raise ValueError('extracted hardlink')
+except (OSError, ValueError):
+    sys.exit(1)
+PY
+then
+  echo "files archive is unsafe: extracted tree contains unsupported links or types" >&2
+  exit 1
+fi
+# Do not install the private validation input beside the restored data.
+if [ -f "$scratch/files.tar.gz" ]; then
+  rm -- "$scratch/files.tar.gz"
+fi
 mkdir -p "$scratch/data/portal"
 # Re-check before the swap. The excludes above are what stop a tarball from
 # replacing results.db; these two checks are what stop the swap if it did.

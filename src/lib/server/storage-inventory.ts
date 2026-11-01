@@ -54,6 +54,7 @@ export interface TableFact {
 export const STORAGE: Record<string, TableFact> = {
   // ── The entity model, which is where new work belongs ──────────────
   accounts:      { status: 'live', note: 'The billing/login family.' },
+  family_acquisition_sources: { status: 'live', note: 'Self-reported family source reused for future bookings; past booking snapshots remain unchanged.' },
   students_v2:   { status: 'live', note: 'The student. Keyed by id; `code` is the URL slug.' },
   teachers:      { status: 'live', note: 'Who teaches. One row in practice.' },
   enrollments:   { status: 'live', note: 'A student in a subject. UNIQUE per (student, subject).' },

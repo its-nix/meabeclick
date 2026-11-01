@@ -7,7 +7,7 @@
   import { SUBJECT } from '$lib/subjects.ts';
   import { lockScroll } from '$lib/scroll-lock.ts';
   import { initMarketing, track, attribution } from '$lib/marketing.ts';
-  import { HEARD_DETAIL_MAX, HEARD_FROM_OPTIONS } from '$lib/marketing-labels.ts';
+  import { HEARD_DETAIL_MAX, HEARD_FROM_OPTIONS, HEARD_FROM_LABELS } from '$lib/marketing-labels.ts';
   import { TUTOR_PHONE, OFFICE_ADDRESS } from '$lib/contact.ts';
   import { MODE_LABEL, type LessonMode } from '$lib/lesson-mode.ts';
   import { contactTutor } from '$lib/tutors.ts';
@@ -299,11 +299,27 @@
     mode = m;
     errors = { ...errors, mode: undefined };
   }
-  /** "איך שמעתם עלינו?" — optional, never validated as required (see
-   *  validatePane1/validatePane2 below), and never sent at all when blank
-   *  (submitBooking). '' is "not answered", the same convention every
-   *  other optional field on this page uses. */
+  /** An optional first answer, or an explicit correction on a later booking.
+   * Omission for a returning family means carry its saved source forward. */
   let heardFrom = $state('');
+  let editingSource = $state(false);
+  const savedSource = $derived(data.acquisitionSource ?? 'unknown');
+  async function editSource() {
+    if (submitting) return;
+    heardFrom = savedSource;
+    heardDetail = '';
+    editingSource = true;
+    await tick();
+    document.getElementById('inp-heard-from')?.focus();
+  }
+  async function cancelSourceEdit() {
+    if (submitting) return;
+    heardFrom = '';
+    heardDetail = '';
+    editingSource = false;
+    await tick();
+    document.getElementById('edit-source')?.focus();
+  }
   /** Optional free text after "אחר". Never required, and sent only with that choice. */
   let heardDetail = $state('');
   let submitting = $state(false);
@@ -466,6 +482,7 @@
     submitError = '';
     submitFailed = false;
     track('booking_submitted');
+    const includeSource = !data.known || editingSource;
 
     try {
       const attrib = attribution();
@@ -485,8 +502,8 @@
           durationMin: selectedPlan!.minutes,
           mode,
           ...(attrib ? { attribution: attrib } : {}),
-          ...(heardFrom ? { heardFrom } : {}),
-          ...(heardFrom === 'other' && heardDetail.trim() ? { heardDetail: heardDetail.trim() } : {}),
+          ...(includeSource ? { heardFrom: heardFrom || 'unknown' } : {}),
+          ...(includeSource && heardFrom === 'other' && heardDetail.trim() ? { heardDetail: heardDetail.trim() } : {}),
         }),
       });
 
@@ -1002,11 +1019,21 @@
 
           {/if}
 
-          {#if !data.known}
-          <!-- The tutor already knows how she reached a returning family —
-               this question exists to find out for a first booking. -->
+          {#if data.known}
+            <div class="recap-row">
+              <span>מקור היכרות: {savedSource === 'unknown' ? 'לא ידוע' : HEARD_FROM_LABELS[savedSource]}</span>
+              {#if !editingSource}
+                <button id="edit-source" class="linkish" type="button" onclick={editSource} aria-expanded={false} disabled={submitting}>
+                  {savedSource === 'unknown' ? 'עדכון' : 'תיקון'}
+                </button>
+              {:else}
+                <button class="linkish" type="button" onclick={cancelSourceEdit} disabled={submitting}>ביטול התיקון</button>
+              {/if}
+            </div>
+          {/if}
+          {#if !data.known || editingSource}
           <label for="inp-heard-from">איך שמעתם עלינו? <span class="optional">(לא חובה)</span></label>
-          <select id="inp-heard-from" bind:value={heardFrom}>
+          <select id="inp-heard-from" bind:value={heardFrom} disabled={submitting} onchange={() => { if (heardFrom !== 'other') heardDetail = ''; }}>
             <option value="">בחרו...</option>
             {#each HEARD_FROM_OPTIONS as opt (opt.value)}
               <option value={opt.value}>{opt.label}</option>
@@ -1016,10 +1043,10 @@
             <label for="inp-heard-detail">ספרו בקצרה <span class="optional">(לא חובה)</span></label>
             <input
               id="inp-heard-detail" type="text" maxlength={HEARD_DETAIL_MAX}
-              autocomplete="off" bind:value={heardDetail}
+              autocomplete="off" bind:value={heardDetail} disabled={submitting}
               placeholder="למשל קבוצת הורים, שלט, כתבה"
             />
-            <p class="field-hint">אפשר לדלג.</p>
+            <p class="field-hint">אפשר לדלג. הטקסט נשמר להזמנה הזאת בלבד.</p>
           {/if}
           {/if}
 
@@ -1737,9 +1764,11 @@
 
   .linkish {
     background: none; border: none; padding: 0.4rem 0.2rem;
-    min-height: 44px;
+    min-height: 44px; min-width: 44px;
     font-family: inherit; font-size: 0.85rem; font-weight: 700;
     color: var(--accent-deep); cursor: pointer; text-decoration: underline;
     flex: 0 0 auto;
   }
+  .linkish:disabled { cursor: wait; opacity: 0.6; }
+  .linkish:focus-visible { outline: 3px solid var(--accent-deep); outline-offset: 3px; }
 </style>

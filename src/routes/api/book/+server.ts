@@ -45,6 +45,7 @@ import { isLessonMode, lessonPlace, type LessonMode } from '$lib/lesson-mode.ts'
 import { bookingEvent } from '$server/booking-event.ts';
 import { serviceAccount, insertLessonEvent } from '$server/lesson-calendar.ts';
 import { isValidEmailAddress, normalizeEmail } from '$server/email-address.ts';
+import { familyAcquisitionSource, recordFamilyAcquisitionSource } from '$server/acquisition-source.ts';
 
 interface BookBody {
   name?: string;
@@ -415,12 +416,9 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
   // handler) — so the two can never disagree about what this booking's
   // attribution was.
   const attribution = sanitizeAttribution(body.attribution);
-  // A returning family's session already answers "how did you hear about
-  // us?" by existing — the booking page hides the question for them
-  // (`{#if !data.known}` in +page.svelte). This is the server-side
-  // backstop: even a stale client or a forged request must not attach a
-  // self-report answer to a family the tutor already knows how she reached.
-  const heardFrom = locals.family ? null : sanitizeHeardFrom(body.heardFrom);
+  // Omission carries the family's saved answer. A valid explicit answer is
+  // a correction; a signed-out known family must confirm before it is saved.
+  const heardFrom = sanitizeHeardFrom(body.heardFrom);
   const heardFromDetail = sanitizeHeardDetail(body.heardDetail, heardFrom);
 
   /* A family we already know by the email typed in, and a visitor who is
@@ -545,6 +543,7 @@ async function confirmHeld(token: string, cookies: Cookies): Promise<Response> {
  *  calendar and email (book()), generation, and the response. */
 async function completeBooking(body: ConfirmedBookBody, ctx: CompleteCtx): Promise<Response> {
   const { attribution, heardFrom, heardFromDetail, cookies } = ctx;
+  let bookingSource = heardFrom ?? 'unknown';
   const sourceUtm = attribution
     ? JSON.stringify({
         utm: attribution.utm,
@@ -632,6 +631,7 @@ async function completeBooking(body: ConfirmedBookBody, ctx: CompleteCtx): Promi
 
   let bookingId: number | null = null;
   if (enrolled) {
+    bookingSource = heardFrom ?? familyAcquisitionSource(enrolled.account.id) ?? 'unknown';
     bookingId = reserveBooking({
       studentId: enrolled.student.id,
       // Without this the row never says which enrollment it was for, and a
@@ -642,7 +642,7 @@ async function completeBooking(body: ConfirmedBookBody, ctx: CompleteCtx): Promi
       end: body.end,
       durationMin: body.durationMin ?? null,
       sourceUtm,
-      heardFrom,
+      heardFrom: bookingSource,
       heardFromDetail,
       mode: isLessonMode(body.mode) ? body.mode : null,
       teacherId: tutor.id,
@@ -703,6 +703,14 @@ async function completeBooking(body: ConfirmedBookBody, ctx: CompleteCtx): Promi
   /* No name/subject re-check: isComplete() above already guarantees both.
      The only question left is whether book() succeeded. */
   if (result.status === 200) {
+    if (enrolled && bookingId != null) {
+      try {
+        recordFamilyAcquisitionSource(enrolled.account.id, bookingSource, heardFrom !== null);
+      } catch (e) {
+        // Measurement must not undo a successfully booked lesson.
+        console.error('[book] could not save family acquisition source:', e);
+      }
+    }
     const requestText = resolveRequest(body);
     try {
       triggerForBooking(

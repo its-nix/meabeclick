@@ -47,6 +47,8 @@ async function seedFunnel(dbPath, { at = new Date().toISOString() } = {}) {
       VALUES (999, ?, ?, 90, ?, 'confirmed', 'school')
     `).run(at, at, at);
     const bookingId = Number(db.prepare(`SELECT id FROM bookings_v2 ORDER BY id DESC LIMIT 1`).get().id);
+    db.prepare(`INSERT INTO lesson_reports (booking_id, student_id, enrollment_id, created_at, updated_at)
+      VALUES (?, 999, NULL, ?, ?)`).run(bookingId, at, at);
 
     const insertEvent = db.prepare(`
       INSERT INTO marketing_events (at, visitor_id, event, target, utm_source, utm_campaign, utm_content, booking_id)
@@ -80,19 +82,25 @@ test('an authenticated request renders the seeded funnel numbers', async () => {
   try {
     await seedFunnel(dbPath);
     const cookie = await login(baseUrl);
-    const html = await (await fetch(`${baseUrl}/app/marketing`, { headers: { Cookie: cookie } })).text();
+    const response = await fetch(`${baseUrl}/app/marketing`, { headers: { Cookie: cookie } });
+    assert.match(response.headers.get('cache-control'), /private.*no-store/);
+    const html = await response.text();
 
     assert.equal((await fetch(`${baseUrl}/app/marketing`, { headers: { Cookie: cookie } })).status, 200);
 
     // The attributed group, one full table row: source, campaign, content,
     // then visitors=2, bookingClicks/whatsappClicks/phoneClicks/
-    // bookingsStarted/bookings/lessonsHeld = 1 each, in column order.
+    // bookingsStarted/bookings/reportedLessons = 1 each; secondLessons=0.
     const td = (v) => `<td[^>]*>${v}<\\/td>`;
     const rowRe = new RegExp(
       `<tr[^>]*>\\s*${td('fb')}\\s*${td('spring_promo')}\\s*${td('ad1')}\\s*`
-      + `${td(2)}\\s*${td(1)}\\s*${td(1)}\\s*${td(1)}\\s*${td(1)}\\s*${td(1)}\\s*${td(1)}\\s*<\\/tr>`,
+      + `${td(2)}\\s*${td(1)}\\s*${td(1)}\\s*${td(1)}\\s*${td(1)}\\s*${td(1)}\\s*${td(1)}\\s*${td(0)}\\s*<\\/tr>`,
     );
     assert.match(html, rowRe, 'the attributed row must render exactly the seeded counts, in column order');
+    assert.match(html, /שיעורים עם דיווח/);
+    assert.match(html, /שיעור שני מדווח/);
+    assert.match(html, /לא אחוזי המרה/);
+    assert.doesNotMatch(html, /שיעורים שהתקיימו/);
 
     // The untagged bucket.
     assert.match(html, /ישיר \/ לא מתויג/, 'a NULL source groups under the spec\'d Hebrew label');

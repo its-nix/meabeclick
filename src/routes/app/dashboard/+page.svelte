@@ -1775,8 +1775,8 @@
   .student-page-title { font-size: 1.5rem; margin: 0 0 1rem; }
   .workspace-tutors-title { font-size: 1.2rem; margin: 2rem 0 0.75rem; }
   .roster-note { color: var(--text-muted-strong); font-size: 0.9rem; margin-bottom: 0.75rem; }
-  .roster-table-wrap { border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
-  .roster-table { width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--bg-card); }
+  .roster-table-wrap { border: 1px solid var(--border); border-radius: var(--r-sm); overflow-x: auto; }
+  .roster-table { width: 100%; border-collapse: collapse; background: var(--bg-card); }
   .roster-table th { text-align: start; font-size: 0.85rem; color: var(--text-muted-strong); background: var(--bg-surface); }
   .roster-table th, .roster-table td { padding: 12px; overflow-wrap: anywhere; }
   .roster-table th:first-child { width: 42%; }

@@ -43,7 +43,7 @@ test('the dashboard serves a new student\'s server-side profile values in its HT
     });
     assert.equal(created.status, 200);
 
-    const html = renderedMarkup(await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: cookie } })
+    const html = renderedMarkup(await fetch(`${baseUrl}/app/students/card-guard-1`, { headers: { Cookie: cookie } })
       .then(r => r.text()));
 
     // name, subjects and the account's phone/name all come from the
@@ -68,7 +68,7 @@ test('PATCH round-trip: a profile field edit is served back on the next page loa
     assert.equal(created.status, 200);
 
     // Before the PATCH, none of the new values exist anywhere.
-    const before = renderedMarkup(await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: cookie } }).then(r => r.text()));
+    const before = renderedMarkup(await fetch(`${baseUrl}/app/students/card-guard-2`, { headers: { Cookie: cookie } }).then(r => r.text()));
     assert.doesNotMatch(before, /MARKER-GOAL-77/);
 
     const patch = await fetch(`${baseUrl}/api/students/card-guard-2`, {
@@ -83,7 +83,7 @@ test('PATCH round-trip: a profile field edit is served back on the next page loa
     assert.equal(student.goals, 'MARKER-GOAL-77');
     assert.equal(student.progress, 42);
 
-    const after = renderedMarkup(await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: cookie } }).then(r => r.text()));
+    const after = renderedMarkup(await fetch(`${baseUrl}/app/students/card-guard-2`, { headers: { Cookie: cookie } }).then(r => r.text()));
     assert.match(after, /MARKER-GOAL-77/, 'goals must be served back after the PATCH');
     assert.match(after, /MARKER-NOTE-88/, 'notes must be served back after the PATCH');
     assert.match(after, /MARKER-PROGRESS-99/, 'progress note must be served back after the PATCH');

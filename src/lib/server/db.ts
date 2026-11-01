@@ -308,7 +308,7 @@ export interface StudentResultsSummary {
   games: unknown[];
 }
 
-export function readResults(): Record<string, StudentResultsSummary> {
+export function readResults(studentId?: number): Record<string, StudentResultsSummary> {
   /* Both tables, because migration 008 splits history by whether it could be
      attributed: results_v2 holds plays with a real student_id, `results` holds
      the ones whose display name was ambiguous or unknown. They are disjoint —
@@ -316,7 +316,12 @@ export function readResults(): Record<string, StudentResultsSummary> {
      and nothing a child played is invisible to the tutor. Keyed by display name
      either way, so this function's contract (and /api/results, and the
      dashboard) is unchanged. */
-  const rows = db.prepare(`
+  const rows = studentId !== undefined ? db.prepare(`
+    SELECT r.id, s.name AS student, r.at, r.data_id, r.template, r.score, r.total,
+           r.tries, r.stars, r.seconds, r.missed
+    FROM results_v2 r JOIN students_v2 s ON s.id = r.student_id
+    WHERE r.student_id = ? ORDER BY r.at DESC
+  `).all(studentId) as ResultRow[] : db.prepare(`
     SELECT id, student, at, data_id, template, score, total, tries, stars, seconds, missed
     FROM results
     UNION ALL
@@ -420,6 +425,19 @@ export function readLessons(student?: string): LessonSummary[] {
     ? db.prepare(`SELECT * FROM lessons WHERE student=? ORDER BY at DESC LIMIT 50`).all(student) as LessonRow[]
     : db.prepare(`SELECT * FROM lessons ORDER BY at DESC LIMIT 200`).all() as LessonRow[];
 
+  return summarizeLessons(rows);
+}
+
+/** The identity-safe lesson selector supplies slugs; never filter these by
+ * display name (two students may share one). Apply the limit after scoping. */
+export function readLessonsForSlugs(slugs: string[]): LessonSummary[] {
+  if (!slugs.length) return [];
+  const rows = db.prepare(`SELECT * FROM lessons WHERE slug IN (${slugs.map(() => '?').join(',')}) ORDER BY at DESC LIMIT 200`)
+    .all(...slugs) as LessonRow[];
+  return summarizeLessons(rows);
+}
+
+function summarizeLessons(rows: LessonRow[]): LessonSummary[] {
   return rows.map(r => ({
     slug: r.slug, student: r.student, subject: r.subject, level: r.level,
     topic: r.topic, title: r.title, context: r.context,

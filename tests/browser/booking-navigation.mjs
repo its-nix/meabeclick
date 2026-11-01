@@ -11,8 +11,9 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE
 const evidenceDir = process.env.EVIDENCE_DIR ?? join(tmpdir(), 'meabeclick-booking-navigation');
 await mkdir(evidenceDir, { recursive: true });
 const server = await startServer();
-const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN ?? '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox'] });
+let browser;
 try {
+  browser = await chromium.launch({ executablePath: process.env.CHROME_BIN ?? '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox'] });
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   await context.route('**/*', route => new URL(route.request().url()).origin === server.baseUrl ? route.continue() : route.abort());
   const labels = ['יום שני, 2 נובמבר', 'יום שלישי, 3 נובמבר', 'יום רביעי, 4 נובמבר'];
@@ -58,6 +59,5 @@ try {
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ browser: browser.version(), dimensions, weekdayLabels: 'PASS', menu: 'PASS', logout: 'PASS', errors, evidenceDir }));
 } finally {
-  await browser.close();
-  await server.stop();
+  try { await browser?.close(); } finally { await server.stop(); }
 }

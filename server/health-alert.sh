@@ -10,7 +10,7 @@
 # report about itself), or the app answered 503 (no alert channel) / 502
 # (the channel refused the message). In every one of those cases the app's
 # own alert did not reach Lior, so this sends ONE message from the host,
-# through the same ops channel (OPS_SLACK_WEBHOOK_URL, and/or
+# through the same ops channel (OPS_DISCORD_WEBHOOK_URL, OPS_SLACK_WEBHOOK_URL, and/or
 # OPS_CALLMEBOT_PHONE + OPS_CALLMEBOT_API_KEY), read from the app's .env.
 #
 # Only those named variables are read from .env, by grep, rather than
@@ -63,6 +63,28 @@ ${TAIL:+${TAIL}
 sent=0
 failed=0
 
+DISCORD="$(env_var OPS_DISCORD_WEBHOOK_URL)"
+if [ -n "$DISCORD" ]; then
+  if [[ ! "$DISCORD" =~ ^https://discord\.com/api/webhooks/[0-9]+/[A-Za-z0-9._-]+$ ]]; then
+    echo "health-alert: invalid OPS_DISCORD_WEBHOOK_URL; not sending there." >&2
+    failed=1
+  else
+    # MSG is bounded by the 300-byte journal tail, below Discord's 2000 limit.
+    esc="$(printf '%s' "$MSG" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e $'s/\t/\\\\t/g' | awk 'BEGIN{ORS="\\n"} {print}')"
+    esc="${esc%\\n}"
+    # Wait for persistence; neither URL nor curl's potentially secret-bearing
+    # diagnostics go to argv/logs. Redirects are not followed.
+    answer="$(printf 'url = "%s?wait=true"\n' "$DISCORD" | curl -sS --fail --max-time 15 -K - \
+      -H 'Content-Type: application/json' --data-binary "{\"content\":\"$esc\",\"allowed_mentions\":{\"parse\":[]}}" \
+      -o /dev/null -w '%{http_code}' 2>/dev/null)"
+    if [ "$?" = 0 ] && [ "$answer" = 200 ]; then
+      sent=1; echo "health-alert: sent to discord (OPS_DISCORD_WEBHOOK_URL)."
+    else
+      failed=1; echo "health-alert: Discord delivery failed." >&2
+    fi
+  fi
+fi
+
 SLACK="$(env_var OPS_SLACK_WEBHOOK_URL)"
 if [ -n "$SLACK" ]; then
   if [[ ! "$SLACK" =~ ^https://hooks\.slack\.com/services/[A-Za-z0-9_/-]+$ ]]; then
@@ -81,7 +103,7 @@ fi
 
 PHONE="$(env_var OPS_CALLMEBOT_PHONE)"
 KEY="$(env_var OPS_CALLMEBOT_API_KEY)"
-if [ -z "$SLACK" ] && [ -z "$PHONE" ] && [ -z "$KEY" ]; then
+if [ -z "$DISCORD" ] && [ -z "$SLACK" ] && [ -z "$PHONE" ] && [ -z "$KEY" ]; then
   # The app's own fallback: the tutor's CallMeBot channel.
   PHONE="$(env_var CALLMEBOT_PHONE)"; KEY="$(env_var CALLMEBOT_API_KEY)"
 fi

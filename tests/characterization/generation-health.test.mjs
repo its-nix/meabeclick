@@ -29,7 +29,7 @@ test('GET reports without sending; POST with no alert channel is a 503, not a qu
     const report = await got.json();
     assert.equal(report.ok, true, 'an empty database is healthy');
     assert.deepEqual(report.alertChannels, []);
-    assert.match(report.alertChannelProblem, /OPS_SLACK_WEBHOOK_URL/);
+    assert.match(report.alertChannelProblem, /OPS_DISCORD_WEBHOOK_URL/);
     assert.equal(report.window.hours, 24);
     assert.equal(report.stale.days, 3);
     assert.deepEqual(report.stale.bookedWithoutLesson, []);
@@ -39,7 +39,7 @@ test('GET reports without sending; POST with no alert channel is a 503, not a qu
     const posted = await call(baseUrl, 'POST', CRON_KEY);
     assert.equal(posted.status, 503);
     const body = await posted.json();
-    assert.match(body.reason, /OPS_SLACK_WEBHOOK_URL/);
+    assert.match(body.reason, /OPS_DISCORD_WEBHOOK_URL/);
     assert.deepEqual(body.sent, []);
   } finally { await stop(); }
 });

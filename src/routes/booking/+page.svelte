@@ -4,6 +4,7 @@
   import BrandMark from '$lib/components/BrandMark.svelte';
   import { PLANS, formatPrice, RECOMMENDED_BADGE, type Plan } from '$lib/plans.ts';
   import { planRadioMove } from '$lib/plan-radios.ts';
+  import { bookingDayLabel } from '$lib/dates.ts';
   import { SUBJECT } from '$lib/subjects.ts';
   import { lockScroll } from '$lib/scroll-lock.ts';
   import { initMarketing, track, attribution } from '$lib/marketing.ts';
@@ -139,13 +140,6 @@
       groups[s.dateLabel].push(s);
     }
     dayGroups = order.map((label) => ({ label, slots: groups[label] }));
-  }
-
-  /** "יום שני, 8 ספטמבר" → "שני 8.9" for the day chips, which have to fit
-   *  several across a 390px screen without wrapping. */
-  function shortDay(label: string): string {
-    const m = label.match(/^יום\s+(\S+),\s*(\d+)/);
-    return m ? `${m[1]} ${m[2]}` : label;
   }
 
   // ── The details sheet ────────────────────────────────────────────────────
@@ -639,8 +633,9 @@
               class="day-tab"
               class:active={openDay === i}
               aria-selected={openDay === i}
+              aria-label={group.label}
               onclick={() => (openDay = i)}
-            >{shortDay(group.label)}</button>
+            >{bookingDayLabel(group.label)}</button>
           {/each}
         </div>
 

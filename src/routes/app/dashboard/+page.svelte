@@ -974,7 +974,6 @@
       <nav aria-label="ניווט לוח הבקרה">
         <a href="/app/library">ספרייה</a>
         <a href="/app/marketing">שיווק</a>
-        <a href="/">לאתר — בלי להתנתק</a>
         <button onclick={signOut}>יציאה מהחשבון</button>
       </nav>
     </details>

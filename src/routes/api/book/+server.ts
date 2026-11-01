@@ -261,6 +261,10 @@ async function book(
   /* Their room, their name, their lesson calendar: all the booking
      tutor's, never the student's tutor of the moment (spec D6). */
   const place = lessonPlace(body.mode ?? null, tutor.meet_url ?? null);
+  // Use the assigned tutor's permanent room immediately, including when
+  // the calendar write needs manual follow-up. Never hand out a room for
+  // an enrolment that was not recorded.
+  const responsePlace = enrolled ? place : null;
   const sa = serviceAccount();
 
   const booking = { name, subject, request: requestText, phone, email, level, start, durationMin, place, tutorName: tutor.name };
@@ -331,7 +335,7 @@ async function book(
   // hand.
   if (!sa) {
     const sent = await notify(false);
-    return { status: 200, responseBody: { ok: false, fallback: true, ...sent, portal: handoff, linkEmailed: !!forEmail && !mayHandOver }, enrolledCode, signInAccountId };
+    return { status: 200, responseBody: { ok: false, fallback: true, ...sent, place: responsePlace, portal: handoff, linkEmailed: !!forEmail && !mayHandOver }, enrolledCode, signInAccountId };
   }
 
   let created: { id: string };
@@ -352,14 +356,14 @@ async function book(
     console.error('[book] calendar write failed:', (err as Error).message);
     flagCalendarFailure(booking, (err as Error).message);
     const sent = await notify(false);
-    return { status: 200, responseBody: { ok: false, fallback: true, ...sent, portal: handoff, linkEmailed: !!forEmail && !mayHandOver }, enrolledCode, signInAccountId };
+    return { status: 200, responseBody: { ok: false, fallback: true, ...sent, place: responsePlace, portal: handoff, linkEmailed: !!forEmail && !mayHandOver }, enrolledCode, signInAccountId };
   }
 
   // Previously only the fallback path notified the tutor, so a successful
   // booking arrived silently in the calendar. Now every booking emails.
   const sent = await notify(true);
 
-  return { status: 200, responseBody: { ok: true, eventId: created.id, ...sent, portal: handoff, linkEmailed: !!forEmail && !mayHandOver }, enrolledCode, signInAccountId };
+  return { status: 200, responseBody: { ok: true, eventId: created.id, ...sent, place: responsePlace, portal: handoff, linkEmailed: !!forEmail && !mayHandOver }, enrolledCode, signInAccountId };
 }
 
 export const POST: RequestHandler = async ({ request, cookies, locals }) => {

@@ -9,7 +9,7 @@
   import { initMarketing, track, attribution } from '$lib/marketing.ts';
   import { HEARD_DETAIL_MAX, HEARD_FROM_OPTIONS, HEARD_FROM_LABELS } from '$lib/marketing-labels.ts';
   import { TUTOR_PHONE, OFFICE_ADDRESS } from '$lib/contact.ts';
-  import { MODE_LABEL, type LessonMode } from '$lib/lesson-mode.ts';
+  import { MODE_LABEL, type LessonMode, type LessonPlace } from '$lib/lesson-mode.ts';
   import { contactTutor } from '$lib/tutors.ts';
   import type { PageData } from './$types';
 
@@ -33,10 +33,6 @@
   type DayGroup = { label: string; slots: Slot[] };
 
   type Handoff = { link: string; code: string; studentName: string; isNewFamily: boolean };
-
-  // Shown to parents in local form; the tel: link uses the international one
-  // (TUTOR_PHONE, from $lib/contact.ts — see that file's doc comment).
-  const TUTOR_PHONE_DISPLAY = '054-696-9891';
 
   let step = $state<'duration' | 'slots' | 'success'>('duration');
   /* כפול starts selected. A card used to leave this step on click, so
@@ -424,6 +420,7 @@
      as them: nothing is booked until the address on file confirms it
      (/api/book's holdForConfirmation). */
   let awaiting = $state(false);
+  let bookedPlace = $state<LessonPlace | null>(null);
 
   function showSuccess(portal: Handoff | null, familyEmailed: boolean, isPending: boolean, emailedLink = false) {
     const dateLabel = selectedSlot?.dateLabel ?? '';
@@ -447,15 +444,11 @@
       ['💳', 'מחיר', formatPrice(plan.shekels)],
       ['📍', 'איפה', mode === 'in_person'
         ? `${MODE_LABEL.in_person} · ${OFFICE_ADDRESS}`
-        : `${MODE_LABEL.online} · Google Meet (הקישור יגיע במייל)`],
+        : `${MODE_LABEL.online} · Google Meet`],
       ['👤', isSelf ? 'שם' : 'תלמיד/ה', name.trim()],
-      ['📖', 'מקצוע', subject],
-      ['🎓', 'כיתה / רמה', level],
-      ['❓', 'מה נלמד', request.trim() || 'ייקבע יחד בשיעור'],
-      ['✉️', 'המייל שלכם', email.trim()],
-      // Labelled "your phone" so it is not confused with the tutor's number below.
-      ['📱', 'הטלפון שלכם', phone.trim()],
+      ['📖', 'מקצוע ורמה', `${subject} · ${level}`],
     ].map(([icon, label, value]) => ({ icon, label, value }));
+    void tick().then(() => document.getElementById('confirmation-title')?.focus());
   }
 
   async function copyLink() {
@@ -543,6 +536,7 @@
       }
       if (data.ok || data.fallback) {
         bookedUnconfirmed = slotState === 'unconfirmed' || !!data.fallback;
+        bookedPlace = data.pending ? null : data.place ?? null;
         showSuccess(data.portal ?? null, !!data.familyEmailed, !!data.pending, !!data.linkEmailed);
       } else {
         throw new Error(data.error || 'שגיאה לא ידועה');
@@ -575,7 +569,8 @@
   <a class="back" href="/">→ חזרה לאתר</a>
 </header>
 
-<main>
+<main class:booking-complete={step === 'success'}>
+  {#if step !== 'success'}
   <h1>🗓️ הזמנת שיעור</h1>
 
   <!-- Steps indicator -->
@@ -590,11 +585,12 @@
       <span>בחירת זמן</span>
     </div>
     <div class="step-line"></div>
-    <div class="step-dot" class:active={activeStep === 3} class:done={step === 'success'}>
+    <div class="step-dot" class:active={activeStep === 3}>
       <div class="dot">3</div>
       <span>פרטים</span>
     </div>
   </div>
+  {/if}
 
   <!-- ── STEP 1: Plan ─────────────────────────────────────── -->
   {#if step === 'duration'}
@@ -719,45 +715,58 @@
   <!-- ── STEP 3: Success + handoff ──────────────────────── -->
   {#if step === 'success'}
     <div id="step-success">
+      <div class="print-heading">מאה בקליק · אישור פרטי הזמנה</div>
       {#if awaiting}
-        <div class="success-icon">📧</div>
-        <h2>כמעט סיימנו: אשרו במייל</h2>
+        <h1 id="confirmation-title" tabindex="-1">כמעט סיימנו: אשרו במייל</h1>
         <p class="success-pending-note">
           הכתובת <span dir="ltr">{email.trim()}</span> כבר מוכרת לנו, אז שלחנו אליה מייל עם כפתור אישור.
           השיעור יירשם אחרי האישור (תוך יממה), ועד אז השעה שמורה לכם.
         </p>
       {:else if pending}
-        <div class="success-icon">📝</div>
-        <h2>הבקשה נקלטה</h2>
+        <h1 id="confirmation-title" tabindex="-1">הבקשה נקלטה</h1>
         <p class="success-pending-note">
           לא הצלחנו להשלים את הרישום אוטומטית — נאשר את המועד ונשלח את הדף האישי.
         </p>
       {:else}
-        <div class="success-icon">✅</div>
-        <h2>{bookedUnconfirmed ? 'הבקשה התקבלה!' : 'השיעור נקבע!'}</h2>
+        <h1 id="confirmation-title" tabindex="-1">{bookedUnconfirmed ? 'הבקשה התקבלה!' : 'השיעור נקבע!'}</h1>
         {#if bookedUnconfirmed}
           <p class="success-pending-note">לא הצלחנו לבדוק את היומן ברגע ההזמנה, אז נאשר את המועד ונעדכן אתכם.</p>
         {/if}
       {/if}
+
+      <div class="success-detail">
+        <div class="bk-summary">
+          {#each successRows as row (row.label)}
+            <div class="bk-row">
+              <span class="bk-label">{row.label}</span>
+              <span class="bk-value">{row.value}</span>
+            </div>
+          {/each}
+        </div>
+        {#if !awaiting && !pending && mode === 'online'}
+          {#if bookedPlace?.href}
+            <a class="lesson-link" href={bookedPlace.href} target="_blank" rel="noopener">פתיחת Google Meet</a>
+            <p class="lesson-link-note">זה הקישור הקבוע של המורה. שמרו אותו לשיעור.</p>
+          {:else}
+            <p class="lesson-link-note">קישור Google Meet עדיין לא הוגדר. נשלח אותו בנפרד לפני השיעור.</p>
+          {/if}
+        {/if}
+        <p class="print-note">אישור פרטי הזמנה בלבד. אינו קבלה או חשבונית ואינו אישור תשלום.</p>
+        <button class="bk-print" onclick={() => window.print()}>הדפסה / שמירה כ-PDF</button>
+      </div>
 
       {#if handoff && !pending}
         <!-- The whole point of the rebuild: the confirmation IS the door.
              The family used to leave this screen with nothing, while their
              link went only to the tutor's inbox. -->
         <div class="handoff">
-          <div class="handoff-title">
-            {handoff.isNewFamily ? 'הדף האישי של' : 'הדף האישי של'}
-            <strong>{handoff.studentName}</strong>
-          </div>
-          <p class="handoff-sub">
-            כאן יופיעו סיכומי השיעורים, שיעורי הבית והמצגות.
-          </p>
-
           <!-- data-sveltekit-reload: /enter is a server endpoint, not a page;
                the client router tried it first and logged a "Not found". -->
           <a class="handoff-primary" href={handoff.link} data-sveltekit-reload><Icon name="portal" size={17} /> פתיחת הדף האישי</a>
 
-          <div class="handoff-actions">
+          <details class="handoff-options">
+            <summary>שמירת הקישור או שליחה</summary>
+            <div class="handoff-actions">
             <button class="handoff-secondary" onclick={copyLink}>
               {copied ? '✓ הקישור הועתק' : '🔗 העתקת הקישור'}
             </button>
@@ -766,7 +775,8 @@
             </a>
           </div>
 
-          <div class="handoff-link" dir="ltr">{handoff.link}</div>
+            <div class="handoff-link" dir="ltr">{handoff.link}</div>
+          </details>
 
           <p class="handoff-note">
             {#if emailSent}
@@ -788,29 +798,7 @@
         </div>
       {/if}
 
-      <div class="success-detail">
-        <div class="bk-summary">
-          {#each successRows as row (row.label)}
-            <div class="bk-row">
-              <span class="bk-label">{row.icon} {row.label}</span>
-              <span class="bk-value">{row.value}</span>
-            </div>
-          {/each}
-        </div>
-        <div class="bk-next">
-          <strong>מה הלאה?</strong>
-          <ul>
-            {#if awaiting}<li>לאשר את השיעור מהמייל</li>{:else if bookedUnconfirmed}<li>ניצור קשר לאישור המועד</li>{:else}<li>תזכורת תישלח אליכם במייל לפני השיעור</li>{/if}
-            <li>מומלץ להכין מראש את החומר או השאלות שלא הובנו</li>
-          </ul>
-        </div>
-        <div class="bk-contact">
-          <div class="bk-contact-title">יש שאלות?</div>
-          <a class="bk-contact-phone" href="tel:+{TUTOR_PHONE}">📞 {TUTOR_PHONE_DISPLAY}</a>
-          <div class="bk-contact-note">{contactTutor().name} · אפשר להתקשר או לשלוח הודעה</div>
-        </div>
-        <button class="bk-print" onclick={() => window.print()}>🖨️ הדפסה / שמירה כ-PDF</button>
-      </div>
+      <p class="success-help">שאלות? <a href="tel:+{TUTOR_PHONE}">שיחה עם {contactTutor().name}</a></p>
 
       <a class="home-btn" href="/">חזרה לאתר</a>
     </div>
@@ -1552,12 +1540,13 @@
   .sheet-legal a { color: var(--text-muted); text-decoration: underline; }
 
   /* ── Success ─────────────────────────────────── */
-  #step-success { text-align: center; padding: 2rem 0 1rem; }
-  .success-icon { font-size: 3.2rem; margin-bottom: 0.6rem; }
-  #step-success h2 { font-size: 1.6rem; margin-bottom: 1.2rem; }
+  main.booking-complete { max-width: 580px; padding-top: 1.2rem; padding-bottom: 2rem; }
+  #step-success { text-align: center; }
+  #step-success h1 { font-size: 1.45rem; margin: 0 0 0.8rem; }
+  .print-heading, .print-note { display: none; }
   .success-pending-note {
     max-width: 440px;
-    margin: -0.6rem auto 1.4rem;
+    margin: 0 auto 0.9rem;
     padding: 0 0.5rem;
     color: var(--text-muted-strong);
     font-size: 0.95rem;
@@ -1566,22 +1555,21 @@
 
   .handoff {
     background: var(--bg-surface);
-    border: 1.5px solid var(--accent);
-    border-radius: var(--r-lg);
-    padding: 1.4rem 1.3rem;
-    margin: 0 auto 1.4rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 0.8rem 1rem;
+    margin: 0 auto 0.8rem;
     max-width: 440px;
     text-align: right;
   }
   .handoff-title { font-size: 1.05rem; color: var(--text-primary); }
-  .handoff-title strong { color: var(--accent); }
   .handoff-sub {
     font-size: 0.88rem; color: var(--text-muted-strong);
     margin-top: 0.3rem; line-height: 1.6;
   }
   .handoff-primary {
     display: block;
-    margin-top: 1.1rem;
+    margin-top: 0;
     background: var(--accent);
     color: #fff;
     border-radius: 12px;
@@ -1594,6 +1582,10 @@
   }
   .handoff-primary:hover { background: var(--accent-deep); }
   .handoff-actions { display: flex; gap: 0.55rem; margin-top: 0.6rem; }
+  .handoff-options summary {
+    display: list-item; min-height: 44px; padding-top: 0.7rem;
+    color: var(--text-muted-strong); cursor: pointer; font-size: 0.85rem;
+  }
   .handoff-secondary {
     flex: 1;
     background: var(--bg-card);
@@ -1625,10 +1617,10 @@
 
   .success-detail {
     background: var(--bg-card);
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
-    padding: 1rem 1.4rem;
-    margin: 0 auto 1.4rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 0.7rem 1rem;
+    margin: 0 auto 0.8rem;
     max-width: 440px;
     text-align: right;
     font-size: 0.9rem;
@@ -1638,34 +1630,18 @@
   .bk-summary { display: flex; flex-direction: column; }
   .bk-row {
     display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
-    padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+    padding: 0.35rem 0; border-bottom: 1px solid var(--border);
   }
   .bk-row:last-child { border-bottom: none; }
   .bk-label { color: var(--text-muted); font-size: 0.85rem; white-space: nowrap; }
-  .bk-value { font-weight: 700; text-align: left; }
-  .bk-next {
-    margin-top: 1.1rem; padding-top: 0.9rem; border-top: 2px solid var(--border);
-    font-size: 0.86rem; line-height: 1.7;
-  }
-  .bk-next ul { margin: 0.4rem 0 0; padding-inline-start: 1.1rem; color: var(--text-muted); }
-  .bk-next li { margin-bottom: 0.25rem; }
-  .bk-contact {
-    margin-top: 1rem; padding: 0.9rem 1rem;
-    background: var(--accent2-dim);
-    border: 1.5px solid var(--accent2-strong);
-    border-radius: 14px; text-align: center;
-  }
-  .bk-contact-title { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem; }
-  .bk-contact-phone {
-    display: inline-block; font-size: 1.25rem; font-weight: 900;
-    /* Not --accent2: #fa8231 on this ground measures 2.5:1. */
-    color: var(--btn-text); text-decoration: none; direction: ltr;
-  }
-  .bk-contact-phone:hover { text-decoration: underline; }
-  .bk-contact-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+  .bk-value { min-width: 0; overflow-wrap: anywhere; font-weight: 700; text-align: left; }
+  .lesson-link { display: block; min-height: 44px; padding: 0.6rem; margin-top: 0.7rem; text-align: center; font-weight: 700; color: var(--accent); }
+  .lesson-link-note { font-size: 0.83rem; line-height: 1.5; color: var(--text-muted-strong); margin: 0.3rem 0; }
+  .success-help { margin: 0.4rem 0; font-size: 0.85rem; color: var(--text-muted-strong); }
+  .success-help a { display: inline-block; min-height: 44px; padding: 0.6rem 0.3rem; color: var(--accent); }
 
   .bk-print {
-    display: block; margin: 1rem auto 0; background: none;
+    display: block; margin: 0.6rem auto 0; background: none;
     border: 1.5px solid var(--border-strong); border-radius: 999px;
     padding: 0.6rem 1.2rem; min-height: 44px;
     font-family: inherit; font-size: 0.85rem; font-weight: 700;
@@ -1687,13 +1663,21 @@
   }
   .home-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* Printing should yield the summary alone — no nav, no buttons, no chrome. */
+  /* Remove irrelevant layout, not just its paint: hidden two-page content
+     used to leave blank pages and print the single-use portal credential. */
   @media print {
-    :global(body) * { visibility: hidden; }
-    #step-success, #step-success * { visibility: visible; }
-    #step-success { position: absolute; inset: 0 auto auto 0; width: 100%; }
-    .bk-print, .home-btn, .handoff-actions, .handoff-primary { display: none; }
-    .success-detail, .handoff { border: none; max-width: 100%; }
+    @page { size: A4; margin: 18mm; }
+    :global(body) { background: #fff !important; color: #111 !important; }
+    header, .handoff, .bk-print, .home-btn, .success-help, .lesson-link, .lesson-link-note, .success-pending-note { display: none !important; }
+    main.booking-complete { max-width: none; margin: 0; padding: 0; }
+    #step-success { text-align: right; break-inside: avoid; }
+    .print-heading { display: block; color: #333; font-size: 11pt; margin-bottom: 8mm; }
+    #step-success h1 { color: #111; font-size: 18pt; margin-bottom: 6mm; }
+    .success-detail { border: 0; border-top: 1px solid #bbb; border-radius: 0; max-width: none; margin: 0; padding: 4mm 0 0; }
+    .bk-row { border-color: #ddd; padding: 3mm 0; }
+    .bk-label { color: #444; font-size: 10pt; }
+    .bk-value { color: #111; font-size: 11pt; }
+    .print-note { display: block; margin-top: 8mm; color: #555; font-size: 9pt; }
   }
 
   @media (max-width: 600px) {

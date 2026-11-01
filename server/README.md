@@ -911,8 +911,15 @@ A healthy day sends nothing.
 
 **Where it goes.** Every configured ops channel gets the one message:
 
+- **New setups:** `OPS_DISCORD_WEBHOOK_URL`, an incoming webhook for the
+  private Nix alerts **text channel**. Save the canonical
+  `https://discord.com/api/webhooks/<id>/<token>` URL without query parameters.
+  The app and host fallback wait for Discord's send confirmation and disable
+  mentions. The app caps long summaries at 2,000 characters.
+  The webhook is a credential; never put it in a task, shell argument or log.
 - `OPS_SLACK_WEBHOOK_URL`: a Slack Incoming Webhook into `#meabeclick`
-  (recommended). Official, no phone number at risk. The URL is the
+  retained for existing installations. Do not set up retired chat integrations.
+  The URL is the
   credential: it is never logged or returned.
 - `OPS_CALLMEBOT_PHONE` + `OPS_CALLMEBOT_API_KEY`: optional WhatsApp via
   CallMeBot. It is an unofficial, free, personal-use bot that WhatsApp
@@ -920,7 +927,7 @@ A healthy day sends nothing.
   WhatsApp Business one families know.
 
 With no ops channel it falls back to the tutor's `CALLMEBOT_*` channel.
-With nothing at all, or a half-set or non-Slack webhook, it answers 503.
+With nothing at all, a half-set pair, or an invalid webhook, it answers 503.
 If any configured channel can't be reached it answers 502. Either way the
 unit fails (`systemctl --user --failed`), so the check is never silently
 mute. To look without sending:
@@ -952,10 +959,32 @@ To look without sending:
 **When the app itself is down** it cannot send anything, so both health
 units carry `OnFailure=meabeclick-health-alert@%n.service`. That runs
 `server/health-alert.sh` on the host, which sends one message through the
-same `OPS_SLACK_WEBHOOK_URL` / `OPS_CALLMEBOT_*` (read by name from `.env`;
+same `OPS_DISCORD_WEBHOOK_URL` / existing `OPS_SLACK_WEBHOOK_URL` /
+`OPS_CALLMEBOT_*` (read by name from `.env`;
 the webhook goes to curl on stdin, not argv) with the failed unit's last log
 lines. At most one per hour, so two units failing together is one message.
 If it cannot send either, it fails itself and says so in the journal.
+
+### Completing Discord alert activation
+
+After the Discord-support change is reviewed, merged and deployed:
+
+1. Create an incoming webhook scoped to the private Nix alerts text channel
+   and save it securely in the server's `.env` as `OPS_DISCORD_WEBHOOK_URL`.
+   No bot or permission to read unrelated channels is required. Follow
+   the pinned-image environment-rotation procedure above to recreate the app.
+2. Install the generation/ops services and timers and the host alert service
+   from that deployed version, as the `meabeclick` service user, then reload
+   the user systemd manager. Enable both health timers.
+3. Use the read-only GET probes above: they must list
+   `discord (OPS_DISCORD_WEBHOOK_URL)` without revealing the URL. These probes
+   do not send a message.
+4. With approval for a real test notification, exercise the host alert once
+   and confirm receipt in the private channel. Confirm the timers' next
+   trigger and the successful service result before closing the activation task.
+
+The protocol follows [Discord's Execute Webhook documentation](https://docs.discord.com/developers/resources/webhook#execute-webhook):
+`wait=true` confirms persistence; `allowed_mentions` prevents unintended pings.
 
 ## Scheduling: the lesson-report prompt and the booking reminder
 

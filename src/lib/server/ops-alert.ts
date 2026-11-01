@@ -14,9 +14,8 @@ import { sendWhatsAppChecked } from './lesson/queue.ts';
 
 /* ── Where the alert goes ─────────────────────────────────────────────
  *
- * Slack first. OPS_SLACK_WEBHOOK_URL is an Incoming Webhook into a channel
- * Lior reads (#meabeclick). It is official, rate-limit-free at this volume
- * (one message a day), and puts no phone number at risk.
+ * OPS_DISCORD_WEBHOOK_URL targets the private Nix alerts channel. Existing
+ * Slack/WhatsApp configurations still work; new setups use Discord.
  *
  * WhatsApp is optional: OPS_CALLMEBOT_PHONE + OPS_CALLMEBOT_API_KEY. CallMeBot
  * is an unofficial, free, personal-use bot (see the PR for the ban-risk
@@ -29,6 +28,7 @@ import { sendWhatsAppChecked } from './lesson/queue.ts';
  * half-configured channel, is a 503: never guessed, never silent.
  */
 export type AlertChannel =
+  | { kind: 'discord'; webhookUrl: string }
   | { kind: 'slack'; webhookUrl: string }
   | { kind: 'whatsapp-ops'; to: WhatsAppChannel }
   | { kind: 'whatsapp-tutor'; to: null };
@@ -40,9 +40,17 @@ export type AlertChannels =
 /** Slack's own Incoming Webhook host. Anything else is a typo or a paste of
  *  the wrong thing, and posting the report there would leak it. */
 const SLACK_WEBHOOK = /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9_/-]+$/;
+const DISCORD_WEBHOOK = /^https:\/\/discord\.com\/api\/webhooks\/[0-9]+\/[A-Za-z0-9._-]+$/;
 
 export function alertChannels(env: NodeJS.ProcessEnv = process.env): AlertChannels {
   const channels: AlertChannel[] = [];
+  const discord = env.OPS_DISCORD_WEBHOOK_URL?.trim();
+  if (discord) {
+    if (!DISCORD_WEBHOOK.test(discord)) {
+      return { ok: false, reason: 'OPS_DISCORD_WEBHOOK_URL is not a https://discord.com/api/webhooks/… URL' };
+    }
+    channels.push({ kind: 'discord', webhookUrl: discord });
+  }
   const slack = env.OPS_SLACK_WEBHOOK_URL?.trim();
   if (slack) {
     if (!SLACK_WEBHOOK.test(slack)) {
@@ -60,14 +68,15 @@ export function alertChannels(env: NodeJS.ProcessEnv = process.env): AlertChanne
   }
   if (!channels.length && env.CALLMEBOT_API_KEY?.trim()) channels.push({ kind: 'whatsapp-tutor', to: null });
   if (!channels.length) {
-    return { ok: false, reason: 'no alert channel: set OPS_SLACK_WEBHOOK_URL (recommended), or OPS_CALLMEBOT_PHONE + OPS_CALLMEBOT_API_KEY' };
+    return { ok: false, reason: 'no alert channel: set OPS_DISCORD_WEBHOOK_URL, or an existing Slack/WhatsApp channel' };
   }
   return { ok: true, channels };
 }
 
 /** How a channel is named in logs and responses — never the URL or a key. */
 export const channelLabel = (c: AlertChannel): string =>
-  c.kind === 'slack' ? 'slack (OPS_SLACK_WEBHOOK_URL)'
+  c.kind === 'discord' ? 'discord (OPS_DISCORD_WEBHOOK_URL)'
+    : c.kind === 'slack' ? 'slack (OPS_SLACK_WEBHOOK_URL)'
     : c.kind === 'whatsapp-ops' ? 'whatsapp (OPS_CALLMEBOT_PHONE)'
     : 'whatsapp (tutor CALLMEBOT_PHONE fallback)';
 
@@ -97,9 +106,38 @@ export async function sendSlack(text: string, webhookUrl: string, fetchImpl: typ
 }
 
 
-/** The real sender: Slack by webhook, WhatsApp by CallMeBot. */
+/** wait=true asks Discord to confirm persistence. Never expose response
+ * bodies or exception messages: either could contain the webhook token.
+ * https://docs.discord.com/developers/resources/webhook#execute-webhook */
+export async function sendDiscord(text: string, webhookUrl: string, fetchImpl: typeof fetch = fetch): Promise<SendResult> {
+  if (!DISCORD_WEBHOOK.test(webhookUrl)) return { ok: false, error: 'Invalid Discord webhook URL' };
+  // Bound UTF-16 length too; never cut an emoji between its surrogate pair.
+  const content = text.length > 2000
+    ? text.slice(0, 1998).replace(/[\uD800-\uDBFF]$/, '') + '…'
+    : text;
+  try {
+    const r = await fetchImpl(webhookUrl + '?wait=true', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+      redirect: 'error',
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (r.status !== 200) return { ok: false, error: 'Discord answered ' + r.status };
+    const body = await r.json();
+    if (!body || typeof body.id !== 'string' || !/^[0-9]+$/.test(body.id)) {
+      return { ok: false, error: 'Discord did not confirm a saved message' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Discord request failed' };
+  }
+}
+
+/** The real sender: Discord/Slack by webhook, WhatsApp by CallMeBot. */
 export const sendAlert = (text: string, c: AlertChannel): Promise<SendResult> =>
-  c.kind === 'slack' ? sendSlack(text, c.webhookUrl) : sendWhatsAppChecked(text, c.to);
+  c.kind === 'discord' ? sendDiscord(text, c.webhookUrl)
+    : c.kind === 'slack' ? sendSlack(text, c.webhookUrl) : sendWhatsAppChecked(text, c.to);
 
 /**
  * One check's daily run, minus HTTP: what its POST answers. `message` is

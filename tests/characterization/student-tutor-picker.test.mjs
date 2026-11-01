@@ -24,8 +24,8 @@ const pickerOf = (page) => page.match(/<select id="pf-tutor-[^"]+"[\s\S]*?<\/sel
 test('a tutor who cannot take bookings yet is labelled in the picker', async () => {
   const { baseUrl, stop } = await startServer();
   try {
-    await book(baseUrl);
-    const picker = pickerOf(markup(await (await fetch(`${baseUrl}/app/dashboard`, { headers: { cookie: await login(baseUrl) } })).text()));
+    const booked = await (await book(baseUrl)).json();
+    const picker = pickerOf(markup(await (await fetch(`${baseUrl}/app/students/${booked.portal.code}`, { headers: { cookie: await login(baseUrl) } })).text()));
     assert.match(picker, /ליאור \(עוד לא מקבל\/ת הזמנות\)/);
     assert.doesNotMatch(picker, /ניקול \(/, 'Nikol takes bookings: her name alone');
   } finally { await stop(); }
@@ -34,10 +34,10 @@ test('a tutor who cannot take bookings yet is labelled in the picker', async () 
 test("a student whose tutor was deactivated shows that, not another tutor's name", async () => {
   const { baseUrl, dbPath, stop } = await startServer();
   try {
-    await book(baseUrl);
+    const booked = await (await book(baseUrl)).json();
     run(dbPath, `INSERT INTO teachers (name, phone, active) VALUES ('לשעבר', NULL, 0)`);
     run(dbPath, `UPDATE enrollments SET teacher_id = (SELECT id FROM teachers WHERE name = 'לשעבר')`);
-    const picker = pickerOf(markup(await (await fetch(`${baseUrl}/app/dashboard`, { headers: { cookie: await login(baseUrl) } })).text()));
+    const picker = pickerOf(markup(await (await fetch(`${baseUrl}/app/students/${booked.portal.code}`, { headers: { cookie: await login(baseUrl) } })).text()));
     assert.match(picker, /<option value="" selected[^>]*>— מורה שכבר לא פעיל\/ה —<\/option>/);
     assert.doesNotMatch(picker, /<option value="\d+" selected/, 'no active tutor is shown as theirs');
   } finally { await stop(); }

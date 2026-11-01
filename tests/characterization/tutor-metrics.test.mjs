@@ -52,7 +52,7 @@ test('metrics shell is server-authenticated and renders unknowns without source 
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
     assert.ok(Buffer.byteLength(html) < 60000, 'bounded definitions-only payload');
     const dashboard = await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: cookie } });
-    assert.match(await dashboard.text(), /href="\/app\/metrics"/);
+    assert.doesNotMatch(await dashboard.text(), /href="\/app\/metrics"/, 'the metrics/settings navigation entry was removed at Lior’s request');
     await fetch(`${baseUrl}/api/logout`, { method: 'POST', headers: { Cookie: cookie } });
     const loggedOut = await fetch(`${baseUrl}/app/metrics`, { redirect: 'manual' });
     assert.equal(loggedOut.status, 302);

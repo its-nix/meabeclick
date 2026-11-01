@@ -70,6 +70,16 @@
   // Named apart from the local fake-CRM `data` below (see that variable's
   // own comment) — this one is the real, server-rendered roster.
   let { data: pageData }: { data: PageData } = $props();
+  let navOpen = $state(false);
+  let navDetails: HTMLDetailsElement;
+  let navSummary: HTMLElement;
+
+  function closeNavigation(event: KeyboardEvent) {
+    if (event.key === 'Escape' && navOpen) {
+      navOpen = false;
+      navSummary?.focus();
+    }
+  }
   let dashboardPlans = $state(untrack(() => pageData.learningPlans ?? {}));
 
   /* ═══════════════════ local fake-CRM store ═══════════════════
@@ -933,6 +943,10 @@
   <title>לוח בקרה — שיעורים פרטיים</title>
 </svelte:head>
 
+<svelte:window onkeydown={closeNavigation} onclick={(event) => {
+  if (navOpen && event.target instanceof Node && !navDetails?.contains(event.target)) navOpen = false;
+}} />
+
 <div id="nav">
   <div class="nav-logo">
     <BrandMark height={28} label={null} />
@@ -942,11 +956,19 @@
   <div class="nav-actions">
     <span class="save-indicator" class:show={saveIndicatorVisible}>✓ נשמר</span>
     <button class="btn btn-outline" onclick={openModal}>+ תלמיד חדש</button>
-    <a href="/app/library" class="btn btn-ghost">ספרייה</a>
-    <a href="/app/marketing" class="btn btn-ghost">שיווק</a>
-    <a href="/app/metrics" class="btn btn-ghost">יעדים והגדרות מדדים</a>
-    <a href="/" class="btn btn-ghost">← האתר</a>
-    <button class="btn btn-ghost" onclick={signOut}>יציאה</button>
+    <details class="nav-menu" bind:open={navOpen} bind:this={navDetails}>
+      <summary bind:this={navSummary}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+        <span class="menu-label">תפריט</span>
+      </summary>
+      <nav aria-label="ניווט לוח הבקרה">
+        <a href="/app/library">ספרייה</a>
+        <a href="/app/marketing">שיווק</a>
+        <a href="/app/metrics">יעדים והגדרות מדדים</a>
+        <a href="/">לאתר — בלי להתנתק</a>
+        <button onclick={signOut}>יציאה מהחשבון</button>
+      </nav>
+    </details>
   </div>
 </div>
 
@@ -1055,7 +1077,7 @@
     </div>
   {/if}
 
-  <div class="stats-bar">
+  <div class="stats-bar" role="region" aria-label="מדדים בקצרה">
     <div class="stat-card">
       <div class="s-label">תלמידים פעילים</div>
       <div class="s-value gold">{realStudents.length}</div>
@@ -1622,8 +1644,10 @@
     <!-- No code to invent: the page gets a generated address, as a booking
          does, not one spelled from the child's name. -->
     <div class="field-row single">
-      <div class="field"><label for="ns-email">מייל של ההורה</label>
-        <input id="ns-email" type="email" dir="ltr" placeholder="לא חובה — אבל בלעדיו אי אפשר לבקש קישור חדש" bind:value={nsEmail} /></div>
+      <div class="field"><label for="ns-email">מייל לחשבון (לא חובה)</label>
+        <input id="ns-email" type="email" inputmode="email" autocomplete="email" dir="ltr" placeholder="name@example.com" aria-describedby="ns-email-hint" bind:value={nsEmail} />
+        <p class="field-hint" id="ns-email-hint">לקישור כניסה — של ההורה או הלומד/ת.</p>
+      </div>
     </div>
     <div class="field-row three">
       <div class="field"><label for="ns-level">רמה</label>
@@ -1653,12 +1677,14 @@
   :global(body) { background: var(--bg-base); }
 
   input, textarea, select, button { font-family: 'Heebo', sans-serif; }
-  input[type='text'], input[type='date'], input[type='time'], input[type='number'], textarea, select {
+  input[type='text'], input[type='email'], input[type='date'], input[type='time'], input[type='number'], textarea, select {
     background: var(--bg-surface); border: 1.5px solid var(--border-strong);
     color: var(--text-primary); border-radius: var(--r-sm); padding: 8px 12px;
     font-size: 0.88rem; width: 100%; outline: none; transition: border-color 0.2s;
   }
   input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  #ns-email { min-width: 0; min-height: 44px; font-size: 1rem; }
+  #ns-email:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   textarea { resize: vertical; min-height: 70px; }
 
   /* ── Nav ── */
@@ -1673,6 +1699,30 @@
   .nav-title { font-size: 1.05rem; font-weight: 900; color: var(--text-primary); white-space: nowrap; }
   .nav-sub { color: var(--text-muted); font-weight: 400; font-size: .88rem; }
   .nav-actions { display: flex; gap: 10px; align-items: center; }
+  .nav-actions > .btn { min-height: 44px; }
+  .nav-menu { position: relative; }
+  .nav-menu summary {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-width: 44px; min-height: 44px; padding: 8px 12px;
+    border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+    background: var(--bg-card); color: var(--text-primary); cursor: pointer;
+    font-size: 0.9rem; font-weight: 700; list-style: none;
+  }
+  .nav-menu summary::-webkit-details-marker { display: none; }
+  .nav-menu nav {
+    position: absolute; inset-inline-end: 0; top: calc(100% + 8px);
+    width: min(280px, calc(100vw - 32px)); padding: 8px;
+    border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+    background: var(--bg-card); box-shadow: 0 8px 24px var(--shadow-md);
+  }
+  .nav-menu nav a, .nav-menu nav button {
+    display: flex; align-items: center; width: 100%; min-height: 44px;
+    padding: 8px 12px; border: 0; border-radius: var(--r-sm);
+    color: var(--text-primary); background: none; font: inherit;
+    font-size: 0.9rem; text-decoration: none; text-align: start; cursor: pointer;
+  }
+  .nav-menu nav a:hover, .nav-menu nav button:hover { background: var(--bg-surface); }
+  .nav-menu :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
   /* ── Buttons ── */
   .btn {
@@ -1740,16 +1790,19 @@
      for these) ── */
   .readonly-value { padding: 8px 12px; font-size: .88rem; color: var(--text-primary); background: var(--bg-surface); border: 1.5px solid var(--border); border-radius: var(--r-sm); min-height: 1.4em; }
   .field-error { font-size: .78rem; color: var(--danger); margin-top: 4px; }
+  .field-hint { margin: 4px 0 0; font-size: .85rem; line-height: 1.5; color: var(--text-muted-strong); }
 
   /* ── Stats bar ── */
-  .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 2rem; }
-  .stat-card { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 20px; box-shadow: 0 2px 12px var(--shadow); }
-  .stat-card .s-label { font-size: .72rem; font-weight: 700; color: var(--text-muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
-  .stat-card .s-value { font-size: 2rem; font-weight: 900; color: var(--text-primary); }
+  .stats-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; background: var(--border); margin-bottom: 1.5rem; }
+  .stat-card { min-width: 0; background: var(--bg-card); padding: 12px 14px; }
+  .stat-card .s-label { font-size: .85rem; font-weight: 700; color: var(--text-muted-strong); margin-bottom: 2px; }
+  .stat-card .s-value { font-size: 1.45rem; font-weight: 800; color: var(--text-primary); overflow-wrap: anywhere; }
   .stat-card .s-value.gold  { color: var(--accent); }
   .stat-card .s-value.green { color: var(--accent3-strong); }
   .stat-card .s-value.red   { color: var(--danger); }
-  .stat-card .s-sub { font-size: .78rem; color: var(--text-muted); margin-top: 4px; }
+  .stat-card .s-sub { font-size: .8rem; line-height: 1.4; color: var(--text-muted-strong); margin-top: 2px; }
+
+  @media (min-width: 1000px) { .stats-bar { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
   /* ── Section header ── */
   .sec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
@@ -1935,32 +1988,23 @@
   .pay-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
   @media (max-width: 600px) {
-    /* The desktop nav is one 60px row that never wraps: mark + "לוח בקרה" +
-       three padded buttons need ~440px, so on a phone the buttons squashed
-       onto two lines and, at 320px, pushed the page into horizontal scroll.
-       Here the row is allowed to wrap: the logo keeps line one, and the
-       actions drop to a full-width two-column grid underneath — primary
-       across both columns, the two secondary buttons side by side. */
     #nav {
-      padding: 10px 1rem; height: auto; min-height: 60px;
-      flex-wrap: wrap; row-gap: 10px;
+      padding: 8px 12px; height: auto; min-height: 60px; gap: 8px;
     }
     /* The mark plus "לוח בקרה" already say where you are; the tagline is
        what this width cannot also fit. */
     .nav-sub { display: none; }
-    .nav-actions {
-      flex-basis: 100%;
-      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-    }
-    .nav-actions .btn {
-      justify-content: center; min-height: 44px; padding: 8px 12px;
-      white-space: nowrap;
-    }
-    .nav-actions .btn-outline { grid-column: 1 / -1; }
+    .nav-logo { gap: 6px; }
+    .nav-title { font-size: .95rem; }
+    .nav-actions { gap: 8px; }
+    .nav-actions > .btn { justify-content: center; padding: 8px; white-space: nowrap; }
+    .nav-menu summary { padding: 8px; }
+    .menu-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     /* "✓ נשמר" is a transient flash, not a control; it must not claim a
        grid cell. Park it at the top-left corner of the bar instead. */
     .nav-actions .save-indicator {
-      position: absolute; top: 20px; left: 1rem; margin: 0;
+      position: absolute; top: 100%; left: 1rem; margin: 0; pointer-events: none;
     }
     .codes-panel { overflow-x: visible; }
     .codes-table {

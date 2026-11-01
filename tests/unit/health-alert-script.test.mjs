@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const script = join(dirname(fileURLToPath(import.meta.url)), '../../server/health-alert.sh');
 const HOOK = 'https://hooks.slack.com/services/T000/B000/secretsecret';
 
-function sandbox(envFile, curlAnswer = 'ok') {
+function sandbox(envFile, curlAnswer = 'ok', curlExit = 0) {
   const dir = mkdtempSync(join(tmpdir(), 'health-alert-'));
   const bin = join(dir, 'bin');
   mkdirSync(bin);
@@ -23,6 +23,7 @@ n=$(ls "${dir}"/call-* 2>/dev/null | wc -l)
 printf '%s\\n' "$@" > "${dir}/call-$n.args"
 cat > "${dir}/call-$n.stdin"
 printf '%s' '${curlAnswer}'
+exit ${curlExit}
 `);
   writeFileSync(join(bin, 'journalctl'), `#!/usr/bin/env bash\necho "curl: (7) Failed to connect to 127.0.0.1 port 3000"\n`);
   chmodSync(join(bin, 'curl'), 0o755);
@@ -83,4 +84,43 @@ test('a refused Slack hook is a failure, and its answer is scrubbed of the URL',
   const r = s.run();
   assert.notEqual(r.status, 0);
   assert.ok(!(r.stdout + r.stderr).includes('secretsecret'));
+});
+
+const DISCORD = 'https://discord.com/api/webhooks/123456789/discord-secret_token';
+
+test('host Discord alert confirms persistence, disables mentions, keeps credentials out of argv, and deduplicates', () => {
+  const s = sandbox('OPS_DISCORD_WEBHOOK_URL=' + DISCORD + '\nCALLMEBOT_API_KEY=unused\n', '200');
+  const r = s.run();
+  assert.equal(r.status, 0, r.stderr);
+  const [call] = s.calls();
+  assert.equal(s.calls().length, 1, 'Discord must not also trigger tutor fallback');
+  assert.ok(call.stdin.includes(DISCORD + '?wait=true'));
+  assert.ok(!call.args.includes('discord-secret_token'));
+  const args = call.args.split('\n');
+  const body = JSON.parse(args[args.indexOf('--data-binary') + 1]);
+  assert.deepEqual(body.allowed_mentions, { parse: [] });
+  assert.match(body.content, /meabeclick-ops-health\.service/);
+  assert.ok(body.content.length < 2000);
+  assert.ok(args.includes('--fail'));
+  assert.ok(!(r.stdout + r.stderr).includes('discord-secret_token'));
+  assert.equal(s.run().status, 0);
+  assert.equal(s.calls().length, 1);
+});
+
+test('host Discord rejection or transport failure fails without leaking diagnostics', () => {
+  for (const [answer, exit] of [['429', 0], [DISCORD, 22], ['200', 7]]) {
+    const s = sandbox('OPS_DISCORD_WEBHOOK_URL=' + DISCORD + '\n', answer, exit);
+    const r = s.run();
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /Discord delivery failed/);
+    assert.ok(!(r.stdout + r.stderr).includes('discord-secret_token'));
+  }
+});
+
+test('host rejects an unsafe Discord destination and does not silently use a tutor fallback', () => {
+  const s = sandbox('OPS_DISCORD_WEBHOOK_URL=https://evil.test/secret\nCALLMEBOT_API_KEY=unused\n', '200');
+  const r = s.run();
+  assert.notEqual(r.status, 0);
+  assert.equal(s.calls().length, 0);
+  assert.ok(!r.stderr.includes('evil.test'));
 });

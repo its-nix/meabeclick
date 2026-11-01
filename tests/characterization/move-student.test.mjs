@@ -45,7 +45,7 @@ test('moving a student: the card shows the new tutor, the booked lesson keeps it
 
     const { students } = await (await fetch(`${baseUrl}/api/students`, { headers: { cookie } })).json();
     assert.deepEqual(students[0].enrollments, [{ id, subject: 'מתמטיקה', teacherId: LIOR }]);
-    assert.match(markup(await (await fetch(`${baseUrl}/app/dashboard`, { headers: { cookie } })).text()), /מתמטיקה · ליאור/);
+    assert.match(markup(await (await fetch(`${baseUrl}/app/students/${first.portal.code}`, { headers: { cookie } })).text()), /מתמטיקה · ליאור/);
 
     const activity = await (await fetch(`${baseUrl}/api/students/${first.portal.code}/activity`, { headers: { cookie } })).json();
     assert.equal(activity.nextLesson.tutor, 'ניקול', 'the lesson already booked is still Nikol\'s');

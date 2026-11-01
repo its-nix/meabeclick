@@ -136,7 +136,9 @@ test('the dashboard links to the plan page for each student', async () => {
   try {
     const booked = await book(baseUrl);
     const cookie = await login(baseUrl);
-    const html = await (await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: cookie } })).text();
+    const overview = await (await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: cookie } })).text();
+    assert.ok(overview.includes(`/app/students/${booked.portal.code}`), 'the roster opens the student workspace');
+    const html = await (await fetch(`${baseUrl}/app/students/${booked.portal.code}`, { headers: { Cookie: cookie } })).text();
     assert.match(html, /\/app\/plan\//, 'the roster must offer a way in');
     assert.ok(
       html.includes(`/app/plan/${booked.portal.code}`),

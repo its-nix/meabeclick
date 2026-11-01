@@ -121,7 +121,7 @@
               {/if}
               {#if !row.item || !['queued', 'preparing'].includes(row.item.status)}
                 <button class="link" disabled={busy[busyKey]} onclick={() => prepare(row.templateId, { skill: row.skillKey }, busyKey)}
-                  aria-label="{row.item ? 'הכנה מחדש' : 'הכנה'}: {row.title} — {row.track}">
+                  aria-label="{busy[busyKey] ? 'מתחילים…' : row.item ? 'הכנה מחדש' : 'הכנה'}: {row.title} — {row.track}">
                   {busy[busyKey] ? 'מתחילים…' : row.item ? 'הכנה מחדש' : 'הכנה'}
                 </button>
               {/if}

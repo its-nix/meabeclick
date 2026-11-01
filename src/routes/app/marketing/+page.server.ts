@@ -10,7 +10,7 @@
  * is the whole point of the page, and a spinner in front of it buys nothing.
  */
 import { requireAuth } from '$server/auth.ts';
-import { funnel, heardFromCounts, distinctVisitors, type FunnelRow } from '$server/marketing.ts';
+import { funnel, funnelCompletionTotals, heardFromCounts, distinctVisitors, type FunnelRow } from '$server/marketing.ts';
 import type { PageServerLoad } from './$types';
 
 /** The spec's own toggle: 7 / 30 / 90 days, defaulting to 7. Anything else
@@ -53,6 +53,7 @@ function sortRows(rows: FunnelRow[]): FunnelRow[] {
 
 export const load: PageServerLoad = async (event) => {
   requireAuth(event);
+  event.setHeaders({ 'Cache-Control': 'private, no-store' });
 
   const days = parseDays(event.url.searchParams.get('days'));
 
@@ -69,5 +70,6 @@ export const load: PageServerLoad = async (event) => {
   // See distinctVisitors's own doc comment.
   const visitors = distinctVisitors(sinceIso, untilIso);
 
-  return { days, rows, heardFrom, visitors, sinceIso, untilIso };
+  const completion = funnelCompletionTotals(sinceIso, untilIso);
+  return { days, rows, heardFrom, visitors, completion, sinceIso, untilIso };
 };

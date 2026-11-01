@@ -203,7 +203,21 @@ export type FunnelRow = {
   bookingsStarted: number;
   bookings: number;
   lessonsHeld: number;
+  reportedLessons: number;
+  secondLessons: number;
 };
+
+/** Report-backed attendance evidence, as of the report cutoff. Ordering is
+ * by lesson time, not when a tutor happened to file the report. Cancelled,
+ * future, mismatched, and not-yet-filed reports cannot advance the count. */
+const REPORTED_BOOKINGS = `WITH reported_bookings AS (
+  SELECT b.id AS booking_id,
+         ROW_NUMBER() OVER (PARTITION BY b.student_id ORDER BY julianday(b.start), b.id) AS ordinal
+  FROM bookings_v2 b JOIN lesson_reports r ON r.booking_id = b.id AND r.student_id = b.student_id
+  WHERE b.status != 'cancelled'
+    AND julianday(b."end") <= julianday(?)
+    AND julianday(r.created_at) <= julianday(?)
+)`;
 
 /**
  * One row per (source, campaign, content), for the window [sinceIso, untilIso].
@@ -213,14 +227,16 @@ export type FunnelRow = {
  * falls out of the query for free rather than needing a COALESCE that would
  * make it indistinguishable from a literal `source=null` in the data.
  *
- * `lessonsHeld` is the one column that reaches outside marketing_events: it
+ * `lessonsHeld` is the legacy elapsed-booking proxy, not attendance evidence. It
  * LEFT JOINs to bookings_v2 on booking_id (set only on lesson_scheduled,
  * see migration 016) so a lesson counts as held only when that booking is
  * not cancelled and its `end` is not later than `untilIso` — "already
  * happened by the time this report is asking about", not "happened by now".
+ * The report UI uses reportedLessons/secondLessons instead: distinct bookings
+ * with matching tutor reports, including all-history ordering for the second.
  */
 export function funnel(sinceIso: string, untilIso: string): FunnelRow[] {
-  const rows = handle().prepare(`
+  const rows = handle().prepare(REPORTED_BOOKINGS + `
     SELECT
       e.utm_source   AS source,
       e.utm_campaign AS campaign,
@@ -235,14 +251,30 @@ export function funnel(sinceIso: string, untilIso: string): FunnelRow[] {
                       AND b.id IS NOT NULL
                       AND b.status != 'cancelled'
                       AND b."end" <= ?
-                 THEN 1 END)                                                                 AS lessonsHeld
+                 THEN 1 END)                                                                 AS lessonsHeld,
+      COUNT(DISTINCT CASE WHEN e.event = 'lesson_scheduled' AND rb.booking_id IS NOT NULL
+                          THEN e.booking_id END)                                              AS reportedLessons,
+      COUNT(DISTINCT CASE WHEN e.event = 'lesson_scheduled' AND rb.ordinal = 2
+                          THEN e.booking_id END)                                              AS secondLessons
     FROM marketing_events e
     LEFT JOIN bookings_v2 b ON b.id = e.booking_id AND e.event = 'lesson_scheduled'
+    LEFT JOIN reported_bookings rb ON rb.booking_id = b.id
     WHERE e.at >= ? AND e.at <= ?
     GROUP BY e.utm_source, e.utm_campaign, e.utm_content
-  `).all(untilIso, sinceIso, untilIso) as FunnelRow[];
+  `).all(untilIso, untilIso, untilIso, sinceIso, untilIso) as FunnelRow[];
 
   return rows;
+}
+
+/** Exact totals across UTM groups. One booking can have repeated/corrected
+ * event rows; never sum per-group DISTINCT counts into a business total. */
+export function funnelCompletionTotals(sinceIso: string, untilIso: string): { reportedLessons: number; secondLessons: number } {
+  return handle().prepare(REPORTED_BOOKINGS + `
+    SELECT COUNT(DISTINCT rb.booking_id) AS reportedLessons,
+           COUNT(DISTINCT CASE WHEN rb.ordinal = 2 THEN rb.booking_id END) AS secondLessons
+    FROM marketing_events e JOIN reported_bookings rb ON rb.booking_id = e.booking_id
+    WHERE e.event = 'lesson_scheduled' AND e.at >= ? AND e.at <= ?
+  `).get(untilIso, untilIso, sinceIso, untilIso) as { reportedLessons: number; secondLessons: number };
 }
 
 /**

@@ -4,7 +4,7 @@
    * window computation; this component only renders what that load already
    * decided.
    *
-   * Summary line first (spec: visitors / bookings / lessons held for the
+   * Summary line first (visitors / bookings / report-backed completions for the
    * window), then the funnel table grouped source → campaign → content
    * (rows arrive pre-sorted from +page.server.ts's sortRows), then the
    * "איך שמעתם עלינו?" counts. No client-side fetch: the whole page is one
@@ -25,16 +25,15 @@
 
   const sourceLabel = (source: string | null): string => source ?? UNTAGGED_SOURCE;
 
-  // bookings and lessonsHeld are plain COUNT()s in funnel() — each event row
+  // Bookings are plain COUNT()s in funnel() — each event row
   // belongs to exactly one (source, campaign, content) group, so summing
   // them across the already-grouped rows is exact, unlike visitors (below).
   let rowTotals = $derived(
     data.rows.reduce(
       (acc, row) => ({
         bookings: acc.bookings + row.bookings,
-        lessonsHeld: acc.lessonsHeld + row.lessonsHeld,
       }),
-      { bookings: 0, lessonsHeld: 0 },
+      { bookings: 0 },
     ),
   );
 
@@ -73,10 +72,20 @@
       <span class="stat-label">הזמנות</span>
     </div>
     <div class="stat">
-      <span class="stat-value">{rowTotals.lessonsHeld}</span>
-      <span class="stat-label">שיעורים שהתקיימו</span>
+      <span class="stat-value">{data.completion.reportedLessons}</span>
+      <span class="stat-label">שיעורים עם דיווח</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{data.completion.secondLessons}</span>
+      <span class="stat-label">שיעור שני מדווח</span>
     </div>
   </div>
+
+  <details class="definitions">
+    <summary>איך סופרים את השלבים?</summary>
+    <p>הזמנות שנוצרו בטווח הנבחר. שיעור נספר רק עם דיווח מורה ועד סוף הטווח — לא רק כי המועד עבר. בלי דיווח, אין עדות להשתתפות.</p>
+    <p>״שיעור שני״ הוא השיעור המדווח השני של התלמיד/ה בכל ההיסטוריה, לפי מועד השיעור. אלו ספירות פעילות, לא אחוזי המרה של קוהורטה.</p>
+  </details>
 
   {#if data.rows.length === 0}
     <p class="empty">
@@ -97,7 +106,8 @@
             <th scope="col">טלפון</th>
             <th scope="col">התחילו הזמנה</th>
             <th scope="col">הזמנות</th>
-            <th scope="col">שיעורים שהתקיימו</th>
+            <th scope="col">שיעורים עם דיווח</th>
+            <th scope="col">שיעור שני מדווח</th>
           </tr>
         </thead>
         <tbody>
@@ -112,7 +122,8 @@
               <td>{row.phoneClicks}</td>
               <td>{row.bookingsStarted}</td>
               <td>{row.bookings}</td>
-              <td>{row.lessonsHeld}</td>
+              <td>{row.reportedLessons}</td>
+              <td>{row.secondLessons}</td>
             </tr>
           {/each}
         </tbody>
@@ -160,7 +171,7 @@
   .chip.active { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-dim); }
 
   .summary {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
     margin-bottom: 20px;
   }
   .stat {
@@ -173,6 +184,10 @@
     font-variant-numeric: tabular-nums;
   }
   .stat-label { font-size: .76rem; color: var(--text-muted); font-weight: 700; }
+  .definitions { margin-bottom: 16px; color: var(--text-muted-strong); font-size: .85rem; line-height: 1.6; }
+  .definitions summary { min-height: 44px; padding: 10px 0; cursor: pointer; }
+  .definitions p { margin: 0 0 8px; }
+  .definitions summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
   .empty {
     background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 14px;

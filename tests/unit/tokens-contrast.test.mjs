@@ -129,7 +129,6 @@ test('every small primary-on-wash role is bound to an AA-safe text token and com
     ['dashboard payments header', 'src/routes/app/dashboard/+page.svelte', String.raw`\.payments-table th`, String.raw`\.payments-table th`, 'white (student card)'],
     ['dashboard next-lesson label', 'src/routes/app/dashboard/+page.svelte', String.raw`\.nl-label`, String.raw`\.next-lesson-box`, 'white (student card)'],
     ['games URL', 'src/routes/app/games/+page.svelte', String.raw`\.url`, String.raw`\.url`, 'white (game card)'],
-    ['library working chip', 'src/routes/app/library/+page.svelte', String.raw`\.chip\.working`, String.raw`\.chip\.working`, 'white (topic card)'],
     ['marketing active chip', 'src/routes/app/marketing/+page.svelte', String.raw`\.chip\.active`, String.raw`\.chip\.active`, 'page background'],
     ['parent next-lesson contact', 'src/routes/app/parent/+page.svelte', String.raw`\.nl-contact`, String.raw`\.next-lesson-box`, 'page background'],
     ['parent table header', 'src/routes/app/parent/+page.svelte', String.raw`\.data-table th`, String.raw`\.data-table thead`, 'white (table)'],
@@ -165,6 +164,15 @@ test('every small primary-on-wash role is bound to an AA-safe text token and com
     assert.ok(ratio >= AA_TEXT,
       `${role}: --${foregroundToken} ${foreground} on ${groundName} ${compositeGround} is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
   }
+});
+
+test('library working status is AA-safe plain text on its table and hover surfaces', () => {
+  const block = source('src/routes/app/library/+page.svelte').match(/\.status\.working\s*\{([^}]*)\}/s)?.[1];
+  assert.ok(block, 'the table status keeps an explicit foreground');
+  assert.doesNotMatch(block, /background/, 'this role is plain text, not the retired primary-wash chip');
+  const foreground = token(block.match(/color:\s*var\(--([^)]+)\)/)?.[1]);
+  assert.ok(foreground);
+  for (const surface of ['bg-card', 'bg-surface']) assert.ok(contrast(foreground, token(surface)) >= AA_TEXT);
 });
 
 test('white text clears AA on every primary button, hover and gradient fill role', () => {

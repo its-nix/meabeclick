@@ -1779,7 +1779,10 @@
   .roster-table { width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--bg-card); }
   .roster-table th { text-align: start; font-size: 0.85rem; color: var(--text-muted-strong); background: var(--bg-surface); }
   .roster-table th, .roster-table td { padding: 12px; overflow-wrap: anywhere; }
-  .roster-table th:first-child { width: 44%; }
+  .roster-table th:first-child { width: 42%; }
+  .roster-table th:nth-child(2) { width: 22%; }
+  .roster-table td:last-child { font-size: 0.875rem; }
+  .roster-table td bdi { white-space: nowrap; }
   .roster-table tbody tr { position: relative; border-top: 1px solid var(--border); }
   .roster-table tbody tr:hover, .roster-table tbody tr:focus-within { background: var(--bg-surface); }
   .student-row-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--accent-deep); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
@@ -2048,6 +2051,7 @@
     .nav-menu summary { padding: 8px; }
     .menu-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .roster-table th, .roster-table td { padding: 10px 8px; }
     /* "✓ נשמר" is a transient flash, not a control; it must not claim a
        grid cell. Park it at the top-left corner of the bar instead. */
     .nav-actions .save-indicator {

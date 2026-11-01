@@ -16,17 +16,20 @@
  */
 import { resolveFamilyAccess } from '$server/family.ts';
 import { readPortalSummary } from '$server/portal-file.ts';
+import { familyAcquisitionSource } from '$server/acquisition-source.ts';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = ({ locals }) => {
+export const load: PageServerLoad = ({ locals, setHeaders }) => {
+  setHeaders({ 'Cache-Control': 'private, no-store' });
   const access = locals.family ? resolveFamilyAccess(locals.family) : null;
 
   if (!access || !access.canSeeParentView) {
-    return { known: false as const, isSelf: false, email: null, phone: null, students: [] };
+    return { known: false as const, isSelf: false, email: null, phone: null, students: [], acquisitionSource: null };
   }
 
   return {
     known: true as const,
+    acquisitionSource: familyAcquisitionSource(access.account.id) ?? 'unknown',
     isSelf: access.isSelf,
     email: access.account.email,
     phone: access.account.phone,

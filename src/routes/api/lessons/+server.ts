@@ -37,7 +37,9 @@
  */
 import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
-import { readLessons } from '$server/db.ts';
+import { readLessons, readLessonsForSlugs } from '$server/db.ts';
+import { getStudentByCode } from '$server/entities.ts';
+import { unambiguousLessonsForStudent } from '$server/lessons.ts';
 import { isLibrarySlug } from '$server/library/slug.ts';
 import { resolveStudent, studentRefById } from '$server/results.ts';
 import { gameUrl, lessonUrl } from '$server/urls.ts';
@@ -65,13 +67,19 @@ export const GET: RequestHandler = async (event) => {
   const { url } = event;
   try {
     const raw = url.searchParams.get('student');
+    const code = url.searchParams.get('studentCode');
+    const student = code === null ? null : getStudentByCode(code);
+    if (code !== null && !student) return json({ error: 'student not found' }, { status: 404 });
+    const selected = student
+      ? readLessonsForSlugs(unambiguousLessonsForStudent(student.id).map(l => l.slug))
+      : readLessons(raw || undefined);
     /* Library masters are nobody's lesson: they live on /app/library. */
-    const lessons = readLessons(raw ? raw : undefined).filter(l => !isLibrarySlug(l.slug)).map(l => {
+    const lessons = selected.filter(l => !isLibrarySlug(l.slug)).map(l => {
       /* Prefer the stable code: the legacy lessons table stores a display
          name, which is ambiguous between two children sharing one and
          changes when a child is renamed. An unresolvable name passes through
          unchanged, producing exactly the link it produces today. */
-      const id = resolveStudent(l.student);
+      const id = student?.id ?? resolveStudent(l.student);
       const ref = id === null ? l.student : (studentRefById(id)?.code ?? l.student);
       return {
         ...l,

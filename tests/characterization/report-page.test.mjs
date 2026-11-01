@@ -110,9 +110,9 @@ test('an unknown lesson is a 404', async () => {
 test('the dashboard lists lessons awaiting a report, and stops once one is filed', async () => {
   const { baseUrl, dbPath, stop } = await startServer();
   try {
-    const { cookie, bookingId } = await pastLesson(baseUrl, dbPath);
+    const { booked, cookie, bookingId } = await pastLesson(baseUrl, dbPath);
 
-    const before = await (await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: cookie } })).text();
+    const before = await (await fetch(`${baseUrl}/app/students/${booked.portal.code}`, { headers: { Cookie: cookie } })).text();
     assert.match(before, /מחכים לדיווח|מחכה לדיווח/);
     assert.match(before, new RegExp(`/app/report/${bookingId}`));
 
@@ -121,7 +121,7 @@ test('the dashboard lists lessons awaiting a report, and stops once one is filed
       body: JSON.stringify({ bookingId, note: 'דווח', entries: [] }),
     });
 
-    const after = await (await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: cookie } })).text();
+    const after = await (await fetch(`${baseUrl}/app/students/${booked.portal.code}`, { headers: { Cookie: cookie } })).text();
     assert.doesNotMatch(after, new RegExp(`/app/report/${bookingId}`), 'a reported lesson leaves the queue');
   } finally { await stop(); }
 });

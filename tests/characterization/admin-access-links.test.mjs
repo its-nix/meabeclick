@@ -54,7 +54,7 @@ test('admin account and student issuance are distinct and do not revoke the othe
   }
 });
 
-test('dashboard renders one account action and one student action per sibling', async () => {
+test('each student workspace renders one account action and only that sibling student action', async () => {
   const { baseUrl, stop } = await startServer();
   try {
     const admin = await login(baseUrl);
@@ -65,11 +65,16 @@ test('dashboard renders one account action and one student action per sibling', 
     assert.equal((await addStudent(baseUrl, admin, { ...shared, name: 'תלמיד ראשון' })).status, 200);
     assert.equal((await addStudent(baseUrl, admin, { ...shared, name: 'תלמיד שני' })).status, 200);
 
-    const dashboard = await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: admin } });
-    assert.equal(dashboard.status, 200);
-    const html = await dashboard.text();
-    assert.equal((html.match(/>כניסה למשפחה<\/button>/g) ?? []).length, 1);
-    assert.equal((html.match(/>כניסה לתלמיד\/ה בלבד<\/button>/g) ?? []).length, 2);
+    const overview = await (await fetch(`${baseUrl}/app/dashboard`, { headers: { Cookie: admin } })).text();
+    assert.equal((overview.match(/>כניסה למשפחה<\/button>/g) ?? []).length, 0);
+    const { students } = await (await fetch(`${baseUrl}/api/students`, { headers: { Cookie: admin } })).json();
+    for (const student of students) {
+      const page = await fetch(`${baseUrl}/app/students/${student.code}`, { headers: { Cookie: admin } });
+      assert.equal(page.status, 200);
+      const html = await page.text();
+      assert.equal((html.match(/>כניסה למשפחה<\/button>/g) ?? []).length, 1);
+      assert.equal((html.match(/>כניסה לתלמיד\/ה בלבד<\/button>/g) ?? []).length, 1);
+    }
   } finally {
     await stop();
   }

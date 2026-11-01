@@ -70,6 +70,7 @@
   // Named apart from the local fake-CRM `data` below (see that variable's
   // own comment) — this one is the real, server-rendered roster.
   let { data: pageData }: { data: PageData } = $props();
+  const selectedStudentCode = $derived(pageData.selectedStudentCode);
   let navOpen = $state(false);
   let navDetails: HTMLDetailsElement;
   let navSummary: HTMLElement;
@@ -426,6 +427,7 @@
       realStudents = realStudents.filter(x => x.code !== code);
       if (data.cardExtras) delete data.cardExtras[code];
       save();
+      if (selectedStudentCode === code) location.href = '/app/dashboard';
     } catch {
       toast('אין חיבור לשרת — התלמיד/ה לא נמחק/ה', { kind: 'error' });
     }
@@ -561,7 +563,8 @@
     codesError = '';
     try {
       const r = await api('/api/students', { cache: 'no-store' });
-      realStudents = ((await r.json()).students ?? []) as RealStudent[];
+      const roster = ((await r.json()).students ?? []) as RealStudent[];
+      realStudents = selectedStudentCode ? roster.filter(s => s.code === selectedStudentCode) : roster;
     } catch {
       codesError = 'אין חיבור לשרת';
     } finally {
@@ -870,7 +873,7 @@
     hwLoading = true;
     hwError = '';
     try {
-      const r = await api('/api/results', { credentials: 'same-origin' });
+      const r = await api(`/api/results${selectedStudentCode ? `?studentCode=${encodeURIComponent(selectedStudentCode)}` : ''}`, { credentials: 'same-origin' });
       const j = await r.json();
       if (r.status === 401) { location.href = '/login'; return; }
       if (r.status !== 200) throw new Error(j.error || String(r.status));
@@ -913,8 +916,9 @@
     lessonsLoading = true;
     lessonsError = '';
     try {
-      const r = await api('/api/lessons', { credentials: 'same-origin' });
+      const r = await api(`/api/lessons${selectedStudentCode ? `?studentCode=${encodeURIComponent(selectedStudentCode)}` : ''}`, { credentials: 'same-origin' });
       const j = await r.json();
+      if (!r.ok) throw new Error(String(r.status));
       lessons = (j.lessons ?? []) as LessonEntry[];
     } catch {
       lessonsError = 'לא הצלחתי לטעון שיעורים';
@@ -933,14 +937,16 @@
     loadCodes();
     loadActivities();
     loadAllBalance();
-    loadHomeworkResults();
-    loadLessons();
+    if (selectedStudentCode) {
+      loadHomeworkResults();
+      loadLessons();
+    }
     loadCalendarFailures();
   });
 </script>
 
 <svelte:head>
-  <title>לוח בקרה — שיעורים פרטיים</title>
+  <title>{selectedStudentCode ? `${realStudents[0]?.name ?? 'תלמיד/ה'} — תיק תלמיד` : 'לוח בקרה — שיעורים פרטיים'}</title>
 </svelte:head>
 
 <svelte:window onkeydown={closeNavigation} onclick={(event) => {
@@ -955,7 +961,11 @@
   </div>
   <div class="nav-actions">
     <span class="save-indicator" class:show={saveIndicatorVisible}>✓ נשמר</span>
-    <button class="btn btn-outline" onclick={openModal}>+ תלמיד חדש</button>
+    {#if selectedStudentCode}
+      <a class="btn btn-outline" href="/app/dashboard">כל התלמידים</a>
+    {:else}
+      <button class="btn btn-outline" onclick={openModal}>+ תלמיד חדש</button>
+    {/if}
     <details class="nav-menu" bind:open={navOpen} bind:this={navDetails}>
       <summary bind:this={navSummary}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -964,7 +974,6 @@
       <nav aria-label="ניווט לוח הבקרה">
         <a href="/app/library">ספרייה</a>
         <a href="/app/marketing">שיווק</a>
-        <a href="/app/metrics">יעדים והגדרות מדדים</a>
         <a href="/">לאתר — בלי להתנתק</a>
         <button onclick={signOut}>יציאה מהחשבון</button>
       </nav>
@@ -973,7 +982,7 @@
 </div>
 
 <div class="page">
-  <ReportQueue lessons={pageData.pendingReports} />
+  {#if !selectedStudentCode}
   <EngineNotice alert={pageData.engineAlert} />
 
   {#if calendarFailures.length}
@@ -1112,10 +1121,41 @@
 
   <div class="sec-header">
     <div>
-      <div class="sec-label2">תלמידים פעילים</div>
-      <h2 class="sec-h2">לוח תלמידים</h2>
+      <h1 class="sec-h2">לוח תלמידים</h1>
     </div>
   </div>
+  {#if pageData.pendingReports.length}
+    <p class="roster-note">{pageData.pendingReports.length === 1 ? 'שיעור אחד מחכה לדיווח' : `${pageData.pendingReports.length} שיעורים מחכים לדיווח`}. פתחו את תיק התלמיד/ה כדי לדווח.</p>
+  {/if}
+  <div class="roster-table-wrap">
+    <table class="roster-table">
+      <caption class="sr-only">תלמידים — פתיחת תיק תלמיד/ה</caption>
+      <thead><tr><th scope="col">תלמיד/ה</th><th scope="col">מורה</th><th scope="col">השיעור הבא</th></tr></thead>
+      <tbody>
+        {#each realStudents as s (s.code)}
+          {@const next = extrasFor(s.code).nextLesson}
+          {@const reports = pageData.pendingReports.filter(l => l.studentCode === s.code).length}
+          <tr>
+            <td>
+              <a class="student-row-link" href="/app/students/{s.code}">{s.name}</a>
+              <span class="roster-meta">{s.subjects || '—'}</span>
+              {#if reports}<span class="roster-meta">{reports} מחכים לדיווח</span>{/if}
+            </td>
+            <td>{tutorsOf(s) || 'טרם שויך'}</td>
+            <td>{#if next.date}<bdi>{formatDate(next.date)}</bdi><span class="roster-meta"><bdi>{next.time}</bdi></span>{:else}טרם נקבע{/if}</td>
+          </tr>
+        {:else}
+          <tr><td colspan="3">אין תלמידים עדיין — לחצו ״תלמיד חדש״ כדי להתחיל.</td></tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
+  <h2 class="workspace-tutors-title">מורים</h2>
+  <TutorsCard tutors={pageData.tutors} googleReady={pageData.googleReady}
+    onsaved={(t) => { tutors = tutors.map(x => (x.id === t.id ? { ...x, ...t } : x)); }} />
+  {:else}
+  <h1 class="student-page-title">{realStudents[0]?.name ?? 'תיק תלמיד/ה'}</h1>
+  <ReportQueue lessons={pageData.pendingReports} />
   <div class="students-grid">
     {#if !realStudents.length}
       <div class="empty">אין תלמידים עדיין — לחצו "תלמיד חדש" כדי להתחיל</div>
@@ -1376,15 +1416,6 @@
 
   <div class="sec-header" style="margin-top:2.2rem">
     <div>
-      <div class="sec-label2">צוות</div>
-      <h2 class="sec-h2">מורים</h2>
-    </div>
-  </div>
-  <TutorsCard tutors={pageData.tutors} googleReady={pageData.googleReady}
-    onsaved={(t) => { tutors = tutors.map(x => (x.id === t.id ? { ...x, ...t } : x)); }} />
-
-  <div class="sec-header" style="margin-top:2.2rem">
-    <div>
       <div class="sec-label2">גישה</div>
       <h2 class="sec-h2">כניסה לפורטל</h2>
     </div>
@@ -1533,7 +1564,7 @@
     {:else if hwError}
       <div class="empty">{hwError}</div>
     {:else if !hwResults || !Object.keys(hwResults).length}
-      <div class="empty">אף תלמיד עדיין לא סיים משחק</div>
+      <div class="empty">עדיין אין תוצאות משחקים לתלמיד/ה.</div>
     {:else}
       {#each Object.entries(hwResults) as [name, res] (name)}
         <div class="hwr-card">
@@ -1578,7 +1609,7 @@
     {:else if lessonsError}
       <div class="empty">{lessonsError}</div>
     {:else if !lessons.length}
-      <div class="empty">עדיין לא נוצרו שיעורים אוטומטית.<br>שיעור נוצר כשתלמיד מזמין שיעור.</div>
+      <div class="empty">עדיין אין שיעורים משויכים לתלמיד/ה.</div>
     {:else}
       {#each lessons as l (l.slug)}
         {@const b = lessonBadge(l.status)}
@@ -1610,6 +1641,7 @@
       {/each}
     {/if}
   </div>
+  {/if}
 </div>
 
 <!-- toasts -->
@@ -1740,6 +1772,21 @@
 
   /* ── Layout ── */
   .page { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem 6rem; }
+  .student-page-title { font-size: 1.5rem; margin: 0 0 1rem; }
+  .workspace-tutors-title { font-size: 1.2rem; margin: 2rem 0 0.75rem; }
+  .roster-note { color: var(--text-muted-strong); font-size: 0.9rem; margin-bottom: 0.75rem; }
+  .roster-table-wrap { border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+  .roster-table { width: 100%; border-collapse: collapse; table-layout: fixed; background: var(--bg-card); }
+  .roster-table th { text-align: start; font-size: 0.85rem; color: var(--text-muted-strong); background: var(--bg-surface); }
+  .roster-table th, .roster-table td { padding: 12px; overflow-wrap: anywhere; }
+  .roster-table th:first-child { width: 44%; }
+  .roster-table tbody tr { position: relative; border-top: 1px solid var(--border); }
+  .roster-table tbody tr:hover, .roster-table tbody tr:focus-within { background: var(--bg-surface); }
+  .student-row-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--accent-deep); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  .student-row-link::after { content: ''; position: absolute; inset: 0; }
+  .student-row-link:focus-visible::after { outline: 3px solid var(--accent); outline-offset: -3px; }
+  .roster-meta { display: block; color: var(--text-muted-strong); font-size: 0.85rem; line-height: 1.5; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
   .cf-banner { background: #FEF2F2; border: 1.5px solid #FCA5A5; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
   .cf-title { font-weight: 800; color: #B91C1C; margin-bottom: 8px; }

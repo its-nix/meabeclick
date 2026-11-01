@@ -5,12 +5,14 @@
  */
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
-import { libraryView } from '$server/library/view.ts';
+import { libraryTableView } from '$server/library/view.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = (event) => {
   requireAuth(event);
-  const view = libraryView(event.url.searchParams.get('template') ?? 'math-8');
-  if (!view) error(404, 'אין תבנית כזו');
-  return view;
+  event.setHeaders({ 'Cache-Control': 'private, no-store' });
+  const view = libraryTableView();
+  const selectedTemplate = event.url.searchParams.get('template') ?? '';
+  if (selectedTemplate && !view.templates.some(t => t.id === selectedTemplate)) error(404, 'אין תבנית כזו');
+  return { ...view, selectedTemplate };
 };

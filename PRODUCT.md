@@ -75,9 +75,14 @@ Todoist: label `pillar-progress`
 
 ### Word of mouth
 
-Done for phase A: every booking records where the family heard of מאה
-בקליק, so word of mouth becomes a number instead of an impression, and a
-parent has a way to share their child's progress with someone else.
+Done for phase A: every booking records a truthful source state for where
+the family heard of מאה בקליק: a selected source or explicit unknown.
+Ask on the family's first booking; carry the saved answer forward without
+asking again, and let the family correct it. A correction becomes the
+default for the current successful and future bookings; earlier snapshots
+stay unchanged. Skipped answers become unknown. Optional "other" free text
+belongs only to that booking, not the family default. A parent has a way to
+share their child's progress with someone else.
 
 Todoist: label `pillar-wom`
 

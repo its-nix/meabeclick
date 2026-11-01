@@ -34,6 +34,7 @@ export const HEARD_FROM_OPTIONS: readonly HeardFromOption[] = [
   { value: 'instagram', label: 'פייסבוק/אינסטגרם' },
   { value: 'school', label: 'בית הספר' },
   { value: 'other', label: 'אחר' },
+  { value: 'unknown', label: 'לא בטוחים / לא זוכרים' },
 ];
 
 /** Cap for the optional free text after "אחר". Short on purpose: the

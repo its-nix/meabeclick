@@ -339,7 +339,7 @@ test('a visitorId that does not look like a minted uuid is dropped, not stored a
   } finally { await stop(); }
 });
 
-test('an unknown heardFrom is stored as NULL', async () => {
+test('an invalid heardFrom is stored as explicit unknown without blocking the booking', async () => {
   const { baseUrl, dbPath, stop } = await startServer();
   try {
     const r = await fetch(`${baseUrl}/api/book`, {
@@ -353,7 +353,7 @@ test('an unknown heardFrom is stored as NULL', async () => {
     const db = new DatabaseSync(dbPath);
     const b = db.prepare(`SELECT heard_from FROM bookings_v2 ORDER BY id DESC LIMIT 1`).get();
     db.close();
-    assert.equal(b.heard_from, null, 'an unrecognised answer must not be stored as if it were real');
+    assert.equal(b.heard_from, 'unknown', 'an unrecognised answer must not be stored as if it were real');
   } finally { await stop(); }
 });
 
@@ -405,7 +405,7 @@ test('a lesson_scheduled event is not written when the tutor books for a family 
   } finally { await stop(); }
 });
 
-test('heardFrom is ignored when the request carries a family session, even if the client still sends one', async () => {
+test('a signed-in family can correct its source on a successful booking', async () => {
   const { baseUrl, dbPath, stop } = await startServer();
   try {
     const first = await (await fetch(`${baseUrl}/api/book`, {
@@ -432,7 +432,7 @@ test('heardFrom is ignored when the request carries a family session, even if th
     const db = new DatabaseSync(dbPath);
     const b = db.prepare(`SELECT heard_from, heard_from_detail FROM bookings_v2 ORDER BY id DESC LIMIT 1`).get();
     db.close();
-    assert.equal(b.heard_from, null, 'a returning family session must never carry a heard_from answer, even a forged one');
+    assert.equal(b.heard_from, 'google', 'an authenticated family may correct its own source');
     assert.equal(b.heard_from_detail, null);
   } finally { await stop(); }
 });
@@ -454,7 +454,7 @@ test('a booking without attribution still succeeds, and its lesson_scheduled eve
     db.close();
 
     assert.equal(b.source_utm, null);
-    assert.equal(b.heard_from, null);
+    assert.equal(b.heard_from, 'unknown');
     assert.ok(ev, 'an untracked booking must still be counted in the funnel');
     assert.equal(ev.booking_id, b.id);
     assert.equal(ev.utm_source, null);

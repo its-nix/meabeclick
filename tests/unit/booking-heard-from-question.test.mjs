@@ -32,9 +32,10 @@ const EXPECTED = [
   ['instagram', 'פייסבוק/אינסטגרם'],
   ['school', 'בית הספר'],
   ['other', 'אחר'],
+  ['unknown', 'לא בטוחים / לא זוכרים'],
 ];
 
-test('HEARD_FROM_OPTIONS is exactly the five spec\'d values with their Hebrew labels', () => {
+test('HEARD_FROM_OPTIONS preserves the original sources and adds an explicit unknown choice', () => {
   assert.deepEqual(HEARD_FROM_OPTIONS.map(o => [o.value, o.label]), EXPECTED);
 });
 
@@ -60,10 +61,10 @@ test('the question is optional — no field named heardFrom is in the required-f
 // PR1 fix wave, item 2: the tutor already knows how she reached a returning
 // family — the question exists to find out for a FIRST booking, not to be
 // re-asked of someone whose account already exists.
-test('the question does not render for a known (returning) family', () => {
-  assert.match(page, /\{#if !data\.known\}[\s\S]{0,400}?<label for="inp-heard-from">/,
-    'the label/select must be gated behind `{#if !data.known}`, the same condition ' +
-    'the page already uses elsewhere to detect a returning family');
+test('returning families get a source recap and only repeat the question when correcting it', () => {
+  assert.match(page, /מקור היכרות/);
+  assert.match(page, /\{#if !data\.known \|\| editingSource\}/);
+  assert.match(page, /onclick=\{cancelSourceEdit\}/);
 });
 
 test('אחר reveals an optional free-text field, and skipping it cannot block a booking', () => {

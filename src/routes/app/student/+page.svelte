@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GRADE_LABEL } from '$lib/homework-grade.ts';
   import type { FamilyLesson } from '$lib/family-lesson.ts';
-  import { homeworkState, HOMEWORK_STATE_LABEL } from '$lib/family-homework.ts';
+  import { homeworkProblems } from '$lib/homework-display.ts';
   import { TUTOR_PHONE } from '$lib/contact.ts';
   import Icon from '$lib/icons/Icon.svelte';
   import BottomNav, { type NavItem } from '$lib/components/BottomNav.svelte';
@@ -44,7 +44,7 @@
   type View = 'loading' | 'app' | 'error';
 
   interface HwItem {
-    id?: number; task: string; due?: string | null; url?: string | null;
+    id?: number; task: string; assigned?: string | null; skill?: string | null; due?: string | null; url?: string | null;
     /* Two stages, because they are different claims: the student says they
        finished it, and someone judged it. One flag cannot say "I did it and
        nobody has looked yet", which is where homework spends most of its
@@ -186,6 +186,9 @@
 
   /** Still open means not handed in. A graded task is finished either way. */
   const hwOpen = $derived((DATA?.homework ?? []).filter(h => !h.submitted && !h.graded).length);
+  // Game links have no reliable task-level completion evidence here.
+  const writtenHomework = $derived((DATA?.homework ?? []).filter(h => !h.url));
+  const writtenSubmitted = $derived(writtenHomework.filter(h => h.submitted || h.graded).length);
   const today = israelToday();
 
 
@@ -467,6 +470,16 @@
       {/if}
 
       {#if activeView === 'hw'}
+        <h1 class="view-title">שיעורי הבית שלי</h1>
+        <div class="card" dir="rtl">
+          <p class="progress-words" role="status" aria-atomic="true">
+            {writtenSubmitted} מתוך {writtenHomework.length} מטלות בכתב הוגשו או נבדקו
+          </p>
+          {#if writtenHomework.length}
+            <progress aria-label="הגשת מטלות בכתב" max={writtenHomework.length} value={writtenSubmitted}></progress>
+            <p class="card-meta">סימון שסיימתם אינו ציון או בדיקה של המורה.</p>
+          {/if}
+        </div>
         <div class="card">
           <div class="card-title"><Icon name="progress" /> {progressTitle}</div>
           {#if DATA.progress?.total}
@@ -496,36 +509,50 @@
           </div>
         {:else}
           {#if hwError}<div class="hw-error" role="alert">{hwError}</div>{/if}
-          {#each DATA.homework ?? [] as h}
+          {#each DATA.homework ?? [] as h, taskIndex (h.id ?? `legacy-${taskIndex}`)}
             {@const st = hwStatus(h)}
-            <div class="card">
-              <div class="row">
-                <div style="flex:1">
-                  <div class="card-title"><Icon name={homeworkState(h) === 'open' ? 'homework' : 'done'} label={HOMEWORK_STATE_LABEL[homeworkState(h)]} /> <FormulaText text={h.task} /></div>
-                  {#if h.skill}<div class="card-meta">מתרגלים: {h.skill}</div>{/if}
-                  <div class="card-meta">{h.due ? 'להגשה עד ' + fmtDate(h.due) : ''}</div>
-                  {#if h.url}
-                    <!-- Only a task that really is a game gets a game link.
-                         Written work carries no url, so no button. -->
-                    <a class="play" href={toHref(h.url)}><Icon name="games" size={17} /> {h.submitted ? 'לשחק שוב' : 'התחילו'}</a>
-                  {:else if !h.graded}
-                    <!-- The child's own "I did it". Not a grade — that is the
-                         tutor's, and it lands as a separate state. Reversible,
-                         because a tap by accident must be undoable. -->
-                    <button
-                      class="hw-submit"
-                      class:is-submitted={h.submitted}
-                      disabled={hwBusy === h.id}
-                      onclick={() => toggleSubmitted(h)}
-                    >
-                      <Icon name={h.submitted ? 'done' : 'check'} size={17} />
-                      {hwBusy === h.id ? 'שומר…' : h.submitted ? 'ביטול הגשה' : 'סיימתי'}
-                    </button>
-                  {/if}
-                </div>
+            {@const problems = homeworkProblems(h.task)}
+            <article class="card homework-card" dir="rtl" aria-labelledby="homework-title-{taskIndex}">
+              <header class="homework-heading">
+                <h2 id="homework-title-{taskIndex}" class="card-title">מטלה {taskIndex + 1}</h2>
                 <span class="badge {st.cls}">{st.label}</span>
-              </div>
-            </div>
+              </header>
+              {#if h.skill}<p class="card-meta">מתרגלים: {h.skill}</p>{/if}
+              {#if h.assigned}<p class="card-meta">ניתן ב־{fmtDate(h.assigned)}</p>{/if}
+              {#if h.due}<p class="card-meta">להגשה עד {fmtDate(h.due)}</p>{/if}
+              <ol class="problems" aria-label="תרגילים במטלה {taskIndex + 1}">
+                {#each problems as problem, problemIndex}
+                  <li class="problem">
+                    {#if problems.length > 1}<h3 class="problem-title">תרגיל {problemIndex + 1}</h3>{/if}
+                    {#if problem.context}<p class="problem-text"><FormulaText text={problem.context} /></p>{/if}
+                    {#if problem.data.length}
+                      <p class="data-title">הנתונים</p>
+                      <ul class="data-lines">
+                        {#each problem.data as datum}<li class="datum"><FormulaText text={datum} /></li>{/each}
+                      </ul>
+                    {/if}
+                    <p class="problem-text instruction"><FormulaText text={problem.instruction} /></p>
+                  </li>
+                {/each}
+              </ol>
+              {#if h.url}
+                <a class="play" href={toHref(h.url)}><Icon name="games" size={17} /> {h.submitted ? 'לשחק שוב' : 'התחילו'}</a>
+              {:else if !h.graded && h.id != null}
+                <button
+                  type="button"
+                  class="hw-submit"
+                  class:is-submitted={h.submitted}
+                  aria-label="{hwBusy === h.id ? 'שומר…' : h.submitted ? 'ביטול הגשה' : 'סיימתי'} — מטלה {taskIndex + 1}"
+                  aria-pressed={h.submitted}
+                  aria-busy={hwBusy === h.id}
+                  aria-disabled={hwBusy !== null}
+                  onclick={() => toggleSubmitted(h)}
+                >
+                  <Icon name={h.submitted ? 'done' : 'check'} size={17} />
+                  {hwBusy === h.id ? 'שומר…' : h.submitted ? 'ביטול הגשה' : 'סיימתי'}
+                </button>
+              {/if}
+            </article>
           {/each}
         {/if}
       {/if}
@@ -722,7 +749,23 @@
   .card-title { font-weight: 800; font-size: 1rem; margin-bottom: .2rem; }
   .card-meta { font-size: .8rem; color: var(--text-muted); }
   .card-body { font-size: .92rem; color: var(--text-muted); line-height: 1.6; margin-top: .45rem; }
-  .row { display: flex; align-items: flex-start; gap: .7rem; }
+  .homework-card { margin-block: 1.25rem; min-inline-size: 0; overflow-wrap: anywhere; }
+  .homework-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+  .homework-card .badge { white-space: normal; min-inline-size: 0; max-inline-size: 100%; flex-shrink: 1; }
+  .homework-card .card-meta { margin-block: .35rem; }
+  .problems { list-style: none; padding: 0; margin-block: 1rem; }
+  .problem + .problem { margin-block-start: 1.25rem; padding-block-start: 1.25rem; border-block-start: 1px solid var(--border); }
+  .problem-title, .data-title { font-size: 1rem; font-weight: 800; margin-block: .75rem; }
+  .problem-text, .datum { font-size: 1rem; line-height: 1.8; white-space: pre-wrap; }
+  .problem-text { margin-block: .75rem; }
+  .data-lines { padding-inline-start: 1.25rem; }
+  .datum + .datum { margin-block-start: .75rem; }
+  .instruction { font-weight: 700; }
+  /* Keep RTL/LTR isolation, but allow very long formulas to reflow at zoom. */
+  .homework-card :global(bdi) { white-space: normal; overflow-wrap: anywhere; }
+  progress { display: block; inline-size: 100%; accent-color: var(--accent); margin-block: .75rem; }
+  .hw-submit:focus-visible, .homework-card .play:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .hw-submit[aria-disabled="true"] { opacity: .6; cursor: wait; }
   .badge { font-size: .72rem; font-weight: 800; border-radius: 999px; padding: 3px 11px; white-space: nowrap; flex-shrink: 0; }
   .badge.done { background: var(--accent3-dim); color: var(--accent3-strong); }
   .badge.open { background: var(--accent2-dim); color: var(--accent2-strong); }

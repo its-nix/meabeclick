@@ -68,6 +68,14 @@ test('no button leads the tutor to a page that sends her away', () => {
   assert.doesNotMatch(dash(), /href="\/app\/parent"/);
 });
 
+test('the dashboard menu omits the redundant website action but keeps explicit sign-out', () => {
+  const d = dash();
+  const menu = d.match(/<nav aria-label="ניווט לוח הבקרה">([\s\S]*?)<\/nav>/)?.[1];
+  assert.ok(menu);
+  assert.doesNotMatch(menu, /href="\/"|בלי להתנתק/);
+  assert.match(menu, /onclick=\{signOut\}>יציאה מהחשבון/);
+});
+
 test('five tabs fit a phone: the row scrolls, and says which tab is open', () => {
   const d = dash();
   assert.match(d, /\.sc-tabs \{[^}]*overflow-x: auto/);

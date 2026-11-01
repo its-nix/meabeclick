@@ -43,3 +43,8 @@ export function israelTime(iso: string): string {
 export function lessonWhen(iso: string): { date: string; time: string } {
   return { date: israelDay(iso), time: israelTime(iso) };
 }
+
+/** Compact weekday only; the slot panel retains the full booking date. */
+export function bookingDayLabel(label: string): string {
+  return label.match(/^יום\s+([^,]+),/)?.[1] ?? label;
+}

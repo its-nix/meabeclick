@@ -8,6 +8,20 @@ import { dueNext, type DueSkill } from './due.ts';
 
 export interface LibrarySkillView { key: string; title: string; item: LibraryItem | null }
 export interface LibraryTopicView { key: string; title: string; skills: LibrarySkillView[] }
+export interface LibraryTableRow {
+  templateId: string;
+  track: string;
+  topicKey: string;
+  topic: string;
+  skillKey: string;
+  title: string;
+  item: LibraryItem | null;
+}
+export interface LibraryTableView {
+  templates: { id: string; track: string }[];
+  rows: LibraryTableRow[];
+  due: DueSkill[];
+}
 export interface LibraryView {
   template: { id: string; subject: string; track: string };
   templates: { id: string; track: string }[];
@@ -29,6 +43,23 @@ export function libraryView(templateId: string): LibraryView | null {
       title: topic.title,
       skills: topic.branches.flatMap(b => b.skills).map(s => ({ key: s.key, title: s.title, item: items.get(s.key) ?? null })),
     })),
+    due: dueNext(),
+  };
+}
+
+/** All tracks share one filterable table. Keep template + skill as identity:
+ * skill keys can repeat between tracks, but their prepared masters cannot. */
+export function libraryTableView(): LibraryTableView {
+  const templates = loadTemplates();
+  return {
+    templates: templates.map(t => ({ id: t.id, track: t.track })),
+    rows: templates.flatMap(template => {
+      const items = new Map(itemsForTemplate(template.id).map(i => [i.skillKey, i]));
+      return template.topics.flatMap(topic => topic.branches.flatMap(branch => branch.skills.map(skill => ({
+        templateId: template.id, track: template.track, topicKey: topic.key, topic: topic.title,
+        skillKey: skill.key, title: skill.title, item: items.get(skill.key) ?? null,
+      }))));
+    }),
     due: dueNext(),
   };
 }

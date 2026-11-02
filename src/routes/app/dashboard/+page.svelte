@@ -1260,6 +1260,7 @@
             <!-- PERSONAL LEARNING PLAN -->
             <div class="sc-panel" class:active={tabFor(s.code) === 'learning-plan'}>
               <LearningPlanTree
+                returnTo={'/app/students/' + encodeURIComponent(s.code) + '?tab=learning-plan'}
                 student={{ id: s.code, name: s.name, subject: s.subjects || '', goals: s.goals || '', level: '', progress: s.progress }}
                 lessons={lessons.filter((lesson) => lesson.student === s.name).map((lesson) => ({
                   slug: lesson.slug, title: lesson.title, topic: lesson.topic, context: lesson.context,

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import { safeTutorReturn } from '$lib/tutor-return.ts';
   /**
    * The end-of-lesson report form: one lesson, filed once and correctable
    * afterwards.
@@ -16,6 +18,8 @@
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
+  const returnTo = $derived(safeTutorReturn(page.url.searchParams.get('returnTo'), page.url.origin,
+    '/app/students/' + encodeURIComponent(data.student.code)));
 
   // Local mirror of the shape +page.server.ts hands us — same convention
   // the plan page uses, rather than importing across the server/client
@@ -149,7 +153,7 @@
       const query = data.subject
         ? `?subject=${encodeURIComponent(data.subject)}&filter=changed`
         : '?filter=changed';
-      goto(`/app/plan/${data.student.code}${query}`);
+      goto(`/app/plan/${data.student.code}${query}&returnTo=${encodeURIComponent(returnTo)}`);
     } catch (err) {
       // Saving is never optimistic: a failure leaves the form exactly as
       // the tutor left it and shows the server's own message.
@@ -165,7 +169,8 @@
 </svelte:head>
 
 <main class="page">
-  <a class="back" href="/app/dashboard">← לוח בקרה</a>
+  <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
+  <a class="back overview-link" href="/app/dashboard">סקירה תפעולית</a>
 
   <h1 class="title">
     דיווח שיעור · {data.student.name}{data.subject ? ` · ${data.subject}` : ''}

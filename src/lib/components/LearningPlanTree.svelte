@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { matchesPlanFilter, type FilterKind } from '$lib/plan-status.ts';
 
   type Kind = 'subject' | 'topic' | 'subtopic' | 'goal';
   type Activity = { id: string; title: string; url: string | null; source: string; type: 'משחק' | 'תרגול'; dataId: string | null; completed: boolean; score: number | null; total: number | null; lastPlayedAt: string | null };
@@ -7,7 +8,7 @@
     homework: unknown[]; games: { title: string; url: string | null; dataId?: string | null; completed?: boolean; score?: number | null; total?: number | null; lastPlayedAt?: string | null; broken: boolean }[];
   };
   type Progress = { total: number; completed: number; mastered: number; percent: number };
-  type CurriculumSkill = { id: number; title: string; status: string; visibility: string };
+  type CurriculumSkill = { id: number; title: string; status: string; visibility: string; changed?: boolean; recommended?: boolean; blocked?: boolean };
   type CurriculumBranch = { id: number; title: string; visibility: string; progress: Progress; skills: CurriculumSkill[] };
   type CurriculumTopic = { id: number; title: string; visibility: string; progress: Progress; branches: CurriculumBranch[] };
   type Student = { id: string; name: string; subject: string; goals: string; level: string; progress: number };
@@ -19,8 +20,19 @@
 
   /* library: plan node id → its skill's ready library lesson. Only the
      tutor's plan page passes it; the family's view has none. */
-  let { student, lessons = [], topics = [], onstatus, library = {} }: { student: Student; lessons?: Lesson[]; topics?: CurriculumTopic[]; onstatus?: (nodeId: number, status: string) => void | Promise<void>; library?: Record<number, string> } = $props();
+  let { student, lessons = [], topics = [], filter = 'all', returnTo = '/app/dashboard', onstatus, library = {} }: { student: Student; lessons?: Lesson[]; topics?: CurriculumTopic[]; filter?: FilterKind; returnTo?: string; onstatus?: (nodeId: number, status: string) => void | Promise<void>; library?: Record<number, string> } = $props();
   let expanded = $state<string[]>([]);
+  let collapsed = $state<string[]>([]);
+  let filterContext = '';
+  $effect(() => {
+    const context = student.id + ':' + filter;
+    if (context !== filterContext) {
+      collapsed = [];
+      selected = null;
+      editingStatus = null;
+      filterContext = context;
+    }
+  });
   let selected = $state<Node | null>(null);
 
   let editingStatus = $state<string | null>(null);
@@ -74,7 +86,7 @@
       const branches = topic.branches.filter(branch => branch.visibility !== 'hidden').map(branch => {
         const branchActivities = activitiesFor(branch.title);
         const skills = branch.skills
-          .filter(skill => skill.visibility !== 'hidden')
+          .filter(skill => matchesPlanFilter(skill, filter))
           .map(skill => ({
             id: `goal:${skill.id}`, sourceId: skill.id, sourceStatus: skill.status, kind: 'goal' as const, title: skill.title,
             subtitle: 'יכולת מתוך תכנית הלימודים', status: statusFor(skill.status),
@@ -86,14 +98,14 @@
           subtitle: `${branch.progress.completed} מתוך ${branch.progress.total} יעדים הושלמו`, status: skills.some(skill => skill.status === 'נדרש חיזוק') ? 'נדרש חיזוק' : branch.progress.completed ? 'בתהליך' : 'טרם התחלנו', progress: branch.progress,
           activities: [...branchActivities, ...topicActivities], children: skills,
         };
-      });
+      }).filter(branch => filter === 'all' || branch.children.length > 0);
       return {
         id: `topic:${topic.id}`, kind: 'topic' as const, title: topic.title,
         subtitle: `${topic.progress.completed} מתוך ${topic.progress.total} יעדים הושלמו · ${topicActivities.length} פעילויות`,
         status: topic.progress.completed ? 'בתהליך' : 'טרם התחלנו', progress: topic.progress,
         activities: topicActivities, children: branches,
       };
-    });
+    }).filter(topic => filter === 'all' || topic.children.length > 0);
   }
 
   function buildTree(): Node {
@@ -156,14 +168,21 @@
     const output: FlatNode[] = [];
     function visit(node: Node, depth: number) {
       output.push({ ...node, depth, hasChildren: node.children.length > 0 });
-      if (expanded.includes(node.id)) node.children.forEach(child => visit(child, depth + 1));
+      if (isExpanded(node)) node.children.forEach(child => visit(child, depth + 1));
     }
     visit(tree, 0);
     return output;
   });
 
 
+  function isExpanded(node: Node): boolean {
+    return filter === 'all' ? expanded.includes(node.id) : !collapsed.includes(node.id);
+  }
   function toggle(node: Node) {
+    if (filter !== 'all') {
+      collapsed = collapsed.includes(node.id) ? collapsed.filter(id => id !== node.id) : [...collapsed, node.id];
+      return;
+    }
     const index = expanded.indexOf(node.id);
     if (index >= 0) expanded = expanded.slice(0, index);
     else expanded = [...expanded, node.id];
@@ -217,17 +236,18 @@
 
   <div class="tree-canvas" class:has-drawer={selected !== null}>
     <div class="tree-branches">
+      {#if filter !== 'all' && tree.children.length === 0}<p role="status">אין מיומנויות שמתאימות למסנן. אפשר לבחור ״הכל״ להצגת התכנית.</p>{/if}
       {#each visibleNodes as node (node.id)}
         <div class="tree-row" style={`--depth:${node.depth}`}>
           {#if node.depth > 0}<span class="connector" aria-hidden="true"></span>{/if}
-          <button class={`tree-node ${node.kind}`} class:selected={expanded.includes(node.id)} onclick={() => toggle(node)} aria-expanded={node.hasChildren ? expanded.includes(node.id) : undefined}>
+          <button class={`tree-node ${node.kind}`} class:selected={isExpanded(node)} onclick={() => toggle(node)} aria-expanded={node.hasChildren ? isExpanded(node) : undefined}>
             <span class="node-icon" aria-hidden="true">{node.kind === 'subject' ? '◈' : node.kind === 'topic' ? '◇' : node.kind === 'subtopic' ? '✦' : '●'}</span>
             <span class="node-copy"><strong>{node.title}</strong><small>{node.subtitle}</small></span>
             <span class={`status ${statusClass[node.status]}`}>{node.status}</span>
             <span class="node-progress" aria-label={`${node.progress.percent}% התקדמות, ${node.progress.completed} מתוך ${node.progress.total} יעדים`}>
               <span class="progress-track"><span style={`width:${node.progress.percent}%`}></span></span><small>{node.progress.percent}%</small>
             </span>
-            {#if node.hasChildren}<span class="node-chevron" aria-hidden="true">{expanded.includes(node.id) ? '⌃' : '⌄'}</span>{/if}
+            {#if node.hasChildren}<span class="node-chevron" aria-hidden="true">{isExpanded(node) ? '⌃' : '⌄'}</span>{/if}
           </button>
           {#if node.kind === 'goal' && onstatus}
             <div class="status-editor-wrap">
@@ -259,7 +279,7 @@
           <div class="library-card">
             <span class="activity-icon">📚</span>
             <span><strong>שיעור מוכן מהספרייה</strong><small>שיעור על המיומנות הזו נבנה ממנו</small></span>
-            <span class="library-links"><a href="/lessons/{libSlug}" target="_blank" rel="noopener">צפייה ↗</a><a href="/app/lessons/{libSlug}/edit">עריכה</a></span>
+            <span class="library-links"><a href="/lessons/{libSlug}" target="_blank" rel="noopener">צפייה ↗</a><a href="/app/lessons/{libSlug}/edit?returnTo={encodeURIComponent(returnTo)}">עריכה</a></span>
           </div>
         {/if}
         {#if assignedFor(selected).length}
@@ -278,9 +298,9 @@
           <div class="drawer-empty"><span>◌</span><strong>עדיין אין פעילות בענף הזה</strong><p>אפשר לבחור פעילות קיימת או לפתוח את מאגר המשחקים כדי לבחור תבנית.</p></div>
         {/if}
         {#if selectedLesson}
-          <a class="catalog-link" href="/app/games?lesson={encodeURIComponent(selectedLesson.slug)}&student={encodeURIComponent(student.id)}{selected.sourceId ? `&node=${selected.sourceId}` : ''}">הוספת משחק לשיעור</a>
+          <a class="catalog-link" href="/app/games?lesson={encodeURIComponent(selectedLesson.slug)}&student={encodeURIComponent(student.id)}{selected.sourceId ? `&node=${selected.sourceId}` : ''}&returnTo={encodeURIComponent(returnTo)}">הוספת משחק לשיעור</a>
         {:else}
-          <a class="catalog-link" href="/app/games">פתיחת מאגר המשחקים</a>
+          <a class="catalog-link" href="/app/games?returnTo={encodeURIComponent(returnTo)}">פתיחת מאגר המשחקים</a>
         {/if}
       </aside>
     {/if}
@@ -307,4 +327,16 @@
   .node-progress{display:flex;align-items:center;gap:.3rem;min-width:52px;color:var(--tree-muted);font-size:.62rem}.progress-track{display:block;width:34px;height:5px;border-radius:99px;background:#dbe5ef;overflow:hidden}.progress-track span{display:block;height:100%;border-radius:inherit;background:#2563eb;transition:width .2s ease}.tree-node.subject .progress-track{background:#ffffff44}.tree-node.subject .progress-track span{background:#ffffff}
   .status-editor-wrap{position:relative;flex:none}.status-edit{min-height:44px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#2563eb;font:inherit;font-size:.68rem;font-weight:800;padding:.3rem .55rem;cursor:pointer}.status-editor{position:absolute;z-index:5;right:0;top:48px;display:flex;flex-direction:column;gap:4px;min-width:145px;padding:6px;background:#fff;border:1px solid #cbd5e1;border-radius:12px;box-shadow:0 8px 24px #102a4320}.status-editor button{border:0;background:transparent;border-radius:8px;padding:8px;text-align:right;font:inherit;font-size:.7rem;cursor:pointer;color:var(--tree-ink)}.status-editor button:hover,.status-editor button.active{background:#eff6ff;color:#2563eb;font-weight:800}
   @media (max-width:700px){.tree-intro{display:block}.tree-legend{margin-top:.9rem}.tree-canvas.has-drawer{grid-template-columns:1fr}.activity-drawer{border-right:0;border-top:1px solid #dce7f2}.tree-branches{padding:.8rem}.tree-row{padding-right:calc(var(--depth) * .7rem);gap:.35rem}.connector{right:calc(var(--depth) * .7rem - .35rem)}.activity-trigger{min-width:62px}.activity-trigger small{display:none}.status{display:none}.tree-node{padding:.65rem}.node-copy small{font-size:.65rem}}
+  .node-copy strong, .node-copy small { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .tree-node:focus-visible, .status-edit:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .status-editor button { min-height: 44px; }
+  @media (max-width: 700px) {
+    .tree-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding-inline-start: min(calc(var(--depth) * .5rem), 1.5rem); padding-right: 0; }
+    .tree-node { grid-column: 1 / -1; flex-wrap: wrap; text-align: start; }
+    .node-copy { flex-basis: calc(100% - 3rem); }
+    .status { display: inline-block; }
+    .status-editor-wrap { justify-self: start; }
+    .activity-trigger { justify-self: end; }
+    .status-editor { position: relative; top: auto; margin-block-start: 4px; }
+  }
 </style>

@@ -62,3 +62,14 @@ export const VISIBILITIES: Visibility[] = ['active', 'paused', 'hidden'];
  */
 export type FilterKind = 'all' | 'recommended' | 'needs_review' | 'blocked' | 'changed';
 export const FILTER_VALUES: FilterKind[] = ['all', 'recommended', 'needs_review', 'blocked', 'changed'];
+
+export function matchesPlanFilter(skill: {
+  visibility: string; status: string; recommended?: boolean; blocked?: boolean; changed?: boolean;
+}, filter: FilterKind): boolean {
+  if (skill.visibility === 'hidden') return false;
+  if (filter === 'recommended') return !!skill.recommended;
+  if (filter === 'needs_review') return skill.status === 'needs_review';
+  if (filter === 'blocked') return !!skill.blocked;
+  if (filter === 'changed') return !!skill.changed;
+  return true;
+}

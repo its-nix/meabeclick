@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import { safeTutorReturn } from '$lib/tutor-return.ts';
   /**
    * The tutor's learning-plan page: one student, one subject, the skill tree
    * she reads from and writes to between lessons.
@@ -13,6 +15,7 @@
    * same `planData()` read they already do for the tree, so the sheet's
    * history is always the server's own rows.
    */
+  import { replaceState } from '$app/navigation';
   import { untrack } from 'svelte';
   import PlanTree from '$lib/components/plan/PlanTree.svelte';
   import LearningPlanTree from '$lib/components/LearningPlanTree.svelte';
@@ -20,6 +23,8 @@
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
+  const returnTo = $derived(safeTutorReturn(page.url.searchParams.get('returnTo'), page.url.origin,
+    '/app/students/' + encodeURIComponent(data.student.code)));
 
   // Local mirrors of the shapes +page.server.ts hands us, declared here
   // rather than imported from $server/plans/view.ts — no route or component
@@ -367,7 +372,8 @@
 </svelte:head>
 
 <main class="page">
-  <a class="back" href="/app/dashboard">← לוח בקרה</a>
+  <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
+  <a class="back overview-link" href="/app/dashboard">סקירה תפעולית</a>
 
   <h1 class="student-name">{data.student.name}</h1>
 
@@ -376,7 +382,7 @@
       {#each data.subjects as s (s.id)}
         <a
           class="chip" class:active={data.current?.id === s.id}
-          href="?subject={encodeURIComponent(s.subject)}"
+          href="?subject={encodeURIComponent(s.subject)}&returnTo={encodeURIComponent(returnTo)}"
           aria-current={data.current?.id === s.id ? 'page' : undefined}
         >
           {s.subject}
@@ -421,7 +427,16 @@
       <p class="banner warn">⚠ התבנית טרם נסקרה</p>
     {/if}
 
+      <div class="filters">
+        <span class="filters-label">הצג:</span>
+        {#each FILTERS as f (f.id)}
+          <button type="button" class="chip" class:active={filter === f.id} aria-pressed={filter === f.id} onclick={() => { filter = f.id; const url = new URL(page.url); url.searchParams.set('filter', f.id); replaceState(url, page.state); }}>{f.label}</button>
+        {/each}
+      </div>
+
     <LearningPlanTree
+      {filter}
+      returnTo={page.url.pathname + page.url.search}
       student={{ id: data.student.code, name: data.student.name, subject: data.current?.subject ?? 'תכנית אישית', goals: planRow.goal, level: '', progress: 0 }}
       lessons={data.activities}
       topics={tree}
@@ -432,12 +447,6 @@
     <!-- Kept server-rendered but visually removed while older smoke tests and
          integrations migrate to the interactive map above. -->
     <div class="legacy-plan-compat" aria-hidden="true">
-      <div class="filters">
-        <span class="filters-label">הצג:</span>
-        {#each FILTERS as f (f.id)}
-          <button type="button" class="chip" class:active={filter === f.id} aria-pressed={filter === f.id}>{f.label}</button>
-        {/each}
-      </div>
       <PlanTree
         topics={tree} {filter} onselect={(skill) => openSkill(skill as SkillT)}
         onvisibility={handleGroupVisibility} onmove={handleGroupMove}
@@ -524,7 +533,7 @@
   .field span { font-size: .78rem; font-weight: 700; color: var(--text-muted); }
   .field input, .field select {
     min-height: 44px; border: 1.5px solid var(--border-strong); border-radius: 10px;
-    padding: 8px 10px; font-family: inherit; font-size: .9rem; color: var(--text-primary);
+    padding: 8px 10px; font-family: inherit; font-size: 16px; color: var(--text-primary);
     background: var(--bg-card);
   }
   .goal-actions { display: flex; gap: 8px; }

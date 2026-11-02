@@ -14,5 +14,10 @@ export const load: PageServerLoad = (event) => {
   const view = libraryTableView();
   const selectedTemplate = event.url.searchParams.get('template') ?? '';
   if (selectedTemplate && !view.templates.some(t => t.id === selectedTemplate)) error(404, 'אין תבנית כזו');
-  return { ...view, selectedTemplate };
+  return { ...view, selectedTemplate, filters: {
+    topic: event.url.searchParams.get('topic') ?? '',
+    status: event.url.searchParams.get('status') ?? '',
+    search: event.url.searchParams.get('search') ?? '',
+    page: Number(event.url.searchParams.get('page') ?? 1),
+  } };
 };

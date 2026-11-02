@@ -8,10 +8,34 @@ import { join } from 'node:path';
 
 const page = readFileSync(join(process.cwd(), 'src/routes/app/library/+page.svelte'), 'utf8');
 
-test('the material table comes first; next student skills remain available in a disclosure', () => {
-  const due = page.indexOf('<details class="due">');
+test('poll failure labels last-known data and offers an explicit retry', () => {
+  assert.match(page, /if \(!r.ok\) throw/);
+  assert.match(page, /refreshError/);
+  assert.match(page, /הנתונים המוצגים הם מהעדכון האחרון/);
+  assert.match(page, /onclick=\{refresh\}/);
+});
+
+test('the standalone game catalog has a safe contextual return', () => {
+  const games = readFileSync('src/routes/app/games/+page.svelte', 'utf8');
+  assert.match(games, /safeTutorReturn/);
+  assert.match(games, /href=\{returnTo\}/);
+});
+
+test('catalog filters and bounded page navigation stay outside its scrolling table', () => {
+  for (const id of ['library-search', 'library-template', 'library-topic', 'library-status']) {
+    assert.ok(page.indexOf('id="' + id + '"') < page.indexOf('<div class="table-wrap"'), id);
+  }
+  assert.match(page, /each pagedRows as row/);
+  assert.match(page, /aria-label="עמודי הספרייה"/);
+  assert.match(page, /replaceState\(libraryPath/);
+  assert.match(page, /returnTo=\{encodeURIComponent\(libraryPath\)\}/);
+});
+
+test('preparation needs appear before the catalog and start expanded', () => {
+  const due = page.indexOf('<details class="due"');
   assert.ok(due > 0);
-  assert.ok(due > page.indexOf('<table>'), 'the requested table is the primary surface');
+  assert.ok(due < page.indexOf('<table>'), 'next preparation is not buried under catalog rows');
+  assert.match(page, /<details class="due" open>/);
   assert.match(page, /\{#each view\.due as d \(d\.templateId \+ '\/' \+ d\.skillKey\)\}/);
   assert.match(page, /d\.students\.join\(', '\)/);
 });

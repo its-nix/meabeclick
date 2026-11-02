@@ -6,12 +6,16 @@
   import { track } from '$lib/marketing.ts';
   import { lockScroll } from '$lib/scroll-lock.ts';
   let sidebarOpen = $state(false);
+  let sidebar: HTMLDialogElement | undefined;
+  let menuButton: HTMLButtonElement | undefined;
   let myPageHref = $state<string | null>(null);
 
   function openSidebar() {
+    sidebar?.showModal();
     sidebarOpen = true;
   }
   function closeSidebar() {
+    sidebar?.close();
     sidebarOpen = false;
   }
 
@@ -36,11 +40,12 @@
   });
 </script>
 
-<div class="sidebar-overlay" class:open={sidebarOpen} onclick={closeSidebar} role="presentation"></div>
+<dialog class="sidebar" id="site-menu" bind:this={sidebar} aria-labelledby="site-menu-title"
+  onclose={() => { sidebarOpen = false; menuButton?.focus(); }}
+  onclick={(event) => { if (event.target === sidebar) closeSidebar(); }}>
 
-<aside class="sidebar" class:open={sidebarOpen}>
   <div class="sidebar-header">
-    <span class="sidebar-title">תפריט</span>
+    <span class="sidebar-title" id="site-menu-title">תפריט</span>
     <button class="sidebar-close" aria-label="סגירה" onclick={closeSidebar}>×</button>
   </div>
   <nav class="sidebar-nav">
@@ -64,11 +69,11 @@
       onclick={() => track('cta_click', { target: 'phone' })}
     >{TUTOR_PHONE_DISPLAY}</a>
   </div>
-</aside>
+</dialog>
 
 <section id="header">
   <div class="nav-inner">
-    <button class="hamburger" aria-label="פתיחת תפריט" onclick={openSidebar}>
+    <button class="hamburger" bind:this={menuButton} aria-expanded={sidebarOpen} aria-controls="site-menu" aria-label="פתיחת תפריט" onclick={openSidebar}>
       <span></span>
       <span></span>
       <span></span>
@@ -128,8 +133,8 @@
     background: none;
     border: 1.5px solid var(--border);
     border-radius: var(--r-sm);
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -182,31 +187,30 @@
   }
 
   /* ── SIDEBAR ──────────────────────────────────────────────── */
-  .sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.18);
-    z-index: 1500;
-  }
-  .sidebar-overlay.open { display: block; }
+  .sidebar::backdrop { background: rgb(0 0 0 / .35); }
+  .sidebar:not([open]) { display: none; }
 
   .sidebar {
     position: fixed;
     top: 0;
     right: 0;
-    width: 280px;
+    width: min(320px, 90vw);
     height: 100%;
+    max-height: 100dvh;
+    max-width: none;
+    margin: 0 0 0 auto;
+    padding: 0;
+    border: 0;
+    overflow-y: auto;
+    color: var(--text-primary);
     background: var(--bg-card);
     border-left: 1px solid var(--border);
     z-index: 1600;
-    transform: translateX(100%);
-    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
     display: flex;
     flex-direction: column;
     box-shadow: -8px 0 32px var(--shadow-md);
   }
-  .sidebar.open { transform: translateX(0); }
+
 
   .sidebar-header {
     display: flex;
@@ -224,8 +228,8 @@
     background: var(--accent-dim);
     border: 1.5px solid var(--border-strong);
     color: var(--accent);
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     font-size: 1.1rem;
     font-weight: 700;
@@ -301,4 +305,5 @@
   @media (max-width: 390px) {
     .nav-inner { padding: 0 0.75rem; }
   }
+  :is(button, a):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>

@@ -30,7 +30,7 @@
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      location.href = `/app/lessons/${encodeURIComponent(data.selection.lessonSlug)}/edit?game=${encodeURIComponent(result.assignment.id)}`;
+      location.href = `/app/lessons/${encodeURIComponent(data.selection.lessonSlug)}/edit?game=${encodeURIComponent(result.assignment.id)}&returnTo=${encodeURIComponent(returnTo)}`;
     } catch {
       chooseError = 'לא הצלחנו ליצור טיוטה. נסו שוב.';
       choosing = '';
@@ -50,7 +50,7 @@
       <div class="eyebrow">הוספת משחק לשיעור</div>
       <h1>{data.selection.studentName} · {data.selection.lessonTitle} · <bdi dir="ltr">{lessonDate}</bdi></h1>
       <div class="subject">בחרו תבנית. אחר כך נתאים את התוכן לשיעור הזה.</div>
-      <a class="back" href="/app/lessons/{data.selection.lessonSlug}/edit">חזרה לשיעור</a>
+      <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
     {:else}
       <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
       <h1>🎮 מאגר המשחקים</h1>

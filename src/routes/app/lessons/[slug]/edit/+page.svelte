@@ -11,11 +11,15 @@
    * something unfinished.
    */
   import { onMount, tick, untrack } from 'svelte';
-  import { beforeNavigate, invalidateAll } from '$app/navigation';
+  import { page } from '$app/state';
+  import { safeTutorReturn } from '$lib/tutor-return.ts';
+  import { beforeNavigate, invalidateAll, replaceState } from '$app/navigation';
   import { formatDateTime } from '$lib/dates.ts';
   import GameContentEditor from '$lib/components/GameContentEditor.svelte';
 
   let { data } = $props();
+  const returnTo = $derived(safeTutorReturn(page.url.searchParams.get('returnTo'), page.url.origin,
+    data.lessonStudent ? '/app/students/' + encodeURIComponent(data.lessonStudent.code) : '/app/library'));
 
   type SlideForm = { heading: string; bullets: string; note: string };
   type ExampleForm = { problem: string; steps: string; answer: string };
@@ -72,6 +76,8 @@
   const issueHref = (path: string) => path === 'title' ? '#game-title' : `#game-${path.replaceAll('.', '-')}`;
 
   function editGame(item: (typeof data.lessonGames)[number]) {
+    if (gameBusy || game?.id === item.id) return;
+    if (gameDirty && !confirm('יש שינויים במשחק שלא נשמרו. לעבור למשחק אחר בלי לשמור?')) return;
     game = item;
     gameTitle = item.title;
     gameBody = structuredClone(item.body);
@@ -80,7 +86,9 @@
     gameIssues = [];
     gameConflict = false;
     gameSaved = JSON.stringify({ title: item.title, body: item.body, nodeId: item.nodeId ?? null });
-    history.replaceState(history.state, '', `/app/lessons/${encodeURIComponent(data.slug)}/edit?game=${encodeURIComponent(item.id)}`);
+    const url = new URL(page.url);
+    url.searchParams.set('game', item.id);
+    replaceState(url, page.state);
     tick().then(() => gameHeading?.focus());
   }
 
@@ -300,9 +308,23 @@
 <svelte:window {onbeforeunload} />
 
 <main class="wrap">
-  <a class="back" href="/app/dashboard">→ חזרה ללוח הבקרה</a>
+  <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
+  <a class="back" href="/app/dashboard">סקירה תפעולית</a>
   <h1>עריכת שיעור</h1>
   <p class="meta">{data.lesson.student} · {data.lesson.subject ?? ''} {data.lesson.level ?? ''}</p>
+  {#if data.seedVersion !== null}
+    <div class="editor-actions">
+      <strong>טיוטת השיעור</strong>
+      <span role="status">{busy ? 'שומרים…' : dirty ? 'יש שינויים שלא נשמרו' : 'אין שינויים שלא נשמרו'}</span>
+    <div class="actions">
+      <button type="button" onclick={showPreview} disabled={busy}>תצוגה מקדימה</button>
+      <button type="button" onclick={() => send('save-plan')} disabled={busy}>שמירת טיוטה</button>
+      <button type="button" class="primary" onclick={() => send('publish-plan')} disabled={busy}>{data.isMaster ? 'פרסום בספרייה' : 'פרסום לתלמיד/ה'}</button>
+    </div>
+    {#if message}<p class="msg" class:bad={failed} role="status">{message}</p>{/if}
+    </div>
+  {/if}
+
 
   <section class="game-section" aria-labelledby="practice-games-heading">
     <div class="game-heading">
@@ -311,7 +333,7 @@
         <p class="meta">כל משחק הוא עותק לשיעור הזה בלבד. שינויים כאן לא ישנו משחקים אחרים.</p>
       </div>
       {#if data.lessonStudent}
-        <a class="add-game" href="/app/games?lesson={encodeURIComponent(data.slug)}&student={encodeURIComponent(data.lessonStudent.code)}">הוספת משחק</a>
+        <a class="add-game" href="/app/games?lesson={encodeURIComponent(data.slug)}&student={encodeURIComponent(data.lessonStudent.code)}&returnTo={encodeURIComponent(returnTo)}">הוספת משחק</a>
       {/if}
     </div>
 
@@ -397,7 +419,7 @@
 
     <label class="field">כותרת השיעור<input dir="auto" bind:value={title} /></label>
 
-    <h2>שקפים</h2>
+    <details class="editor-section"><summary><h2>שקפים</h2></summary>
     {#each slides as s, i (i)}
       <fieldset class="card">
         <legend>שקף {i + 1}</legend>
@@ -413,7 +435,8 @@
     {/each}
     <button type="button" class="add" onclick={() => (slides = [...slides, { heading: '', bullets: '', note: '' }])}>+ שקף</button>
 
-    <h2>דוגמאות פתורות</h2>
+    </details>
+        <details class="editor-section"><summary><h2>דוגמאות פתורות</h2></summary>
     {#each examples as e, i (i)}
       <fieldset class="card">
         <legend>דוגמה {i + 1}</legend>
@@ -429,9 +452,10 @@
     {/each}
     <button type="button" class="add" onclick={() => (examples = [...examples, { problem: '', steps: '', answer: '' }])}>+ דוגמה</button>
 
-    {#if data.isMaster}
+    </details>
+        {#if data.isMaster}
       {#if quiz !== null}
-        <h2>שאלות בדיקה</h2>
+        <details class="editor-section"><summary><h2>שאלות בדיקה</h2></summary>
         <p class="meta">החידון שבסוף השיעור. השאלה הראשונה מופיעה גם במצגת, בשקף «בדקו את עצמכם».</p>
         {#each quiz as q, i (i)}
           <fieldset class="card">
@@ -458,10 +482,11 @@
           </fieldset>
         {/each}
         <button type="button" class="add" onclick={() => (quiz = [...quiz!, { q: '', options: ['', ''], answer: -1, why: '', hint: '' }])}>+ שאלה</button>
+            </details>
       {/if}
 
       {#if twoTruths !== null}
-        <h2>שתי אמיתות ושקר</h2>
+        <details class="editor-section"><summary><h2>שתי אמיתות ושקר</h2></summary>
         <p class="meta">בכל סבב שלושה משפטים, ואחד מהם שקרי. סמנו אותו.</p>
         {#each twoTruths as r, i (i)}
           <fieldset class="card">
@@ -485,10 +510,11 @@
           </fieldset>
         {/each}
         <button type="button" class="add" onclick={() => (twoTruths = [...twoTruths!, { statements: ['', '', ''], lieIndex: -1, why: '', hint: '' }])}>+ סבב</button>
+            </details>
       {/if}
 
       {#if errorHunt !== null}
-        <h2>ציד טעויות</h2>
+        <details class="editor-section"><summary><h2>ציד טעויות</h2></summary>
         <p class="meta">פתרון בשלבים שיש בו שלב שגוי אחד. סמנו אותו.</p>
         {#each errorHunt as r, i (i)}
           <fieldset class="card">
@@ -515,10 +541,11 @@
           </fieldset>
         {/each}
         <button type="button" class="add" onclick={() => (errorHunt = [...errorHunt!, { problem: '', steps: ['', ''], badStep: -1, why: '', hint: '' }])}>+ סבב</button>
+            </details>
       {/if}
 
       {#if sequence !== null}
-        <h2>סידור רצף</h2>
+        <details class="editor-section"><summary><h2>סידור רצף</h2></summary>
         <p class="meta">השלבים בסדר הנכון. המשחק מערבב אותם, והתלמיד/ה מסדר/ת.</p>
         <fieldset class="card">
           <legend>שלבים</legend>
@@ -533,10 +560,11 @@
           {/each}
           <button type="button" class="add" onclick={() => (sequence = [...sequence!, ''])}>+ שלב</button>
         </fieldset>
+            </details>
       {/if}
 
       {#if matching !== null}
-        <h2>משחק התאמה</h2>
+        <details class="editor-section"><summary><h2>משחק התאמה</h2></summary>
         <p class="meta">כל זוג הוא שני צדדים שמתאימים זה לזה.</p>
         {#each matching as p, i (i)}
           <fieldset class="card">
@@ -550,13 +578,14 @@
           </fieldset>
         {/each}
         <button type="button" class="add" onclick={() => (matching = [...matching!, { left: '', right: '', hint: '' }])}>+ זוג</button>
+            </details>
       {/if}
 
       {#if data.otherGames.length}
         <p class="meta">{data.otherGames.join(', ')} — נשארים כפי שנוצרו, ואי אפשר לערוך אותם כאן.</p>
       {/if}
 
-      <h2>שיעורי בית</h2>
+      <details class="editor-section"><summary><h2>שיעורי בית</h2></summary>
       {#each homework as h, i (i)}
         <fieldset class="card">
           <legend>משימה {i + 1}</legend>
@@ -570,16 +599,12 @@
         </fieldset>
       {/each}
       <button type="button" class="add" onclick={() => (homework = [...homework, { task: '', why: '', answer: '' }])}>+ משימה</button>
+        </details>
     {/if}
 
     <label class="field">הערות לעצמי — לא מוצגות לתלמיד/ה ולא להורים<textarea dir="auto" rows="3" bind:value={teacherOnly}></textarea></label>
 
-    <div class="actions">
-      <button type="button" onclick={showPreview} disabled={busy}>תצוגה מקדימה</button>
-      <button type="button" onclick={() => send('save-plan')} disabled={busy}>שמירת טיוטה</button>
-      <button type="button" class="primary" onclick={() => send('publish-plan')} disabled={busy}>{data.isMaster ? 'פרסום בספרייה' : 'פרסום לתלמיד/ה'}</button>
-    </div>
-    {#if message}<p class="msg" class:bad={failed} role="status">{message}</p>{/if}
+
 
     <form bind:this={previewForm} method="POST" action="/app/lessons/{data.slug}/preview" target="lesson-preview" hidden>
       <input type="hidden" name="edit" value={previewEdit} />
@@ -632,7 +657,7 @@
   .field { display: grid; gap: 6px; margin: 0 0 12px; font-size: .9rem; font-weight: 600; color: var(--text-primary); }
   .field input, .field textarea {
     font: inherit; font-weight: 400; width: 100%; min-width: 0; box-sizing: border-box;
-    padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary);
+    font-size: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary);
   }
   .card { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); padding: 14px; margin: 0 0 12px; min-width: 0; }
   legend { font-weight: 700; color: var(--text-primary); padding: 0 6px; }
@@ -641,7 +666,7 @@
   .option { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .option input[type='radio'] { width: 24px; height: 24px; flex: none; margin: 0; accent-color: var(--accent); }
   .option input:not([type='radio']) {
-    font: inherit; flex: 1; min-width: 0; padding: 10px 12px;
+    font: inherit; font-size: 16px; flex: 1; min-width: 0; padding: 10px 12px;
     border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary);
   }
   .option button { flex: none; min-width: 44px; padding: 0; }
@@ -670,4 +695,14 @@
   .history li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary); font-size: .9rem; }
   .history li.current { border-color: var(--accent); }
   .live { color: var(--accent); }
+  .editor-actions { position: sticky; top: 0; z-index: 20; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
+  .editor-actions .actions { width: 100%; margin: 4px 0; }
+  .editor-actions .msg { width: 100%; margin: 0; }
+  .editor-section { border-bottom: 1px solid var(--border); padding-block: 8px; }
+  .editor-section > summary { cursor: pointer; min-height: 44px; padding-block: 8px; }
+  .editor-section > summary h2 { display: inline; margin: 0; }
+  .editor-section[open] > summary { margin-bottom: 12px; }
+  :is(input, textarea, button, summary, a):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  :is(input, textarea, button, summary, h2) { scroll-margin-top: 220px; }
+  @media (max-width: 480px) { .editor-actions { font-size: .875rem; } .editor-actions button { padding-inline: 10px; } }
 </style>

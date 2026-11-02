@@ -35,3 +35,11 @@ test('plan and report recovery preserve the learner instead of forcing the overv
   assert.match(report, /encodeURIComponent\(returnTo\)/);
   assert.match(report, /filter=changed/);
 });
+test('report selects search and notes meet the approved 16px input floor', () => {
+  const page = readFileSync('src/routes/app/report/[booking]/+page.svelte', 'utf8');
+  for (const selector of ['select', '.search-input', '.field textarea']) {
+    const start = page.indexOf('  ' + selector + ' {');
+    const rule = page.slice(start, page.indexOf('}', start));
+    assert.match(rule, /font-size: 16px/);
+  }
+});

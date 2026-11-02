@@ -167,8 +167,9 @@
 
   function studentTotals(code: string) {
     const ex = extrasFor(code);
-    const paid = ex.sessions.reduce((a, x) => a + (x.paid ? x.amount : 0), 0);
-    const owed = ex.sessions.reduce((a, x) => a + x.amount, 0);
+    const charges = (chargesFor[code] ?? []).filter(c => c.status !== 'void');
+    const paid = charges.reduce((a, c) => a + (c.status === 'paid' ? c.amount_agorot : 0), 0) / 100;
+    const owed = charges.reduce((a, c) => a + c.amount_agorot, 0) / 100;
     return { paid, owed, balance: owed - paid, hwPending: ex.homework.filter(h => !h.submitted && !h.graded).length };
   }
 
@@ -352,20 +353,19 @@
   let activityError = $state<Record<string, string>>({});
   const activitySequence: Record<string, number> = {};
   let ledgerBusy = $state<Record<string, boolean>>({});
+  let ledgerLoading = $state<Record<string, boolean>>({});
+  let ledgerError = $state<Record<string, string>>({});
+  const ledgerSequence: Record<string, number> = {};
 
   async function refreshActivity(code: string) {
     const sequence = activitySequence[code] = (activitySequence[code] ?? 0) + 1;
     activityLoading[code] = true;
     try {
-      const [activityResponse, chargesResponse] = await Promise.all([
-        api(`/api/students/${code}/activity`, { credentials: 'same-origin', cache: 'no-store' }),
-        api(`/api/payments?student=${encodeURIComponent(code)}`, { cache: 'no-store' }),
-      ]);
-      if (!activityResponse.ok || !chargesResponse.ok) throw new Error('activity load failed');
-      const [activity, charges] = await Promise.all([activityResponse.json(), chargesResponse.json()]);
+      const response = await api(`/api/students/${code}/activity`, { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('activity load failed');
+      const activity = await response.json() as ServerActivity;
       if (activitySequence[code] !== sequence) return;
-      serverExtras[code] = activity as ServerActivity;
-      chargesFor[code] = charges.charges;
+      serverExtras[code] = activity;
       activityError[code] = '';
     } catch {
       if (activitySequence[code] === sequence) activityError[code] = 'לא ניתן לטעון כרגע. הנתונים הקודמים, אם מוצגים, אינם מעודכנים.';
@@ -374,17 +374,34 @@
       if (activitySequence[code] === sequence) activityLoading[code] = false;
     }
   }
+  async function refreshCharges(code: string) {
+    const sequence = ledgerSequence[code] = (ledgerSequence[code] ?? 0) + 1;
+    ledgerLoading[code] = true;
+    try {
+      const response = await api(`/api/payments?student=${encodeURIComponent(code)}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('charges load failed');
+      const result = await response.json();
+      if (ledgerSequence[code] !== sequence) return;
+      chargesFor[code] = result.charges;
+      ledgerError[code] = '';
+    } catch {
+      if (ledgerSequence[code] === sequence) ledgerError[code] = 'לא ניתן לטעון כרגע את החיובים. הרשימה הקודמת, אם מוצגת, אינה מעודכנת.';
+      throw new Error('charges refresh failed');
+    } finally {
+      if (ledgerSequence[code] === sequence) ledgerLoading[code] = false;
+    }
+  }
   async function retryActivity(code: string) {
     await refreshActivity(code).catch(() => {});
   }
   async function refreshLedger(code: string) {
-    await Promise.all([refreshActivity(code), loadAllBalance()]);
+    await Promise.allSettled([refreshActivity(code), refreshCharges(code), loadAllBalance()]);
   }
 
   async function addSession(code: string) {
     const f = sessionForm(code);
     if (!f.date || !f.amount) return;
-    if (ledgerBusy[code] || activityLoading[code] || activityError[code]) return;
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
     ledgerBusy[code] = true;
     try {
       const r = await api('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -396,12 +413,12 @@
   }
 
   async function togglePaid(code: string, sessId: string) {
-    const sess = extrasFor(code).sessions.find(x => x.id === sessId);
+    const sess = chargesFor[code]?.find(x => x.id === Number(sessId) && x.status !== 'void');
     if (!sess) return;
-    if (ledgerBusy[code] || activityLoading[code] || activityError[code]) return;
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
     ledgerBusy[code] = true;
     try {
-      const r = await api('/api/payments/mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [Number(sessId)], status: sess.paid ? 'owed' : 'paid' }) });
+      const r = await api('/api/payments/mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [Number(sessId)], status: sess.status === 'paid' ? 'owed' : 'paid' }) });
       if (!r.ok) throw new Error();
       await refreshLedger(code);
     } catch { toast('לא ניתן לעדכן את התשלום', { kind: 'error' }); }
@@ -409,7 +426,7 @@
   }
   async function voidSession(code: string, sessId: string) {
     if (!await confirmDialog('לבטל את החיוב הזה?')) return;
-    if (ledgerBusy[code] || activityLoading[code] || activityError[code]) return;
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
     ledgerBusy[code] = true;
     try {
       const r = await api('/api/payments/mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [Number(sessId)], status: 'void' }) });
@@ -623,7 +640,7 @@
   }
 
   async function loadActivities() {
-    await Promise.allSettled(realStudents.map(s => refreshActivity(s.code)));
+    await Promise.allSettled(realStudents.flatMap(s => [refreshActivity(s.code), refreshCharges(s.code)]));
   }
 
   // Depend on the real roster now that the student cards render from it —
@@ -829,7 +846,7 @@
   }
 
   async function mark(code: string, status: 'owed' | 'paid' | 'void') {
-    if (ledgerBusy[code] || activityLoading[code] || activityError[code]) return;
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
     const ids = idsForPanel(picked, chargesFor[code] ?? []);
     if (!ids.length) { toast('לא נבחרו חיובים', { kind: 'error' }); return; }
     if (status === 'void' && !await confirmDialog('לבטל את החיובים שנבחרו?')) return;
@@ -1119,6 +1136,9 @@
     <a class="btn btn-outline" href="/app/library">הכנת חומרים</a>
   </div>
   <ReportQueue lessons={pageData.pendingReports} />
+  {#if Object.values(activityError).some(Boolean) || Object.values(ledgerError).some(Boolean)}
+    <p role="status">חלק מפרטי התיקים אינם מעודכנים. <button class="link-btn" onclick={loadActivities}>ניסיון עדכון נוסף</button></p>
+  {/if}
   <div class="operations">
     <section aria-labelledby="homework-review-title">
       <h2 id="homework-review-title">עבודות ממתינות לבדיקה</h2>
@@ -1152,7 +1172,7 @@
         {#each realStudents.filter(s => chargesFor[s.code] && dueAgorot(chargesFor[s.code], israelToday()) > 0) as s (s.code)}
           <li><a href="/app/students/{s.code}?tab=payments">{s.name}</a><span>{formatAgorot(dueAgorot(chargesFor[s.code], israelToday()))} לתשלום עכשיו</span></li>
         {:else}
-          <li>{Object.keys(serverExtras).length === realStudents.length ? 'אין יתרות פתוחות בנתונים שנטענו' : 'ממתינים לפרטי התשלומים'}</li>
+          <li>{Object.keys(chargesFor).length === realStudents.length && !Object.values(ledgerError).some(Boolean) ? 'אין יתרות פתוחות בנתונים שנטענו' : 'חלק מפרטי החיובים אינם זמינים כרגע'}</li>
         {/each}
       </ul>
     </section>
@@ -1208,10 +1228,10 @@
             <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
               <div class="sc-badges">
                 {#if s.style}<span class="badge badge-style">{s.style}</span>{/if}
-                {#if activityLoading[s.code] || !serverExtras[s.code]}
-                  <span class="badge">טוענים יתרה…</span>
-                {:else if activityError[s.code]}
+                {#if ledgerError[s.code]}
                   <span class="badge">היתרה אינה מעודכנת</span>
+                {:else if ledgerLoading[s.code] || !chargesFor[s.code]}
+                  <span class="badge">טוענים יתרה…</span>
                 {:else if t.balance > 0}
                   <span class="badge badge-warn">₪{t.balance} חוב</span>
                 {:else}
@@ -1233,6 +1253,15 @@
               <button type="button" class="sc-tab" class:active={tabFor(s.code) === 'homework'} aria-pressed={tabFor(s.code) === 'homework'} onclick={() => switchTab(s.code, 'homework')}>שיעורי בית</button>
               <button type="button" class="sc-tab" class:active={tabFor(s.code) === 'profile'} aria-pressed={tabFor(s.code) === 'profile'} onclick={() => switchTab(s.code, 'profile')}>פרופיל</button>
             </nav>
+            {#if activityError[s.code]}
+              <div class="activity-notice" role="status">
+                <p>{activityError[s.code]}</p>
+                <button class="btn btn-outline" disabled={activityLoading[s.code]} onclick={() => retryActivity(s.code)}>עדכון פרטי השיעור ושיעורי הבית</button>
+              </div>
+            {:else if activityLoading[s.code] && !serverExtras[s.code]}
+              <p class="activity-notice" role="status">טוענים את פרטי השיעור ושיעורי הבית…</p>
+            {/if}
+
 
             <!-- OVERVIEW -->
             <div class="sc-panel" class:active={tabFor(s.code) === 'overview'}>
@@ -1245,7 +1274,7 @@
               {:else}
                 <div class="next-lesson-box" style="margin-bottom:14px">
                   <div class="nl-label">📅 שיעור הבא</div>
-                  <div class="nl-date" style="font-size:1rem;color:var(--text-muted)">לא קבוע</div>
+                  <div class="nl-date" style="font-size:1rem;color:var(--text-muted)">{!serverExtras[s.code] || activityError[s.code] ? 'פרטי השיעור אינם זמינים כרגע' : 'לא קבוע'}</div>
                 </div>
               {/if}
 
@@ -1283,17 +1312,17 @@
 
             <!-- PAYMENTS -->
             <div class="sc-panel" class:active={tabFor(s.code) === 'payments'}>
-              {#if activityLoading[s.code]}<p role="status">טוענים את הרישומים…</p>{/if}
-              {#if activityError[s.code]}
-                <p class="field-error" role="status">{activityError[s.code]}</p>
-                <button class="btn btn-outline" disabled={activityLoading[s.code]} onclick={() => retryActivity(s.code)}>ניסיון טעינה נוסף</button>
+              {#if ledgerLoading[s.code]}<p role="status">טוענים את הרישומים…</p>{/if}
+              {#if ledgerError[s.code]}
+                <p class="field-error" role="status">{ledgerError[s.code]}</p>
+                <button class="btn btn-outline" disabled={ledgerLoading[s.code]} onclick={() => refreshLedger(s.code)}>ניסיון טעינה נוסף</button>
               {/if}
-              {#if serverExtras[s.code]}
+              {#if chargesFor[s.code]}
               <div class="payment-summary">
                 <div class="ps-item"><div class="psi-val" style="color:var(--text-primary)">₪{t.owed}</div><div class="psi-lbl">סה"כ</div></div>
                 <div class="ps-item"><div class="psi-val" style="color:var(--accent3-strong)">₪{t.paid}</div><div class="psi-lbl">שולם</div></div>
                 <div class="ps-item"><div class="psi-val" style="color:{t.balance > 0 ? 'var(--danger)' : 'var(--accent3-strong)'}">₪{t.balance}</div><div class="psi-lbl">יתרה</div></div>
-                <div class="ps-item"><div class="psi-val" style="color:var(--text-primary)">{ex.sessions.length}</div><div class="psi-lbl">שיעורים</div></div>
+                <div class="ps-item"><div class="psi-val" style="color:var(--text-primary)">{chargesFor[s.code].filter(c => c.status !== 'void').length}</div><div class="psi-lbl">שיעורים</div></div>
               </div>
               {/if}
 
@@ -1322,14 +1351,14 @@
                     <input id="sf-notes-{s.code}" type="text" placeholder="הערות לשיעור..." value={sf.notes} oninput={(e) => setSessionField(s.code, 'notes', e.currentTarget.value)} /></div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:10px">
-                  <button class="btn btn-gold btn-sm" disabled={ledgerBusy[s.code] || activityLoading[s.code] || !!activityError[s.code] || !serverExtras[s.code]} onclick={() => addSession(s.code)}>שמור שיעור</button>
+                  <button class="btn btn-gold btn-sm" disabled={ledgerBusy[s.code] || ledgerLoading[s.code] || !!ledgerError[s.code] || !chargesFor[s.code]} onclick={() => addSession(s.code)}>שמור שיעור</button>
                   <button class="btn btn-ghost btn-sm" onclick={() => toggleForm(`${s.code}:session`)}>ביטול</button>
                 </div>
               </div>
 
               <button class="btn btn-outline btn-sm" style="margin-bottom:10px" onclick={() => toggleForm(`${s.code}:session`)}>+ הוסף שיעור</button>
 
-              <fieldset class="ledger" disabled={ledgerBusy[s.code] || activityLoading[s.code] || !!activityError[s.code] || !serverExtras[s.code]}>
+              <fieldset class="ledger" disabled={ledgerBusy[s.code] || ledgerLoading[s.code] || !!ledgerError[s.code] || !chargesFor[s.code]}>
                 <legend class="sr-only">רישומי תשלום</legend>
                 {#if chargesFor[s.code]?.length}
                   <table class="payments-table">
@@ -1358,7 +1387,7 @@
                     <button class="btn btn-outline" onclick={() => mark(s.code, 'owed')}>החזרת הנבחרים לחוב</button>
                     <button class="btn btn-danger" onclick={() => mark(s.code, 'void')}>ביטול החיובים שנבחרו</button>
                   </div>
-                {:else if serverExtras[s.code] && !activityError[s.code]}
+                {:else if chargesFor[s.code] && !ledgerError[s.code]}
                   <p>אין רישומי תשלום עדיין.</p>
                 {/if}
               </fieldset>
@@ -1417,7 +1446,7 @@
                   {/each}
                 </div>
               {:else}
-                <div class="empty">אין שיעורי בית עדיין</div>
+                <div class="empty">{!serverExtras[s.code] || activityError[s.code] ? 'פרטי שיעורי הבית אינם זמינים כרגע' : 'אין שיעורי בית עדיין'}</div>
               {/if}
             </div>
 
@@ -1950,6 +1979,7 @@
   @media (max-width: 600px) { .sc-panel { padding: 16px 12px; } .field-row, .field-row.three { grid-template-columns: minmax(0, 1fr); } .sc-header { flex-wrap: wrap; } }
 
   /* Fields */
+  .activity-notice { margin: 16px 24px; color: var(--text-muted-strong); }
   .profile-feedback { font-size: .875rem; min-height: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .profile-feedback button { min-height: 44px; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }

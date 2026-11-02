@@ -399,7 +399,7 @@
 
   select {
     min-height: 44px; flex-shrink: 0; border: 1.5px solid var(--border-strong); border-radius: 10px;
-    padding: 6px 8px; font-family: inherit; font-size: .84rem; color: var(--text-primary);
+    padding: 6px 8px; font-family: inherit; font-size: 16px; color: var(--text-primary);
     background: var(--bg-card);
   }
   select:disabled { opacity: .55; }
@@ -411,7 +411,7 @@
   }
   .search-input {
     width: 100%; min-height: 44px; border: 1.5px solid var(--border-strong); border-radius: 10px;
-    padding: 8px 10px; font-family: inherit; font-size: .9rem; color: var(--text-primary);
+    padding: 8px 10px; font-family: inherit; font-size: 16px; color: var(--text-primary);
     background: var(--bg-card); margin-bottom: 8px;
   }
 
@@ -419,7 +419,7 @@
   .field span { font-size: .78rem; font-weight: 700; color: var(--text-muted); }
   .field textarea {
     min-height: 88px; border: 1.5px solid var(--border-strong); border-radius: 10px;
-    padding: 8px 10px; font-family: inherit; font-size: .9rem; color: var(--text-primary);
+    padding: 8px 10px; font-family: inherit; font-size: 16px; color: var(--text-primary);
     background: var(--bg-card); resize: vertical;
   }
 

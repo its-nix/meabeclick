@@ -24,6 +24,8 @@ test('one payment ledger retains bulk actions and labels loading or stale data',
   assert.match(page, /onclick=\{\(\) => mark\(s.code, 'paid'\)\}/);
   assert.match(page, /data-label="פעולות"/);
   assert.match(page, /לא ניתן לטעון כרגע/);
+  const badges = page.slice(page.indexOf('class="sc-badges"'), page.indexOf('</div>', page.indexOf('class="sc-badges"')));
+  assert.ok(badges.indexOf('ledgerError[s.code]') < badges.indexOf('ledgerLoading[s.code]'), 'an initial load failure must not keep claiming to load');
 });
 
 test('destructive learner actions require confirmation before sending requests', () => {

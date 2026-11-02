@@ -124,6 +124,10 @@
   }
 
   async function openStudent(code: string) {
+    shareGeneration++;
+    shareBusy = false;
+    shareErr = '';
+    copied = false;
     currentId = code;
     loading = true;
     loadError = '';
@@ -212,28 +216,33 @@
   let shareOpen = $state(false);
   let shareConfirm = $state(false);
   let shareBusy = $state(false);
+  let shareGeneration = 0;
   let shareErr = $state('');
   let copied = $state(false);
   let showLink = $state(false);
 
   async function loadShare() {
     if (!currentId || shareBusy) return;
+    const requestedId = currentId;
+    const generation = ++shareGeneration;
     shareBusy = true;
     shareErr = '';
     try {
       const r = await fetch('/api/student-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: currentId }),
+        body: JSON.stringify({ code: requestedId }),
       });
       if (!r.ok) throw new Error(String(r.status));
-      share = await r.json();
+      const result = await r.json();
+      if (generation !== shareGeneration || requestedId !== currentId) return;
+      share = result;
       shareOpen = true;
       shareConfirm = false;
     } catch {
-      shareErr = 'לא הצלחנו להכין את הקישור. נסו שוב.';
+      if (generation === shareGeneration && requestedId === currentId) shareErr = 'לא הצלחנו להכין את הקישור. נסו שוב.';
     } finally {
-      shareBusy = false;
+      if (generation === shareGeneration) shareBusy = false;
     }
   }
 

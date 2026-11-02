@@ -1,5 +1,7 @@
 <script lang="ts">
   import BrandMark from '$lib/components/BrandMark.svelte';
+  import { page } from '$app/state';
+  import { safeTutorReturn } from '$lib/tutor-return.ts';
   /**
    * Port of pages/app/games.html — the games CATALOG (a tool for picking a
    * template), not a game. Data now arrives already loaded (and gated by
@@ -10,6 +12,8 @@
 
   let { data }: { data: PageData } = $props();
   let choosing = $state('');
+  const returnTo = $derived(safeTutorReturn(page.url.searchParams.get('returnTo'), page.url.origin,
+    data.selection ? '/app/lessons/' + encodeURIComponent(data.selection.lessonSlug) + '/edit' : '/app/dashboard'));
   let chooseError = $state('');
   const lessonDate = $derived(data.selection?.lessonAt
     ? new Date(data.selection.lessonAt).toLocaleDateString('he-IL')
@@ -26,7 +30,7 @@
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      location.href = `/app/lessons/${encodeURIComponent(data.selection.lessonSlug)}/edit?game=${encodeURIComponent(result.assignment.id)}`;
+      location.href = `/app/lessons/${encodeURIComponent(data.selection.lessonSlug)}/edit?game=${encodeURIComponent(result.assignment.id)}&returnTo=${encodeURIComponent(returnTo)}`;
     } catch {
       chooseError = 'לא הצלחנו ליצור טיוטה. נסו שוב.';
       choosing = '';
@@ -46,8 +50,9 @@
       <div class="eyebrow">הוספת משחק לשיעור</div>
       <h1>{data.selection.studentName} · {data.selection.lessonTitle} · <bdi dir="ltr">{lessonDate}</bdi></h1>
       <div class="subject">בחרו תבנית. אחר כך נתאים את התוכן לשיעור הזה.</div>
-      <a class="back" href="/app/lessons/{data.selection.lessonSlug}/edit">חזרה לשיעור</a>
+      <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
     {:else}
+      <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
       <h1>🎮 מאגר המשחקים</h1>
       <div class="subject">כל סוגי המשחקים והדוגמאות שלהם</div>
     {/if}

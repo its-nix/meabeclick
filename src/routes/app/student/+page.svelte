@@ -480,8 +480,9 @@
             <p class="card-meta">סימון שסיימתם אינו ציון או בדיקה של המורה.</p>
           {/if}
         </div>
+        {#if DATA.progress?.kind === 'skills'}
         <div class="card">
-          <div class="card-title"><Icon name="progress" /> {progressTitle}</div>
+          <div class="card-title"><Icon name="progress" /> שליטה במיומנויות</div>
           {#if DATA.progress?.total}
             <div
               class="progress-outer"
@@ -501,6 +502,7 @@
           <!-- The tutor's progress note is for the parent (dashboard:
                «מוצגת להורים בלבד»), not shown to the child. -->
         </div>
+        {/if}
         {#if !(DATA.homework ?? []).length}
           <div class="msg-empty">
             {isDayOne

@@ -124,6 +124,10 @@
   }
 
   async function openStudent(code: string) {
+    shareGeneration++;
+    shareBusy = false;
+    shareErr = '';
+    copied = false;
     currentId = code;
     loading = true;
     loadError = '';
@@ -212,28 +216,33 @@
   let shareOpen = $state(false);
   let shareConfirm = $state(false);
   let shareBusy = $state(false);
+  let shareGeneration = 0;
   let shareErr = $state('');
   let copied = $state(false);
   let showLink = $state(false);
 
   async function loadShare() {
     if (!currentId || shareBusy) return;
+    const requestedId = currentId;
+    const generation = ++shareGeneration;
     shareBusy = true;
     shareErr = '';
     try {
       const r = await fetch('/api/student-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: currentId }),
+        body: JSON.stringify({ code: requestedId }),
       });
       if (!r.ok) throw new Error(String(r.status));
-      share = await r.json();
+      const result = await r.json();
+      if (generation !== shareGeneration || requestedId !== currentId) return;
+      share = result;
       shareOpen = true;
       shareConfirm = false;
     } catch {
-      shareErr = 'לא הצלחנו להכין את הקישור. נסו שוב.';
+      if (generation === shareGeneration && requestedId === currentId) shareErr = 'לא הצלחנו להכין את הקישור. נסו שוב.';
     } finally {
-      shareBusy = false;
+      if (generation === shareGeneration) shareBusy = false;
     }
   }
 
@@ -288,26 +297,6 @@
       <p class="fam-sub">{overview.children.length} תלמידים בחשבון</p>
     </div>
 
-    <div class="stats-bar">
-      <div class="stat-card">
-        <div class="s-label">לתשלום עכשיו</div>
-        <div class="s-value" class:coral={overview.family.dueAgorot > 0} class:green={overview.family.dueAgorot <= 0}>
-          {formatAgorot(overview.family.dueAgorot)}
-        </div>
-        <div class="s-sub">{overview.family.dueAgorot > 0 ? 'שיעורים שניתנו' : 'מעודכן ✓'}</div>
-      </div>
-      <div class="stat-card">
-        <div class="s-label">מתוכנן קדימה</div>
-        <div class="s-value accent">{formatAgorot(overview.family.upcomingAgorot)}</div>
-        <div class="s-sub">שיעורים שנקבעו</div>
-      </div>
-      <div class="stat-card">
-        <div class="s-label">שולם עד כה</div>
-        <div class="s-value green">{formatAgorot(overview.family.paidAgorot)}</div>
-        <div class="s-sub">כל המשפחה</div>
-      </div>
-    </div>
-
     <div class="kid-grid">
       {#each overview.children as kid (kid.code)}
         <!-- One card per child, each carrying enough state that a parent
@@ -355,6 +344,29 @@
         </a>
       {/each}
     </div>
+
+    <details class="family-finances"><summary>תשלומי המשפחה</summary>
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="s-label">לתשלום עכשיו</div>
+        <div class="s-value" class:coral={overview.family.dueAgorot > 0} class:green={overview.family.dueAgorot <= 0}>
+          {formatAgorot(overview.family.dueAgorot)}
+        </div>
+        <div class="s-sub">{overview.family.dueAgorot > 0 ? 'שיעורים שניתנו' : 'מעודכן ✓'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">מתוכנן קדימה</div>
+        <div class="s-value accent">{formatAgorot(overview.family.upcomingAgorot)}</div>
+        <div class="s-sub">שיעורים שנקבעו</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">שולם עד כה</div>
+        <div class="s-value green">{formatAgorot(overview.family.paidAgorot)}</div>
+        <div class="s-sub">כל המשפחה</div>
+      </div>
+    </div>
+
+    </details>
 
     <div class="fam-actions">
       <a class="fam-book" href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור נוסף</a>
@@ -454,99 +466,6 @@
       </div>
     {/if}
 
-    {#if !data.isSelf}
-      <!-- The child's own way in. A parent link opens the parent view, so a
-           child needs a session scoped to themselves — this is where they
-           get one. -->
-      <div class="section share">
-        <div class="sec-header">
-          <span class="sec-icon"><Icon name="student" /></span>
-          <span class="sec-title">כניסה ל{CURRENT.name}</span>
-        </div>
-
-        <!-- The parent's own way to the child's board — the slides, the
-             games — without making a link first. A family session may open
-             it, and it offers the way back. -->
-        <a class="board-link" href="/app/student?s={currentId}">לפתוח עכשיו את הלוח של {CURRENT.name} ←</a>
-
-        {#if !shareOpen && !shareConfirm}
-          <p class="share-intro">
-            שלחו ל{CURRENT.name} קישור אישי — לוח משלו/ה עם שיעורי הבית והמשחקים,
-            בלי גישה לתשלומים.
-          </p>
-          <button class="share-open" onclick={() => { shareConfirm = true; shareErr = ''; }}>
-            הכנת קישור וקוד
-          </button>
-          {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
-        {:else if shareConfirm && !shareOpen}
-          <div class="share-confirm">
-            <strong>להכין כניסה חדשה ל{CURRENT.name}?</strong>
-            <p>קישור אישי או קוד צירוף קודמים שעדיין לא שימשו יפסיקו לעבוד. מכשירים שכבר נכנסו יישארו מחוברים.</p>
-            <div class="share-actions">
-              <button class="share-primary" onclick={loadShare} disabled={shareBusy}>
-                {shareBusy ? 'מכינים…' : 'הכנת כניסה חדשה'}
-              </button>
-              <button class="share-secondary" onclick={() => { shareConfirm = false; }}>ביטול</button>
-            </div>
-            {#if shareBusy}<p role="status">מכינים…</p>{/if}
-            {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
-          </div>
-        {:else if share}
-          <p><strong>הכניסה מוכנה</strong></p>
-          <div class="share-actions">
-            <a class="share-primary" href={shareHref} target="_blank" rel="noopener">
-              <Icon name="message" size={17} /> שליחה בוואטסאפ
-            </a>
-            <button class="share-secondary" onclick={copyShare}>
-              {#if copied}<Icon name="check" size={16} /> הועתק{:else}<Icon name="link" size={16} /> העתקת קישור{/if}
-            </button>
-          </div>
-          {#if showLink}<div class="share-link" dir="ltr">{share.link}</div>{/if}
-
-          <div class="share-code">
-            <div class="share-code-label">אין וואטסאפ? פתחו את <span dir="ltr">{page.url.host}/portal</span> והקלידו קוד צירוף:</div>
-            <div class="share-code-value" dir="ltr">{share.joinCode}</div>
-            <div class="share-code-note">תקף ל־15 דקות ולכניסה אחת.</div>
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    <div class="stats-bar">
-      <div class="stat-card">
-        <div class="s-label">שיעורים שנעשו</div>
-        <div class="s-value accent">{totalSessions}</div>
-        <div class="s-sub">שיעורים סה"כ</div>
-      </div>
-      <div class="stat-card">
-        <div class="s-label">שיעורי בית פתוחים</div>
-        <div class="s-value" class:coral={hwPending > 0} class:green={hwPending === 0}>{hwPending}</div>
-        <!-- "הכל הוגש ✓" on a family with zero assignments is simply
-             false, and it was the first thing a new parent read. -->
-        <div class="s-sub">{hwPending > 0 ? 'ממתינים לביצוע' : hwTotal ? 'הכל הוגש ✓' : 'עוד לא ניתנו'}</div>
-      </div>
-      {#if CURRENT.balance}
-        <!-- "מתוך" is paid + owed, the total ever charged. It cannot be
-             `owedAgorot` alone: marking a lesson paid MOVES it out of that
-             sum, so a family who had settled everything read "שולם ₪215
-             מתוך ₪0". The two figures have to come from disjoint sets
-             whose union is the whole ledger. -->
-        <div class="stat-card">
-          <div class="s-label">שולם</div>
-          <div class="s-value green">{formatAgorot(CURRENT.balance.paidAgorot)}</div>
-          <div class="s-sub">מתוך {formatAgorot(CURRENT.balance.paidAgorot + CURRENT.balance.owedAgorot)}</div>
-        </div>
-        <!-- The same number the Payments section below prints as
-             לתשלום עכשיו. Two different answers about one family's money on
-             one page is worse than either answer being slightly coarse. -->
-        <div class="stat-card">
-          <div class="s-label">יתרה לתשלום</div>
-          <div class="s-value" class:coral={CURRENT.balance.dueAgorot > 0} class:green={CURRENT.balance.dueAgorot <= 0}>{formatAgorot(CURRENT.balance.dueAgorot)}</div>
-          <div class="s-sub">{CURRENT.balance.dueAgorot > 0 ? 'ממתין לתשלום' : 'מעודכן ✓'}</div>
-        </div>
-      {/if}
-    </div>
-
     <div class="section">
       <div class="sec-header"><span class="sec-icon"><Icon name="calendar" /></span><span class="sec-title">השיעור הבא</span></div>
       {#if CURRENT.nextLesson?.date}
@@ -563,67 +482,6 @@
       {:else}
         <div class="no-upcoming">אין שיעור קבוע — ניצור קשר לתיאום 🗓️</div>
       {/if}
-    </div>
-
-    <div class="section">
-      <div class="sec-header">
-        <span class="sec-icon"><Icon name="subjects" /></span><span class="sec-title">יומן שיעורים</span>
-        <span class="sec-badge">{totalSessions} שיעורים</span>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr><th>תאריך</th><th>סוג / משך</th><th>נושא / הערות</th></tr></thead>
-          <tbody>
-            {#if !sortedSessions.length}
-              <tr><td colspan="3" class="empty-row">עדיין לא נרשמו שיעורים</td></tr>
-            {:else}
-              {#each sortedSessions as sess}
-                <tr>
-                  <td>{formatDateHe(sess.date)}</td>
-                  <td><span class="pill">{sess.type || 'שיעור'}</span></td>
-                  <td>
-                    <div class="lesson-topic">{sess.notes || '—'}</div>
-                    {#if sess.slidesUrl}<a class="lesson-slides" href={toHref(sess.slidesUrl)} target="_blank" rel="noopener">המצגת</a>{/if}
-                  </td>
-                </tr>
-              {/each}
-            {/if}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="sec-header">
-        <span class="sec-icon"><Icon name="homework" /></span><span class="sec-title">שיעורי בית</span>
-        <span class="sec-badge">{hwPending} פתוח{hwPending !== 1 ? 'ים' : ''}</span>
-      </div>
-      <div class="hw-list">
-        {#if !reversedHomework.length}
-          <!-- "🎉" celebrated an empty list at a family whose child had
-               just enrolled and had nothing yet. The emoji belongs to
-               finishing, not to never having started. -->
-          <div class="hw-empty">
-            {isDayOne ? 'שיעורי הבית יופיעו כאן אחרי השיעור הראשון.' : 'אין שיעורי בית פתוחים כרגע 🎉'}
-          </div>
-        {:else}
-          {#each reversedHomework as h}
-            {@const state = homeworkState(h)}
-            <div class="hw-item">
-              <div class="hw-status-icon"><Icon name={state === 'open' ? 'homework' : 'done'} label={HOMEWORK_STATE_LABEL[state]} /></div>
-              <div class="hw-content">
-                <div class="hw-task" class:done={state !== 'open'}><FormulaText text={h.task} /></div>
-                {#if h.skill}<div class="hw-meta">מתרגלים: {h.skill}</div>{/if}
-                <div class="hw-meta">ניתן: {formatDateHe(h.date)}</div>
-                {#if h.url}
-                  <a class="hw-play" href={toHref(h.url)} target="_blank" rel="noopener"><Icon name="games" size={17} /> שחקו</a>
-                {/if}
-              </div>
-              <span class="hw-badge" class:done={state !== 'open'} class:open={state === 'open'}>{state === 'graded' && h.grade ? GRADE_LABEL[h.grade] : HOMEWORK_STATE_LABEL[state]}</span>
-            </div>
-          {/each}
-        {/if}
-      </div>
     </div>
 
     <div class="section">
@@ -688,7 +546,128 @@
     </div>
 
     <div class="section">
-      <div class="sec-header"><span class="sec-icon"><Icon name="payments" /></span><span class="sec-title">תשלומים</span></div>
+      <div class="sec-header">
+        <span class="sec-icon"><Icon name="subjects" /></span><span class="sec-title">יומן שיעורים</span>
+        <span class="sec-badge">{totalSessions} שיעורים</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>תאריך</th><th>סוג / משך</th><th>נושא / הערות</th></tr></thead>
+          <tbody>
+            {#if !sortedSessions.length}
+              <tr><td colspan="3" class="empty-row">עדיין לא נרשמו שיעורים</td></tr>
+            {:else}
+              {#each sortedSessions as sess}
+                <tr>
+                  <td>{formatDateHe(sess.date)}</td>
+                  <td><span class="pill">{sess.type || 'שיעור'}</span></td>
+                  <td>
+                    <div class="lesson-topic">{sess.notes || '—'}</div>
+                    {#if sess.slidesUrl}<a class="lesson-slides" href={toHref(sess.slidesUrl)} target="_blank" rel="noopener">המצגת</a>{/if}
+                  </td>
+                </tr>
+              {/each}
+            {/if}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-header">
+        <span class="sec-icon"><Icon name="homework" /></span><span class="sec-title">שיעורי בית</span>
+        <span class="sec-badge">{hwPending} פתוח{hwPending !== 1 ? 'ים' : ''}</span>
+      </div>
+      <div class="hw-list">
+        {#if !reversedHomework.length}
+          <!-- "🎉" celebrated an empty list at a family whose child had
+               just enrolled and had nothing yet. The emoji belongs to
+               finishing, not to never having started. -->
+          <div class="hw-empty">
+            {isDayOne ? 'שיעורי הבית יופיעו כאן אחרי השיעור הראשון.' : 'אין שיעורי בית פתוחים כרגע 🎉'}
+          </div>
+        {:else}
+          {#each reversedHomework as h}
+            {@const state = homeworkState(h)}
+            <div class="hw-item">
+              <div class="hw-status-icon"><Icon name={state === 'open' ? 'homework' : 'done'} label={HOMEWORK_STATE_LABEL[state]} /></div>
+              <div class="hw-content">
+                <div class="hw-task" class:done={state !== 'open'}><FormulaText text={h.task} /></div>
+                {#if h.skill}<div class="hw-meta">מתרגלים: {h.skill}</div>{/if}
+                <div class="hw-meta">ניתן: {formatDateHe(h.date)}</div>
+                {#if h.url}
+                  <a class="hw-play" href={toHref(h.url)} target="_blank" rel="noopener"><Icon name="games" size={17} /> שחקו</a>
+                {/if}
+              </div>
+              <span class="hw-badge" class:done={state !== 'open'} class:open={state === 'open'}>{state === 'graded' && h.grade ? GRADE_LABEL[h.grade] : HOMEWORK_STATE_LABEL[state]}</span>
+            </div>
+          {/each}
+        {/if}
+      </div>
+    </div>
+
+    {#if !data.isSelf}
+      <!-- The child's own way in. A parent link opens the parent view, so a
+           child needs a session scoped to themselves — this is where they
+           get one. -->
+      <details class="family-administration"><summary>כניסה ללוח התלמיד/ה ושיתוף קישור</summary>
+      <div class="section share">
+        <div class="sec-header">
+          <span class="sec-icon"><Icon name="student" /></span>
+          <span class="sec-title">כניסה ל{CURRENT.name}</span>
+        </div>
+
+        <!-- The parent's own way to the child's board — the slides, the
+             games — without making a link first. A family session may open
+             it, and it offers the way back. -->
+        <a class="board-link" href="/app/student?s={currentId}">לפתוח עכשיו את הלוח של {CURRENT.name} ←</a>
+
+        {#if !shareOpen && !shareConfirm}
+          <p class="share-intro">
+            שלחו ל{CURRENT.name} קישור אישי — לוח משלו/ה עם שיעורי הבית והמשחקים,
+            בלי גישה לתשלומים.
+          </p>
+          <button class="share-open" onclick={() => { shareConfirm = true; shareErr = ''; }}>
+            הכנת קישור וקוד
+          </button>
+          {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
+        {:else if shareConfirm && !shareOpen}
+          <div class="share-confirm">
+            <strong>להכין כניסה חדשה ל{CURRENT.name}?</strong>
+            <p>קישור אישי או קוד צירוף קודמים שעדיין לא שימשו יפסיקו לעבוד. מכשירים שכבר נכנסו יישארו מחוברים.</p>
+            <div class="share-actions">
+              <button class="share-primary" onclick={loadShare} disabled={shareBusy}>
+                {shareBusy ? 'מכינים…' : 'הכנת כניסה חדשה'}
+              </button>
+              <button class="share-secondary" onclick={() => { shareConfirm = false; }}>ביטול</button>
+            </div>
+            {#if shareBusy}<p role="status">מכינים…</p>{/if}
+            {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
+          </div>
+        {:else if share}
+          <p><strong>הכניסה מוכנה</strong></p>
+          <div class="share-actions">
+            <a class="share-primary" href={shareHref} target="_blank" rel="noopener">
+              <Icon name="message" size={17} /> שליחה בוואטסאפ
+            </a>
+            <button class="share-secondary" onclick={copyShare}>
+              {#if copied}<Icon name="check" size={16} /> הועתק{:else}<Icon name="link" size={16} /> העתקת קישור{/if}
+            </button>
+          </div>
+          {#if showLink}<div class="share-link" dir="ltr">{share.link}</div>{/if}
+
+          <div class="share-code">
+            <div class="share-code-label">אין וואטסאפ? פתחו את <span dir="ltr">{page.url.host}/portal</span> והקלידו קוד צירוף:</div>
+            <div class="share-code-value" dir="ltr">{share.joinCode}</div>
+            <div class="share-code-note">תקף ל־15 דקות ולכניסה אחת.</div>
+          </div>
+        {/if}
+      </div>
+      </details>
+    {/if}
+
+    <details class="section family-payments">
+      <summary class="sec-header"><span class="sec-icon"><Icon name="payments" /></span><span class="sec-title">תשלומים</span></summary>
       {#if CURRENT.balance}
         <div class="payments-summary">
           <div class="pay-sum-card pending">
@@ -729,7 +708,7 @@
           </tbody>
         </table>
       </div>
-    </div>
+    </details>
   </main>
 
   <div class="board-actions">
@@ -1074,4 +1053,8 @@
     font-weight: 800; font-size: 0.98rem; text-decoration: none;
   }
   .fam-book:hover { background: var(--accent-deep); }
+  .family-administration, .family-finances { margin-block: 24px; }
+  :is(.family-administration, .family-finances, .family-payments) > summary { min-height: 44px; cursor: pointer; font-weight: 700; padding-block: 12px; color: var(--text-primary); }
+  .family-payments > summary { display: list-item; }
+  :is(summary, button, a):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>

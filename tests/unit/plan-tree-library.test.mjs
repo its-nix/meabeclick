@@ -20,7 +20,7 @@ test('the tutor page passes the ready masters by plan node', () => {
 test("the drawer shows a skill's library lesson with view and edit", () => {
   assert.match(tree, /library\[selected\.sourceId\]/);
   assert.match(tree, /שיעור מוכן מהספרייה/);
-  assert.match(tree, /href="\/app\/lessons\/\{libSlug\}\/edit"/);
+  assert.match(tree, /href="\/app\/lessons\/\{libSlug\}\/edit\?returnTo=\{encodeURIComponent\(returnTo\)\}"/);
   assert.match(tree, /href="\/lessons\/\{libSlug\}"/);
 });
 

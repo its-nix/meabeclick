@@ -14,3 +14,9 @@ export function idsForPanel(
   const inPanel = new Set(panelCharges.map(c => c.id));
   return [...selected].filter(id => inPanel.has(id));
 }
+
+/** Same due-now boundary as the server ledger; keep integer agorot exact. */
+export function dueAgorot(charges: { status: string; date: string; amount_agorot: number }[], asOf: string): number {
+  return charges.reduce((total, charge) =>
+    total + (charge.status === 'owed' && charge.date <= asOf ? charge.amount_agorot : 0), 0);
+}

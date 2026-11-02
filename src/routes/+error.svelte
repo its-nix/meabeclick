@@ -28,31 +28,44 @@
 
   const status = $derived(page.status);
   const detail = $derived(page.error?.message ?? '');
+  const isGame = $derived(page.url.pathname.startsWith('/app/play/'));
+  const isFamily = $derived(isGame || /^\/app\/(parent|student)(\/|$)/.test(page.url.pathname));
+  const recovery = $derived(isFamily
+    ? { href: '/portal', label: 'חזרה לכניסה האישית' }
+    : page.url.pathname.startsWith('/app/')
+      ? { href: '/app/dashboard', label: 'חזרה לסקירה התפעולית' }
+      : { href: '/', label: 'חזרה לעמוד הבית' });
 </script>
 
 <svelte:head>
   <title>שגיאה — מאה בקליק</title>
 </svelte:head>
 
-<div class="error-wrap">
+<main class="error-wrap">
   <div class="error-card">
     <div class="page-brand"><BrandMark height={28} /></div>
-    {#if status === 403}
+    {#if status === 403 && isGame}
       <div class="error-emoji" aria-hidden="true"><Icon name="key" size={40} /></div>
       <h1>הקישור הזה כבר לא בתוקף</h1>
       <p>ייתכן שזה קישור ישן מהודעה קודמת. בקשו מהמורה או מההורה קישור מעודכן למשחק.</p>
-    {:else if status === 404}
+    {:else if status === 404 && isGame}
       <div class="error-emoji" aria-hidden="true"><Icon name="faq" size={40} /></div>
       <h1>לא מצאנו את המשחק הזה</h1>
       <p>ייתכן שהקישור שגוי, או שהמשחק כבר לא קיים. בקשו קישור מעודכן.</p>
+    {:else if status === 403}
+      <h1>אין גישה לעמוד הזה</h1>
+      <p>ייתכן שנדרשת כניסה לחשבון המתאים. חזרו לסביבת העבודה או בקשו מהמורה עזרה.</p>
+    {:else if status === 404}
+      <h1>לא מצאנו את העמוד הזה</h1>
+      <p>בדקו שהכתובת הועתקה במלואה, או חזרו לסביבת העבודה כדי להמשיך.</p>
     {:else}
       <div class="error-emoji" aria-hidden="true"><Icon name="warning" size={40} /></div>
       <h1>משהו השתבש</h1>
       <p>{detail || 'אירעה שגיאה בלתי צפויה. נסו לרענן את הדף.'}</p>
     {/if}
-    <a class="error-home" href="/">חזרה לעמוד הבית</a>
+    <a class="error-home" href={recovery.href}>{recovery.label}</a>
   </div>
-</div>
+</main>
 
 <style>
   .error-wrap {

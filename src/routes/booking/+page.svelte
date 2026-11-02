@@ -1057,7 +1057,7 @@
         {/if}
         <button class="btn-primary" onclick={onPrimary} disabled={submitting}>{primaryLabel}</button>
       </div>
-      <p class="sheet-note">השיעור יתואם ביומן, ונחזור אליכם לאישור סופי.</p>
+      <p class="sheet-note">אחרי השליחה יוצג מצב ההזמנה והשלב הבא. אם יידרש אישור בדוא״ל, יש להשלים אותו לפני שהמועד מאושר.</p>
       <!-- Notice at the moment of contracting, which is the one place it
            legally matters. A line rather than a checkbox on purpose: a
            required tick is friction on the only conversion step the funnel

@@ -76,9 +76,13 @@ test('the dashboard menu omits the redundant website action but keeps explicit s
   assert.match(menu, /onclick=\{signOut\}>יציאה מהחשבון/);
 });
 
-test('five tabs fit a phone: the row scrolls, and says which tab is open', () => {
+test('five learner destinations wrap on phones and use native named buttons', () => {
   const d = dash();
-  assert.match(d, /\.sc-tabs \{[^}]*overflow-x: auto/);
-  assert.match(d, /class="sc-tabs" role="tablist"/);
-  assert.match(d, /aria-selected=\{tabFor\(s\.code\) === 'overview'\}/);
+  assert.match(d, /\.sc-tabs \{[^}]*flex-wrap: wrap/);
+  assert.match(d, /<nav class="sc-tabs" aria-label="תיק התלמיד\/ה"/);
+  assert.match(d, /aria-pressed=\{tabFor\(s\.code\) === 'overview'\}/);
+  assert.doesNotMatch(d, /<div class="sc-tab"/);
+  assert.match(d, /type="checkbox"[^>]*aria-label="סימון הגשה: \{hw.task\}"/);
+  assert.match(d, /\.students-grid \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(d, /font-size: 16px; width: 100%/);
 });

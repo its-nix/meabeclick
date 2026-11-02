@@ -60,10 +60,11 @@
    *   - #confirm-bg.open (confirm dialog)   → confirmMsg !== null
    */
   import { onMount, untrack } from 'svelte';
+  import { page } from '$app/state';
   import { SvelteSet } from 'svelte/reactivity';
   import { toHref } from '$lib/urls.ts';
   import { formatAgorot } from '$lib/plans.ts';
-  import { idsForPanel } from '$lib/payments-selection.ts';
+  import { idsForPanel, dueAgorot } from '$lib/payments-selection.ts';
   import { computeImportCandidates, buildImportPayload, type ImportCandidate } from '$lib/import-candidates.ts';
   import type { PageData } from './$types';
 
@@ -166,8 +167,9 @@
 
   function studentTotals(code: string) {
     const ex = extrasFor(code);
-    const paid = ex.sessions.reduce((a, x) => a + (x.paid ? x.amount : 0), 0);
-    const owed = ex.sessions.reduce((a, x) => a + x.amount, 0);
+    const charges = (chargesFor[code] ?? []).filter(c => c.status !== 'void');
+    const paid = charges.reduce((a, c) => a + (c.status === 'paid' ? c.amount_agorot : 0), 0) / 100;
+    const owed = charges.reduce((a, c) => a + c.amount_agorot, 0) / 100;
     return { paid, owed, balance: owed - paid, hwPending: ex.homework.filter(h => !h.submitted && !h.graded).length };
   }
 
@@ -179,12 +181,21 @@
      vanished when she cleared her browser. It is the same query the parents'
      figures come from now, so the two screens cannot disagree. */
   let allBalance = $state<{ dueAgorot: number; upcomingAgorot: number; paidAgorot: number } | null>(null);
+  let balanceError = $state('');
+  let balanceSequence = 0;
 
   async function loadAllBalance() {
+    const sequence = ++balanceSequence;
     try {
       const r = await api('/api/payments/all', { cache: 'no-store' });
-      if (r.ok) allBalance = (await r.json()).balance;
-    } catch { /* the tile renders a dash */ }
+      if (!r.ok) throw new Error('balance');
+      const body = await r.json();
+      if (balanceSequence !== sequence) return;
+      allBalance = body.balance;
+      balanceError = '';
+    } catch {
+      if (balanceSequence === sequence) balanceError = 'היתרה אינה מעודכנת כרגע.';
+    }
   }
 
   /* ═══════════════════ notifications ═══════════════════
@@ -305,7 +316,10 @@
 
   /* ═══════════════════ per-student card UI state ═══════════════════ */
   let activeTab = $state<Record<string, string>>({});
-  function tabFor(sid: string): string { return activeTab[sid] ?? 'overview'; }
+  function tabFor(sid: string): string {
+    const requested = page.url.searchParams.get('tab');
+    return activeTab[sid] ?? (['overview', 'learning-plan', 'payments', 'homework', 'profile'].includes(requested ?? '') ? requested! : 'overview');
+  }
   function switchTab(sid: string, tab: string) { activeTab[sid] = tab; }
 
   let openForms = $state<Record<string, boolean>>({});
@@ -335,39 +349,91 @@
    *  saveProfileField below) or dropped for having no server home
    *  (see the profile tab's comment). Keyed by the student's real `code`,
    *  same as every other local extra now. */
+  let activityLoading = $state<Record<string, boolean>>({});
+  let activityError = $state<Record<string, string>>({});
+  const activitySequence: Record<string, number> = {};
+  let ledgerBusy = $state<Record<string, boolean>>({});
+  let ledgerLoading = $state<Record<string, boolean>>({});
+  let ledgerError = $state<Record<string, string>>({});
+  const ledgerSequence: Record<string, number> = {};
+
   async function refreshActivity(code: string) {
-    const r = await api(`/api/students/${code}/activity`, { credentials: 'same-origin', cache: 'no-store' });
-    if (!r.ok) throw new Error('activity load failed');
-    const activity = await r.json() as ServerActivity;
-    serverExtras = { ...serverExtras, [code]: activity };
+    const sequence = activitySequence[code] = (activitySequence[code] ?? 0) + 1;
+    activityLoading[code] = true;
+    try {
+      const response = await api(`/api/students/${code}/activity`, { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('activity load failed');
+      const activity = await response.json() as ServerActivity;
+      if (activitySequence[code] !== sequence) return;
+      serverExtras[code] = activity;
+      activityError[code] = '';
+    } catch {
+      if (activitySequence[code] === sequence) activityError[code] = 'לא ניתן לטעון כרגע. הנתונים הקודמים, אם מוצגים, אינם מעודכנים.';
+      throw new Error('activity refresh failed');
+    } finally {
+      if (activitySequence[code] === sequence) activityLoading[code] = false;
+    }
+  }
+  async function refreshCharges(code: string) {
+    const sequence = ledgerSequence[code] = (ledgerSequence[code] ?? 0) + 1;
+    ledgerLoading[code] = true;
+    try {
+      const response = await api(`/api/payments?student=${encodeURIComponent(code)}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('charges load failed');
+      const result = await response.json();
+      if (ledgerSequence[code] !== sequence) return;
+      chargesFor[code] = result.charges;
+      ledgerError[code] = '';
+    } catch {
+      if (ledgerSequence[code] === sequence) ledgerError[code] = 'לא ניתן לטעון כרגע את החיובים. הרשימה הקודמת, אם מוצגת, אינה מעודכנת.';
+      throw new Error('charges refresh failed');
+    } finally {
+      if (ledgerSequence[code] === sequence) ledgerLoading[code] = false;
+    }
+  }
+  async function retryActivity(code: string) {
+    await refreshActivity(code).catch(() => {});
+  }
+  async function refreshLedger(code: string) {
+    await Promise.allSettled([refreshActivity(code), refreshCharges(code), loadAllBalance()]);
   }
 
   async function addSession(code: string) {
     const f = sessionForm(code);
     if (!f.date || !f.amount) return;
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
+    ledgerBusy[code] = true;
     try {
       const r = await api('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentCode: code, date: f.date, kind: f.type.startsWith('כפול') ? 'double' : f.type.startsWith('משולש') ? 'triple' : 'single', amountAgorot: Math.round(+f.amount * 100), paid: f.paid === 'true', note: f.notes }) });
       if (!r.ok) throw new Error();
-      await refreshActivity(code);
+      await refreshLedger(code);
     } catch { toast('לא ניתן לשמור את השיעור', { kind: 'error' }); }
+    finally { ledgerBusy[code] = false; }
   }
 
   async function togglePaid(code: string, sessId: string) {
-    const sess = extrasFor(code).sessions.find(x => x.id === sessId);
+    const sess = chargesFor[code]?.find(x => x.id === Number(sessId) && x.status !== 'void');
     if (!sess) return;
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
+    ledgerBusy[code] = true;
     try {
-      const r = await api('/api/payments/mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [Number(sessId)], status: sess.paid ? 'owed' : 'paid' }) });
+      const r = await api('/api/payments/mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [Number(sessId)], status: sess.status === 'paid' ? 'owed' : 'paid' }) });
       if (!r.ok) throw new Error();
-      await refreshActivity(code);
+      await refreshLedger(code);
     } catch { toast('לא ניתן לעדכן את התשלום', { kind: 'error' }); }
+    finally { ledgerBusy[code] = false; }
   }
   async function voidSession(code: string, sessId: string) {
+    if (!await confirmDialog('לבטל את החיוב הזה?')) return;
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
+    ledgerBusy[code] = true;
     try {
       const r = await api('/api/payments/mark', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [Number(sessId)], status: 'void' }) });
       if (!r.ok) throw new Error();
-      await refreshActivity(code);
+      await refreshLedger(code);
     } catch { toast('לא ניתן לבטל את הרישום', { kind: 'error' }); }
+    finally { ledgerBusy[code] = false; }
   }
 
   async function addHomework(code: string) {
@@ -400,6 +466,7 @@
   }
 
   async function deleteHw(code: string, hwId: string) {
+    if (!await confirmDialog('למחוק את שיעורי הבית האלה?')) return;
     try {
       const r = await api(`/api/students/${code}/activity?id=${encodeURIComponent(hwId)}`, { method: 'DELETE' });
       if (!r.ok) throw new Error();
@@ -573,15 +640,7 @@
   }
 
   async function loadActivities() {
-    const codes = realStudents.map(s => s.code);
-    const loaded = await Promise.allSettled(codes.map(async code => {
-      const r = await api(`/api/students/${code}/activity`, { credentials: 'same-origin', cache: 'no-store' });
-      if (!r.ok) throw new Error(String(r.status));
-      return [code, await r.json() as ServerActivity] as const;
-    }));
-    const next = { ...serverExtras };
-    for (const result of loaded) if (result.status === 'fulfilled') next[result.value[0]] = result.value[1];
-    serverExtras = next;
+    await Promise.allSettled(realStudents.flatMap(s => [refreshActivity(s.code), refreshCharges(s.code)]));
   }
 
   // Depend on the real roster now that the student cards render from it —
@@ -596,79 +655,53 @@
     return nl?.date && nl.date >= israelToday();
   }).length);
 
-  /* ═══════════════════ server-backed profile fields ═══════════════════
-   * goals / style / notes / progress / progress-note — the five fields
-   * PATCH /api/students/:code actually accepts (name/emoji/phone/account
-   * name/subjects have no write endpoint and stay read-only display pulled
-   * from `realStudents`).
-   *
-   * Saving here is never optimistic (repo rule): `realStudents` is only
-   * ever updated from a server response, never from what the tutor just
-   * typed. On failure the input is explicitly reverted to the value it had
-   * before the edit — see onProfileFieldChange — so a rejected save cannot
-   * leave a value on screen that the server never actually stored.
-   */
+  const upcomingStudents = $derived(realStudents.filter(s => {
+    const next = extrasFor(s.code).nextLesson;
+    return next.date && next.date >= israelToday();
+  }).sort((a, b) => {
+    const left = extrasFor(a.code).nextLesson, right = extrasFor(b.code).nextLesson;
+    return (left.date + left.time).localeCompare(right.date + right.time);
+  }));
+
+  // Drafts are editable local text, never represented as confirmed server values.
+  type ProfileField = 'goals' | 'style' | 'notes' | 'progress' | 'progressNote';
+  let profileDrafts = $state<Record<string, string | number | undefined>>({});
   let profileSaving = $state<Record<string, boolean>>({});
   let profileSaved = $state<Record<string, boolean>>({});
   let profileError = $state<Record<string, string>>({});
-  const profileSavedTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
-  type ProfileField = 'goals' | 'style' | 'notes' | 'progress' | 'progressNote';
-
-  /** Returns whether the save succeeded, so the caller can decide whether
-   *  to revert what's on screen. */
   async function saveProfileField(code: string, field: ProfileField, value: string | number): Promise<boolean> {
-    profileSaving = { ...profileSaving, [code]: true };
-    profileError = { ...profileError, [code]: '' };
+    const key = code + ':' + field;
+    if (profileSaving[key]) return false;
+    profileDrafts[key] = value;
+    profileSaving[key] = true;
+    profileError[key] = '';
+    profileSaved[key] = false;
     try {
       const r = await api(`/api/students/${code}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
       });
       const body = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        profileError = { ...profileError, [code]: session.over ? 'לא נשמר' : body.error || 'השמירה נכשלה' };
-        return false;
-      }
-      // The only place `realStudents` changes for this student: a whole-row
-      // replace from what the server just confirmed, not a client patch.
-      realStudents = realStudents.map(rs => rs.code === code ? { ...rs, ...body.student } : rs);
-      profileSaved = { ...profileSaved, [code]: true };
-      clearTimeout(profileSavedTimers[code]);
-      profileSavedTimers[code] = setTimeout(() => { profileSaved = { ...profileSaved, [code]: false }; }, 1800);
+      if (!r.ok) throw new Error(session.over ? 'לא נשמר' : body.error || 'השמירה נכשלה');
+      const column = field === 'progressNote' ? 'progress_note' : field;
+      // A concurrent save of another field cannot replace this field's draft.
+      realStudents = realStudents.map(rs => rs.code === code ? { ...rs, [column]: body.student[column] } : rs);
+      if (profileDrafts[key] === value) profileDrafts[key] = undefined;
+      profileSaved[key] = true;
       return true;
-    } catch {
-      profileError = { ...profileError, [code]: 'אין חיבור לשרת — לא נשמר' };
+    } catch (error) {
+      profileError[key] = error instanceof Error ? error.message : 'אין חיבור לשרת. הטיוטה לא נשמרה.';
       return false;
-    } finally {
-      profileSaving = { ...profileSaving, [code]: false };
-    }
+    } finally { profileSaving[key] = false; }
   }
 
-  /** Wires one input/textarea/select to a server field. `previous` is read
-   *  from `realStudents` (the last confirmed value) before the request goes
-   *  out, so a failed save can put exactly that back on screen — never the
-   *  value the tutor just typed, and never a blank. */
   async function onProfileFieldChange(
     s: RealStudent, field: ProfileField, el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
   ) {
-    const key = field === 'progressNote' ? 'progress_note' : field;
-    const previous = (s as unknown as Record<string, unknown>)[key];
-    const raw = el.value;
-
-    let value: string | number = raw;
-    if (field === 'progress') {
-      const n = Number(raw);
-      if (!Number.isFinite(n)) {
-        toast('ההתקדמות חייבת להיות מספר', { kind: 'error' });
-        el.value = String(previous ?? 0);
-        return;
-      }
-      value = n;
-    }
-
-    const ok = await saveProfileField(s.code, field, value);
-    if (!ok) el.value = String(previous ?? '');
+    const value = field === 'progress' ? Number(el.value) : el.value;
+    profileDrafts[s.code + ':' + field] = value;
+    await saveProfileField(s.code, field, value);
   }
 
   /* Admin-only assisted issuance. Account and student are separate actions:
@@ -807,31 +840,27 @@
   let chargesFor = $state<Record<string, Array<{ id: number; date: string; kind: string; amount_agorot: number; status: string }>>>({});
   let picked = $state(new SvelteSet<number>());
 
-  async function loadCharges(code: string) {
-    const r = await api(`/api/payments?student=${encodeURIComponent(code)}`, { cache: 'no-store' });
-    if (!r.ok) { toast('לא הצלחתי לטעון חיובים', { kind: 'error' }); return; }
-    chargesFor = { ...chargesFor, [code]: (await r.json()).charges };
-  }
 
   function toggle(id: number) {
     if (picked.has(id)) picked.delete(id); else picked.add(id);
   }
 
   async function mark(code: string, status: 'owed' | 'paid' | 'void') {
-    // Only this panel's charges — see payments-selection.ts for why.
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
     const ids = idsForPanel(picked, chargesFor[code] ?? []);
     if (!ids.length) { toast('לא נבחרו חיובים', { kind: 'error' }); return; }
-
-    const r = await api('/api/payments/mark', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids, status }),
-    });
-    if (!r.ok) { toast('העדכון נכשל', { kind: 'error' }); return; }
-
-    // Clear only what this action consumed, so a selection in another open
-    // panel survives.
-    for (const id of ids) picked.delete(id);
-    await Promise.all([loadCharges(code), loadAllBalance()]);
+    if (status === 'void' && !await confirmDialog('לבטל את החיובים שנבחרו?')) return;
+    ledgerBusy[code] = true;
+    try {
+      const r = await api('/api/payments/mark', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, status }),
+      });
+      if (!r.ok) throw new Error('payment update');
+      for (const id of ids) picked.delete(id);
+      await refreshLedger(code);
+    } catch { toast('לא ניתן לעדכן את החיובים. בדקו את הרשימה לפני ניסיון נוסף.', { kind: 'error' }); }
+    finally { ledgerBusy[code] = false; }
   }
 
   /* ═══════════════════ calendar-write failures ═══════════════════ */
@@ -945,6 +974,22 @@
   });
 </script>
 
+{#snippet profileFeedback(code: string, field: ProfileField)}
+  {@const key = code + ':' + field}
+  <div class="profile-feedback" role="status" aria-live="polite">
+    {#if profileSaving[key]}
+      שומרים…
+    {:else if profileError[key]}
+      <span class="field-error">{profileError[key]} הטקסט נשאר כטיוטה.</span>
+      <button class="link-btn" onclick={() => saveProfileField(code, field, profileDrafts[key] ?? '')}>ניסיון שמירה נוסף</button>
+    {:else if profileDrafts[key] !== undefined}
+      שינויים שטרם נשמרו
+      <button class="link-btn" onclick={() => saveProfileField(code, field, profileDrafts[key] ?? '')}>שמירה</button>
+    {:else if profileSaved[key]}נשמר{/if}
+  </div>
+{/snippet}
+
+
 <svelte:head>
   <title>{selectedStudentCode ? `${realStudents[0]?.name ?? 'תלמיד/ה'} — תיק תלמיד` : 'לוח בקרה — שיעורים פרטיים'}</title>
 </svelte:head>
@@ -980,7 +1025,7 @@
   </div>
 </div>
 
-<div class="page">
+<main class="page">
   {#if !selectedStudentCode}
   <EngineNotice alert={pageData.engineAlert} />
 
@@ -1085,47 +1130,54 @@
     </div>
   {/if}
 
-  <div class="stats-bar" role="region" aria-label="מדדים בקצרה">
-    <div class="stat-card">
-      <div class="s-label">תלמידים פעילים</div>
-      <div class="s-value gold">{realStudents.length}</div>
-      <div class="s-sub">תלמידים רשומים</div>
-    </div>
-    <div class="stat-card">
-      <div class="s-label">שיעורים שניתנו</div>
-      <div class="s-value">{totalSessions}</div>
-      <div class="s-sub">סה"כ שיעורים</div>
-    </div>
-    <div class="stat-card">
-      <div class="s-label">שולם</div>
-      <div class="s-value green">{allBalance ? formatAgorot(allBalance.paidAgorot) : '—'}</div>
-      <div class="s-sub">{allBalance ? `${formatAgorot(allBalance.dueAgorot)} לגבייה` : ''}</div>
-    </div>
-    <div class="stat-card">
-      <div class="s-label">יתרה לגבייה</div>
-      <div class="s-value" class:red={!!allBalance && allBalance.dueAgorot > 0} class:green={!!allBalance && allBalance.dueAgorot <= 0}>{allBalance ? formatAgorot(allBalance.dueAgorot) : '—'}</div>
-      <div class="s-sub">{allBalance ? (allBalance.dueAgorot > 0 ? 'טרם שולם' : 'מלא שולם ✓') : ''}</div>
-    </div>
-    <div class="stat-card">
-      <div class="s-label">שיעורים קרובים</div>
-      <div class="s-value gold">{nextLessonsCount}</div>
-      <div class="s-sub">מתוכננים</div>
-    </div>
-    <div class="stat-card">
-      <div class="s-label">שיעורי בית</div>
-      <div class="s-value">{awaitingReview}</div>
-      <div class="s-sub">{awaitingReview ? 'ממתינות לבדיקה — בלשונית שיעורי בית' : 'אין עבודות ממתינות לבדיקה'}</div>
-    </div>
+  <div class="operations-header">
+    <h1 class="operations-title">סקירה תפעולית</h1>
+    <a class="btn btn-outline" href="#student-roster">כל התלמידים</a>
+    <a class="btn btn-outline" href="/app/library">הכנת חומרים</a>
   </div>
-
-  <div class="sec-header">
-    <div>
-      <h1 class="sec-h2">לוח תלמידים</h1>
-    </div>
-  </div>
-  {#if pageData.pendingReports.length}
-    <p class="roster-note">{pageData.pendingReports.length === 1 ? 'שיעור אחד מחכה לדיווח' : `${pageData.pendingReports.length} שיעורים מחכים לדיווח`}. פתחו את תיק התלמיד/ה כדי לדווח.</p>
+  <ReportQueue lessons={pageData.pendingReports} />
+  {#if Object.values(activityError).some(Boolean) || Object.values(ledgerError).some(Boolean)}
+    <p role="status">חלק מפרטי התיקים אינם מעודכנים. <button class="link-btn" onclick={loadActivities}>ניסיון עדכון נוסף</button></p>
   {/if}
+  <div class="operations">
+    <section aria-labelledby="homework-review-title">
+      <h2 id="homework-review-title">עבודות ממתינות לבדיקה</h2>
+      <ul class="operation-list">
+        {#each realStudents.filter(s => extrasFor(s.code).homework.some(h => h.submitted && !h.graded)) as s (s.code)}
+          <li><a href="/app/students/{s.code}?tab=homework">{s.name}</a><span>{extrasFor(s.code).homework.filter(h => h.submitted && !h.graded).length} ממתינות לבדיקה</span></li>
+        {:else}
+          <li>{Object.keys(serverExtras).length === realStudents.length ? 'אין עבודות שממתינות לבדיקה בנתונים שנטענו' : 'ממתינים לפרטי העבודות'}</li>
+        {/each}
+      </ul>
+    </section>
+    <section aria-labelledby="upcoming-title">
+      <h2 id="upcoming-title">השיעורים הקרובים</h2>
+      {#if Object.keys(serverExtras).length < realStudents.length}
+        <p role="status">חלק מפרטי השיעורים עדיין לא נטענו. <button class="link-btn" onclick={loadActivities}>עדכון</button></p>
+      {/if}
+      <ul class="operation-list">
+        {#each upcomingStudents as s (s.code)}
+          {@const next = extrasFor(s.code).nextLesson}
+          <li><a href="/app/students/{s.code}">{s.name}</a><span><bdi>{formatDate(next.date)} · {next.time}</bdi>{next.tutor ? ' · ' + next.tutor : ''}</span></li>
+        {:else}
+          <li>{Object.keys(serverExtras).length === realStudents.length ? 'אין שיעורים קרובים שנקבעו' : 'ממתינים לפרטי השיעורים'}</li>
+        {/each}
+      </ul>
+    </section>
+    <section aria-labelledby="payment-followup-title">
+      <h2 id="payment-followup-title">מעקב תשלומים</h2>
+      {#if balanceError}<p role="status">{balanceError} <button class="link-btn" onclick={loadAllBalance}>ניסיון נוסף</button></p>{/if}
+      <p>{allBalance ? formatAgorot(allBalance.dueAgorot) + ' לגבייה' : 'היתרה הכוללת טרם נטענה'}</p>
+      <ul class="operation-list">
+        {#each realStudents.filter(s => chargesFor[s.code] && dueAgorot(chargesFor[s.code], israelToday()) > 0) as s (s.code)}
+          <li><a href="/app/students/{s.code}?tab=payments">{s.name}</a><span>{formatAgorot(dueAgorot(chargesFor[s.code], israelToday()))} לתשלום עכשיו</span></li>
+        {:else}
+          <li>{Object.keys(chargesFor).length === realStudents.length && !Object.values(ledgerError).some(Boolean) ? 'אין יתרות פתוחות בנתונים שנטענו' : 'חלק מפרטי החיובים אינם זמינים כרגע'}</li>
+        {/each}
+      </ul>
+    </section>
+  </div>
+  <h2 class="workspace-tutors-title" id="student-roster">תלמידים</h2>
   <div class="roster-table-wrap">
     <table class="roster-table">
       <caption class="sr-only">תלמידים — פתיחת תיק תלמיד/ה</caption>
@@ -1141,7 +1193,7 @@
               {#if reports}<span class="roster-meta">{reports} מחכים לדיווח</span>{/if}
             </td>
             <td>{tutorsOf(s) || 'טרם שויך'}</td>
-            <td>{#if next.date}<bdi>{formatDate(next.date)}</bdi><span class="roster-meta"><bdi>{next.time}</bdi></span>{:else}טרם נקבע{/if}</td>
+            <td>{#if activityError[s.code]}לא מעודכן{:else if !serverExtras[s.code]}טוענים…{:else if next.date}<bdi>{formatDate(next.date)}</bdi><span class="roster-meta"><bdi>{next.time}</bdi></span>{:else}טרם נקבע{/if}</td>
           </tr>
         {:else}
           <tr><td colspan="3">אין תלמידים עדיין — לחצו ״תלמיד חדש״ כדי להתחיל.</td></tr>
@@ -1176,7 +1228,11 @@
             <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
               <div class="sc-badges">
                 {#if s.style}<span class="badge badge-style">{s.style}</span>{/if}
-                {#if t.balance > 0}
+                {#if ledgerError[s.code]}
+                  <span class="badge">היתרה אינה מעודכנת</span>
+                {:else if ledgerLoading[s.code] || !chargesFor[s.code]}
+                  <span class="badge">טוענים יתרה…</span>
+                {:else if t.balance > 0}
                   <span class="badge badge-warn">₪{t.balance} חוב</span>
                 {:else}
                   <span class="badge badge-ok">שולם ✓</span>
@@ -1190,13 +1246,22 @@
           </div>
 
           <div class="sc-body">
-            <div class="sc-tabs" role="tablist">
-              <div class="sc-tab" class:active={tabFor(s.code) === 'overview'} aria-selected={tabFor(s.code) === 'overview'} onclick={() => switchTab(s.code, 'overview')} role="tab" tabindex="0" onkeydown={(e) => e.key === 'Enter' && switchTab(s.code, 'overview')}>סקירה</div>
-              <div class="sc-tab" class:active={tabFor(s.code) === 'learning-plan'} aria-selected={tabFor(s.code) === 'learning-plan'} onclick={() => switchTab(s.code, 'learning-plan')} role="tab" tabindex="0" onkeydown={(e) => e.key === 'Enter' && switchTab(s.code, 'learning-plan')}>תכנית למידה</div>
-              <div class="sc-tab" class:active={tabFor(s.code) === 'payments'} aria-selected={tabFor(s.code) === 'payments'} onclick={() => switchTab(s.code, 'payments')} role="tab" tabindex="0" onkeydown={(e) => e.key === 'Enter' && switchTab(s.code, 'payments')}>תשלומים</div>
-              <div class="sc-tab" class:active={tabFor(s.code) === 'homework'} aria-selected={tabFor(s.code) === 'homework'} onclick={() => switchTab(s.code, 'homework')} role="tab" tabindex="0" onkeydown={(e) => e.key === 'Enter' && switchTab(s.code, 'homework')}>שיעורי בית</div>
-              <div class="sc-tab" class:active={tabFor(s.code) === 'profile'} aria-selected={tabFor(s.code) === 'profile'} onclick={() => switchTab(s.code, 'profile')} role="tab" tabindex="0" onkeydown={(e) => e.key === 'Enter' && switchTab(s.code, 'profile')}>פרופיל</div>
-            </div>
+            <nav class="sc-tabs" aria-label="תיק התלמיד/ה">
+              <button type="button" class="sc-tab" class:active={tabFor(s.code) === 'overview'} aria-pressed={tabFor(s.code) === 'overview'} onclick={() => switchTab(s.code, 'overview')}>סקירה</button>
+              <button type="button" class="sc-tab" class:active={tabFor(s.code) === 'learning-plan'} aria-pressed={tabFor(s.code) === 'learning-plan'} onclick={() => switchTab(s.code, 'learning-plan')}>תכנית למידה</button>
+              <button type="button" class="sc-tab" class:active={tabFor(s.code) === 'payments'} aria-pressed={tabFor(s.code) === 'payments'} onclick={() => switchTab(s.code, 'payments')}>תשלומים</button>
+              <button type="button" class="sc-tab" class:active={tabFor(s.code) === 'homework'} aria-pressed={tabFor(s.code) === 'homework'} onclick={() => switchTab(s.code, 'homework')}>שיעורי בית</button>
+              <button type="button" class="sc-tab" class:active={tabFor(s.code) === 'profile'} aria-pressed={tabFor(s.code) === 'profile'} onclick={() => switchTab(s.code, 'profile')}>פרופיל</button>
+            </nav>
+            {#if activityError[s.code]}
+              <div class="activity-notice" role="status">
+                <p>{activityError[s.code]}</p>
+                <button class="btn btn-outline" disabled={activityLoading[s.code]} onclick={() => retryActivity(s.code)}>עדכון פרטי השיעור ושיעורי הבית</button>
+              </div>
+            {:else if activityLoading[s.code] && !serverExtras[s.code]}
+              <p class="activity-notice" role="status">טוענים את פרטי השיעור ושיעורי הבית…</p>
+            {/if}
+
 
             <!-- OVERVIEW -->
             <div class="sc-panel" class:active={tabFor(s.code) === 'overview'}>
@@ -1209,7 +1274,7 @@
               {:else}
                 <div class="next-lesson-box" style="margin-bottom:14px">
                   <div class="nl-label">📅 שיעור הבא</div>
-                  <div class="nl-date" style="font-size:1rem;color:var(--text-muted)">לא קבוע</div>
+                  <div class="nl-date" style="font-size:1rem;color:var(--text-muted)">{!serverExtras[s.code] || activityError[s.code] ? 'פרטי השיעור אינם זמינים כרגע' : 'לא קבוע'}</div>
                 </div>
               {/if}
 
@@ -1223,14 +1288,18 @@
                    and the number typed here reached nobody. -->
               <div class="field">
                 <label for="note-{s.code}">הערה להורים על ההתקדמות — מוצגת להורים בלבד, לא לתלמיד/ה</label>
-                <textarea id="note-{s.code}" onchange={(e) => onProfileFieldChange(s, 'progressNote', e.currentTarget)}>{s.progress_note || ''}</textarea>
+                <textarea id="note-{s.code}" value={profileDrafts[s.code + ':progressNote'] ?? s.progress_note ?? ''}
+                  oninput={(e) => { profileDrafts[s.code + ':progressNote'] = e.currentTarget.value; }}
+                  onchange={(e) => onProfileFieldChange(s, 'progressNote', e.currentTarget)}></textarea>
+                {@render profileFeedback(s.code, 'progressNote')}
+
               </div>
-              {#if profileError[s.code]}<div class="field-error">{profileError[s.code]}</div>{/if}
             </div>
 
             <!-- PERSONAL LEARNING PLAN -->
             <div class="sc-panel" class:active={tabFor(s.code) === 'learning-plan'}>
               <LearningPlanTree
+                returnTo={'/app/students/' + encodeURIComponent(s.code) + '?tab=learning-plan'}
                 student={{ id: s.code, name: s.name, subject: s.subjects || '', goals: s.goals || '', level: '', progress: s.progress }}
                 lessons={lessons.filter((lesson) => lesson.student === s.name).map((lesson) => ({
                   slug: lesson.slug, title: lesson.title, topic: lesson.topic, context: lesson.context,
@@ -1243,12 +1312,19 @@
 
             <!-- PAYMENTS -->
             <div class="sc-panel" class:active={tabFor(s.code) === 'payments'}>
+              {#if ledgerLoading[s.code]}<p role="status">טוענים את הרישומים…</p>{/if}
+              {#if ledgerError[s.code]}
+                <p class="field-error" role="status">{ledgerError[s.code]}</p>
+                <button class="btn btn-outline" disabled={ledgerLoading[s.code]} onclick={() => refreshLedger(s.code)}>ניסיון טעינה נוסף</button>
+              {/if}
+              {#if chargesFor[s.code]}
               <div class="payment-summary">
                 <div class="ps-item"><div class="psi-val" style="color:var(--text-primary)">₪{t.owed}</div><div class="psi-lbl">סה"כ</div></div>
                 <div class="ps-item"><div class="psi-val" style="color:var(--accent3-strong)">₪{t.paid}</div><div class="psi-lbl">שולם</div></div>
                 <div class="ps-item"><div class="psi-val" style="color:{t.balance > 0 ? 'var(--danger)' : 'var(--accent3-strong)'}">₪{t.balance}</div><div class="psi-lbl">יתרה</div></div>
-                <div class="ps-item"><div class="psi-val" style="color:var(--text-primary)">{ex.sessions.length}</div><div class="psi-lbl">שיעורים</div></div>
+                <div class="ps-item"><div class="psi-val" style="color:var(--text-primary)">{chargesFor[s.code].filter(c => c.status !== 'void').length}</div><div class="psi-lbl">שיעורים</div></div>
               </div>
+              {/if}
 
               <div class="add-form" class:open={openForms[`${s.code}:session`]}>
                 <h4>➕ הוסף שיעור</h4>
@@ -1275,34 +1351,46 @@
                     <input id="sf-notes-{s.code}" type="text" placeholder="הערות לשיעור..." value={sf.notes} oninput={(e) => setSessionField(s.code, 'notes', e.currentTarget.value)} /></div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:10px">
-                  <button class="btn btn-gold btn-sm" onclick={() => addSession(s.code)}>שמור שיעור</button>
+                  <button class="btn btn-gold btn-sm" disabled={ledgerBusy[s.code] || ledgerLoading[s.code] || !!ledgerError[s.code] || !chargesFor[s.code]} onclick={() => addSession(s.code)}>שמור שיעור</button>
                   <button class="btn btn-ghost btn-sm" onclick={() => toggleForm(`${s.code}:session`)}>ביטול</button>
                 </div>
               </div>
 
               <button class="btn btn-outline btn-sm" style="margin-bottom:10px" onclick={() => toggleForm(`${s.code}:session`)}>+ הוסף שיעור</button>
 
-              {#if ex.sessions.length}
-                <table class="payments-table">
-                  <thead><tr><th>תאריך</th><th>סוג</th><th>סכום</th><th>סטטוס</th><th></th></tr></thead>
-                  <tbody>
-                    {#each ex.sessions as sess (sess.id)}
-                      <tr>
-                        <td>{formatDate(sess.date)}</td>
-                        <td>{sess.type}</td>
-                        <td>₪{sess.amount}</td>
-                        <td>{#if sess.paid}<span class="paid-badge">✅ שולם</span>{:else}<span class="unpaid-badge">⏳ טרם שולם</span>{/if}</td>
-                        <td style="text-align:left">
-                          <button class="btn btn-ghost btn-sm" onclick={() => togglePaid(s.code, sess.id)}>{sess.paid ? 'סמן כלא שולם' : 'סמן כשולם'}</button>
-                          <button class="btn btn-danger btn-sm" onclick={() => voidSession(s.code, sess.id)}>בטל</button>
-                        </td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              {:else}
-                <div class="empty">אין שיעורים עדיין</div>
-              {/if}
+              <fieldset class="ledger" disabled={ledgerBusy[s.code] || ledgerLoading[s.code] || !!ledgerError[s.code] || !chargesFor[s.code]}>
+                <legend class="sr-only">רישומי תשלום</legend>
+                {#if chargesFor[s.code]?.length}
+                  <table class="payments-table">
+                    <caption class="sr-only">חיובים ותשלומים</caption>
+                    <thead><tr><th scope="col">בחירה</th><th scope="col">תאריך</th><th scope="col">סוג</th><th scope="col">סכום</th><th scope="col">מצב</th><th scope="col">פעולות</th></tr></thead>
+                    <tbody>
+                      {#each chargesFor[s.code] as c (c.id)}
+                        <tr>
+                          <td data-label="בחירה"><input class="charge-check" type="checkbox" aria-label="בחירת חיוב מ־{formatDate(c.date)} בסך {formatAgorot(c.amount_agorot)}" checked={picked.has(c.id)} onchange={() => toggle(c.id)} /></td>
+                          <td data-label="תאריך">{formatDate(c.date)}</td>
+                          <td data-label="סוג">{KIND_LABEL[c.kind] ?? c.kind}</td>
+                          <td data-label="סכום">{formatAgorot(c.amount_agorot)}</td>
+                          <td data-label="מצב">{STATUS_LABEL[c.status] ?? c.status}</td>
+                          <td data-label="פעולות"><div class="ledger-actions">
+                            {#if c.status !== 'void'}
+                              <button class="btn btn-ghost btn-sm" onclick={() => togglePaid(s.code, String(c.id))}>{c.status === 'paid' ? 'סמן כלא שולם' : 'סמן כשולם'}</button>
+                              <button class="btn btn-danger btn-sm" onclick={() => voidSession(s.code, String(c.id))}>ביטול חיוב</button>
+                            {/if}
+                          </div></td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                  <div class="pay-actions">
+                    <button class="btn btn-outline" onclick={() => mark(s.code, 'paid')}>סימון הנבחרים כשולם</button>
+                    <button class="btn btn-outline" onclick={() => mark(s.code, 'owed')}>החזרת הנבחרים לחוב</button>
+                    <button class="btn btn-danger" onclick={() => mark(s.code, 'void')}>ביטול החיובים שנבחרו</button>
+                  </div>
+                {:else if chargesFor[s.code] && !ledgerError[s.code]}
+                  <p>אין רישומי תשלום עדיין.</p>
+                {/if}
+              </fieldset>
             </div>
 
             <!-- HOMEWORK -->
@@ -1327,7 +1415,7 @@
                 <div>
                   {#each ex.homework as hw (hw.id)}
                     <div class="hw-item">
-                      <div class="hw-check" class:done={hw.submitted} onclick={() => toggleHw(s.code, hw.id)} role="checkbox" aria-checked={hw.submitted} tabindex="0" onkeydown={(e) => e.key === 'Enter' && toggleHw(s.code, hw.id)}>{hw.submitted ? '✓' : ''}</div>
+                      <input class="hw-check" type="checkbox" aria-label="סימון הגשה: {hw.task}" checked={hw.submitted} onchange={() => toggleHw(s.code, hw.id)} />
                       <div class="hw-text">
                         <div class="hw-task" class:done-text={hw.submitted || hw.graded}><FormulaText text={hw.task} /></div>
                         <div class="hw-date">{formatDate(hw.date)}</div>
@@ -1358,7 +1446,7 @@
                   {/each}
                 </div>
               {:else}
-                <div class="empty">אין שיעורי בית עדיין</div>
+                <div class="empty">{!serverExtras[s.code] || activityError[s.code] ? 'פרטי שיעורי הבית אינם זמינים כרגע' : 'אין שיעורי בית עדיין'}</div>
               {/if}
             </div>
 
@@ -1392,20 +1480,26 @@
                     <option value="" selected={!s.style}>— לא נבחר —</option>
                     {#each STYLES as st}<option value={st} selected={s.style === st}>{st}</option>{/each}
                   </select>
+                  {@render profileFeedback(s.code, 'style')}
                 </div>
               </div>
               <div class="field-row single">
                 <div class="field"><label for="pf-goals-{s.code}">מטרות</label>
-                  <textarea id="pf-goals-{s.code}" onchange={(e) => onProfileFieldChange(s, 'goals', e.currentTarget)}>{s.goals || ''}</textarea></div>
+                  <textarea id="pf-goals-{s.code}" value={profileDrafts[s.code + ':goals'] ?? s.goals ?? ''}
+                  oninput={(e) => { profileDrafts[s.code + ':goals'] = e.currentTarget.value; }}
+                  onchange={(e) => onProfileFieldChange(s, 'goals', e.currentTarget)}></textarea>
+                {@render profileFeedback(s.code, 'goals')}
+</div>
               </div>
               <div class="field-row single">
                 <div class="field"><label for="pf-notes-{s.code}">הערות כלליות</label>
-                  <textarea id="pf-notes-{s.code}" onchange={(e) => onProfileFieldChange(s, 'notes', e.currentTarget)}>{s.notes || ''}</textarea></div>
+                  <textarea id="pf-notes-{s.code}" value={profileDrafts[s.code + ':notes'] ?? s.notes ?? ''}
+                  oninput={(e) => { profileDrafts[s.code + ':notes'] = e.currentTarget.value; }}
+                  onchange={(e) => onProfileFieldChange(s, 'notes', e.currentTarget)}></textarea>
+                {@render profileFeedback(s.code, 'notes')}
+</div>
               </div>
-              <div style="display:flex;align-items:center;gap:10px">
-                <span class="save-indicator" class:show={profileSaved[s.code]}>✓ נשמר</span>
-                {#if profileError[s.code]}<div class="field-error">{profileError[s.code]}</div>{/if}
-              </div>
+
             </div>
           </div>
         </div>
@@ -1515,43 +1609,6 @@
 
   <div class="sec-header" style="margin-top:2.2rem">
     <div>
-      <div class="sec-label2">גבייה</div>
-      <h2 class="sec-h2">תשלומים</h2>
-    </div>
-  </div>
-  <div class="panel">
-    {#each realStudents as rs (rs.code)}
-      <div class="pay-row">
-        <button class="copy-btn" onclick={() => loadCharges(rs.code)}>
-          {rs.name} — {chargesFor[rs.code] ? 'רענון' : 'הצגת חיובים'}
-        </button>
-        {#if chargesFor[rs.code]}
-          <table class="codes-table">
-            <thead><tr><th></th><th>תאריך</th><th>שיעור</th><th>סכום</th><th>סטטוס</th></tr></thead>
-            <tbody>
-              {#each chargesFor[rs.code] as c (c.id)}
-                <tr>
-                  <td><input type="checkbox" checked={picked.has(c.id)} onchange={() => toggle(c.id)} /></td>
-                  <td>{c.date}</td>
-                  <td>{KIND_LABEL[c.kind] ?? c.kind}</td>
-                  <td>{formatAgorot(c.amount_agorot)}</td>
-                  <td>{STATUS_LABEL[c.status] ?? c.status}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-          <div class="pay-actions">
-            <button class="copy-btn" onclick={() => mark(rs.code, 'paid')}>סימון כשולם</button>
-            <button class="copy-btn" onclick={() => mark(rs.code, 'owed')}>החזרה לחוב</button>
-            <button class="copy-btn" onclick={() => mark(rs.code, 'void')}>ביטול חיוב</button>
-          </div>
-        {/if}
-      </div>
-    {/each}
-  </div>
-
-  <div class="sec-header" style="margin-top:2.2rem">
-    <div>
       <div class="sec-label2">שיעורי בית</div>
       <h2 class="sec-h2">מצב שיעורי בית 🎮</h2>
     </div>
@@ -1641,7 +1698,7 @@
     {/if}
   </div>
   {/if}
-</div>
+</main>
 
 <!-- toasts -->
 <div class="toast-stack">
@@ -1711,7 +1768,7 @@
   input[type='text'], input[type='email'], input[type='date'], input[type='time'], input[type='number'], textarea, select {
     background: var(--bg-surface); border: 1.5px solid var(--border-strong);
     color: var(--text-primary); border-radius: var(--r-sm); padding: 8px 12px;
-    font-size: 0.88rem; width: 100%; outline: none; transition: border-color 0.2s;
+    font-size: 16px; width: 100%; outline: none; transition: border-color 0.2s;
   }
   input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   #ns-email { min-width: 0; min-height: 44px; font-size: 1rem; }
@@ -1773,7 +1830,14 @@
   .page { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem 6rem; }
   .student-page-title { font-size: 1.5rem; margin: 0 0 1rem; }
   .workspace-tutors-title { font-size: 1.2rem; margin: 2rem 0 0.75rem; }
-  .roster-note { color: var(--text-muted-strong); font-size: 0.9rem; margin-bottom: 0.75rem; }
+  .operations-header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .operations-title { flex: 1 1 100%; font-size: 1.7rem; margin: 0; }
+  .operations { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 28px; margin-block: 28px; }
+  .operations h2 { font-size: 1.15rem; margin-bottom: 12px; }
+  .operation-list { list-style: none; padding: 0; margin: 0; }
+  .operation-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; border-bottom: 1px solid var(--border); padding-block: 10px; }
+  .operation-list a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; color: var(--accent); }
+  #student-roster { scroll-margin-top: 80px; }
   .roster-table-wrap { border: 1px solid var(--border); border-radius: var(--r-sm); overflow-x: auto; }
   .roster-table { width: 100%; border-collapse: collapse; background: var(--bg-card); }
   .roster-table th { text-align: start; font-size: 0.85rem; color: var(--text-muted-strong); background: var(--bg-surface); }
@@ -1842,16 +1906,7 @@
   .field-hint { margin: 4px 0 0; font-size: .85rem; line-height: 1.5; color: var(--text-muted-strong); }
 
   /* ── Stats bar ── */
-  .stats-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; background: var(--border); margin-bottom: 1.5rem; }
-  .stat-card { min-width: 0; background: var(--bg-card); padding: 12px 14px; }
-  .stat-card .s-label { font-size: .85rem; font-weight: 700; color: var(--text-muted-strong); margin-bottom: 2px; }
-  .stat-card .s-value { font-size: 1.45rem; font-weight: 800; color: var(--text-primary); overflow-wrap: anywhere; }
-  .stat-card .s-value.gold  { color: var(--accent); }
-  .stat-card .s-value.green { color: var(--accent3-strong); }
-  .stat-card .s-value.red   { color: var(--danger); }
-  .stat-card .s-sub { font-size: .8rem; line-height: 1.4; color: var(--text-muted-strong); margin-top: 2px; }
 
-  @media (min-width: 1000px) { .stats-bar { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
   /* ── Section header ── */
   .sec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
@@ -1891,7 +1946,7 @@
   .lsn-hw { font-size: .78rem; color: var(--text-muted); margin-top: 8px; }
 
   /* ── Students grid ── */
-  .students-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); gap: 20px; }
+  .students-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 
   .student-card { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-lg); overflow: hidden; box-shadow: 0 2px 16px var(--shadow); transition: border-color .2s, box-shadow .2s; }
   .student-card:hover { border-color: var(--accent-soft); box-shadow: 0 4px 24px var(--accent-glow); }
@@ -1908,18 +1963,25 @@
   .badge-warn  { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.28); color: var(--danger); }
 
   /* Tabs */
-  .sc-tabs { display: flex; border-bottom: 1px solid var(--border-strong); padding: 0 24px; gap: 0; overflow-x: auto; scrollbar-width: none; }
+  .sc-tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border-strong); padding: 8px 16px; gap: 4px; }
   /* Five tabs are wider than a 360px phone: the row scrolls rather than
      pushing the page sideways. */
   @media (max-width: 480px) { .sc-tabs { padding: 0 8px; } .sc-tab { padding: 10px 11px; } }
-  .sc-tab { font-size: .82rem; font-weight: 700; color: var(--text-muted); padding: 10px 16px; cursor: pointer; border-bottom: 2px solid transparent; transition: color .2s, border-color .2s; white-space: nowrap; }
+  .sc-tab { background: none; border: 0; border-bottom: 2px solid transparent; min-height: 44px; font: inherit; font-size: .9rem; font-weight: 700; color: var(--text-muted-strong); padding: 8px 12px; cursor: pointer; }
   .sc-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
   .sc-tab:hover:not(.active) { color: var(--text-primary); }
 
   .sc-panel { display: none; padding: 20px 24px; }
   .sc-panel.active { display: block; }
+  :is(button, a, input, select, textarea):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .sc-panel { min-width: 0; }
+  .sc-panel button { min-height: 44px; }
+  @media (max-width: 600px) { .sc-panel { padding: 16px 12px; } .field-row, .field-row.three { grid-template-columns: minmax(0, 1fr); } .sc-header { flex-wrap: wrap; } }
 
   /* Fields */
+  .activity-notice { margin: 16px 24px; color: var(--text-muted-strong); }
+  .profile-feedback { font-size: .875rem; min-height: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .profile-feedback button { min-height: 44px; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
   .field-row.single { grid-template-columns: 1fr; }
   .field-row.three  { grid-template-columns: 1fr 1fr 1fr; }
@@ -1927,13 +1989,22 @@
   .field label, .field-label { font-size: .72rem; font-weight: 700; color: var(--text-muted); letter-spacing: .05em; text-transform: uppercase; }
 
   /* Payments table */
+  .ledger { border: 0; padding: 0; margin: 0; min-width: 0; }
+  .ledger-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .charge-check { width: 44px; height: 44px; accent-color: var(--accent); }
+  .payment-summary { flex-wrap: wrap; }
+  @media (max-width: 700px) {
+    .payments-table, .payments-table tbody, .payments-table tr, .payments-table td { display: block; width: 100%; }
+    .payments-table thead { display: none; }
+    .payments-table tr { border-bottom: 1px solid var(--border); padding-block: 12px; }
+    .payments-table td { border: 0; padding: 4px 0; overflow-wrap: anywhere; }
+    .payments-table td::before { content: attr(data-label); font-weight: 700; margin-inline-end: 12px; }
+  }
   .payments-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
   .payments-table th { text-align: right; padding: 8px 10px; color: var(--accent); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1.5px solid var(--border-strong); background: var(--accent-dim); }
   .payments-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-strong); color: var(--text-primary); }
   .payments-table tr:last-child td { border-bottom: none; }
   .payments-table tr:hover td { background: var(--accent-dim); }
-  .paid-badge   { color: var(--accent3-strong); font-weight: 700; font-size: .8rem; }
-  .unpaid-badge { color: var(--danger);   font-weight: 700; font-size: .8rem; }
 
   .payment-summary { display: flex; gap: 20px; margin-bottom: 14px; padding: 12px 16px; background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.22); border-radius: var(--r-md); }
   .ps-item { text-align: center; }
@@ -1949,8 +2020,7 @@
   /* Homework */
   .hw-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-strong); }
   .hw-item:last-child { border-bottom: none; }
-  .hw-check { width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0; border: 1.5px solid var(--border-strong); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s, border-color .2s; margin-top: 2px; }
-  .hw-check.done { background: var(--accent3-strong); border-color: var(--accent3-strong); color: #fff; font-size: .8rem; }
+  .hw-check { width: 44px; height: 44px; flex: 0 0 44px; margin: 0; accent-color: var(--accent3-strong); cursor: pointer; }
   .hw-text { flex: 1; }
   .hw-task { font-size: .9rem; color: var(--text-primary); }
   .hw-task.done-text { text-decoration: line-through; color: var(--text-muted); }
@@ -1959,7 +2029,7 @@
   .hw-key-text { white-space: pre-wrap; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
   .hw-date { font-size: .75rem; color: var(--text-muted); margin-top: 2px; }
   .hw-grade { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .hw-grade-btn { min-height: 36px; }
+  .hw-grade-btn { min-height: 44px; }
   .hw-graded { font-size: .8rem; color: var(--accent3-strong); margin-top: 4px; font-weight: 600; }
   .link-btn { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
   .hw-held { font-size: .75rem; color: var(--accent); margin-top: 2px; font-weight: 600; }
@@ -2031,9 +2101,6 @@
   .plan-link { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }
 
   /* Payments panel */
-  .panel { background: var(--bg-card); border: 1.5px solid var(--border-strong); border-radius: 18px; padding: 16px; overflow-x: auto; }
-  .pay-row { padding: 10px 4px; border-bottom: 1px solid var(--border-strong); }
-  .pay-row:last-child { border-bottom: none; }
   .pay-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
   @media (max-width: 600px) {
@@ -2049,7 +2116,6 @@
     .nav-actions > .btn { justify-content: center; padding: 8px; white-space: nowrap; }
     .nav-menu summary { padding: 8px; }
     .menu-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    .stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .roster-table th, .roster-table td { padding: 10px 8px; }
     /* "✓ נשמר" is a transient flash, not a control; it must not claim a
        grid cell. Park it at the top-left corner of the bar instead. */
@@ -2076,6 +2142,6 @@
     .codes-table td { padding: 4px 0; }
     .students-grid { grid-template-columns: 1fr; }
     .field-row { grid-template-columns: 1fr; }
-    .field-row.three { grid-template-columns: 1fr 1fr; }
+    .field-row.three { grid-template-columns: 1fr; }
   }
 </style>

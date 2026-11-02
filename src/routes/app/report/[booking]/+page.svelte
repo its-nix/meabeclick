@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import { safeTutorReturn } from '$lib/tutor-return.ts';
   /**
    * The end-of-lesson report form: one lesson, filed once and correctable
    * afterwards.
@@ -16,6 +18,8 @@
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
+  const returnTo = $derived(safeTutorReturn(page.url.searchParams.get('returnTo'), page.url.origin,
+    '/app/students/' + encodeURIComponent(data.student.code)));
 
   // Local mirror of the shape +page.server.ts hands us — same convention
   // the plan page uses, rather than importing across the server/client
@@ -149,7 +153,7 @@
       const query = data.subject
         ? `?subject=${encodeURIComponent(data.subject)}&filter=changed`
         : '?filter=changed';
-      goto(`/app/plan/${data.student.code}${query}`);
+      goto(`/app/plan/${data.student.code}${query}&returnTo=${encodeURIComponent(returnTo)}`);
     } catch (err) {
       // Saving is never optimistic: a failure leaves the form exactly as
       // the tutor left it and shows the server's own message.
@@ -165,7 +169,10 @@
 </svelte:head>
 
 <main class="page">
-  <a class="back" href="/app/dashboard">← לוח בקרה</a>
+  <nav class="return-nav" aria-label="חזרה לסביבת העבודה">
+  <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
+  <a class="back overview-link" href="/app/dashboard">סקירה תפעולית</a>
+  </nav>
 
   <h1 class="title">
     דיווח שיעור · {data.student.name}{data.subject ? ` · ${data.subject}` : ''}
@@ -392,7 +399,7 @@
 
   select {
     min-height: 44px; flex-shrink: 0; border: 1.5px solid var(--border-strong); border-radius: 10px;
-    padding: 6px 8px; font-family: inherit; font-size: .84rem; color: var(--text-primary);
+    padding: 6px 8px; font-family: inherit; font-size: 16px; color: var(--text-primary);
     background: var(--bg-card);
   }
   select:disabled { opacity: .55; }
@@ -404,7 +411,7 @@
   }
   .search-input {
     width: 100%; min-height: 44px; border: 1.5px solid var(--border-strong); border-radius: 10px;
-    padding: 8px 10px; font-family: inherit; font-size: .9rem; color: var(--text-primary);
+    padding: 8px 10px; font-family: inherit; font-size: 16px; color: var(--text-primary);
     background: var(--bg-card); margin-bottom: 8px;
   }
 
@@ -412,7 +419,7 @@
   .field span { font-size: .78rem; font-weight: 700; color: var(--text-muted); }
   .field textarea {
     min-height: 88px; border: 1.5px solid var(--border-strong); border-radius: 10px;
-    padding: 8px 10px; font-family: inherit; font-size: .9rem; color: var(--text-primary);
+    padding: 8px 10px; font-family: inherit; font-size: 16px; color: var(--text-primary);
     background: var(--bg-card); resize: vertical;
   }
 
@@ -422,4 +429,5 @@
     font-size: .95rem; cursor: pointer;
   }
   .submit-btn:disabled { opacity: .5; cursor: default; }
+  .return-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 8px; }
 </style>

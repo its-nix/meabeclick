@@ -287,6 +287,7 @@
       <!-- Center: Dashboard static preview -->
         <div class="hero-dashboard-mini">
           <div class="hero-preview-title">פורטל הורים</div>
+          <p class="demo-label">המחשה בלבד, לא נתוני תלמידים אמיתיים</p>
           <div class="dash-preview">
             <!-- Student header -->
             <div class="dp-header">

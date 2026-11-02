@@ -28,7 +28,9 @@ test('the all-track table is tutor-only, private and retains per-template materi
     assert.match(html, /<table/);
     for (const id of ['library-search', 'library-template', 'library-topic', 'library-status']) assert.match(html, new RegExp(`id="${id}"`));
     assert.doesNotMatch(html, /<nav class="templates/);
-    assert.match(html, /הכנה מחדש:.*כיתה ח/);
+    assert.ok((html.match(/<th scope="row"/g) ?? []).length <= 25, 'the initial catalog page is bounded');
+    const failed = await (await fetch(`${s.baseUrl}/app/library?template=math-8&status=failed`, { headers })).text();
+    assert.match(failed, /הכנה מחדש:.*כיתה ח/, 'filtering finds the correct preparation action outside the initial page');
     const selected = await (await fetch(`${s.baseUrl}/app/library?template=math-8`, { headers })).text();
     const body = selected.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/)?.[1];
     assert.ok(body);

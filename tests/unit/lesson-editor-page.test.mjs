@@ -13,6 +13,23 @@ const page = read('src/routes/app/lessons/[slug]/edit/+page.svelte');
 const server = read('src/routes/app/lessons/[slug]/edit/+page.server.ts');
 const { formatDateTime } = await import('../../src/lib/dates.ts');
 
+test('lesson actions stay reachable before the independently collapsible sections', () => {
+  assert.ok(page.indexOf('class="editor-actions"') < page.indexOf('<h2>שקפים</h2>'));
+  assert.match(page, /\.editor-actions \{[^}]*position: sticky/);
+  assert.ok((page.match(/<details class="editor-section"/g) ?? []).length >= 8);
+  assert.match(page, /dirty \? 'יש שינויים שלא נשמרו'/);
+  assert.match(page, /href=\{returnTo\}/);
+  assert.match(page, /class="return-nav"/);
+});
+
+test('switching a local game protects the dirty draft before replacing any fields', () => {
+  const change = page.slice(page.indexOf('function editGame('), page.indexOf('async function gameRequest'));
+  assert.ok(change.indexOf('gameDirty && !confirm(') >= 0);
+  assert.ok(change.indexOf('gameDirty && !confirm(') < change.indexOf('game = item'));
+  assert.match(change, /gameBusy.*return/);
+  assert.match(change, /searchParams.set\('game'/);
+});
+
 test('tutor only', () => {
   assert.match(server, /requireAuth\(event\)/);
   assert.match(server, /error\(404/);

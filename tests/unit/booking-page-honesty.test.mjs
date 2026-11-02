@@ -29,6 +29,12 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const page = readFileSync(join(ROOT, 'src/routes/booking/+page.svelte'), 'utf8');
 
+test('the booking sheet explains the next step without promising a human final approval', () => {
+  assert.doesNotMatch(page, /ונחזור אליכם לאישור סופי/);
+  assert.match(page, /אם יידרש אישור בדוא״ל/);
+  assert.match(page, /יוצג מצב ההזמנה והשלב הבא/);
+});
+
 test('the booking page carries no hardcoded availability table', () => {
   // Anchor on the data itself, not on the function name: renaming
   // generateLocalSlots would not make invented slots honest.

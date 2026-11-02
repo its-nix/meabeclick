@@ -56,6 +56,7 @@
   let hovered = $state(false);
   let dragging = $state(false);
   let focused = $state(false);
+  let paused = $state(false);
 
   const horizontal = $derived(axis === 'x');
 
@@ -128,6 +129,7 @@
 
     const autoAllowed = () =>
       !reduceMotion.matches &&
+      !paused &&
       !hovered &&
       !dragging &&
       !focused &&
@@ -247,6 +249,9 @@
     </div>
   </div>
 
+  <button class="ac-pause" type="button" aria-pressed={paused} onclick={() => (paused = !paused)}>
+    {paused ? 'חידוש תנועה' : 'השהיית תנועה'}
+  </button>
   <button class="ac-btn ac-prev" type="button" aria-label={horizontal ? 'הקודם' : 'למעלה'} onclick={() => step(-1)}>
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
       <path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -307,8 +312,8 @@
     position: absolute;
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     border: 1.5px solid var(--border-strong);
     border-radius: 50%;
@@ -332,7 +337,7 @@
 
   /* The vertical strips are small hero panels, so the arrows are smaller
      and tucked into the right edge instead of covering a card. */
-  .ac-y .ac-btn { width: 22px; height: 22px; right: 4px; }
+  .ac-y .ac-btn { width: 44px; height: 44px; right: 4px; }
   .ac-y .ac-btn svg { transform: rotate(90deg); width: 11px; height: 11px; }
   .ac-y .ac-prev { top: 4px; }
   .ac-y .ac-next { bottom: 4px; }
@@ -346,4 +351,6 @@
   @media (prefers-reduced-motion: reduce) {
     .ac-btn { transition: none; }
   }
+  .ac-pause { display: block; min-height: 44px; margin: 4px auto 0; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: .875rem; cursor: pointer; }
+  .ac-pause:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>

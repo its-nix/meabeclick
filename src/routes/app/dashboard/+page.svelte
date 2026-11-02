@@ -64,7 +64,7 @@
   import { SvelteSet } from 'svelte/reactivity';
   import { toHref } from '$lib/urls.ts';
   import { formatAgorot } from '$lib/plans.ts';
-  import { idsForPanel } from '$lib/payments-selection.ts';
+  import { idsForPanel, dueAgorot } from '$lib/payments-selection.ts';
   import { computeImportCandidates, buildImportPayload, type ImportCandidate } from '$lib/import-candidates.ts';
   import type { PageData } from './$types';
 
@@ -1120,6 +1120,16 @@
   </div>
   <ReportQueue lessons={pageData.pendingReports} />
   <div class="operations">
+    <section aria-labelledby="homework-review-title">
+      <h2 id="homework-review-title">עבודות ממתינות לבדיקה</h2>
+      <ul class="operation-list">
+        {#each realStudents.filter(s => extrasFor(s.code).homework.some(h => h.submitted && !h.graded)) as s (s.code)}
+          <li><a href="/app/students/{s.code}?tab=homework">{s.name}</a><span>{extrasFor(s.code).homework.filter(h => h.submitted && !h.graded).length} ממתינות לבדיקה</span></li>
+        {:else}
+          <li>{Object.keys(serverExtras).length === realStudents.length ? 'אין עבודות שממתינות לבדיקה בנתונים שנטענו' : 'ממתינים לפרטי העבודות'}</li>
+        {/each}
+      </ul>
+    </section>
     <section aria-labelledby="upcoming-title">
       <h2 id="upcoming-title">השיעורים הקרובים</h2>
       {#if Object.keys(serverExtras).length < realStudents.length}
@@ -1139,8 +1149,8 @@
       {#if balanceError}<p role="status">{balanceError} <button class="link-btn" onclick={loadAllBalance}>ניסיון נוסף</button></p>{/if}
       <p>{allBalance ? formatAgorot(allBalance.dueAgorot) + ' לגבייה' : 'היתרה הכוללת טרם נטענה'}</p>
       <ul class="operation-list">
-        {#each realStudents.filter(s => serverExtras[s.code] && studentTotals(s.code).balance > 0) as s (s.code)}
-          <li><a href="/app/students/{s.code}?tab=payments">{s.name}</a><span>₪{studentTotals(s.code).balance} לתשלום</span></li>
+        {#each realStudents.filter(s => chargesFor[s.code] && dueAgorot(chargesFor[s.code], israelToday()) > 0) as s (s.code)}
+          <li><a href="/app/students/{s.code}?tab=payments">{s.name}</a><span>{formatAgorot(dueAgorot(chargesFor[s.code], israelToday()))} לתשלום עכשיו</span></li>
         {:else}
           <li>{Object.keys(serverExtras).length === realStudents.length ? 'אין יתרות פתוחות בנתונים שנטענו' : 'ממתינים לפרטי התשלומים'}</li>
         {/each}

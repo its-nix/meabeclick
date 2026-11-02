@@ -308,8 +308,10 @@
 <svelte:window {onbeforeunload} />
 
 <main class="wrap">
+  <nav class="return-nav" aria-label="חזרה לסביבת העבודה">
   <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
   <a class="back" href="/app/dashboard">סקירה תפעולית</a>
+  </nav>
   <h1>עריכת שיעור</h1>
   <p class="meta">{data.lesson.student} · {data.lesson.subject ?? ''} {data.lesson.level ?? ''}</p>
   {#if data.seedVersion !== null}
@@ -705,4 +707,5 @@
   :is(input, textarea, button, summary, a):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
   :is(input, textarea, button, summary, h2) { scroll-margin-top: 220px; }
   @media (max-width: 480px) { .editor-actions { font-size: .875rem; } .editor-actions button { padding-inline: 10px; } }
+  .return-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 8px; }
 </style>

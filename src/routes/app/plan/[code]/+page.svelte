@@ -372,8 +372,10 @@
 </svelte:head>
 
 <main class="page">
+  <nav class="return-nav" aria-label="חזרה לסביבת העבודה">
   <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
   <a class="back overview-link" href="/app/dashboard">סקירה תפעולית</a>
+  </nav>
 
   <h1 class="student-name">{data.student.name}</h1>
 
@@ -557,4 +559,5 @@
   }
   .create-card h2 { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
   .create-card .empty { font-size: .88rem; color: var(--text-muted); }
+  .return-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 8px; }
 </style>

@@ -19,6 +19,7 @@ test('lesson actions stay reachable before the independently collapsible section
   assert.ok((page.match(/<details class="editor-section"/g) ?? []).length >= 8);
   assert.match(page, /dirty \? 'יש שינויים שלא נשמרו'/);
   assert.match(page, /href=\{returnTo\}/);
+  assert.match(page, /class="return-nav"/);
 });
 
 test('switching a local game protects the dirty draft before replacing any fields', () => {

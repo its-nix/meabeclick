@@ -28,6 +28,7 @@ test('plan and report recovery preserve the learner instead of forcing the overv
     const page = readFileSync(path, 'utf8');
     assert.match(page, /safeTutorReturn/);
     assert.match(page, /href=\{returnTo\}/);
+    assert.match(page, /class="return-nav"/);
     assert.match(page, /'\/app\/students\/' \+ encodeURIComponent\(data.student.code\)/);
   }
   const report = readFileSync('src/routes/app/report/[booking]/+page.svelte', 'utf8');

@@ -169,8 +169,10 @@
 </svelte:head>
 
 <main class="page">
+  <nav class="return-nav" aria-label="חזרה לסביבת העבודה">
   <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
   <a class="back overview-link" href="/app/dashboard">סקירה תפעולית</a>
+  </nav>
 
   <h1 class="title">
     דיווח שיעור · {data.student.name}{data.subject ? ` · ${data.subject}` : ''}
@@ -427,4 +429,5 @@
     font-size: .95rem; cursor: pointer;
   }
   .submit-btn:disabled { opacity: .5; cursor: default; }
+  .return-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 8px; }
 </style>

@@ -70,6 +70,7 @@ ${body}
 }
 
 const A_PLAN = {
+  learning: (await import('../../src/lib/learning/parabolas.ts')).PARABOLAS,
   title: 'שברים', gradeContext: 'כיתה ז',
   slides: [{ heading: 'מה זה שבר', bullets: ['חלק מתוך שלם'] }],
   examples: [{ problem: '1/2 + 1/4', steps: ['מכנה משותף'], answer: '3/4' }],

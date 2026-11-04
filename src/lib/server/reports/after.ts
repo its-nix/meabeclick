@@ -23,6 +23,7 @@ import { generateTaughtHomework, type TaughtSkill, type TaughtTask } from '../le
 import { libraryPlanFor } from '../library/use.ts';
 import { attachTaughtGames } from '../library/report-games.ts';
 import { bookingForReport } from './store.ts';
+import { releaseLearningForReport } from '../learning-store.ts';
 
 export type AfterReportOutcome = 'none' | 'released' | 'replaced' | 'replaced-from-library' | 'released-after-failure';
 
@@ -80,6 +81,16 @@ export async function afterReport(
   const { generate = generateTaughtHomework, notify, now = new Date().toISOString() } = deps;
 
   await gamesForWhatWasTaught(input.bookingId, input.nodeIds);
+
+  const learningBooking = bookingForReport(input.bookingId);
+  const learningPlan = learningBooking?.enrollment_id ? planForEnrollment(learningBooking.enrollment_id) : null;
+  const taught = learningPlan ? [...new Set(input.nodeIds)].flatMap(id => {
+    const node = nodeInPlan(learningPlan.id,id);
+    if (node?.kind !== 'skill') return [];
+    const experience = libraryPlanFor(learningPlan.template_id,node.key)?.plan.learning;
+    return experience ? [{nodeId:id,experience}] : [];
+  }) : [];
+  releaseLearningForReport(input.bookingId,input.nodeIds,taught,now);
 
   if (!heldHomeworkForBooking(input.bookingId, now).length) return 'none';
   if (!input.nodeIds.length) {

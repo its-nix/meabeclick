@@ -19,6 +19,7 @@ const { lessonEngine } = await import('../../src/lib/server/lesson/engine.ts');
 const { generateLesson, extractJsonObject } = await import('../../src/lib/server/lesson/prep.ts');
 
 const A_PLAN = {
+  learning: (await import('../../src/lib/learning/parabolas.ts')).PARABOLAS,
   title: 'פונקציה לינארית', gradeContext: '4 יח"ל',
   slides: [{ heading: 'שיפוע', bullets: ['y = mx + b'] }],
   examples: [{ problem: 'y = 2x + 1', steps: ['m = 2'], answer: 'שיפוע 2' }],

@@ -43,6 +43,7 @@ import { planFor } from '$lib/plans.ts';
 import { homeworkForStudent } from '$server/lessons.ts';
 import { progressFor } from '$server/progress.ts';
 import { lessonGamesForStudent } from '$server/lesson-games.ts';
+import { learningForStudent } from '$server/learning-store.ts';
 import type { RequestHandler } from './$types';
 
 const CODE_FORMAT = /^[a-z0-9-]+$/;
@@ -219,6 +220,8 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
        always had been, so a child with a lesson, homework and three games
        was told they were at zero. See progress.ts for what replaces it. */
     data.progress = progressFor(code);
+    data.learning = student ? learningForStudent(student.id) : [];
+    data.learningPreparation = student ? learningForStudent(student.id,'preparation') : [];
 
     /* Lessons in the one shape both family pages read: slides linked, the
        tutor's note hidden, and "coming" apart from "happened". */

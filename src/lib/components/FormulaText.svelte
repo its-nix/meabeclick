@@ -4,15 +4,17 @@
    * isolated left to right — see $lib/bidi.ts. For LaTeX-delimited answers
    * use $lib/math/MathText.svelte instead.
    */
-  import { formulaRuns } from '$lib/bidi.ts';
+  import { mathText } from '$lib/learning/math.ts';
+  import 'katex/dist/katex.min.css';
   let { text }: { text: string } = $props();
-  const runs = $derived(formulaRuns(text));
+  const markup = $derived(mathText(text));
 </script>
 
-{#each runs as r}{#if r.ltr}<bdi dir="ltr">{r.text}</bdi>{:else}{r.text}{/if}{/each}
+<span class="formula-text">{@html markup}</span>
 
 <style>
   /* One formula, one line: "-2(x" at the end of a line and "+ 5)" at the
      start of the next reads as two things. Formulas here are short. */
-  bdi { white-space: nowrap; }
+  .formula-text :global(bdi) { white-space: nowrap; }
+  .formula-text :global(.learning-math) { display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: middle; direction: ltr; unicode-bidi: isolate; }
 </style>

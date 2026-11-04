@@ -48,6 +48,11 @@
 
 ## הרצה מקומית
 
+מרחב למידה אינטראקטיבי: דוגמה ציבורית ב־`/learn/parabolas`, הסברים מונפשים,
+נוסחאות, גרפים ותרגול עם רמזים. שיעורים חדשים יוצרים אותו אוטומטית;
+התלמיד/ה מגיע/ה אליו מאזור שיעורי הבית. עריכה למורה, יצוא וידאו ובדיקות:
+[`docs/quality/interactive-learning.md`](docs/quality/interactive-learning.md).
+
 ```bash
 npm install
 ADMIN_PASSWORD=... SESSION_SECRET=... npm run dev

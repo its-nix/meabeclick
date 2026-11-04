@@ -61,6 +61,8 @@
     lastPlayedAt?: string | null; [k: string]: unknown;
   }
   interface StudentData {
+    learning?: Array<{ slug: string; title: string; url: string; solved: number; total: number }>;
+    learningPreparation?: Array<{ slug: string; title: string; url: string; solved: number; total: number }>;
     name: string; emoji?: string; subject?: string; level?: string; tutor?: string; tutorPhone?: string;
     nextLesson?: { date?: string; time?: string; type?: string } | null;
     /* Computed by the server (see src/lib/server/progress.ts), not a
@@ -185,7 +187,8 @@
   });
 
   /** Still open means not handed in. A graded task is finished either way. */
-  const hwOpen = $derived((DATA?.homework ?? []).filter(h => !h.submitted && !h.graded).length);
+  const hwOpen = $derived((DATA?.homework ?? []).filter(h => !h.submitted && !h.graded).length
+    + (DATA?.learning ?? []).filter(l => l.solved < l.total).length);
   // Game links have no reliable task-level completion evidence here.
   const writtenHomework = $derived((DATA?.homework ?? []).filter(h => !h.url));
   const writtenSubmitted = $derived(writtenHomework.filter(h => h.submitted || h.graded).length);
@@ -363,6 +366,7 @@
    *  celebration emoji aimed at a child who had just enrolled. */
   const isDayOne = $derived(!!DATA
     && !(DATA.homework ?? []).length
+    && !(DATA.learning ?? []).length
     && !(DATA.lessons ?? []).filter(l => !l.upcoming).length
     && !(DATA.games ?? []).length);
   const gameGroups = $derived.by(() => {
@@ -469,8 +473,27 @@
         {/if}
       {/if}
 
+      {#if activeView === 'home'}
+        {#each DATA.learningPreparation ?? [] as lesson}
+          <article class="card">
+            <div class="card-meta">לקראת השיעור · מגלים בקצב שלכם</div>
+            <div class="card-title">{lesson.title}</div>
+            <p class="card-body">ניסוי קטן ושאלות שיעזרו לגלות יחד מה כבר ברור ומה כדאי לתרגל בשיעור.</p>
+            <a class="play" href={lesson.url}>מגלים לפני השיעור <span aria-hidden="true">←</span></a>
+          </article>
+        {/each}
+      {/if}
+
       {#if activeView === 'hw'}
         <h1 class="view-title">שיעורי הבית שלי</h1>
+        {#each DATA.learning ?? [] as lesson}
+          <article class="card">
+            <div class="card-title">{lesson.title}</div>
+            <p class="card-body">הסברים בתנועה, ניסויים קטנים ואתגרים בקצב שלכם.</p>
+            <p class="card-meta">{lesson.solved} מתוך {lesson.total} אתגרים נפתרו</p>
+            <a class="play" href={lesson.url}>ממשיכים לתרגל <span aria-hidden="true">←</span></a>
+          </article>
+        {/each}
         <div class="card" dir="rtl">
           <p class="progress-words" role="status" aria-atomic="true">
             {writtenSubmitted} מתוך {writtenHomework.length} מטלות בכתב הוגשו או נבדקו
@@ -503,7 +526,7 @@
                «מוצגת להורים בלבד»), not shown to the child. -->
         </div>
         {/if}
-        {#if !(DATA.homework ?? []).length}
+        {#if !(DATA.homework ?? []).length && !(DATA.learning ?? []).length}
           <div class="msg-empty">
             {isDayOne
               ? 'עוד אין שיעורי בית — הם יופיעו כאן אחרי השיעור הראשון.'

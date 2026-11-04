@@ -313,6 +313,9 @@
   <a class="back" href="/app/dashboard">סקירה תפעולית</a>
   </nav>
   <h1>עריכת שיעור</h1>
+  {#if data.hasLearning}
+    <p class="state">לשיעור הזה יש הסברים מונפשים ותרגול אינטראקטיבי. <a href="/app/lessons/{data.slug}/experience">עריכת מרחב הלמידה והתשובות ←</a></p>
+  {/if}
   <p class="meta">{data.lesson.student} · {data.lesson.subject ?? ''} {data.lesson.level ?? ''}</p>
   {#if data.seedVersion !== null}
     <div class="editor-actions">
@@ -419,9 +422,9 @@
       <p class="state">יש טיוטה שעוד לא פורסמה. התלמיד/ה רואה את הגרסה האחרונה שפורסמה.</p>
     {/if}
 
-    <label class="field">כותרת השיעור<input dir="auto" bind:value={title} /></label>
+    <label class="field">{data.hasLearning ? 'כותרת חומרי הגיבוי' : 'כותרת השיעור'}<input dir="auto" bind:value={title} /></label>
 
-    <details class="editor-section"><summary><h2>שקפים</h2></summary>
+    <details class="editor-section"><summary>{#if data.hasLearning}<h2>שקפי הגיבוי</h2>{:else}<h2>שקפים</h2>{/if}</summary>
     {#each slides as s, i (i)}
       <fieldset class="card">
         <legend>שקף {i + 1}</legend>

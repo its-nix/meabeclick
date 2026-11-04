@@ -43,6 +43,7 @@ export const load: PageServerLoad = async (event) => {
 
   return {
     slug,
+    hasLearning: !!base?.plan.learning,
     /* A master's check questions and homework are editable too: no child
        has played it, and the next booking copies what is published. */
     isMaster: isLibrarySlug(slug),

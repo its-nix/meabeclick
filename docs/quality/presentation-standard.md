@@ -1,5 +1,10 @@
 # Quality standard: automatically generated teaching decks
 
+**Current implementation:** new generations use the scene-based contract in
+[`interactive-learning.md`](interactive-learning.md). The bullet-template
+measurements and decisions below describe the earlier renderer, retained for
+historical evidence and compatibility with existing lessons.
+
 Todoist `id:6hRhM62pGwM7RMCq`. Evidence: the same 12 generations described
 in `game-standard.md`, graded against `lesson-generation-rubric.md`.
 

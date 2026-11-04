@@ -1,5 +1,7 @@
 .vercel
 node_modules/
+/static/learning-assets/
+/learning-video/
 .DS_Store
 /drafts/
 /lessons/

@@ -32,6 +32,8 @@ import { sql as sql031 } from './031_game_filler.ts';
 import { sql as sql032 } from './032_access_credentials.ts';
 import { sql as sql033 } from './033_lesson_games.ts';
 import { sql as sql034 } from './034_family_acquisition_source.ts';
+import { sql as sql035 } from './035_learning_experiences.ts';
+import { sql as sql036 } from './036_learning_release.ts';
 
 export interface Migration {
   version: number;
@@ -84,4 +86,6 @@ export const MIGRATIONS: Migration[] = [
   { version: 32, name: '032_access_credentials', sql: sql032 },
   { version: 33, name: '033_lesson_games', sql: sql033 },
   { version: 34, name: '034_family_acquisition_source', sql: sql034 },
+  { version: 35, name: '035_learning_experiences', sql: sql035 },
+  { version: 36, name: '036_learning_release', sql: sql036 },
 ];

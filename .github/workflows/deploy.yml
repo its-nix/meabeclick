@@ -72,6 +72,14 @@ jobs:
       - name: Type-check
         run: node scripts/check-warnings.mjs
 
+      # The learning runtime is serialized into standalone HTML. Only a real
+      # browser exercises that runtime, offline recovery and the print view.
+      - name: Install learning test browser
+        run: npx --no-install playwright-core install --with-deps chromium
+
+      - name: Check interactive learning in Chromium
+        run: npm run test:learning:browser
+
       - name: Compute lowercase image name
         id: image
         run: echo "name=${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"

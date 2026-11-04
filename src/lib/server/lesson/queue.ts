@@ -25,6 +25,7 @@ import { getStudentByCode } from '../entities.ts';
 import { addHomework } from '../lessons.ts';
 import { targetSkillFor, linkGameToSkill, type TargetSkill } from './targeting.ts';
 import { recordGenerated } from '../materials.ts';
+import { assignLearning } from '../learning-store.ts';
 import { portalDir } from '../paths.ts';
 import { contentPath } from '../content.ts';
 import { assertPathSegment } from '../urls.ts';
@@ -435,6 +436,7 @@ export async function appendToPortal(
   const path = join(portalDir(), `${student.code}.json`);
   let data: any;
   try { data = JSON.parse(await readFile(path, 'utf8')); } catch { return false; }
+  if (plan.learning) assignLearning(published.slug, student.id, {...hold,nodeId:target?.id ?? null});
 
   data.games = [...published.games, ...(data.games ?? [])].slice(0, 20);
 

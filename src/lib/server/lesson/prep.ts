@@ -35,6 +35,9 @@ import { newFence, sanitizeField } from './prompt.ts';
 /* One source for the palette a deck writes into its own document — see
    $lib/brand.ts for why a hand-copy that agrees today is still a copy. */
 import { deckRootCss, DECK_FONT } from '../../brand.ts';
+import type { LearningExperience } from '../../learning/model.ts';
+import { LEARNING_SCHEMA, LEARNING_INSTRUCTIONS } from '../../learning/schema.ts';
+import { experienceProblems, renderLearningDocument } from '../learning-render.ts';
 
 /** Long, because a whole lesson is minutes of work. /api/ask sets its own,
  *  far shorter budget — see src/lib/server/lesson/spawn.ts. */
@@ -180,6 +183,8 @@ export interface LessonPlan {
   examples: WorkedExample[];
   homework: HomeworkItem[];
   games: GamesMap;
+  /** Absent only on lessons generated before the interactive scene contract. */
+  learning?: LearningExperience;
 }
 
 export interface LessonRequest {
@@ -227,8 +232,9 @@ export interface LessonRequest {
 const LESSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['title', 'gradeContext', 'slides', 'examples', 'homework', 'games'],
+  required: ['title', 'gradeContext', 'slides', 'examples', 'homework', 'games', 'learning'],
   properties: {
+    learning: LEARNING_SCHEMA,
     title:        { type: 'string' },
     // Stated explicitly so the tutor can check curriculum fit at a glance
     // rather than reading the whole deck.
@@ -509,6 +515,7 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
     ...gameSelectionLines(),
     '',
     'הנחיות לנתונים של כל משחק:',
+    ...LEARNING_INSTRUCTIONS,
     '- בחידון, ב-twoTruths, ב-errorHunt, ב-graphMatch וב-numberLine: לכל שאלה או סבב יש hint.',
     '  hint הוא רמז שמכוון לדרך בלי לגלות את התשובה — שאלה מנחה או תזכורת לכלל, לא התשובה ולא האפשרות הנכונה.',
     '- memory: שינון מונחים ונוסחאות. לפחות 6 זוגות.',
@@ -653,6 +660,9 @@ async function generateOnce(req: LessonRequest): Promise<LessonPlan> {
           ? `${raw.slice(0, 1200)}\n…[${raw.length - 2600} chars omitted]…\n${raw.slice(-1400)}`
           : raw,
       );
+    }
+    if (!plan.learning) {
+      throw new LessonGenerationError('bad-output', 'lesson output omitted the interactive learning experience');
     }
     // validateLesson() is the real gate on shape; this cast only asserts
     // "a JSON object", which parsePlan has already established.
@@ -866,6 +876,7 @@ async function runAgent(prompt: string, cwd: string, planPath: string): Promise<
 
 /** Self-contained RTL deck, site palette, arrow-key navigation. */
 export function renderSlides(plan: LessonPlan, { subject, level, student }: { subject: string; level: string; student?: string }): string {
+  if (plan.learning && !experienceProblems(plan.learning).length) return renderLearningDocument(plan.learning);
   /* Text with formulas in it: each formula isolated left to right (bidi.ts),
      everything escaped. In this right-to-left document "8-(x+3)" was laid
      out as ")x+3(-8". */
@@ -1056,6 +1067,7 @@ export function toTemplateShape(key: string, data: unknown): unknown {
  *  failure modes that would break a template at play time. */
 export function validateLesson(plan: LessonPlan): string[] {
   const problems: string[] = [];
+  if (plan.learning !== undefined) problems.push(...experienceProblems(plan.learning));
   const need = (c: unknown, m: string) => { if (!c) problems.push(m); };
 
   need(plan.slides?.length >= 4,   'פחות מ-4 שקפים');

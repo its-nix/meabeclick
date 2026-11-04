@@ -5,8 +5,15 @@
 docs
 mea-beclick-kb
 marketing
-scripts
+# prebuild vendors the math renderer and fonts from installed packages.
+# Keep operational scripts excluded while making this build input available.
+scripts/*
+!scripts/vendor-learning.mjs
 node_modules
+.svelte-kit
+build
+learning-video
+static/learning-assets
 data
 # Runtime bind mounts, not build inputs. codex-home holds live Codex
 # credentials and is mode 700 owned by the container's uid — the user that

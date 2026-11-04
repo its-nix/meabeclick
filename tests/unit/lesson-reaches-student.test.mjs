@@ -34,6 +34,7 @@ process.env.PORTAL_DIR = join(dataDir, 'portal');
 await mkdir(process.env.PORTAL_DIR, { recursive: true });
 
 const A_PLAN = {
+  learning: (await import('../../src/lib/learning/parabolas.ts')).PARABOLAS,
   "title": "שברים",
   "gradeContext": "כיתה ז",
   "slides": [
@@ -279,17 +280,22 @@ test('booking-time homework is held for its lesson until a day after it ends', a
   const studentId = await seedStudent(code);
   const c = collector();
   const end = '2099-03-15T11:30:00+02:00';
+  const bookingId=Number(DB.handle().prepare(`INSERT INTO bookings_v2 (student_id,start,"end",duration,at,status)
+    VALUES (?,'2099-03-15T10:00:00+02:00',?,90,?,'confirmed')`).run(studentId,end,new Date().toISOString()).lastInsertRowid);
   triggerForBooking(booking({ start: '2099-03-15T10:00:00+02:00', end }),
-    { notify: c.notify, enrolledCode: code, bookingId: 4242 });
+    { notify: c.notify, enrolledCode: code, bookingId });
   await c.first;
 
   assert.deepEqual(HW.homeworkForStudent(studentId), [], 'nothing before the lesson');
   const held = HW.homeworkForStudent(studentId, { includeHeld: true });
   assert.equal(held.length, 2);
   for (const h of held) {
-    assert.equal(h.booking_id, 4242);
+    assert.equal(h.booking_id, bookingId);
     assert.equal(h.held_until, new Date(new Date(end).getTime() + 24 * 3600_000).toISOString());
   }
+  const assignment=DB.handle().prepare('SELECT booking_id,practice_state FROM learning_assignments WHERE student_id=?').get(studentId);
+  assert.equal(assignment.booking_id,bookingId);
+  assert.equal(assignment.practice_state,'held');
 });
 
 test('a booking with no end is not held forever', async () => {

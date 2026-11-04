@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 
 const PLAN = {
+  learning: (await import('../../src/lib/learning/parabolas.ts')).PARABOLAS,
   title: 'שיעור', gradeContext: 'כיתה יא',
   slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['y = 2x + 1'] })),
   examples: [{ problem: 'y = 3x', steps: ['m = 3'], answer: '3' }],
@@ -36,7 +37,7 @@ body=$(cat)
 case "$2" in
   docker*) echo '{}' ;;
   *library/due*) echo "$2" > "${dir}/due-asked"; cat "${dir}/due.json" ;;
-  *) echo "$body" | node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>{const b=JSON.parse(s);console.log(b.template+"/"+b.skill)})' >> "${dir}/imported"
+  *) printf '%s\\n' "$body" | node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>{const b=JSON.parse(s);console.log(b.template+"/"+b.skill)})' >> "${dir}/imported"
      printf '{"item":{}}\\n200' ;;
 esac
 `, { mode: 0o755 });

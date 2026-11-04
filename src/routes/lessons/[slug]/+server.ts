@@ -4,13 +4,22 @@
  * `lessons/` was served statically. `readContent` still requires an exact
  * `lessons/<slug>/slides.html` match before touching the filesystem.
  */
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { readContent } from '$server/content.ts';
 import { documentHeaders } from '$server/document-policy.ts';
 import { publishableSlides } from '$server/materials.ts';
+import { learningAccess, assignedExperience } from '$server/learning-store.ts';
+import { renderLearningDocument } from '$server/learning-render.ts';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
+  if (locals.authenticated) {
+    const lesson = assignedExperience(params.slug);
+    if (lesson) return new Response(renderLearningDocument(lesson.experience, {
+      slug: params.slug, preview: true, storageScope: `teacher:${params.slug}`, backUrl: '/app/dashboard',
+    }), { headers: { ...documentHeaders(), 'Cache-Control': 'no-store' } });
+  }
+  if (locals.family && learningAccess(params.slug,locals) && assignedExperience(params.slug)) redirect(303,`/app/learn/${encodeURIComponent(params.slug)}`);
   /* The published version wins over the file on disk.
   
      materials.ts says "a student may only ever be shown a version with

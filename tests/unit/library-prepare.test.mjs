@@ -80,6 +80,20 @@ test('an engine failure is recorded as failed, with fixed words', async () => {
   assert.doesNotMatch(item.problem, /must not leak/);
 });
 
+test('invalid generator output is diagnosable in server logs without leaking it into the library response',async()=>{
+  const messages=[],original=console.error;
+  let item;
+  try {
+    console.error=(...values)=>messages.push(values.join(' '));
+    item=await P.prepareSkill('math-5u','func.basics.linquad',{
+      generate:async()=>{throw new LessonGenerationError('bad-output','invalid JSON','PRIVATE_SYNTHETIC_OUTPUT');},
+    });
+  }finally{console.error=original;}
+  assert.equal(item.status,'failed');
+  assert.doesNotMatch(JSON.stringify(item),/PRIVATE_SYNTHETIC_OUTPUT/);
+  assert.ok(messages.some(m=>m.includes('bad-output') && m.includes('PRIVATE_SYNTHETIC_OUTPUT')));
+});
+
 test('a topic is prepared one skill at a time, skipping skills that are already ready', async () => {
   const order = [];
   let inFlight = 0, maxInFlight = 0;

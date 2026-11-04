@@ -61,8 +61,9 @@ async function stubAgent(body) {
 cat > "${dir}/prompt.txt"
 # Pull the value of -o out of argv, the way codex exec is invoked.
 out=""
+schema=""
 while [ $# -gt 0 ]; do
-  case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac
+  case "$1" in -o) out="$2"; shift 2 ;; --output-schema) schema="$2"; shift 2 ;; *) shift ;; esac
 done
 ${body}
 `, { mode: 0o755 });
@@ -231,6 +232,38 @@ test('an answer that is prose rather than a plan is bad-output, and is logged', 
       return true;
     });
   });
+});
+
+test('Codex generation enforces a strict schema without requiring every game to be selected', async () => {
+  const capture=join(await mkdtemp(join(tmpdir(),'lesson-schema-')),'schema.json');
+  const {script}=await stubAgent(`test -s "$schema" || exit 9
+cp "$schema" "${capture}"
+cat > "$out" <<'JSON'
+${JSON.stringify(A_PLAN)}
+JSON`);
+  await withEnv({CODEX_BIN:script},()=>generateLesson(REQUEST));
+  const schema=JSON.parse(await readFile(capture,'utf8'));
+  const check=node=>{
+    if(node.properties){assert.equal(node.additionalProperties,false);assert.deepEqual([...node.required].sort(),Object.keys(node.properties).sort());Object.values(node.properties).forEach(check);}
+    if(node.items)check(node.items);
+    node.anyOf?.forEach(check);
+  };
+  check(schema);
+  assert.ok(schema.required.includes('learning'));
+  assert.deepEqual(schema.properties.games.properties.quiz.anyOf.at(-1),{type:'null'});
+  assert.deepEqual(schema.properties.slides.items.properties.note.anyOf.at(-1),{type:'null'});
+  assert.equal(schema.properties.learning.properties.scenes.items.properties.check.anyOf[0].type,'null');
+});
+
+test('strict-output null games and optional notes are removed while nullable learning checks remain', async()=>{
+  const wire={...structuredClone(A_PLAN),slides:[{heading:'כותרת',bullets:['תוכן'],note:null}],games:{quiz:null,matching:null}};
+  const {script}=await stubAgent(`cat > "$out" <<'JSON'
+${JSON.stringify(wire)}
+JSON`);
+  const plan=await withEnv({CODEX_BIN:script},()=>generateLesson(REQUEST));
+  assert.deepEqual(plan.games,{});
+  assert.equal(Object.hasOwn(plan.slides[0],'note'),false);
+  assert.equal(plan.learning.scenes[0].check,null);
 });
 
 test('an unparseable plan is retried once, and the retry is used', async () => {

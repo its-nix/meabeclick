@@ -8,6 +8,7 @@
  * paragraph's right-to-left direction ("8-(x+3)" as ")x+3(-8"); and each
  * example showed its answer before anyone had tried.
  */
+import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 

@@ -7,6 +7,7 @@
  * duplicate is dropped when at least three pairs remain — validateLesson's
  * own minimum — instead of holding the whole lesson.
  */
+import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

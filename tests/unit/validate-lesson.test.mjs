@@ -16,6 +16,7 @@
 // that has not happened YET, would go unnoticed if it did, and costs one
 // array comparison, is cheap insurance against a prompt change nobody
 // connected to game quality.
+import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateLesson } from '../../src/lib/server/lesson/prep.ts';

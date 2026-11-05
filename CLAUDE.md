@@ -17,16 +17,10 @@ disagrees; git is the history.
   `payments`) — see
   `docs/superpowers/specs/2026-09-18-student-records-out-of-the-repo-design.md`.
 
-## Company context
+## Company context and asset boundary
 
-Business context for this project — what Nix is, who the client is, what the
-current bet is — lives in the company knowledgebase at `~/Projects/nix`.
+The verified company-wide knowledgebase is [its-nix/knowledgebase](https://github.com/its-nix/knowledgebase/blob/main/START-HERE.md), not a presumed local `~/Projects/nix` path. Start from its [project ownership boundaries](https://github.com/its-nix/knowledgebase/blob/main/_meta/project-kb-boundary.md) and [GitHub/Drive directory](https://github.com/its-nix/knowledgebase/blob/main/company/github-drive-directory.md). These are private organization resources, so a public reader may not have access.
 
-- Venture note: `ventures/MeaBeclick.md`
-- Company: `company/Nix.md`, `company/Current Bet.md`
+MeaBeclick and the older Tutoring Drive materials are one business. [The sanitized asset map](mea-beclick-kb/drive-assets.md) points only to the access-controlled Drive **parent**, not private student or payment records. This repo is public: never write child-folder links, customer identifiers, payments, credentials or private attachments to GitHub or to the all-org company KB.
 
-Student and payment records stay in `mea-beclick-kb/` (this repo) and never
-go to `~/Projects/nix`.
-
-Do not duplicate that context here, and do not write project research there —
-see `~/Projects/nix/_meta/project-kb-boundary.md`.
+Product requirements and binding decisions remain in `PRODUCT.md`; company knowledge stays in the verified company KB, and project research/technical truth stays in this repository. The `mea-beclick-kb/students/` and `mea-beclick-kb/pricing/` local paths remain untracked and prohibited from Git. Do not infer a successful sync, permission change, or approval from a link.

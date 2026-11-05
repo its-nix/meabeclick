@@ -9,6 +9,7 @@
  * mount, same reasoning as app/plan/[code]/+page.server.ts: the funnel table
  * is the whole point of the page, and a spinner in front of it buys nothing.
  */
+import { marketingTrends } from '$server/marketing-trends.ts';
 import { requireAuth } from '$server/auth.ts';
 import { funnel, funnelCompletionTotals, heardFromCounts, distinctVisitors, type FunnelRow } from '$server/marketing.ts';
 import type { PageServerLoad } from './$types';
@@ -71,5 +72,6 @@ export const load: PageServerLoad = async (event) => {
   const visitors = distinctVisitors(sinceIso, untilIso);
 
   const completion = funnelCompletionTotals(sinceIso, untilIso);
-  return { days, rows, heardFrom, visitors, completion, sinceIso, untilIso };
+  const trends = marketingTrends(sinceIso, untilIso);
+  return { days, rows, heardFrom, visitors, completion, trends, sinceIso, untilIso };
 };

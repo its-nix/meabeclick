@@ -129,7 +129,7 @@ test('every small primary-on-wash role is bound to an AA-safe text token and com
     ['dashboard payments header', 'src/routes/app/dashboard/+page.svelte', String.raw`\.payments-table th`, String.raw`\.payments-table th`, 'white (student card)'],
     ['dashboard next-lesson label', 'src/routes/app/dashboard/+page.svelte', String.raw`\.nl-label`, String.raw`\.next-lesson-box`, 'white (student card)'],
     ['games URL', 'src/routes/app/games/+page.svelte', String.raw`\.url`, String.raw`\.url`, 'white (game card)'],
-    ['marketing active chip', 'src/routes/app/marketing/+page.svelte', String.raw`\.chip\.active`, String.raw`\.chip\.active`, 'page background'],
+    ['marketing chip hover', 'src/routes/app/marketing/+page.svelte', String.raw`\.chip:hover`, String.raw`\.chip:hover`, 'blue surface'],
     ['parent next-lesson contact', 'src/routes/app/parent/+page.svelte', String.raw`\.nl-contact`, String.raw`\.next-lesson-box`, 'page background'],
     ['parent table header', 'src/routes/app/parent/+page.svelte', String.raw`\.data-table th`, String.raw`\.data-table thead`, 'white (table)'],
     ['parent lesson pill', 'src/routes/app/parent/+page.svelte', String.raw`\.pill`, String.raw`\.pill`, 'white (table)'],
@@ -156,7 +156,9 @@ test('every small primary-on-wash role is bound to an AA-safe text token and com
 
     const baseGround = groundName === 'hero radial wash'
       ? over(token('accent'), 0.12, token('bg-base'))
-      : groundName.startsWith('white')
+      : groundName === 'blue surface'
+        ? token('bg-surface')
+        : groundName.startsWith('white')
         ? token('bg-card')
         : token('bg-base');
     const compositeGround = over(token('accent'), 0.08, baseGround);
@@ -164,6 +166,15 @@ test('every small primary-on-wash role is bound to an AA-safe text token and com
     assert.ok(ratio >= AA_TEXT,
       `${role}: --${foregroundToken} ${foreground} on ${groundName} ${compositeGround} is ${ratio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
   }
+});
+
+test('marketing selected range remains AA-safe on its white segmented-control surface', () => {
+  const block = source('src/routes/app/marketing/+page.svelte').match(/\.chip\.active\s*\{([^}]*)\}/s)?.[1];
+  assert.ok(block, 'the selected range keeps an explicit foreground and background');
+  assert.match(block, /background:\s*var\(--bg-card\)/);
+  const foreground = token(block.match(/(?:^|;)\s*color:\s*var\(--([^)]+)\)/)?.[1]);
+  assert.ok(foreground);
+  assert.ok(contrast(foreground, token('bg-card')) >= AA_TEXT);
 });
 
 test('library working status is AA-safe plain text on its table and hover surfaces', () => {

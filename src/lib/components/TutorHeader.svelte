@@ -1,5 +1,6 @@
 <script lang="ts">
   import BrandMark from './BrandMark.svelte';
+  import { tutorNames } from '$lib/tutors.ts';
   let signingOut = $state(false);
   let error = $state('');
   async function signOut() {
@@ -24,7 +25,7 @@
       <BrandMark href={null} label={null} height={30} />
       <span>מאה בקליק</span>
     </a>
-    <span class="workspace-label">סביבת המורה</span>
+    <span class="workspace-label">סביבת המורה · {tutorNames()}</span>
     <div class="tutor-account">
       {#if error}<p class="logout-error" role="alert">{error}</p>{/if}
       <button type="button" class="workspace-button workspace-button-quiet" aria-label="יציאה מהחשבון" disabled={signingOut} onclick={signOut}>{signingOut ? 'יוצאים…' : 'יציאה'}</button>

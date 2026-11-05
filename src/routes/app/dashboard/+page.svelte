@@ -72,16 +72,6 @@
   // own comment) — this one is the real, server-rendered roster.
   let { data: pageData }: { data: PageData } = $props();
   const selectedStudentCode = $derived(pageData.selectedStudentCode);
-  let navOpen = $state(false);
-  let navDetails: HTMLDetailsElement;
-  let navSummary: HTMLElement;
-
-  function closeNavigation(event: KeyboardEvent) {
-    if (event.key === 'Escape' && navOpen) {
-      navOpen = false;
-      navSummary?.focus();
-    }
-  }
   let dashboardPlans = $state(untrack(() => pageData.learningPlans ?? {}));
 
   /* ═══════════════════ local fake-CRM store ═══════════════════
@@ -994,10 +984,6 @@
   <title>{selectedStudentCode ? `${realStudents[0]?.name ?? 'תלמיד/ה'} — תיק תלמיד` : 'לוח בקרה — שיעורים פרטיים'}</title>
 </svelte:head>
 
-<svelte:window onkeydown={closeNavigation} onclick={(event) => {
-  if (navOpen && event.target instanceof Node && !navDetails?.contains(event.target)) navOpen = false;
-}} />
-
 <div id="nav">
   <div class="nav-logo">
     <BrandMark height={28} label={null} />
@@ -1011,17 +997,7 @@
     {:else}
       <button class="btn btn-outline" onclick={openModal}>+ תלמיד חדש</button>
     {/if}
-    <details class="nav-menu" bind:open={navOpen} bind:this={navDetails}>
-      <summary bind:this={navSummary}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
-        <span class="menu-label">תפריט</span>
-      </summary>
-      <nav aria-label="ניווט לוח הבקרה">
-        <a href="/app/library">ספרייה</a>
-        <a href="/app/marketing">שיווק</a>
-        <button onclick={signOut}>יציאה מהחשבון</button>
-      </nav>
-    </details>
+    <button class="btn btn-ghost" aria-label="יציאה מהחשבון" onclick={signOut}>יציאה</button>
   </div>
 </div>
 
@@ -1788,29 +1764,7 @@
   .nav-sub { color: var(--text-muted); font-weight: 400; font-size: .88rem; }
   .nav-actions { display: flex; gap: 10px; align-items: center; }
   .nav-actions > .btn { min-height: 44px; }
-  .nav-menu { position: relative; }
-  .nav-menu summary {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    min-width: 44px; min-height: 44px; padding: 8px 12px;
-    border: 1px solid var(--border-strong); border-radius: var(--r-sm);
-    background: var(--bg-card); color: var(--text-primary); cursor: pointer;
-    font-size: 0.9rem; font-weight: 700; list-style: none;
-  }
-  .nav-menu summary::-webkit-details-marker { display: none; }
-  .nav-menu nav {
-    position: absolute; inset-inline-end: 0; top: calc(100% + 8px);
-    width: min(280px, calc(100vw - 32px)); padding: 8px;
-    border: 1px solid var(--border-strong); border-radius: var(--r-sm);
-    background: var(--bg-card); box-shadow: 0 8px 24px var(--shadow-md);
-  }
-  .nav-menu nav a, .nav-menu nav button {
-    display: flex; align-items: center; width: 100%; min-height: 44px;
-    padding: 8px 12px; border: 0; border-radius: var(--r-sm);
-    color: var(--text-primary); background: none; font: inherit;
-    font-size: 0.9rem; text-decoration: none; text-align: start; cursor: pointer;
-  }
-  .nav-menu nav a:hover, .nav-menu nav button:hover { background: var(--bg-surface); }
-  .nav-menu :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .nav-actions > .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
   /* ── Buttons ── */
   .btn {
@@ -2114,8 +2068,6 @@
     .nav-title { font-size: .95rem; }
     .nav-actions { gap: 8px; }
     .nav-actions > .btn { justify-content: center; padding: 8px; white-space: nowrap; }
-    .nav-menu summary { padding: 8px; }
-    .menu-label { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .roster-table th, .roster-table td { padding: 10px 8px; }
     /* "✓ נשמר" is a transient flash, not a control; it must not claim a
        grid cell. Park it at the top-left corner of the bar instead. */

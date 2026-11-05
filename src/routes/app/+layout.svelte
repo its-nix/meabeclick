@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/state';
+  import BottomNav, { type NavItem } from '$lib/components/BottomNav.svelte';
   /**
    * The app shell for everything under /app/*.
    *
@@ -11,17 +13,31 @@
    * homework. Each page that needs a session calls requireAuth(event) in
    * its own +page.server.ts instead. Do not "tidy" this upward.
    *
-   * There is deliberately no shared nav chrome here: the four pages kept
-   * their own very different chrome (dashboard's nav bar, the parent
-   * portal's top-nav, the student page's hero, the games catalog's plain
-   * header) exactly as pages/app/*.html had them. This layout's job is
-   * routing — one entry point for the /app subtree — plus turning the
-   * single hop between two of these pages (dashboard → parent portal) that
-   * used to open `target="_blank"` into a same-tab in-app link, now that
-   * they share this layout (sub-project #4). That is the one deliberate
-   * UX change in this task.
+   * The tutor workspace shares a bottom bar across its dashboard, student
+   * records, library and marketing pages. Other app pages keep their own
+   * navigation, including the student's separate bottom bar.
    */
   let { children } = $props();
+
+  const tutorItems: NavItem[] = [
+    { id: 'dashboard', label: 'לוח בקרה', icon: 'dashboard', href: '/app/dashboard' },
+    { id: 'library', label: 'ספריית תוכן', icon: 'subjects', href: '/app/library' },
+    { id: 'marketing', label: 'שיווק', icon: 'progress', href: '/app/marketing' },
+  ];
+  const activeTutorSection = $derived(
+    tutorItems.find(item => page.url.pathname === item.href || page.url.pathname === item.href + '/')?.id
+      ?? (page.url.pathname.startsWith('/app/students/') ? 'dashboard' : undefined),
+  );
 </script>
 
-{@render children()}
+<div class:tutor-workspace={activeTutorSection !== undefined}>
+  {@render children()}
+</div>
+
+{#if activeTutorSection}
+  <BottomNav items={tutorItems} active={activeTutorSection} />
+{/if}
+
+<style>
+  .tutor-workspace { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+</style>

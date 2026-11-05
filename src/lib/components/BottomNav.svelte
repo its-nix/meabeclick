@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * The student board's primary navigation, fixed to the bottom of the
-   * viewport.
+   * Shared bottom navigation: student board views use buttons, while tutor
+   * workspace destinations use links. Fixed to the bottom of the viewport.
    *
    * It replaces a horizontally-scrolling row of pills that sat in the middle
    * of the page. That row did not merely look dated — on a 1080px-wide phone
@@ -28,12 +28,13 @@
     id: string;
     label: string;
     icon: IconName;
+    href?: string;
   }
 
   interface Props {
     items: NavItem[];
     active: string;
-    onselect: (id: string) => void;
+    onselect?: (id: string) => void;
     /** Hidden while a text composer has focus, so the on-screen keyboard and
      *  the bar do not stack and eat half a phone screen. */
     hidden?: boolean;
@@ -44,15 +45,29 @@
 
 <nav class="bottom-nav" class:hidden aria-label="ניווט ראשי">
   {#each items as item (item.id)}
-    <button
-      class="nav-item"
-      class:active={item.id === active}
-      aria-current={item.id === active ? 'page' : undefined}
-      onclick={() => onselect(item.id)}
-    >
+    {#snippet label()}
       <Icon name={item.icon} size={22} />
       <span class="nav-label">{item.label}</span>
-    </button>
+    {/snippet}
+    {#if item.href}
+      <a
+        class="nav-item"
+        class:active={item.id === active}
+        aria-current={item.id === active ? 'page' : undefined}
+        href={item.href}
+      >
+        {@render label()}
+      </a>
+    {:else}
+      <button
+        class="nav-item"
+        class:active={item.id === active}
+        aria-current={item.id === active ? 'page' : undefined}
+        onclick={() => onselect?.(item.id)}
+      >
+        {@render label()}
+      </button>
+    {/if}
   {/each}
 </nav>
 
@@ -87,6 +102,7 @@
     background: none;
     font-family: inherit;
     color: var(--text-muted);
+    text-decoration: none;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: color 0.15s ease;

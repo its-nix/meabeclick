@@ -43,21 +43,26 @@ try {
   const [name, value] = (await login(server.baseUrl)).split('=');
   await context.addCookies([{ name, value, url: server.baseUrl, httpOnly: true, sameSite: 'Lax' }]);
   await page.goto(`${server.baseUrl}/app/dashboard`);
-  await page.locator('.nav-menu summary').click();
-  const menu = page.getByRole('navigation', { name: 'ניווט לוח הבקרה' });
-  assert.deepEqual(await menu.getByRole('link').allTextContents(), ['ספרייה', 'שיווק']);
-  assert.equal(await menu.getByRole('button', { name: 'יציאה מהחשבון' }).count(), 1);
+  const navigation = page.getByRole('navigation', { name: 'ניווט ראשי' });
+  assert.deepEqual(await navigation.getByRole('link').allTextContents(), ['לוח בקרה', 'ספריית תוכן', 'שיווק']);
+  assert.equal(await page.locator('.nav-menu').count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'יציאה מהחשבון' }).count(), 1);
   for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `dashboard overflow at ${width}`);
-    await page.screenshot({ path: join(evidenceDir, `dashboard-menu-${width}.png`) });
+    await page.screenshot({ path: join(evidenceDir, `dashboard-navigation-${width}.png`) });
   }
-  await menu.getByRole('button', { name: 'יציאה מהחשבון' }).click();
+  for (const [label, path] of [['ספריית תוכן', '/app/library'], ['שיווק', '/app/marketing'], ['לוח בקרה', '/app/dashboard']]) {
+    await navigation.getByRole('link', { name: label, exact: true }).click();
+    await page.waitForURL(server.baseUrl + path);
+    assert.equal(await navigation.locator('[aria-current="page"]').textContent(), label);
+  }
+  await page.getByRole('button', { name: 'יציאה מהחשבון' }).click();
   await page.waitForURL(server.baseUrl + '/');
   const denied = await context.request.get(`${server.baseUrl}/app/dashboard`, { maxRedirects: 0 });
   assert.equal(denied.status(), 302, 'sign-out must still clear the session');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ browser: browser.version(), dimensions, weekdayLabels: 'PASS', menu: 'PASS', logout: 'PASS', errors, evidenceDir }));
+  console.log(JSON.stringify({ browser: browser.version(), dimensions, weekdayLabels: 'PASS', navigation: 'PASS', logout: 'PASS', errors, evidenceDir }));
 } finally {
   try { await browser?.close(); } finally { await server.stop(); }
 }

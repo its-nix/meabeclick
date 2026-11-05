@@ -68,12 +68,10 @@ test('no button leads the tutor to a page that sends her away', () => {
   assert.doesNotMatch(dash(), /href="\/app\/parent"/);
 });
 
-test('the dashboard menu omits the redundant website action but keeps explicit sign-out', () => {
+test('the dashboard header keeps explicit sign-out without a menu', () => {
   const d = dash();
-  const menu = d.match(/<nav aria-label="ניווט לוח הבקרה">([\s\S]*?)<\/nav>/)?.[1];
-  assert.ok(menu);
-  assert.doesNotMatch(menu, /href="\/"|בלי להתנתק/);
-  assert.match(menu, /onclick=\{signOut\}>יציאה מהחשבון/);
+  assert.doesNotMatch(d, /class="nav-menu"|בלי להתנתק/);
+  assert.match(d, /<button[^>]*aria-label="יציאה מהחשבון"[^>]*onclick=\{signOut\}>יציאה/);
 });
 
 test('five learner destinations wrap on phones and use native named buttons', () => {

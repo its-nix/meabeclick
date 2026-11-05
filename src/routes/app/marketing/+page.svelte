@@ -50,7 +50,6 @@
 </svelte:head>
 
 <div class="page">
-  <a class="back" href="/app/dashboard">← לוח בקרה</a>
   <h1 class="title">שיווק</h1>
   <p class="note">נתונים מאז {MEASUREMENT_START} · אירועים נשמרים 12 חודשים</p>
 
@@ -150,12 +149,6 @@
   :global(body) { background: var(--bg-base); }
 
   .page { max-width: 820px; margin: 0 auto; padding: 1.4rem 1rem 4rem; }
-
-  .back {
-    display: inline-flex; align-items: center; min-height: 44px;
-    font-size: .88rem; font-weight: 700; color: var(--text-muted);
-    text-decoration: none;
-  }
 
   .title { font-size: 1.4rem; font-weight: 900; color: var(--text-primary); margin: 6px 0 4px; }
   .note { font-size: .82rem; color: var(--text-muted); margin: 0 0 14px; }

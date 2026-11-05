@@ -86,7 +86,6 @@
 <svelte:head><title>ספריית חומרים — מאה בקליק</title></svelte:head>
 
 <main class="wrap">
-  <a class="back" href="/app/dashboard">→ חזרה ללוח הבקרה</a>
   <h1>ספריית חומרים</h1>
   <p class="lead">החומרים לשיעורים הבאים תחילה. אפשר לחפש ולסנן את הספרייה המלאה בהמשך.</p>
   <p class="note">עריכה בספרייה משנה שיעורים עתידיים. עריכה בשיעור של תלמיד/ה משנה רק את העותק שלו/ה.</p>
@@ -197,7 +196,6 @@
 
 <style>
   .wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
-  .back { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); font-weight: 700; text-decoration: none; }
   h1 { font-size: 1.6rem; font-weight: 900; margin: 4px 0 8px; }
   .lead { color: var(--text-primary); line-height: 1.7; margin: 0 0 6px; }
   .note { color: var(--text-muted-strong); font-size: .9rem; line-height: 1.6; margin: 0; }

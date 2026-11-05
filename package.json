@@ -17,6 +17,7 @@
     "prebuild": "node scripts/vendor-learning.mjs",
     "test:learning": "node --test tests/unit/learning-experience.test.mjs tests/unit/learning-lifecycle.test.mjs tests/characterization/learning-experience.test.mjs",
     "test:learning:browser": "node tests/browser/learning-experience.mjs",
+    "test:workspace:browser": "node tests/browser/tutor-workspace.mjs",
     "learning:video": "node scripts/render-learning-video.mjs",
     "start": "node build/index.js",
     "test": "node --test \"tests/**/*.test.mjs\"",

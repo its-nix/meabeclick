@@ -121,7 +121,7 @@ test('the funnel table sits in its own overflow-x:auto container', async () => {
     await seedFunnel(dbPath);
     const cookie = await login(baseUrl);
     const html = await (await fetch(`${baseUrl}/app/marketing`, { headers: { Cookie: cookie } })).text();
-    assert.match(html, /<div class="table-wrap[^"]*">\s*<table/, 'the table must be wrapped in its own scroll container');
+    assert.match(html, /<div class="table-wrap[^"]*"[^>]*>\s*<table/, 'the table must be wrapped in its own scroll container');
   } finally { await stop(); }
 });
 

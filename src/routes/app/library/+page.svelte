@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import TutorPageHeader from '$lib/components/TutorPageHeader.svelte';
   import { filterLibraryRows, libraryPage } from '$lib/library-table.ts';
   import { replaceState } from '$app/navigation';
   import { page } from '$app/state';
@@ -83,12 +84,12 @@
   }
 </script>
 
-<svelte:head><title>ספריית חומרים — מאה בקליק</title></svelte:head>
+<svelte:head><title>ספריית תוכן — מאה בקליק</title></svelte:head>
 
-<main class="wrap">
-  <h1>ספריית חומרים</h1>
-  <p class="lead">החומרים לשיעורים הבאים תחילה. אפשר לחפש ולסנן את הספרייה המלאה בהמשך.</p>
-  <p class="note">עריכה בספרייה משנה שיעורים עתידיים. עריכה בשיעור של תלמיד/ה משנה רק את העותק שלו/ה.</p>
+<main class="workspace-page" id="workspace-content" tabindex="-1">
+  <TutorPageHeader title="ספריית תוכן" description="שיעורים, תרגול ומשחקים לפי תכנית הלימוד.">
+    {#snippet actions()}<a class="workspace-button workspace-button-primary" href="#library-catalog">בחירת נושא להכנה</a>{/snippet}
+  </TutorPageHeader>
   <details class="due" open>
     <summary>הבאים בתור אצל התלמידים <span>({view.due.length} מיומנויות)</span></summary>
     {#if view.due.length === 0}
@@ -114,7 +115,8 @@
       {/each}</ul>
     {/if}
   </details>
-  <h2>כל החומרים</h2>
+  <h2 id="library-catalog" tabindex="-1">כל החומרים</h2>
+  <p class="note">עריכה בספרייה משנה שיעורים עתידיים. עריכה בשיעור של תלמיד/ה משנה רק את העותק שלו/ה.</p>
   <div class="filters">
         <div><label for="library-search">מיומנות</label><input id="library-search" type="search" bind:value={search} oninput={() => { pageNumber = 1; }} placeholder="חיפוש בחומרים" /></div>
         <div><label for="library-template">תכנית / כיתה</label>
@@ -140,7 +142,7 @@
     <p class="result-count" role="status" aria-live="polite">{rows.length} מתוך {view.rows.length} מיומנויות</p>
     {#if filtered}<button class="link" onclick={resetFilters}>ניקוי מסננים</button>{/if}
     {#if bulkTopic}
-      <button class="btn" disabled={busy[bulkKey] || topicReady} onclick={() => prepare(template, { topic: bulkTopic.topicKey }, bulkKey)}>
+      <button class="workspace-button workspace-button-primary" disabled={busy[bulkKey] || topicReady} onclick={() => prepare(template, { topic: bulkTopic.topicKey }, bulkKey)}>
         {busy[bulkKey] ? 'מתחילים…' : topicReady ? 'כל הנושא מוכן' : 'הכנת הנושא המלא'}
       </button>
     {/if}
@@ -195,26 +197,23 @@
 </main>
 
 <style>
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
-  h1 { font-size: 1.6rem; font-weight: 900; margin: 4px 0 8px; }
-  .lead { color: var(--text-primary); line-height: 1.7; margin: 0 0 6px; }
-  .note { color: var(--text-muted-strong); font-size: .9rem; line-height: 1.6; margin: 0; }
-  .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 16px; }
+  .note { color: var(--text-muted-strong); font-size: .85rem; line-height: 1.7; margin: 0; }
+  .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-top: 18px; padding: 20px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
   .filters > div { min-width: 0; }
   .pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-block: 16px; }
-  h2 { margin: 28px 0 12px; font-size: 1.2rem; }
+  h2 { margin: 28px 0 8px; font-size: 1.15rem; scroll-margin-top: 88px; }
   .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 18px 0 8px; }
   .result-count { margin: 0; color: var(--text-muted-strong); }
   .bulk-note { margin-bottom: 10px; }
-  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
   table { border-collapse: collapse; width: 100%; min-width: 880px; text-align: start; }
-  caption { text-align: start; padding: 12px; font-weight: 800; }
-  th, td { padding: 10px 12px; border-top: 1px solid var(--border); text-align: start; vertical-align: top; }
+  caption { text-align: start; padding: 16px; font-weight: 800; }
+  th, td { padding: 12px 16px; border-top: 1px solid var(--border); text-align: start; vertical-align: top; }
   thead th { background: var(--bg-surface); font-size: .88rem; }
   thead th:first-child { width: 29%; }
   tbody th { font-size: .95rem; font-weight: 700; }
   tbody tr:hover, tbody tr:focus-within { background: var(--bg-surface); }
-  label { display: block; margin-bottom: 8px; }
+  label { display: block; margin-bottom: 8px; font-size: .85rem; font-weight: 700; }
   input, select { display: block; width: 100%; min-height: 44px; min-width: 140px; padding: 8px; font: inherit; font-size: 16px; color: var(--text-primary); background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-sm); }
   .status { display: inline-block; font-size: .85rem; font-weight: 700; white-space: nowrap; color: var(--text-muted-strong); }
   .status.ready { color: var(--accent3-strong); }
@@ -224,11 +223,10 @@
   .actions { display: flex; align-items: center; flex-wrap: wrap; column-gap: 12px; }
   .actions a, .link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--accent); font: inherit; font-weight: 700; text-decoration: underline; }
   .link { border: 0; background: none; padding: 4px 0; cursor: pointer; }
-  .btn { min-height: 44px; padding: 8px 16px; border: 0; border-radius: var(--r-sm); background: var(--accent); color: white; font: inherit; font-weight: 700; cursor: pointer; }
   button:disabled { opacity: .6; cursor: default; }
   :is(a, button, input, select, summary, .table-wrap):focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .empty { padding: 24px 12px; text-align: center; }
-  .due { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 8px; }
+  .due { border: 1px solid var(--border); border-radius: var(--r-md); padding: 8px 20px 16px; background: var(--bg-card); }
   summary { min-height: 44px; padding: 10px 0; font-weight: 700; cursor: pointer; }
   summary span { color: var(--text-muted-strong); font-weight: 400; }
   ul { list-style: none; padding: 0; margin: 8px 0; }

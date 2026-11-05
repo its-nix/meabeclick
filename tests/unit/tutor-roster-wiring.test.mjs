@@ -42,10 +42,11 @@ test('Header.svelte reads the contact tutor\'s name from the roster', () => {
   assert.doesNotMatch(src, /ניקול/, 'no hardcoded ניקול left in Header.svelte');
 });
 
-test('the dashboard subtitle reads tutor names from the roster', () => {
-  const src = read('src/routes/app/dashboard/+page.svelte');
+test('the shared tutor header reads tutor names from the roster', () => {
+  const src = read('src/lib/components/TutorHeader.svelte');
   assert.match(src, /from ['"]\$lib\/tutors(\.ts)?['"]/, 'imports the roster');
-  assert.doesNotMatch(src, /ניקול וליאור/, 'no hardcoded "ניקול וליאור" left in the dashboard');
+  assert.match(src, /\{tutorNames\(\)\}/, 'renders the roster names');
+  assert.doesNotMatch(src, /ניקול וליאור/, 'no hardcoded "ניקול וליאור" left in the header');
 });
 
 test('the two server fallbacks no longer name ניקול', () => {

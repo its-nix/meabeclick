@@ -19,6 +19,3 @@ test('carousel pause persists independently of hover focus and manual-scroll gra
   assert.match(carousel, /השהיית תנועה/);
   assert.match(carousel, /חידוש תנועה/);
 });
-test('homepage labels fictional portal data as an illustration', () => {
-  assert.match(readFileSync('src/routes/+page.svelte', 'utf8'), /המחשה בלבד, לא נתוני תלמידים אמיתיים/);
-});

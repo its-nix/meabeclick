@@ -360,10 +360,10 @@
   .links a:hover { text-decoration: underline; }
 
   @media (max-height: 740px) {
-    .card { padding-block: 1rem; }
-    .brand { margin-bottom: 0.5rem; }
-    .sub, .tabs { margin-bottom: 0.75rem; }
-    .links { margin-top: 0.75rem; padding-top: 0.5rem; }
+    .card { padding-block: 0.75rem; }
+    .brand { margin-bottom: 0.25rem; }
+    .sub, .tabs { margin-bottom: 0.5rem; }
+    .links { margin-top: 0.5rem; padding-top: 0.25rem; }
   }
 
   /* At the reflow boundary, 200% text makes the longest Hebrew tab label

@@ -36,9 +36,9 @@
 <style>
   .tutor-header{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
   .tutor-header-inner{max-width:var(--workspace-width);min-height:68px;padding:10px 24px;margin:auto;display:flex;align-items:center;gap:18px}
-  .tutor-brand{display:inline-flex;align-items:center;gap:10px;white-space:nowrap;color:var(--text-primary);font-weight:850;font-size:1.05rem}
+  .tutor-brand{display:inline-flex;align-items:center;gap:10px;min-width:0;line-height:1.3;color:var(--text-primary);font-weight:850;font-size:1.05rem}
   .workspace-label{border-inline-start:1px solid var(--border-strong);padding-inline-start:18px;color:var(--text-muted);font-size:.8rem}
-  .tutor-account{margin-inline-start:auto;display:flex;align-items:center;gap:12px}
+  .tutor-account{margin-inline-start:auto;display:flex;align-items:center;gap:12px;flex-shrink:0}
   .logout-error{position:absolute;top:calc(100% + 8px);inset-inline-end:16px;max-width:calc(100vw - 32px);padding:12px 16px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-card);box-shadow:0 4px 16px var(--shadow);font-size:.85rem;color:var(--danger)}
   .workspace-skip{position:absolute;inset-inline-start:16px;top:-100px;padding:12px 16px;background:var(--bg-card);border:2px solid var(--accent);border-radius:var(--r-sm);z-index:101}
   .workspace-skip:focus{top:8px}

@@ -75,8 +75,8 @@
 </section>
 
 <style>
-  .trends { display: grid; gap: 16px; margin-bottom: 24px; min-width: 0; }
-  figure { margin: 0; padding: 18px; background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 14px; min-width: 0; }
+  .trends { display: grid; gap: 16px; margin-bottom: 28px; min-width: 0; }
+  figure { margin: 0; padding: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); min-width: 0; }
   h2 { font-size: 1.05rem; font-weight: 800; }
   .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-block: 10px; font-size: .85rem; font-weight: 700; }
   .legend span::before { content: ''; display: inline-block; width: 12px; height: 4px; margin-inline-end: 6px; vertical-align: middle; background: var(--accent); }
@@ -98,9 +98,11 @@
   details { min-width: 0; }
   summary { cursor: pointer; min-height: 44px; padding-block: 10px; font-size: .85rem; font-weight: 700; }
   summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-  .daily-table { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  .daily-table { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); }
   table { width: 100%; border-collapse: collapse; font-size: .8rem; font-variant-numeric: tabular-nums; }
   th, td { text-align: start; padding: 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  thead { background: var(--bg-card-solid); }
-  @media (max-width: 400px) { figure { padding: 12px; } }
+  thead { background: var(--bg-surface); }
+  /* The SVG scales down on phones; compensate so axis labels stay readable. */
+  @media (max-width: 600px) { svg text { font-size: 20px; } }
+  @media (max-width: 400px) { figure { padding: 16px; } svg text { font-size: 26px; } }
 </style>

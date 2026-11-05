@@ -85,6 +85,11 @@ jobs:
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui
 
+      - name: Check marketing charts in Chromium
+        run: node tests/browser/marketing-trends.mjs
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/charts
+
       - name: Save synthetic workspace screenshots
         if: always()
         uses: actions/upload-artifact@v4

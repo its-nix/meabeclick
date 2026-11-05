@@ -70,6 +70,7 @@
 <style>
   .auth-page {
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -84,6 +85,9 @@
     max-width: 380px;
     text-align: center;
     box-shadow: 0 4px 24px rgba(30, 41, 59, 0.07);
+  }
+  @media (max-height: 500px) {
+    .box { padding-block: 1rem; }
   }
   .logo { display: flex; justify-content: center; margin-bottom: 0.6rem; }
   h1 { font-size: 1.5rem; font-weight: 900; color: var(--accent); margin-bottom: 0.2rem; }

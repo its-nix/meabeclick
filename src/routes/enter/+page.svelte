@@ -70,7 +70,13 @@
 </div>
 
 <style>
-  .entry-page { min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
+  .entry-page {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+  }
   .card { width: min(100%, 400px); padding: 2rem 1.5rem; border: 1.5px solid var(--border); border-radius: var(--r-lg); background: var(--bg-card); text-align: center; box-shadow: 0 16px 48px var(--shadow); }
   .brand { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
   h1 { margin-block: 1rem 0.5rem; font-size: 1.5rem; }

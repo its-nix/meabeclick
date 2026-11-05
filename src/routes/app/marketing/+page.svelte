@@ -10,6 +10,7 @@
    * "איך שמעתם עלינו?" counts. No client-side fetch: the whole page is one
    * server render per `?days=` navigation, exactly like app/plan/[code].
    */
+  import MarketingTrends from '$lib/components/MarketingTrends.svelte';
   import { HEARD_FROM_LABELS } from '$lib/marketing-labels.ts';
   import type { PageData } from './$types';
 
@@ -79,6 +80,8 @@
       <span class="stat-label">שיעור שני מדווח</span>
     </div>
   </div>
+
+  <MarketingTrends days={data.trends} />
 
   <details class="definitions">
     <summary>איך סופרים את השלבים?</summary>

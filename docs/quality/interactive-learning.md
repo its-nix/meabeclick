@@ -30,6 +30,13 @@ export. Short prompts and contextual feedback replace bullet-only teaching.
 New generation must return `learning`; a missing experience is retried as
 bad output. Existing stored plans need no migration of their content.
 
+Codex receives an enforced `--output-schema`, not only a schema in its
+prompt. The strict wire schema requires every key and represents optional
+fields and unused game types as nullable. The app removes only originally
+optional nulls before using the plan, preserving required `check: null`.
+Library generation failures retain bounded diagnostic details in server
+logs; those details are never returned in the library response.
+
 Supported mathematical representations:
 
 | Visual | Parameters | Meaning |

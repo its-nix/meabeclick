@@ -13,6 +13,7 @@
  * suggestion engine reads as silence; a 0 from old, hint-less data would be
  * a claim that the child needed no help when none was ever available.
  */
+import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

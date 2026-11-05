@@ -31,6 +31,7 @@ import { LessonGenerationError, engineBin, lessonEngine, claudeBin, opencodeBin 
 import { getRegistry } from './registry.ts';
 import { planFor } from '../../plans.ts';
 import { spawnAgent } from './spawn.ts';
+import { strictOutputSchema, omitOptionalNulls } from './structured-output.ts';
 import { newFence, sanitizeField } from './prompt.ts';
 /* One source for the palette a deck writes into its own document — see
    $lib/brand.ts for why a hand-copy that agrees today is still a copy. */
@@ -458,6 +459,8 @@ const LESSON_SCHEMA = {
   },
 };
 
+const CODEX_LESSON_SCHEMA = strictOutputSchema(LESSON_SCHEMA);
+
 /**
  * Which game fits which goal, as the prompt states it — generated from
  * games/registry.json's selection rules, the one place that mapping lives.
@@ -566,7 +569,7 @@ export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
   } catch (err) {
     const kind = err instanceof LessonGenerationError ? err.kind : null;
     if (kind !== 'bad-output' && kind !== 'no-output') throw err;
-    console.warn(`lesson: ${kind} from the engine, retrying once`);
+    console.warn(`lesson: ${kind} from the engine (${(err as Error).message}), retrying once`);
     return dropAmbiguousPairs(balancePositions(await generateOnce(req)));
   }
 }
@@ -646,8 +649,8 @@ async function generateOnce(req: LessonRequest): Promise<LessonPlan> {
       throw new LessonGenerationError('no-output', 'codex exited cleanly but produced no plan.json');
     }
 
-    const plan = parsePlan(raw);
-    if (plan === null) {
+    const parsed = parsePlan(raw);
+    if (parsed === null) {
       /* Head AND tail. Malformed JSON from a model almost always breaks at
          the END — a truncated response, an unclosed array — and a detail
          that shows only the first 4000 characters proves the beginning was
@@ -661,6 +664,7 @@ async function generateOnce(req: LessonRequest): Promise<LessonPlan> {
           : raw,
       );
     }
+    const plan = omitOptionalNulls(parsed, LESSON_SCHEMA) as Record<string, unknown>;
     if (!plan.learning) {
       throw new LessonGenerationError('bad-output', 'lesson output omitted the interactive learning experience');
     }
@@ -757,7 +761,7 @@ function buildPrompt({ subject, level, request, student, skill, durationMin }: L
     '',
     `החזר/י את התוצאה כאובייקט JSON יחיד בתשובה הסופית שלך — בלי טקסט לפניו או אחריו, ובלי גדרות קוד, ללא קשר למה שמופיע בתוך ${OPEN}.`,
     'מבנה ה-JSON חייב להתאים בדיוק לסכימה הבאה (כל שדה שמופיע תחת required הוא חובה):',
-    JSON.stringify(LESSON_SCHEMA, null, 2),
+    JSON.stringify(lessonEngine() === 'codex' ? CODEX_LESSON_SCHEMA : LESSON_SCHEMA, null, 2),
     '',
     // The agent has no reason to touch the filesystem or the shell to write
     // a plan, so it is told not to — one fewer thing for an injected
@@ -793,20 +797,10 @@ function buildPrompt({ subject, level, request, student, skill, durationMin }: L
  *                                parent-supplied text, and argv is visible in
  *                                `ps` to every process on the box.
  *
- * --output-schema is deliberately NOT passed. It looks like the obvious win
- * — LESSON_SCHEMA is already a JSON Schema — but it is enforced as OpenAI
- * strict structured output, which rejects this schema outright:
- *
- *   invalid_json_schema: In context=('properties','slides','items'),
- *   'required' is required to be supplied and to be an array including
- *   every key in properties. Missing 'note'.
- *
- * Satisfying it means every property required at every level, including all
- * thirteen optional game types. That is not a formatting change: which games
- * a lesson gets is a choice the plan makes from an open catalog (see
- * publish()), and a schema that demands all thirteen keys changes what gets
- * generated. A nullable-everything variant could thread that needle; it is a
- * separate piece of work with its own test, not a flag to add here.
+ * --output-schema enforces valid JSON and required learning fields. Strict
+ * output requires every property to be required, so optional fields and
+ * unselected games become nullable in CODEX_LESSON_SCHEMA. generateOnce
+ * removes only those optional nulls; the model still chooses its games.
  */
 /**
  * The JSON object in an agent's reply, as text, or null. Claude Code and
@@ -858,6 +852,8 @@ async function runStdoutAgent(engine: 'claude' | 'opencode', prompt: string, cwd
 async function runAgent(prompt: string, cwd: string, planPath: string): Promise<void> {
   const engine = lessonEngine();
   if (engine !== 'codex') return runStdoutAgent(engine, prompt, cwd, planPath);
+  const schemaPath = join(cwd, 'output-schema.json');
+  await writeFile(schemaPath, JSON.stringify(CODEX_LESSON_SCHEMA), 'utf8');
   const args = [
     'exec', '-C', cwd,
     '--skip-git-repo-check', '--ephemeral', '--ignore-user-config',
@@ -866,6 +862,7 @@ async function runAgent(prompt: string, cwd: string, planPath: string): Promise<
     // or shell access to begin with.
     '--dangerously-bypass-approvals-and-sandbox',
     '-c', `model_reasoning_effort=${JSON.stringify(process.env.LESSON_EFFORT || 'high')}`,
+    '--output-schema', schemaPath,
     '-o', planPath,
   ];
   if (process.env.LESSON_MODEL) args.push('-m', process.env.LESSON_MODEL);

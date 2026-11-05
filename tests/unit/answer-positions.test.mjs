@@ -6,6 +6,7 @@
  * position. Held means a new engine run and a broken gate streak.
  * validateLesson keeps the check; balancePositions makes it pass honestly.
  */
+import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

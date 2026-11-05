@@ -14,6 +14,7 @@ import { templateById, type PlanTemplate, type TemplateSkill } from '../plans/te
 import { singleton } from '../singleton.ts';
 import { setItem, itemFor, type LibraryItem } from './store.ts';
 import { masterSlug } from './slug.ts';
+import { LessonGenerationError } from '../lesson/engine.ts';
 
 /** What `lessons.student` says for a master: it is nobody's lesson. */
 export const LIBRARY_STUDENT = 'ספרייה';
@@ -91,6 +92,7 @@ export async function prepareSkill(templateId: string, skillKey: string, deps: P
   } catch (err) {
     const problem = messageForFailure(err);
     console.error(`[library] ${templateId}/${skillKey} failed:`, (err as Error)?.message ?? err);
+    if (err instanceof LessonGenerationError && err.detail) console.error(`[library] ${templateId}/${skillKey} ${err.kind} detail:\n${err.detail}`);
     finishLesson(slug, { status: 'failed', problem });
     return setItem({ templateId, skillKey, slug, status: 'failed', problem });
   }

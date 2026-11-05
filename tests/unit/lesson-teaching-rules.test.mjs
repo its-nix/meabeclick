@@ -9,6 +9,7 @@
  *   2. How long the deck is follows the lesson's plan: a 45-minute lesson
  *      and a 135-minute one used to be asked for the same "6-10 slides".
  */
+import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

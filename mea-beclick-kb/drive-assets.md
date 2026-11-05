@@ -1,6 +1,6 @@
 # MeaBeclick — GitHub and Drive asset navigation
 
-Mאה בקליק and the former **Tutoring** Drive folder are the **same business**. This is a pointer map for the existing documents, not an independent business, duplicated knowledgebase or new sync mechanism. Folder mapping checked on 2026-11-05.
+מאה בקליק and the former **Tutoring** Drive folder are the **same business**. This is a pointer map for the existing documents, not an independent business, duplicated knowledgebase or new sync mechanism. Folder mapping checked on 2026-11-05.
 
 | Concern | Authoritative home |
 | --- | --- |

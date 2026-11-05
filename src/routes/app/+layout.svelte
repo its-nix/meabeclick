@@ -1,6 +1,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import BottomNav, { type NavItem } from '$lib/components/BottomNav.svelte';
+  import TutorHeader from '$lib/components/TutorHeader.svelte';
+  import '$lib/styles/tutor-workspace.css';
   /**
    * The app shell for everything under /app/*.
    *
@@ -31,13 +33,10 @@
 </script>
 
 <div class:tutor-workspace={activeTutorSection !== undefined}>
+  {#if activeTutorSection}<TutorHeader />{/if}
   {@render children()}
 </div>
 
 {#if activeTutorSection}
-  <BottomNav items={tutorItems} active={activeTutorSection} />
+  <BottomNav items={tutorItems} active={activeTutorSection} workspace />
 {/if}
-
-<style>
-  .tutor-workspace { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
-</style>

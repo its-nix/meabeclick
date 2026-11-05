@@ -1,0 +1,13 @@
+/* Scoped to the tutor workspace; family/student pages keep their own shell. */
+.tutor-workspace{--workspace-width:1200px;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+.tutor-workspace main.workspace-page{max-width:var(--workspace-width);width:100%;margin:0 auto;padding:32px 24px 40px;scroll-margin-top:84px;min-width:0}
+.tutor-workspace .workspace-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border:1px solid var(--border-strong);border-radius:var(--r-sm);font:inherit;font-size:.875rem;font-weight:700;line-height:1.4;text-decoration:none;color:var(--text-primary);background:var(--bg-card);cursor:pointer;transition:background .15s,border-color .15s}
+.tutor-workspace .workspace-button:hover{background:var(--bg-base);border-color:var(--text-muted)}
+.tutor-workspace .workspace-button-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.tutor-workspace .workspace-button-primary:hover{background:var(--accent-deep);border-color:var(--accent-deep)}
+.tutor-workspace .workspace-button-quiet{background:transparent;border-color:transparent;color:var(--text-muted-strong)}
+.tutor-workspace .workspace-button-quiet:hover{background:var(--accent-dim);border-color:transparent;color:var(--accent-deep)}
+.tutor-workspace .workspace-button:disabled{opacity:.55;cursor:wait}
+.tutor-workspace .workspace-button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(max-width:600px){.tutor-workspace main.workspace-page{padding:24px 16px 28px}}
+@media(prefers-reduced-motion:reduce){.tutor-workspace .workspace-button{transition:none}}

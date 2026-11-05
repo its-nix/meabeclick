@@ -35,7 +35,8 @@ test('destructive learner actions require confirmation before sending requests',
 });
 
 test('operations and direct report actions precede the student roster', () => {
-  assert.ok(page.indexOf('<h1 class="operations-title">') < page.indexOf('class="roster-table-wrap"'));
+  const operations = page.indexOf('<h2 class="operations-title">');
+  assert.ok(operations >= 0 && operations < page.indexOf('class="roster-table-wrap"'));
   assert.ok(page.indexOf('<ReportQueue') < page.indexOf('class="roster-table-wrap"'));
   assert.match(page, /השיעורים הקרובים/);
   assert.match(page, /מעקב תשלומים/);

@@ -1,12 +1,12 @@
 <script lang="ts">
   import Icon from '$lib/icons/Icon.svelte';
   import FormulaText from '$lib/components/FormulaText.svelte';
-  import BrandMark from '$lib/components/BrandMark.svelte';
+  import TutorPageHeader from '$lib/components/TutorPageHeader.svelte';
   import ReportQueue from '$lib/components/ReportQueue.svelte';
   import EngineNotice from '$lib/components/EngineNotice.svelte';
   import TutorsCard from '$lib/components/TutorsCard.svelte';
   import LearningPlanTree from '$lib/components/LearningPlanTree.svelte';
-  import { tutorNames } from '$lib/tutors.ts';
+  import { lockScroll } from '$lib/scroll-lock.ts';
   import type { TutorHomework } from '$lib/tutor-homework.ts';
   import { GRADES, GRADE_BUTTON, GRADE_LABEL, type HomeworkGrade } from '$lib/homework-grade.ts';
   import { formatDateTime, israelDay, israelToday } from '$lib/dates.ts';
@@ -56,7 +56,7 @@
    *   - #save-indicator.show      → saveIndicatorVisible
    *   - .sc-tab.active / .sc-panel.active (per-student tab switch) → activeTab record
    *   - .add-form.open (add-session / add-hw inline forms) → openForms record
-   *   - #modal-bg.open (add-student modal)  → modalOpen
+   *   - add-student modal → native dialog, modalOpen owns the scroll lock
    *   - #confirm-bg.open (confirm dialog)   → confirmMsg !== null
    */
   import { onMount, untrack } from 'svelte';
@@ -231,34 +231,38 @@
 
   /* ═══════════════════ add-student modal ═══════════════════ */
   let modalOpen = $state(false);
+  let studentDialog: HTMLDialogElement;
+  let newStudentTrigger = $state<HTMLButtonElement>();
+  let studentSaving = $state(false);
+  let studentError = $state('');
   let nsName = $state(''); let nsSubject = $state(''); let nsEmail = $state('');
   let nsLevel = $state(LEVELS[0]); let nsStyle = $state('');
   let nsGoals = $state(''); let nsPhone = $state('');
 
-  /**
-   * Ends the tutor's session.
-   *
-   * POST /api/logout has existed since the Express port and nothing ever
-   * called it — this dashboard shows every family's name, lesson history and
-   * balance, and the only way off it was clearing cookies. Same pattern as
-   * the entity model and the payments table before them: built, correct, and
-   * left unwired.
-   *
-   * Full document navigation, not goto(), so no student data stays in memory
-   * on a shared machine.
-   */
-  async function signOut() {
-    await api('/api/logout', { method: 'POST' }).catch(() => {});
-    location.href = '/';
+  $effect(() => { if (modalOpen) return lockScroll(); });
+  function openModal() {
+    studentError = '';
+    modalOpen = true;
+    studentDialog.showModal();
+    studentDialog.querySelector<HTMLInputElement>('#ns-name')?.focus();
+  }
+  function closeModal() { studentDialog.close(); }
+  function studentDialogClosed() {
+    modalOpen = false;
+    newStudentTrigger?.focus();
   }
 
-  function openModal() { modalOpen = true; }
-  function closeModal() { modalOpen = false; }
-
   async function addStudent() {
+    if (studentSaving) return;
     const name = nsName.trim();
-    if (!name) { toast('נא להזין שם', { kind: 'error' }); return; }
+    if (!name) {
+      studentError = 'נא להזין שם תלמיד/ה.';
+      studentDialog.querySelector<HTMLInputElement>('#ns-name')?.focus();
+      return;
+    }
 
+    studentSaving = true;
+    studentError = '';
     const email = nsEmail.trim();
     try {
       const r = await api('/api/students', {
@@ -266,7 +270,11 @@
         body: JSON.stringify({ name, email, subject: nsSubject || '', level: nsLevel || '', phone: nsPhone || '' }),
       });
       const body = await r.json();
-      if (!r.ok) { toast(body.error || 'הוספת התלמיד/ה נכשלה', { kind: 'error' }); return; }
+      if (!r.ok) {
+        if (session.over) closeModal();
+        else studentError = body.error || 'הוספת התלמיד/ה נכשלה. אפשר לנסות שוב.';
+        return;
+      }
 
       // goals/style have a server home now (migration 010) — write them
       // right after creation if the tutor filled them in. Best-effort: the
@@ -288,19 +296,21 @@
         }
       }
 
-      /* No password to read out any more. The family gets in through a
-         link, which the codes panel below mints on demand — so the useful
-         thing to say here is where to find it. */
+      // The family link is minted inside the student record, not the roster.
       toast(
-        `נוצר/ה ${name}. הקישור למשפחה נמצא בטבלת «כניסה לפורטל» למטה.`,
-        { kind: 'success', sticky: true },
+        `הכרטיס של ${name} נוצר. קישור הכניסה למשפחה נמצא בתיק התלמיד/ה.`,
+        { kind: 'success', sticky: true, ...(createdCode ? { link: { href: `/app/students/${encodeURIComponent(createdCode)}`, text: 'פתיחת התיק' } } : {}) },
       );
     } catch {
-      toast('אין חיבור לשרת — התלמיד לא נוסף', { kind: 'error' });
+      studentError = 'אין חיבור לשרת — התלמיד/ה לא נוסף/ה. אפשר לנסות שוב.';
       return;
+    } finally {
+      studentSaving = false;
     }
 
     closeModal();
+    nsName = nsEmail = nsSubject = nsPhone = nsGoals = nsStyle = '';
+    nsLevel = LEVELS[0];
     loadCodes();
   }
 
@@ -984,25 +994,15 @@
   <title>{selectedStudentCode ? `${realStudents[0]?.name ?? 'תלמיד/ה'} — תיק תלמיד` : 'לוח בקרה — שיעורים פרטיים'}</title>
 </svelte:head>
 
-<div id="nav">
-  <div class="nav-logo">
-    <BrandMark height={28} label={null} />
-    <span class="nav-title">לוח בקרה</span>
-    <span class="nav-sub">{tutorNames()} · שיעורים פרטיים</span>
-  </div>
-  <div class="nav-actions">
-    <span class="save-indicator" class:show={saveIndicatorVisible}>✓ נשמר</span>
-    {#if selectedStudentCode}
-      <a class="btn btn-outline" href="/app/dashboard">כל התלמידים</a>
-    {:else}
-      <button class="btn btn-outline" onclick={openModal}>+ תלמיד חדש</button>
-    {/if}
-    <button class="btn btn-ghost" aria-label="יציאה מהחשבון" onclick={signOut}>יציאה</button>
-  </div>
-</div>
-
-<main class="page">
+<main class="page workspace-page" id="workspace-content" tabindex="-1">
+  <span class="save-indicator" class:show={saveIndicatorVisible} role="status">{saveIndicatorVisible ? '✓ נשמר' : ''}</span>
   {#if !selectedStudentCode}
+  <TutorPageHeader title="לוח בקרה" description="השיעורים הקרובים, התלמידים והמשימות שצריכות תשומת לב.">
+    {#snippet actions()}
+      <a class="workspace-button" href="#student-roster">כל התלמידים</a>
+      <button class="workspace-button workspace-button-primary" bind:this={newStudentTrigger} onclick={openModal}><Icon name="add" size={18} /> תלמיד/ה חדש/ה</button>
+    {/snippet}
+  </TutorPageHeader>
   <EngineNotice alert={pageData.engineAlert} />
 
   {#if calendarFailures.length}
@@ -1106,11 +1106,7 @@
     </div>
   {/if}
 
-  <div class="operations-header">
-    <h1 class="operations-title">סקירה תפעולית</h1>
-    <a class="btn btn-outline" href="#student-roster">כל התלמידים</a>
-    <a class="btn btn-outline" href="/app/library">הכנת חומרים</a>
-  </div>
+  <h2 class="operations-title">לטיפול היום</h2>
   <ReportQueue lessons={pageData.pendingReports} />
   {#if Object.values(activityError).some(Boolean) || Object.values(ledgerError).some(Boolean)}
     <p role="status">חלק מפרטי התיקים אינם מעודכנים. <button class="link-btn" onclick={loadActivities}>ניסיון עדכון נוסף</button></p>
@@ -1181,7 +1177,9 @@
   <TutorsCard tutors={pageData.tutors} googleReady={pageData.googleReady}
     onsaved={(t) => { tutors = tutors.map(x => (x.id === t.id ? { ...x, ...t } : x)); }} />
   {:else}
-  <h1 class="student-page-title">{realStudents[0]?.name ?? 'תיק תלמיד/ה'}</h1>
+  <TutorPageHeader title={realStudents[0]?.name ?? 'תיק תלמיד/ה'}>
+    {#snippet actions()}<a class="workspace-button" href="/app/dashboard">כל התלמידים</a>{/snippet}
+  </TutorPageHeader>
   <ReportQueue lessons={pageData.pendingReports} />
   <div class="students-grid">
     {#if !realStudents.length}
@@ -1697,45 +1695,37 @@
   </div>
 </div>
 
-<!-- add-student modal -->
-<div class="modal-bg" class:open={modalOpen} role="presentation" onclick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
-  <div class="modal">
-    <h3>➕ הוספת תלמיד חדש</h3>
-    <div class="field-row">
-      <div class="field"><label for="ns-name">שם</label><input id="ns-name" type="text" placeholder="שם התלמיד" bind:value={nsName} /></div>
-      <div class="field"><label for="ns-subject">מקצוע</label><input id="ns-subject" type="text" placeholder="מתמטיקה" bind:value={nsSubject} /></div>
+<!-- Native dialog provides focus containment and an inert background. -->
+<dialog class="student-dialog" bind:this={studentDialog} aria-labelledby="new-student-title"
+  onclose={studentDialogClosed} oncancel={(e) => { if (studentSaving) e.preventDefault(); }}>
+  <form onsubmit={(e) => { e.preventDefault(); void addStudent(); }}>
+    <div class="student-dialog-header">
+      <div><h2 id="new-student-title">הוספת תלמיד/ה</h2><p>ניצור כרטיס תלמיד/ה וקישור כניסה למשפחה.</p></div>
+      <button type="button" class="dialog-close" aria-label="סגירת הוספת תלמיד/ה" disabled={studentSaving} onclick={closeModal}><Icon name="close" size={20} /></button>
     </div>
-    <!-- No code to invent: the page gets a generated address, as a booking
-         does, not one spelled from the child's name. -->
-    <div class="field-row single">
-      <div class="field"><label for="ns-email">מייל לחשבון (לא חובה)</label>
+    <div class="student-dialog-fields">
+      <div class="field"><label for="ns-name">שם התלמיד/ה <span class="required-note">(חובה)</span></label><input id="ns-name" type="text" autocomplete="name" aria-required="true" aria-invalid={Boolean(studentError && !nsName.trim())} aria-describedby={studentError && !nsName.trim() ? 'student-create-error' : undefined} placeholder="שם מלא" bind:value={nsName} /></div>
+      <div class="field-row">
+        <div class="field"><label for="ns-subject">מקצוע</label><input id="ns-subject" type="text" placeholder="למשל, מתמטיקה" bind:value={nsSubject} /></div>
+        <div class="field"><label for="ns-level">רמה</label><select id="ns-level" bind:value={nsLevel}>{#each LEVELS as l}<option value={l}>{l}</option>{/each}</select></div>
+      </div>
+      <div class="field"><label for="ns-email">אימייל לחשבון <span class="required-note">(לא חובה)</span></label>
         <input id="ns-email" type="email" inputmode="email" autocomplete="email" dir="ltr" placeholder="name@example.com" aria-describedby="ns-email-hint" bind:value={nsEmail} />
-        <p class="field-hint" id="ns-email-hint">לקישור כניסה — של ההורה או הלומד/ת.</p>
+        <p class="field-hint" id="ns-email-hint">של ההורה או הלומד/ת, לצורך כניסה לחשבון.</p>
       </div>
+      <div class="field"><label for="ns-phone">טלפון <span class="required-note">(לא חובה)</span></label><input id="ns-phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" placeholder="050-000-0000" bind:value={nsPhone} /></div>
+      <details class="student-extra"><summary>מטרות וסגנון למידה</summary>
+        <div class="field"><label for="ns-style">סגנון למידה</label><select id="ns-style" bind:value={nsStyle}><option value="">לא נבחר</option>{#each STYLES as st}<option value={st}>{st}</option>{/each}</select></div>
+        <div class="field"><label for="ns-goals">מטרות</label><textarea id="ns-goals" placeholder="מה נרצה להשיג יחד?" bind:value={nsGoals}></textarea></div>
+      </details>
+      {#if studentError}<p class="student-error" id="student-create-error" role="alert">{studentError}</p>{/if}
     </div>
-    <div class="field-row three">
-      <div class="field"><label for="ns-level">רמה</label>
-        <select id="ns-level" bind:value={nsLevel}>
-          {#each LEVELS as l}<option value={l}>{l}</option>{/each}
-        </select>
-      </div>
-      <div class="field"><label for="ns-style">סגנון למידה</label>
-        <select id="ns-style" bind:value={nsStyle}>
-          <option value="">— לא נבחר —</option>
-          {#each STYLES as st}<option value={st}>{st}</option>{/each}
-        </select>
-      </div>
-      <div class="field"><label for="ns-phone">טלפון</label><input id="ns-phone" type="text" placeholder="05X-XXX-XXXX" bind:value={nsPhone} /></div>
+    <div class="student-dialog-footer">
+      <button type="button" class="workspace-button" disabled={studentSaving} onclick={closeModal}>ביטול</button>
+      <button type="submit" class="workspace-button workspace-button-primary" disabled={studentSaving}>{studentSaving ? 'מוסיפים…' : 'הוספת תלמיד/ה'}</button>
     </div>
-    <div class="field-row single">
-      <div class="field"><label for="ns-goals">מטרות</label><textarea id="ns-goals" placeholder="המטרות של התלמיד..." bind:value={nsGoals}></textarea></div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick={closeModal}>ביטול</button>
-      <button class="btn btn-gold" onclick={addStudent}><Icon name="add" size={15} /> הוסף תלמיד</button>
-    </div>
-  </div>
-</div>
+  </form>
+</dialog>
 
 <style>
   :global(body) { background: var(--bg-base); }
@@ -1750,21 +1740,6 @@
   #ns-email { min-width: 0; min-height: 44px; font-size: 1rem; }
   #ns-email:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   textarea { resize: vertical; min-height: 70px; }
-
-  /* ── Nav ── */
-  #nav {
-    position: sticky; top: 0; z-index: 100;
-    background: var(--nav-bg); backdrop-filter: blur(16px) saturate(160%);
-    border-bottom: 1px solid var(--border); padding: 0 2rem; height: 60px;
-    display: flex; align-items: center; justify-content: space-between;
-    box-shadow: 0 1px 12px var(--shadow);
-  }
-  .nav-logo { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .nav-title { font-size: 1.05rem; font-weight: 900; color: var(--text-primary); white-space: nowrap; }
-  .nav-sub { color: var(--text-muted); font-weight: 400; font-size: .88rem; }
-  .nav-actions { display: flex; gap: 10px; align-items: center; }
-  .nav-actions > .btn { min-height: 44px; }
-  .nav-actions > .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
   /* ── Buttons ── */
   .btn {
@@ -1781,15 +1756,14 @@
   .btn-sm { padding: 5px 12px; font-size: .78rem; }
 
   /* ── Layout ── */
-  .page { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem 6rem; }
-  .student-page-title { font-size: 1.5rem; margin: 0 0 1rem; }
   .workspace-tutors-title { font-size: 1.2rem; margin: 2rem 0 0.75rem; }
-  .operations-header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-  .operations-title { flex: 1 1 100%; font-size: 1.7rem; margin: 0; }
-  .operations { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 28px; margin-block: 28px; }
-  .operations h2 { font-size: 1.15rem; margin-bottom: 12px; }
+  .operations-title { font-size: 1.15rem; margin: 0 0 16px; }
+  .operations { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; margin-block: 24px 28px; }
+  .operations section { min-width: 0; padding: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); }
+  .operations h2 { font-size: 1.05rem; margin-bottom: 12px; }
   .operation-list { list-style: none; padding: 0; margin: 0; }
   .operation-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; border-bottom: 1px solid var(--border); padding-block: 10px; }
+  .operation-list li:last-child { border-bottom: 0; }
   .operation-list a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; color: var(--accent); }
   #student-roster { scroll-margin-top: 80px; }
   .roster-table-wrap { border: 1px solid var(--border); border-radius: var(--r-sm); overflow-x: auto; }
@@ -1995,11 +1969,28 @@
   .add-form.open { display: block; }
   .add-form h4 { font-size: .85rem; font-weight: 700; color: var(--accent); margin-bottom: 12px; }
 
-  /* Modal */
-  .modal-bg { position: fixed; inset: 0; background: rgba(26,51,51,0.4); backdrop-filter: blur(6px); z-index: 500; display: none; align-items: center; justify-content: center; }
-  .modal-bg.open { display: flex; }
-  .modal { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-lg); padding: 32px; width: min(560px, 95vw); max-height: 90vh; overflow-y: auto; box-shadow: 0 12px 48px var(--shadow-md); }
-  .modal h3 { font-size: 1.2rem; font-weight: 800; color: var(--accent); margin-bottom: 20px; }
+  /* New student */
+  .student-dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; color: var(--text-primary); background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: 0 24px 80px rgba(15,23,42,.2); overflow-y: auto; }
+  .student-dialog::backdrop { background: rgba(15,23,42,.4); backdrop-filter: blur(4px); }
+  .student-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 24px 24px 0; }
+  .student-dialog h2 { font-size: 1.3rem; line-height: 1.4; margin: 0; }
+  .student-dialog-header p { font-size: .85rem; color: var(--text-muted); line-height: 1.6; margin-top: 6px; }
+  .dialog-close { min-width: 44px; min-height: 44px; margin-top: -8px; margin-inline-end: -10px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-muted); cursor: pointer; }
+  .dialog-close:hover { background: var(--bg-base); }
+  .student-dialog-fields { display: grid; gap: 16px; padding: 24px; }
+  .student-dialog .field, .student-dialog .field-row { margin: 0; min-width: 0; }
+  .student-dialog .field-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .student-dialog input, .student-dialog select, .student-dialog textarea { width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-strong); border-radius: var(--r-sm); font-size: 16px; }
+  .student-dialog input[aria-invalid='true'] { border-color: var(--danger); }
+  .student-dialog label { color: var(--text-primary); font-size: .85rem; }
+  .required-note { font-weight: 400; color: var(--text-muted); font-size: .8rem; }
+  .student-extra { border-top: 1px solid var(--border); }
+  .student-extra summary { min-height: 44px; padding-top: 12px; cursor: pointer; color: var(--text-muted-strong); font-size: .85rem; font-weight: 700; }
+  .student-extra .field { margin-top: 14px; }
+  .student-error { padding: 12px; border-radius: var(--r-sm); background: rgba(220,38,38,.06); color: var(--danger); font-size: .875rem; line-height: 1.6; }
+  .student-dialog-footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg-card); }
+  .student-dialog :is(input, select, textarea, summary, button):focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  @media(max-width:600px) { .student-dialog-header { padding: 20px 20px 0; }.student-dialog-fields { padding: 20px; }.student-dialog-footer { padding: 16px 20px; } }
 
   /* Toasts */
   .toast-stack { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 900; display: flex; flex-direction: column; gap: 10px; width: min(420px, 92vw); pointer-events: none; }
@@ -2025,7 +2016,7 @@
   /* Empty state */
   .empty { text-align: center; padding: 24px; color: var(--text-muted); font-size: .9rem; grid-column: 1/-1; }
 
-  .save-indicator { font-size: .75rem; color: var(--accent3-strong); opacity: 0; transition: opacity .3s; margin-right: 8px; }
+  .save-indicator { position: fixed; top: 76px; inset-inline-end: 24px; z-index: 110; font-size: .8rem; padding: 6px 12px; border-radius: var(--r-sm); background: var(--bg-card); color: var(--accent3-strong); opacity: 0; pointer-events: none; transition: opacity .3s; }
   .save-indicator.show { opacity: 1; }
 
   /* Codes panel */
@@ -2058,22 +2049,7 @@
   .pay-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
   @media (max-width: 600px) {
-    #nav {
-      padding: 8px 12px; height: auto; min-height: 60px; gap: 8px;
-    }
-    /* The mark plus "לוח בקרה" already say where you are; the tagline is
-       what this width cannot also fit. */
-    .nav-sub { display: none; }
-    .nav-logo { gap: 6px; }
-    .nav-title { font-size: .95rem; }
-    .nav-actions { gap: 8px; }
-    .nav-actions > .btn { justify-content: center; padding: 8px; white-space: nowrap; }
     .roster-table th, .roster-table td { padding: 10px 8px; }
-    /* "✓ נשמר" is a transient flash, not a control; it must not claim a
-       grid cell. Park it at the top-left corner of the bar instead. */
-    .nav-actions .save-indicator {
-      position: absolute; top: 100%; left: 1rem; margin: 0; pointer-events: none;
-    }
     .codes-panel { overflow-x: visible; }
     .codes-table {
       display: block;

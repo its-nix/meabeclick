@@ -38,12 +38,14 @@
     /** Hidden while a text composer has focus, so the on-screen keyboard and
      *  the bar do not stack and eat half a phone screen. */
     hidden?: boolean;
+    /** Match the wider tutor workspace without changing the student board. */
+    workspace?: boolean;
   }
 
-  let { items, active, onselect, hidden = false }: Props = $props();
+  let { items, active, onselect, hidden = false, workspace = false }: Props = $props();
 </script>
 
-<nav class="bottom-nav" class:hidden aria-label="ניווט ראשי">
+<nav class="bottom-nav" class:hidden class:workspace aria-label="ניווט ראשי">
   {#each items as item (item.id)}
     {#snippet label()}
       <Icon name={item.icon} size={22} />
@@ -108,6 +110,9 @@
     transition: color 0.15s ease;
   }
   .nav-item.active { color: var(--accent); }
+  .workspace .nav-item{min-block-size:64px;position:relative;gap:4px}
+  .workspace .nav-item.active{background:var(--accent-dim);color:var(--accent-deep)}
+  .workspace .nav-item.active::before{content:'';position:absolute;top:0;width:32px;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
   .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 
   .nav-label { font-size: 0.72rem; font-weight: 700; line-height: 1; }
@@ -125,5 +130,7 @@
       border-start-end-radius: 14px;
     }
     .hidden { transform: translateX(50%) translateY(100%); }
+    .bottom-nav.workspace{max-inline-size:1200px;overflow:hidden}
   }
+  @media(prefers-reduced-motion:reduce){.bottom-nav,.nav-item{transition:none}}
 </style>

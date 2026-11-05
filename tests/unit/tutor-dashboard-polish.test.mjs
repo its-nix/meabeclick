@@ -69,9 +69,13 @@ test('no button leads the tutor to a page that sends her away', () => {
 });
 
 test('the dashboard header keeps explicit sign-out without a menu', () => {
-  const d = dash();
-  assert.doesNotMatch(d, /class="nav-menu"|בלי להתנתק/);
-  assert.match(d, /<button[^>]*aria-label="יציאה מהחשבון"[^>]*onclick=\{signOut\}>יציאה/);
+  const header = read('src/lib/components/TutorHeader.svelte');
+  assert.doesNotMatch(header, /class="nav-menu"|בלי להתנתק/);
+  assert.match(read('src/routes/app/+layout.svelte'), /<TutorHeader/);
+  assert.match(header, /aria-label="יציאה מהחשבון"[^>]*onclick=\{signOut\}/);
+  assert.match(header, /fetch\('\/api\/logout', \{ method: 'POST' \}\)/);
+  assert.match(header, /if \(!response.ok\) throw/);
+  assert.match(header, /location.href = '\/'/);
 });
 
 test('five learner destinations wrap on phones and use native named buttons', () => {

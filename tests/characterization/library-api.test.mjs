@@ -31,7 +31,7 @@ test('the library is the tutor’s: API, page, and a cron key to prepare from th
     const view = await (await fetch(`${baseUrl}/api/library?template=math-8`, { headers: { Cookie: tutor } })).json();
     assert.equal(view.topics.find(t => t.key === 'alg').skills.length, 6);
     const html = await (await fetch(`${baseUrl}/app/library`, { headers: { Cookie: tutor } })).text();
-    assert.match(html, /ספריית חומרים/);
+    assert.match(html, /ספריית תוכן/);
     assert.match(html, /התחום האלגברי/);
 
     const bad = await fetch(`${baseUrl}/api/library/prepare`, {

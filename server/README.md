@@ -875,7 +875,8 @@ Use an OAuth **Web application** client. Register the exact redirect URI
 For localhost, register the exact local callback separately. The browser must
 use the same origin as `SITE_URL` so the OAuth browser-binding cookie returns.
 Caddy redirects `www.meabeclick.com` to the canonical `meabeclick.com` origin;
-reload the Caddy configuration as part of rollout if it still serves both directly.
+the Compose Caddy configuration-revision label recreates the proxy on this
+release so that the new redirect takes effect without a separate SSH step.
 
 Set these server-side values in the existing `.env` (never commit secrets):
 

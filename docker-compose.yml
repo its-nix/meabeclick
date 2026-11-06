@@ -137,6 +137,10 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    # Compose does not reload a changed bind-mounted Caddyfile by itself.
+    # Bump this revision when a release must apply a new proxy configuration.
+    labels:
+      com.meabeclick.config-revision: "2026-11-06-canonical-login-origin"
     restart: unless-stopped
     depends_on:
       - app

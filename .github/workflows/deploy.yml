@@ -80,6 +80,11 @@ jobs:
       - name: Check interactive learning in Chromium
         run: npm run test:learning:browser
 
+      - name: Check synthetic teaching review in Chromium
+        run: npm run test:review:browser
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/learning-review
+
       - name: Check tutor workspace in Chromium
         run: npm run test:workspace:browser
         env:

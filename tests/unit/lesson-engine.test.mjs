@@ -415,3 +415,12 @@ test('the prompt a 135-minute booking sends asks for its plan\'s deck and the re
   const short = await promptFor({ subject: 'מתמטיקה', level: 'כיתה ז', durationMin: 45 });
   assert.match(short, /שקפים: בערך 8 שקפים/);
 });
+
+test('fresh games obey template limits with one bounded retry while historical lessons remain readable',async()=>{
+  const short={...structuredClone(A_PLAN),games:{twoTruths:{title:'בדיקה',subject:'מתמטיקה',rounds:[{statements:['א','ב','ג'],lieIndex:1,why:'הסבר',hint:'חשבו'}]}}};
+  const {script}=await stubAgent(`printf 'x\\n' >> "$0.calls"\ncat > "$out" <<'JSON'\n${JSON.stringify(short)}\nJSON\nexit 0`);
+  await withEnv({CODEX_BIN:script},()=>assert.rejects(generateLesson(REQUEST),error=>error.kind==='bad-output'&&/twoTruths.*rounds/.test(error.message)));
+  assert.equal((await readFile(script+'.calls','utf8')).trim().split('\n').length,2);
+  const {renderSlides}=await import('../../src/lib/server/lesson/prep.ts');
+  assert.match(renderSlides(short,{subject:'מתמטיקה',level:'כיתה ז'}),/data-scene=/,'historical read remains supported');
+});

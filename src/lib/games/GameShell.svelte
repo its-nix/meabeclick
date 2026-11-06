@@ -28,7 +28,7 @@
    * that payload must carry the request's signature (`t`) for
    * /api/game-result to accept it.
    */
-  import { onMount, setContext, tick, type Snippet } from 'svelte';
+  import { onMount, onDestroy, setContext, tick, type Snippet } from 'svelte';
   import '$lib/styles/games.css';
   import { fmt, shuffle, starsFor, clampStars, reportResult, flushQueuedResults, GAME_CONTEXT_KEY, type FinishInput, type SaveResult } from './engine.ts';
 
@@ -95,7 +95,11 @@
     return () => removeEventListener('online', retry);
   });
 
+  onDestroy(stopTimer);
+
   function startTimer() {
+    // Boards initialize during SSR too; only browser sessions own a clock.
+    if (typeof window === 'undefined') return;
     if (timerId) return; // idempotent: a template calling it twice must not open two intervals
     const t0 = Date.now();
     timerId = setInterval(() => {

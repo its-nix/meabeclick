@@ -1,0 +1,4 @@
+interface:
+  display_name: "MeaBeclick Learning Iteration"
+  short_description: "Improve lessons safely from teaching feedback"
+  default_prompt: "Use $meabeclick-learning-iteration to turn this feedback into a tested improvement to our generated lessons, homework, games, and presenter notes."

@@ -150,6 +150,15 @@ try {
         await page.screenshot({ path: join(evidence, `parent-payments-${appearance}.png`) });
         await nav.getByRole('button', { name: 'סקירה', exact: true }).click();
         await page.getByRole('heading', { name: 'השיעור הבא', exact: true }).waitFor();
+        await page.getByRole('combobox', { name: 'בחירת תלמיד/ה', exact: true }).selectOption(second.portal.code);
+        await page.getByRole('heading', { name: 'איתי לדוגמה', exact: true }).waitFor();
+        await page.goBack();
+        await page.getByRole('heading', { name: 'נועה לדוגמה', exact: true }).waitFor();
+        await page.getByRole('heading', { name: 'תשלומים', exact: true }).waitFor();
+        await page.goForward();
+        await page.getByRole('heading', { name: 'איתי לדוגמה', exact: true }).waitFor();
+        await page.goBack();
+        await page.getByRole('heading', { name: 'נועה לדוגמה', exact: true }).waitFor();
       }
       if (role === 'student') {
         await page.goto(server.baseUrl + `/app/student?s=${first.portal.code}`); await page.locator('#app').waitFor();

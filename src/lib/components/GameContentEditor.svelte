@@ -189,10 +189,10 @@
   input, textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: 16px; }
   .collection, .item, .matrix { min-width: 0; border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px; display: grid; gap: 10px; }
   .item { background: var(--bg-subtle); }
-  legend { padding-inline: 6px; font-weight: 800; }
+  legend { padding-inline: 6px; font-weight: 700; }
   .item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   button { min-height: 44px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary); font: inherit; cursor: pointer; }
   button:disabled { opacity: .45; cursor: default; }
   .danger { color: var(--danger); }
-  .add { justify-self: start; color: var(--accent); font-weight: 800; }
+  .add { justify-self: start; color: var(--accent); font-weight: 700; }
 </style>

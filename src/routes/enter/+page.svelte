@@ -81,8 +81,8 @@
   .brand { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
   h1 { margin-block: 1rem 0.5rem; font-size: 1.5rem; }
   p { color: var(--text-muted); line-height: 1.6; }
-  button, .secondary { width: 100%; min-height: 48px; margin-top: 1rem; border-radius: var(--r-sm); font: inherit; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
-  button { border: 0; background: var(--accent); color: var(--text-on-accent); cursor: pointer; }
+  button, .secondary { width: 100%; min-height: 48px; margin-top: 1rem; border-radius: var(--r-sm); font: inherit; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  button { border: 0; background: var(--action-fill); color: var(--text-on-accent); cursor: pointer; }
   button:disabled { opacity: 0.7; cursor: wait; }
   .secondary { border: 1.5px solid var(--border-strong); text-decoration: none; color: var(--text-primary); }
   .error { color: var(--danger-text); }

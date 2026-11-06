@@ -88,7 +88,7 @@
 
 <main class="workspace-page" id="workspace-content" tabindex="-1">
   <TutorPageHeader title="ספריית תוכן" description="שיעורים, תרגול ומשחקים לפי תכנית הלימוד.">
-    {#snippet actions()}<a class="workspace-button workspace-button-primary" href="#library-catalog">בחירת נושא להכנה</a>{/snippet}
+    {#snippet actions()}<a class="workspace-button" href="/app/games">משחקי תרגול</a><a class="workspace-button workspace-button-primary" href="#library-catalog">בחירת נושא להכנה</a>{/snippet}
   </TutorPageHeader>
   <details class="due" open>
     <summary>הבאים בתור אצל התלמידים <span>({view.due.length} מיומנויות)</span></summary>
@@ -207,7 +207,7 @@
   .bulk-note { margin-bottom: 10px; }
   .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
   table { border-collapse: collapse; width: 100%; min-width: 880px; text-align: start; }
-  caption { text-align: start; padding: 16px; font-weight: 800; }
+  caption { text-align: start; padding: 16px; font-weight: 700; }
   th, td { padding: 12px 16px; border-top: 1px solid var(--border); text-align: start; vertical-align: top; }
   thead th { background: var(--bg-surface); font-size: .88rem; }
   thead th:first-child { width: 29%; }

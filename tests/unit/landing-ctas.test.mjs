@@ -49,7 +49,7 @@ test('every landing /booking button sends cta_click with target "booking"', () =
   // Pricing, the sticky bar, and «קובעים שיעור ראשון» under «איך זה עובד?».
   const buttons = (landing.match(/href="\/booking"/g) ?? []).length;
   const matches = [...landing.matchAll(/href="\/booking"[\s\S]{0,300}?track\(\s*'cta_click'\s*,\s*\{\s*target:\s*'booking'\s*\}\s*\)/g)];
-  assert.equal(buttons, 3);
+  assert.equal(buttons, 4);
   assert.equal(matches.length, buttons, `expected every /booking button to track target booking, found ${matches.length} of ${buttons}`);
 });
 

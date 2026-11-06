@@ -141,15 +141,15 @@
     border: 2px solid var(--border); border-radius: 14px; overflow: hidden; min-width: 320px;
   }
   th, td { padding: 10px 8px; text-align: center; font-size: 0.92rem; border: 1px solid var(--border); }
-  th { background: var(--accent-dim); color: var(--accent); font-weight: 800; font-size: 0.85rem; }
-  td.rowlabel { background: var(--bg-base); font-weight: 800; text-align: right; }
+  th { background: var(--accent-dim); color: var(--accent); font-weight:600; font-size: 0.85rem; }
+  td.rowlabel { background: var(--bg-base); font-weight:600; text-align: right; }
   td input {
     width: 100%; min-width: 84px; border: 2px solid var(--border); border-radius: 9px;
     padding: 7px 6px; font-family: inherit; font-size: 0.9rem; text-align: center; background: #fff;
   }
   td input:focus { outline: none; border-color: var(--accent); }
-  td input.right { border-color: var(--accent3); background: var(--accent3-dim); color: var(--accent3-strong); font-weight: 800; }
+  td input.right { border-color: var(--accent3); background: var(--accent3-dim); color: var(--accent3-strong); font-weight:600; }
   td input.wrong { border-color: var(--danger); background: var(--danger-dim); }
   td:has(.cell-mark) { position: relative; }
-  .cell-mark { position: absolute; inset-block-start: 2px; inset-inline-end: 4px; color: var(--danger); font-weight: 900; font-size: 0.8rem; }
+  .cell-mark { position: absolute; inset-block-start: 2px; inset-inline-end: 4px; color: var(--danger); font-weight:600; font-size: 0.8rem; }
 </style>

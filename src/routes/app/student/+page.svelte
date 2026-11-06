@@ -119,6 +119,10 @@
     const url = new URL(location.href);
     url.searchParams.set('v', id);
     history.pushState({ v: id }, '', url);
+    tick().then(() => {
+      document.getElementById('student-content')?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
   }
 
   let chat = $state<ChatMsg[]>([]);
@@ -194,6 +198,9 @@
   const writtenSubmitted = $derived(writtenHomework.filter(h => h.submitted || h.graded).length);
   const today = israelToday();
 
+
+  const nextLearning = $derived(DATA?.learning?.find(lesson => lesson.solved < lesson.total) ?? DATA?.learningPreparation?.[0] ?? null);
+  const otherPreparation = $derived((DATA?.learningPreparation ?? []).filter(lesson => lesson.slug !== nextLearning?.slug));
 
   function hwStatus(h: HwItem): { cls: string; label: string } {
     /* Three states, not two, and the middle one is the point: a child who
@@ -279,9 +286,20 @@
    * reloads: nothing about the previous student may survive in memory on a
    * device the next person picks up.
    */
+  let signingOut = $state(false);
+  let logoutError = $state('');
   async function signOut() {
-    await fetch('/api/family', { method: 'DELETE' }).catch(() => {});
-    location.href = '/';
+    if (signingOut) return;
+    signingOut = true;
+    logoutError = '';
+    try {
+      const response = await fetch('/api/family', { method: 'DELETE' });
+      if (!response.ok) throw new Error('sign-out');
+      location.href = '/';
+    } catch {
+      logoutError = 'לא הצלחנו לצאת מהחשבון. נסו שוב.';
+      signingOut = false;
+    }
   }
 
   /**
@@ -393,7 +411,7 @@
   <title>הדף שלי — מאה בקליק</title>
 </svelte:head>
 
-<main class="wrap">
+<main class="wrap" id="student-content" tabindex="-1">
   <!-- Outside the {#if} so the loading and error views are branded too, and
        above .hero rather than inside it: the hero fills with --accent, which
        is the mark's own ink colour. -->
@@ -407,81 +425,64 @@
       <span class="who-avatar">{DATA?.emoji || '🎓'}</span>
       <span class="who-name">{DATA ? `היי ${firstName(DATA.name)}!` : 'הדף שלי'}</span>
     </span>
-    <button class="sign-out" onclick={signOut}>יציאה</button>
+    <button class="sign-out" onclick={signOut} disabled={signingOut}>{signingOut ? 'יוצאים…' : 'יציאה'}</button>
+      {#if logoutError}<p class="logout-error" role="alert">{logoutError}</p>{/if}
   </header>
 
   {#if view === 'app' && DATA}
     <div id="app">
-      <!-- HOME. The greeting and identity moved to the app bar above, so
-           this view opens on what a child came to find out: when the next
-           lesson is, then how they are doing, then what happened last time.
-
-           Day one shows the reassurance FIRST. It used to sit below three
-           zeros — 0% / 0 / 0 — so a family whose child had just enrolled
-           opened their board to a report card of nothing. -->
       {#if activeView === 'home'}
+        <div class="student-page-heading"><p class="eyebrow">הלמידה שלך, בקצב שלך</p><h1>היום שלי</h1></div>
+        {#if nextLearning}
+          <article class="continue-card">
+            <p class="eyebrow">ממשיכים מכאן</p>
+            <h2>{nextLearning.title}</h2>
+            <p>{nextLearning.solved} מתוך {nextLearning.total} אתגרים נפתרו</p>
+            <a class="continue-action" href={nextLearning.url}>המשך תרגול <span aria-hidden="true">←</span></a>
+          </article>
+        {:else if hwOpen > 0}
+          <article class="continue-card">
+            <p class="eyebrow">ממשיכים מכאן</p>
+            <h2>התרגול הבא שלך</h2>
+            <p>{hwOpen} משימות מחכות לך</p>
+            <button class="continue-action" type="button" onclick={() => selectView('hw')}>לשיעורי הבית <span aria-hidden="true">←</span></button>
+          </article>
+        {:else if (DATA.games ?? []).length}
+          <article class="continue-card">
+            <p class="eyebrow">ממשיכים מכאן</p><h2>לומדים תוך כדי משחק</h2>
+            <button class="continue-action" type="button" onclick={() => selectView('games')}>למשחקי התרגול <span aria-hidden="true">←</span></button>
+          </article>
+        {/if}
+
         <div class="next">
+          <span class="next-symbol"><Icon name="calendar" size={22} /></span>
+          <div><span class="next-label">השיעור הבא</span>
           {#if DATA.nextLesson?.date}
-            <Icon name="calendar" /> השיעור הבא: {fmtDate(DATA.nextLesson.date)}{DATA.nextLesson.time ? ' בשעה ' + DATA.nextLesson.time : ''}{DATA.nextLesson.type ? ' · ' + DATA.nextLesson.type : ''}
-          {:else}
-            <Icon name="calendar" /> השיעור הבא ייקבע בקרוב
-          {/if}
+            <strong>{fmtDate(DATA.nextLesson.date)}</strong>
+            <span class="next-meta">{DATA.nextLesson.time ? 'בשעה ' + DATA.nextLesson.time : ''}{DATA.nextLesson.type ? ' · ' + DATA.nextLesson.type : ''}</span>
+          {:else}<strong>נקבע יחד בקרוב</strong>{/if}</div>
         </div>
 
         {#if isDayOne}
-          <div class="dayone">
-            <div class="dayone-icon"><Icon name="day-one" size={40} /></div>
-            <div class="dayone-title">הכל מוכן לשיעור הראשון</div>
-            <p class="dayone-sub">
-              אחרי השיעור יופיעו כאן הסיכום, המצגת ומשחקי התרגול — אפשר לחזור
-              לדף הזה מתי שרוצים.
-            </p>
-          </div>
+          <div class="dayone"><div class="dayone-title">הכל מוכן לשיעור הראשון</div><p class="dayone-sub">אחרי השיעור יופיעו כאן הסיכום, המצגת ומשחקי התרגול.</p></div>
         {:else}
-          <div class="stats">
-            <div class="stat"><div class="stat-val">{hwOpen}</div><div class="stat-lbl">שיעורי בית פתוחים</div></div>
-            <div class="stat"><div class="stat-val">{(DATA.lessons ?? []).filter(l => !l.upcoming).length}</div><div class="stat-lbl">שיעורים</div></div>
-            <!-- A count, not a bare percentage: "2 מתוך 4" can be checked
-                 against the list below it; "50%" cannot be checked against
-                 anything. -->
-            <div class="stat">
-              <div class="stat-val">{DATA.progress?.total ? `${DATA.progress.done}/${DATA.progress.total}` : '—'}</div>
-              <div class="stat-lbl">{progressLabel}</div>
-            </div>
-          </div>
-
-          <!-- The lesson log lost its own destination: a child does not
-               browse lesson history, and the parent portal already carries
-               יומן שיעורים for the one who does. Folding it in here freed the
-               fourth nav slot for שאלה, which was the section being clipped
-               off the screen entirely. -->
-          <h2 class="view-title">שיעורים אחרונים</h2>
-        {#if !(DATA.lessons ?? []).length}
-          <div class="msg-empty">עוד לא היו שיעורים</div>
-        {:else}
-          {#each DATA.lessons ?? [] as l}
-            <div class="card">
-              <div class="card-title">{l.topic}</div>
-              <div class="card-meta">{l.upcoming ? 'לקראת השיעור · ' : ''}{fmtDate(l.date)}</div>
-              <div class="card-body">{l.summary || ''}</div>
-              {#if l.slidesUrl}
-                <a class="play" href={toHref(l.slidesUrl)}><Icon name="slides" size={17} /> המצגת</a>
-              {/if}
-            </div>
-          {/each}
+          {#if DATA.progress?.total}
+            <div class="student-progress"><Icon name="progress" size={20} /><p>{progressWords}</p></div>
+          {/if}
+          {#if (DATA.lessons ?? []).length}
+            <details class="recent-lessons"><summary>שיעורים אחרונים <span>{(DATA.lessons ?? []).length}</span></summary>
+              {#each DATA.lessons ?? [] as l}
+                <article class="lesson-row"><div class="card-title">{l.topic}</div><div class="card-meta">{l.upcoming ? 'לקראת השיעור · ' : ''}{fmtDate(l.date)}</div>
+                  {#if l.summary}<p class="card-body">{l.summary}</p>{/if}
+                  {#if l.slidesUrl}<a class="lesson-link" href={toHref(l.slidesUrl)}><Icon name="slides" size={17} /> המצגת</a>{/if}
+                </article>
+              {/each}
+            </details>
+          {/if}
         {/if}
+        {#if otherPreparation.length}
+          <details class="recent-lessons"><summary>לקראת השיעור</summary>{#each otherPreparation as lesson}<a class="lesson-link" href={lesson.url}>{lesson.title} <span aria-hidden="true">←</span></a>{/each}</details>
         {/if}
-      {/if}
-
-      {#if activeView === 'home'}
-        {#each DATA.learningPreparation ?? [] as lesson}
-          <article class="card">
-            <div class="card-meta">לקראת השיעור · מגלים בקצב שלכם</div>
-            <div class="card-title">{lesson.title}</div>
-            <p class="card-body">ניסוי קטן ושאלות שיעזרו לגלות יחד מה כבר ברור ומה כדאי לתרגל בשיעור.</p>
-            <a class="play" href={lesson.url}>מגלים לפני השיעור <span aria-hidden="true">←</span></a>
-          </article>
-        {/each}
       {/if}
 
       {#if activeView === 'hw'}
@@ -583,6 +584,7 @@
       {/if}
 
       {#if activeView === 'games'}
+        <h1 class="view-title">משחקי התרגול</h1>
         {#if !(DATA.games ?? []).length}
           <div class="msg-empty">{isDayOne ? 'אחרי השיעור הראשון יופיעו כאן משחקי התרגול.' : 'אין משחקי תרגול פתוחים כרגע. כשיהיה משחק חדש הוא יופיע כאן.'}</div>
         {:else}
@@ -611,7 +613,8 @@
       {/if}
 
       {#if activeView === 'ask'}
-        <div class="hint">שאלו כל שאלה על החומר, ועוזר אוטומטי (בינה מלאכותית) ינסה לעזור. הוא לא המורה, והוא יכול לטעות.<br>אם עדיין לא ברור, אפשר לשלוח את השאלה ישירות למורה בוואטסאפ 👇</div>
+        <h1 class="view-title">עזרה בלמידה</h1>
+        <p class="hint">שאלו על מה שלא ברור. עוזר אוטומטי מבוסס בינה מלאכותית ויכול לטעות — הוא לא המורה.</p>
         <div id="chat" bind:this={chatEl}>
           {#each chat as m}
             <!-- MathText lays out formulas and leaves prose alone. It
@@ -646,7 +649,7 @@
                ask() takes one. svelte-check caught it. -->
           <button class="btn" disabled={sending} onclick={() => ask()}>שליחה</button>
         </div>
-        <a class="wa" target="_blank" rel="noopener" href={waLink('היי! יש לי שאלה על החומר:')}><Icon name="message" size={17} /> עדיין לא ברור — שאלו את המורה</a>
+        <a class="wa" target="_blank" rel="noopener" href={waLink('היי! יש לי שאלה על החומר:')}><Icon name="message" size={17} /> לשאול את המורה בוואטסאפ</a>
       {/if}
 
       <!-- Only for a parent viewing their child's board. A child's own
@@ -686,6 +689,27 @@
 <BottomNav items={NAV_ITEMS} active={activeView} onselect={selectView} hidden={composing} />
 
 <style>
+  .logout-error{font-size:.8125rem;color:var(--danger-text);max-width:24ch;line-height:1.5}
+
+  .wrap:focus{outline:none}
+  .student-page-heading{margin-bottom:24px}
+  .student-page-heading h1{font-size:1.875rem;line-height:1.25;font-weight:700;margin-top:4px}
+  .eyebrow{font-size:.8125rem;font-weight:500;color:var(--text-muted)}
+  .continue-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;margin-bottom:16px}
+  .continue-card h2{font-size:1.5rem;line-height:1.4;font-weight:600;margin:8px 0}
+  .continue-card>p:not(.eyebrow){font-size:.9375rem;color:var(--text-muted)}
+  .continue-action{display:inline-flex;align-items:center;justify-content:center;gap:16px;background:var(--action-fill);color:var(--action-text);border:0;border-radius:10px;padding:12px 20px;min-height:48px;margin-top:20px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+  .next-symbol{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--control-bg);flex:none;color:var(--text-muted-strong)}
+  .next-label,.next-meta{display:block;color:var(--text-muted);font-size:.8125rem}
+  .next strong{display:block;font-size:1rem;font-weight:600;margin-block:4px}
+  .student-progress{display:flex;align-items:center;gap:12px;padding:8px 4px 24px;color:var(--text-muted-strong);font-size:.875rem}
+  .recent-lessons{margin-bottom:20px;border-top:1px solid var(--border)}
+  .recent-lessons summary{display:flex;align-items:center;justify-content:space-between;min-height:56px;font-size:1rem;font-weight:600;list-style:revert;cursor:pointer}
+  .recent-lessons summary span{color:var(--text-muted);font-size:.875rem}
+  .lesson-row{padding:16px 0;border-top:1px solid var(--border)}
+  .lesson-link{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:.875rem}
+  @media(max-width:600px){.wrap{padding:20px 20px calc(var(--bottom-nav-height,80px) + max(12px,env(safe-area-inset-bottom)) + 24px)}.continue-card{padding:20px}.continue-action{width:100%}}
+
   /* The child's own submission control. Deliberately quieter than the game
      button: pressing it is a claim, not an activity. */
   .hw-submit {
@@ -707,11 +731,7 @@
   /* Bottom padding clears the fixed nav (56px bar + whatever the device
      reserves for its home indicator) so the last card is never trapped
      underneath it. */
-  .wrap {
-    max-width: 820px; margin: 0 auto;
-    padding: 1rem;
-    padding-bottom: calc(56px + env(safe-area-inset-bottom) + 1.5rem);
-  }
+  .wrap { max-width:var(--content-width);margin:0 auto;padding:24px;padding-bottom:calc(var(--bottom-nav-height,80px) + max(12px,env(safe-area-inset-bottom)) + 24px); }
   /* Three columns rather than an absolutely-positioned button: the brand
      stays exactly centred whatever the label's width, and the button can
      never sit on top of the logo on a narrow phone — which is the device
@@ -720,21 +740,14 @@
   /* An app bar rather than a centred logo: on a screen a child reaches from
      a WhatsApp link, who they are signed in as matters more than the mark,
      and the greeting no longer has to repeat one line below. */
-  .app-bar {
-    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
-    min-block-size: 44px;
-    padding-bottom: 0.9rem;
-  }
+  .app-bar { display:flex;align-items:center;justify-content:space-between;gap:12px;min-block-size:44px;margin-bottom:24px; }
   .who { display: flex; align-items: center; gap: .55rem; min-width: 0; }
   .who-avatar {
     inline-size: 34px; block-size: 34px; border-radius: 50%;
     background: var(--accent-dim); display: flex; align-items: center;
     justify-content: center; font-size: 1.05rem; flex: none;
   }
-  .who-name {
-    font-weight: 800; font-size: 1rem; color: var(--text-primary);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
+  .who-name { font-weight:600;font-size:.9375rem;color:var(--text-primary);overflow-wrap:anywhere; }
 
   .sign-out {
     grid-column: 3; justify-self: end;
@@ -751,36 +764,26 @@
   /* ── Header ─────────────────────────────── */
   /* The next lesson is what a child opens this board to find out, so it
      leads the home view and carries the accent on its own. */
-  .next {
-    display: flex; align-items: center; gap: .5rem;
-    background: var(--accent); color: #fff;
-    border-radius: 16px; padding: 1rem 1.1rem;
-    font-size: .96rem; font-weight: 700; line-height: 1.5;
-    margin-bottom: 1rem;
-  }
+  .next { display:flex;align-items:center;gap:14px;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:20px; }
 
   /* ── Stats ──────────────────────────────── */
-  .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: .6rem; margin-bottom: 1rem; }
-  .stat { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 14px; padding: .8rem .5rem; text-align: center; }
-  .stat-val { font-size: 1.5rem; font-weight: 900; color: var(--accent); line-height: 1.1; }
-  .stat-lbl { font-size: .75rem; color: var(--text-muted); margin-top: 2px; }
 
   /* ── Tabs ───────────────────────────────── */
-  .view-title { font-size: 1rem; font-weight: 800; margin: 1.25rem 0 .6rem; color: var(--text-primary); }
+  .view-title { font-size:1.75rem;line-height:1.3;font-weight:700;margin:0 0 24px;color:var(--text-primary); }
 
 
   /* ── Cards ──────────────────────────────── */
-  .card { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 16px; padding: 1rem 1.1rem; margin-bottom: .7rem; }
-  .card-title { font-weight: 800; font-size: 1rem; margin-bottom: .2rem; }
+  .card { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px; }
+  .card-title { font-weight:600;font-size:1rem;margin-bottom:6px; }
   .card-meta { font-size: .8rem; color: var(--text-muted); }
-  .card-body { font-size: .92rem; color: var(--text-muted); line-height: 1.6; margin-top: .45rem; }
+  .card-body { font-size:.9375rem;color:var(--text-muted-strong);line-height:1.7;margin-top:8px; }
   .homework-card { margin-block: 1.25rem; min-inline-size: 0; overflow-wrap: anywhere; }
   .homework-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
   .homework-card .badge { white-space: normal; min-inline-size: 0; max-inline-size: 100%; flex-shrink: 1; }
   .homework-card .card-meta { margin-block: .35rem; }
   .problems { list-style: none; padding: 0; margin-block: 1rem; }
   .problem + .problem { margin-block-start: 1.25rem; padding-block-start: 1.25rem; border-block-start: 1px solid var(--border); }
-  .problem-title, .data-title { font-size: 1rem; font-weight: 800; margin-block: .75rem; }
+  .problem-title, .data-title { font-size: 1rem; font-weight: 700; margin-block: .75rem; }
   .problem-text, .datum { font-size: 1rem; line-height: 1.8; white-space: pre-wrap; }
   .problem-text { margin-block: .75rem; }
   .data-lines { padding-inline-start: 1.25rem; }
@@ -791,23 +794,20 @@
   progress { display: block; inline-size: 100%; accent-color: var(--accent); margin-block: .75rem; }
   .hw-submit:focus-visible, .homework-card .play:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .hw-submit[aria-disabled="true"] { opacity: .6; cursor: wait; }
-  .badge { font-size: .72rem; font-weight: 800; border-radius: 999px; padding: 3px 11px; white-space: nowrap; flex-shrink: 0; }
+  .badge { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 3px 11px; white-space: nowrap; flex-shrink: 0; }
   .badge.done { background: var(--accent3-dim); color: var(--accent3-strong); }
   .badge.open { background: var(--accent2-dim); color: var(--accent2-strong); }
-  .badge.late { background: #FEF2F2; color: #DC2626; }
-  .play {
-    display: inline-flex; align-items: center; gap: 5px; margin-top: .6rem; background: var(--accent2); color: #1E293B;
-    text-decoration: none; border-radius: 999px; padding: .5rem 1.1rem; min-height: 44px; font-weight: 800; font-size: .85rem;
-  }
+  .badge.late { background: var(--danger-bg); color: #DC2626; }
+  .play { display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:var(--action-fill);color:var(--action-text);text-decoration:none;border-radius:10px;padding:10px 16px;min-height:44px;font-weight:600;font-size:.9375rem; }
   .play:hover { opacity: .9; }
   .progress-words { font-size: .9rem; color: var(--text-secondary, inherit); margin-bottom: .2rem; }
   .progress-outer { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin: .6rem 0 .3rem; }
-  .progress-inner { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--accent), var(--accent3)); transition: width .6s ease; }
+  .progress-inner { height:100%;border-radius:5px;background:var(--action-fill);transition:width var(--motion-normal); }
 
   /* ── Ask panel ──────────────────────────── */
   #chat { max-height: 420px; overflow-y: auto; margin-bottom: .7rem; }
   .msg { border-radius: 14px; padding: .75rem 1rem; margin-bottom: .55rem; font-size: .94rem; line-height: 1.65; white-space: pre-wrap; }
-  .msg.me { background: var(--accent); color: #fff; margin-right: 2.2rem; }
+  .msg.me { background: var(--action-fill); color: #fff; margin-right: 2.2rem; }
   .msg.bot { background: var(--bg-card); border: 1.5px solid var(--border); margin-left: 2.2rem; }
   .msg.sys { background: var(--accent2-dim); border: 1.5px solid var(--accent2-strong); color: var(--text-primary); font-size: .88rem; }
   /* Same size and shape as the WhatsApp link it sits beside, so the two
@@ -835,16 +835,10 @@
     border: 2px solid var(--border); border-radius: 14px; background: var(--bg-card); color: var(--text-primary);
   }
   input:focus { outline: none; border-color: var(--accent); }
-  .btn {
-    background: var(--accent2); color: #1E293B; font-family: inherit; font-weight: 800; font-size: 1rem;
-    border: none; border-radius: 14px; padding: .75rem 1.3rem; min-height: 48px; cursor: pointer; flex-shrink: 0;
-  }
+  .btn { background:var(--action-fill);color:var(--action-text);font-family:inherit;font-weight:600;font-size:1rem;border:0;border-radius:10px;padding:12px 20px;min-height:48px;cursor:pointer;flex-shrink:0; }
   .btn:disabled { opacity: .55; cursor: default; }
-  .wa {
-    display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: .8rem;
-    background: #25D366; color: #fff; text-decoration: none; border-radius: 14px; padding: .8rem; min-height: 48px; font-weight: 800;
-  }
-  .hint { text-align: center; color: var(--text-muted); font-size: .84rem; margin: .5rem 0 .8rem; line-height: 1.6; }
+  .wa { display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;background:transparent;color:var(--whatsapp-strong);text-decoration:none;border:1px solid var(--border);border-radius:10px;padding:12px;min-height:48px;font-weight:600; }
+  .hint { color:var(--text-muted);font-size:.875rem;margin:0 0 24px;line-height:1.7; }
   .msg-empty { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: .92rem; }
   .games-skeleton { display: grid; gap: 12px; padding: 16px; }
   .skeleton { background: var(--border); border-radius: 12px; opacity: .7; }
@@ -853,19 +847,15 @@
   .foot { text-align: center; color: var(--text-muted); font-size: .78rem; margin-top: 1.4rem; }
 
   .retry {
-    margin-top: 12px; background: var(--accent); color: #fff; border: 0;
+    margin-top: 12px; background: var(--action-fill); color: #fff; border: 0;
     padding: 11px 30px; min-height: 44px; border-radius: 999px;
-    font-family: inherit; font-weight: 800; font-size: 1rem; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: 1rem; cursor: pointer;
   }
 
   /* ── Day one ────────────────────────────── */
-  .dayone {
-    background: var(--bg-surface); border: 1.5px solid var(--accent);
-    border-radius: 18px; padding: 1.1rem 1.2rem; margin-bottom: 1rem;
-    text-align: center;
-  }
-  .dayone-icon { font-size: 1.9rem; }
-  .dayone-title { font-weight: 800; font-size: 1.02rem; margin-top: .3rem; }
+  .dayone { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:20px;text-align:start; }
+
+  .dayone-title { font-weight: 700; font-size: 1.02rem; margin-top: .3rem; }
   .dayone-sub { font-size: .89rem; color: var(--text-muted-strong); line-height: 1.65; margin-top: .3rem; }
 
   .board-links {

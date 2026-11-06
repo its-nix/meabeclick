@@ -27,8 +27,10 @@
     { id: 'marketing', label: 'שיווק', icon: 'progress', href: '/app/marketing' },
   ];
   const activeTutorSection = $derived(
-    tutorItems.find(item => page.url.pathname === item.href || page.url.pathname === item.href + '/')?.id
-      ?? (page.url.pathname.startsWith('/app/students/') ? 'dashboard' : undefined),
+    /^\/app\/(dashboard|students|plan|report)(\/|$)/.test(page.url.pathname) ? 'dashboard'
+      : /^\/app\/(library|games|lessons)(\/|$)/.test(page.url.pathname) ? 'library'
+      : /^\/app\/(marketing|metrics)(\/|$)/.test(page.url.pathname) ? 'marketing'
+      : undefined,
   );
 </script>
 

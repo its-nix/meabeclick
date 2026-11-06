@@ -109,7 +109,7 @@
     flex: 0 0 26px; height: 26px; border-radius: 50%;
     background: var(--accent-dim); color: var(--accent);
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.8rem; font-weight: 800;
+    font-size: 0.8rem; font-weight:600;
   }
   /* Each step takes the direction of its own text: a formula reads LTR, a
      Hebrew sentence RTL. Forcing LTR reversed every Hebrew step. */
@@ -117,6 +117,6 @@
   .step.found { border-color: var(--accent3); background: var(--accent3-dim); }
   .step.found .step-num { background: var(--accent3); color: #fff; }
   .step.missed { border-color: var(--danger); background: var(--danger-dim); }
-  .step.missed .step-num { background: var(--danger); color: #fff; }
+  .step.missed .step-num { background: var(--danger-fill); color: #fff; }
   .step:focus-visible { outline: 3px solid var(--accent2-strong); outline-offset: 3px; }
 </style>

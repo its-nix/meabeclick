@@ -89,5 +89,5 @@
 {/if}
 
 <style>
-  .q-text { font-size: 1.12rem; font-weight: 800; line-height: 1.5; margin-bottom: 0.9rem; text-align: center; }
+  .q-text { font-size: 1.12rem; font-weight:600; line-height: 1.5; margin-bottom: 0.9rem; text-align: center; }
 </style>

@@ -156,7 +156,7 @@
     min-height: 44px; background: none; border: none; padding: 0;
     font-family: inherit; font-size: inherit; color: inherit; text-align: right; cursor: pointer;
   }
-  .group .row-toggle { font-weight: 800; }
+  .group .row-toggle { font-weight: 700; }
   .branch-row { padding-inline-start: 22px; }
   .row-toggle.branch { font-size: .88rem; }
   .skill { padding-inline-start: 40px; font-weight: 500; }

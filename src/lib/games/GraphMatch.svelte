@@ -161,7 +161,7 @@
     background: var(--bg-card); border: 1.5px solid var(--border);
     border-radius: 16px; padding: 0.6rem; margin-bottom: 1rem;
   }
-  .main-graph .cap { text-align: center; font-weight: 800; color: var(--accent); margin-bottom: 0.2rem; }
+  .main-graph .cap { text-align: center; font-weight:600; color: var(--accent); margin-bottom: 0.2rem; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
   .gopt {
     background: var(--bg-card); border: 2px solid var(--border); border-radius: 14px;
@@ -172,7 +172,7 @@
   .gopt.correct { border-color: var(--accent3); background: var(--accent3-dim); }
   .gopt.wrong { border-color: var(--danger); background: var(--danger-dim); animation: shake 0.4s; }
   .gopt:focus-visible { outline: 3px solid var(--accent2-strong); outline-offset: 3px; }
-  .gopt .lbl { font-size: 0.8rem; font-weight: 800; color: var(--text-muted); }
+  .gopt .lbl { font-size: 0.8rem; font-weight:600; color: var(--text-muted); }
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-6px); }

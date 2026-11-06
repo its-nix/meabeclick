@@ -22,8 +22,10 @@ test('the sidebar and the booking sheet hold the lock only while open, released 
   assert.match(read('src/routes/booking/+page.svelte'), /const unlock = lockScroll\(\);[\s\S]{0,400}return \(\) => \{\s*unlock\(\);/);
 });
 
-test('the home page puts its tutor popups back before it goes', () => {
+test('the native tutor dialog releases its scroll lock on close and navigation', () => {
   const landing = read('src/routes/+page.svelte');
-  const cleanup = landing.slice(landing.indexOf('return () => {', landing.indexOf('dashObs.observe')));
-  assert.match(cleanup.slice(0, 400), /closeAllPopups\(\);/);
+  assert.match(landing, /<dialog class="tutor-info"[^>]*onclose=\{tutorClosed\}/);
+  assert.match(landing, /function tutorClosed\(\) \{ releaseTutorScroll\?\.\(\);/);
+  assert.match(landing, /return \(\) => \{[^}]*tutorClosed\(\);/);
+  assert.doesNotMatch(landing, /document\.body\.appendChild/);
 });

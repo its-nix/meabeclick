@@ -178,7 +178,7 @@
   .help-text { font-size: .9rem; line-height: 1.5; }
 
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 0.4rem; }
-  .col-title { font-size: 0.78rem; font-weight: 800; color: var(--text-muted); text-align: center; margin-bottom: 6px; }
+  .col-title { font-size: 0.78rem; font-weight:600; color: var(--text-muted); text-align: center; margin-bottom: 6px; }
   .card {
     display: block; width: 100%;
     background: var(--bg-card); border: 2px solid var(--border); border-radius: 14px;

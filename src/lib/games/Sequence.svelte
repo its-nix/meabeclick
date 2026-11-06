@@ -102,9 +102,9 @@
   .step.miss { border-color: var(--danger); background: var(--danger-dim); }
   .num {
     width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%;
-    background: var(--accent-dim); color: var(--accent); font-weight: 900; font-size: 0.82rem;
+    background: var(--accent-dim); color: var(--accent); font-weight:600; font-size: 0.82rem;
     display: flex; align-items: center; justify-content: center;
   }
   .step.placed .num { background: var(--accent3); color: #fff; }
-  .slot-title { font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 1rem 0 0.4rem; }
+  .slot-title { font-size: 0.78rem; font-weight:600; color: var(--text-muted); margin: 1rem 0 0.4rem; }
 </style>

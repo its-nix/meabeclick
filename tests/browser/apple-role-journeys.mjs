@@ -197,7 +197,13 @@ try {
           const bounds = el.getBoundingClientRect();
           return document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)?.closest('.bottom-nav') === el.closest('.bottom-nav');
         }), true, `${role} navigation remains reachable with enlarged text`);
-        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${role} 200% text reflow`);
+        await page.screenshot({ path: join(evidence, `${role}-text200-${appearance}.png`) });
+        const zoomGeometry = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth, overflow: [...document.querySelectorAll('body *')].filter(el => { const r = el.getBoundingClientRect(); return r.width && (r.left < -1 || r.right > innerWidth + 1); }).slice(0, 12).map(el => ({ tag: el.tagName, class: el.className, text: el.textContent.slice(0,80), box: el.getBoundingClientRect().toJSON() })) }));
+        assert.ok(zoomGeometry.scrollWidth <= zoomGeometry.width, `${role} 200% text reflow: ${JSON.stringify(zoomGeometry)}`);
+        if (role === 'parent') {
+          const switcher = await page.getByRole('combobox', { name: 'בחירת תלמיד/ה', exact: true }).boundingBox();
+          assert.ok(switcher.width >= 128, 'the parent child switcher retains readable space with enlarged text');
+        }
         await page.screenshot({ path: join(evidence, `${role}-text200-${appearance}.png`) });
         await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
       }

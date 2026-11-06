@@ -784,7 +784,6 @@
 <style>
   .logout-error{font-size:.8125rem;color:var(--danger-text);max-width:24ch;line-height:1.5}
 
-  .top-nav{min-height:64px;height:auto;gap:12px;padding-block:8px;background:var(--nav-bg);backdrop-filter:blur(16px)}
   .nav-actions{min-width:0}
   .nav-actions .nav-logout{flex:none}
   .switcher{min-width:0;max-width:180px}
@@ -792,7 +791,7 @@
   .student-header>div:last-child{min-width:0}
   .sh-name{overflow-wrap:anywhere}
   .mobile-charges{display:none}
-  @media(max-width:600px){.nav-brand-title{display:none}.nav-actions{flex:1;justify-content:flex-end}.switcher{flex:1}.charges-table{display:none}.mobile-charges{display:grid;gap:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:0 16px}.mobile-charges li{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-block:16px;border-bottom:1px solid var(--border)}.mobile-charges li:last-child{border:0}.mobile-charges li>div{display:flex;flex-direction:column;gap:8px;min-width:0}.mobile-charges strong{font-size:1rem;font-weight:600}.mobile-charges .charge-kind{font-size:.8125rem;color:var(--text-muted)}}
+  @media(max-width:600px){.nav-brand-title{display:none}.nav-actions{flex:1;justify-content:flex-end;flex-wrap:wrap}.switcher{flex:1 1 8rem;min-width:min(8rem,100%);max-width:none}.charges-table{display:none}.mobile-charges{display:grid;gap:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:0 16px}.mobile-charges li{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-block:16px;border-bottom:1px solid var(--border)}.mobile-charges li:last-child{border:0}.mobile-charges li>div{display:flex;flex-direction:column;gap:8px;min-width:0}.mobile-charges strong{font-size:1rem;font-weight:600}.mobile-charges .charge-kind{font-size:.8125rem;color:var(--text-muted)}}
   .parent-context-actions{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:24px}
   .parent-context-actions a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:.875rem;font-weight:500}
   .parent-brief{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:28px}
@@ -809,7 +808,7 @@
   .top-nav {
     position: sticky; top: 0; z-index: 100;
     background: var(--nav-bg); backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border); padding: 0 2rem; height: 60px;
+    border-bottom: 1px solid var(--border); padding: 8px 2rem; min-height:64px; height:auto; gap:12px;
     display: flex; align-items: center; justify-content: space-between;
   }
   .nav-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -915,7 +914,7 @@
 
     .stats-bar { grid-template-columns: 1fr 1fr; }
     .next-lesson-box { align-items:flex-start; }
-    .top-nav { padding: 0 1rem; }
+    .top-nav { padding: 8px 1rem; }
     /* The student's name repeats immediately below in .student-header (and
        in the switcher when there is more than one), so it is the safe thing
        to drop when the nav runs out of room. */
@@ -966,7 +965,7 @@
   .nav-actions .nav-logout { min-height: 44px; padding-inline: 1rem; }
   .notes-text { margin: 0; white-space: pre-line; }
   .switcher select {
-    font-family: inherit; font-size: 0.9rem; font-weight: 700;
+    font-family: inherit; font-size: max(1rem,16px); font-weight: 600;
     padding: 0.5rem 0.7rem; min-height: 44px;
     border: 1.5px solid var(--border-strong); border-radius: 10px;
     background: var(--bg-card); color: var(--text-primary);

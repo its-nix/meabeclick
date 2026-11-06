@@ -50,6 +50,6 @@
   a { color: var(--accent-deep); font-weight: 700; }
   .en-sub { font-weight: 700; font-size: .88rem; margin: 10px 0 4px; }
   ul { list-style: none; padding: 0; margin: 0; }
-  li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top:1px solid var(--border); font-size: .9rem; }
-  .en-when { color: var(--text-muted); white-space: nowrap; }
+  li { display: flex; flex-wrap:wrap; justify-content: space-between; gap: 10px; padding: 6px 0; border-top:1px solid var(--border); font-size: .9rem; }
+  .en-when { color: var(--text-muted); white-space: normal; overflow-wrap:anywhere; max-width:100%; }
 </style>

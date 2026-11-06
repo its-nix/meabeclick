@@ -72,17 +72,17 @@
     document.getElementById('parent-content')?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+  function restoreParentHistory() {
+    parentView = readParentView();
+    const code = new URL(location.href).searchParams.get('s');
+    if (code && code !== currentId && data.students.some(student => student.code === code)) {
+      openStudent(code);
+    }
+  }
   onMount(() => {
     parentView = readParentView();
-    const restoreView = () => {
-      parentView = readParentView();
-      const code = new URL(location.href).searchParams.get('s');
-      if (code && code !== currentId && data.students.some(student => student.code === code)) {
-        openStudent(code);
-      }
-    };
-    window.addEventListener('popstate', restoreView);
-    return () => window.removeEventListener('popstate', restoreView);
+    window.addEventListener('popstate', restoreParentHistory);
+    return () => window.removeEventListener('popstate', restoreParentHistory);
   });
 
   const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];

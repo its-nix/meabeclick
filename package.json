@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@fontsource-variable/heebo": "^5.3.0",
+    "jose": "^6.2.15",
     "katex": "^0.19.1",
     "node-ical": "^0.27.1",
     "nodemailer": "10.2.1"
@@ -26,7 +27,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:ci": "node scripts/check-warnings.mjs",
     "test:review:browser": "node tests/browser/learning-review.mjs",
-    "test:ui:browser": "node tests/browser/apple-role-journeys.mjs"
+    "test:ui:browser": "node tests/browser/apple-role-journeys.mjs",
+    "test:auth:browser": "node tests/browser/google-onboarding.mjs"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.7",

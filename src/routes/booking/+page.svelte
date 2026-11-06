@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import GoogleSignIn from '$lib/components/GoogleSignIn.svelte';
   import Icon from '$lib/icons/Icon.svelte';
   import BrandMark from '$lib/components/BrandMark.svelte';
   import { PLANS, formatPrice, RECOMMENDED_BADGE, type Plan } from '$lib/plans.ts';
@@ -237,6 +238,39 @@
       first.focus();
     }
   }
+
+  function saveGoogleDraft() {
+    try {
+      sessionStorage.setItem('maab-booking-google-draft', JSON.stringify({
+        at: Date.now(), plan: selectedPlan?.minutes, slot: selectedSlot, step, pane,
+        isSelf, name, level, phone, email, request, mode, heardFrom, heardDetail,
+      }));
+    } catch { /* A blocked storage API must not block sign-in. */ }
+  }
+
+  onMount(() => {
+    if (!new URL(location.href).searchParams.has('resume')) return;
+    let saved: string | null = null;
+    try { saved = sessionStorage.getItem('maab-booking-google-draft'); sessionStorage.removeItem('maab-booking-google-draft'); } catch { return; }
+    const url = new URL(location.href); url.searchParams.delete('resume'); history.replaceState(null, '', url.pathname + url.search);
+    if (!saved) return;
+    try {
+      const draft = JSON.parse(saved);
+      if (typeof draft.at !== 'number' || Date.now() - draft.at > 30 * 60 * 1000) return;
+      selectedPlan = PLANS.find(p => p.minutes === draft.plan) ?? selectedPlan;
+      isSelf = data.known ? data.isSelf : typeof draft.isSelf === 'boolean' ? draft.isSelf : null;
+      name = String(draft.name ?? '').slice(0,100); level = String(draft.level ?? '').slice(0,60);
+      phone = String(draft.phone ?? '').slice(0,30); email = data.email ?? String(draft.email ?? '').slice(0,254);
+      request = String(draft.request ?? '').slice(0,500); heardFrom = String(draft.heardFrom ?? ''); heardDetail = String(draft.heardDetail ?? '').slice(0,200);
+      mode = draft.mode === 'online' || draft.mode === 'in_person' ? draft.mode : null;
+      const match = data.students.find(s => s.name === name);
+      chosen = match?.code ?? (data.known ? 'other' : null); editingDetails = !match;
+      step = 'slots'; loadSlots();
+      if (draft.slot && typeof draft.slot.start === 'string' && typeof draft.slot.end === 'string' && Date.parse(draft.slot.start) > Date.now()) {
+        selectedSlot = draft.slot; pane = draft.pane === 2 ? 2 : 1; sheetOpen = true;
+      }
+    } catch { /* Ignore invalid/obsolete local drafts. */ }
+  });
 
   // ── The form ─────────────────────────────────────────────────────────────
   let isSelf = $state<boolean | null>(null);
@@ -827,6 +861,12 @@
       </div>
 
       <div class="sheet-body">
+        {#if data.googleEnabled && !data.known}
+          <div class="booking-google">
+            <GoogleSignIn next="/booking?resume=1" onStart={saveGoogleDraft} label="המשך עם Google" />
+            <p>נשמור את הבחירה שלכם ונמלא את הפרטים שכבר ידועים.</p>
+          </div>
+        {/if}
         {#if pane === 1}
           {#if knownFamily && !editingDetails}
             <fieldset class="who">
@@ -1074,6 +1114,8 @@
 {/if}
 
 <style>
+  .booking-google { margin-bottom:20px; }
+  .booking-google p { color:var(--text-muted);font-size:.85rem;line-height:1.6;margin-top:8px; }
   .slot-notice { border: 1.5px solid var(--border-strong); border-radius: 12px; padding: 10px 14px; margin: 10px 0; font-size: .9rem; line-height: 1.5; }
   /* ── header ─────────────────────────────────── */
   header {

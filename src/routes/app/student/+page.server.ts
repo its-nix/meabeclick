@@ -15,6 +15,7 @@
  */
 import { redirect } from '@sveltejs/kit';
 import { resolveFamilyAccess, studentInScope, defaultStudent } from '$server/family.ts';
+import { googleEnabled, hasGoogleIdentity } from '$server/google-login.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals, url }) => {
@@ -32,6 +33,8 @@ export const load: PageServerLoad = ({ locals, url }) => {
   if (student.code !== requested) redirect(303, `/app/student?s=${encodeURIComponent(student.code)}`);
 
   return {
+    googleEnabled: googleEnabled(),
+    googleLinked: hasGoogleIdentity(access.identity),
     code: student.code,
     /** Whether to offer a way back to the parent view — a child's session
      *  has nowhere to go back to. */

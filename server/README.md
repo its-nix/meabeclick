@@ -867,6 +867,53 @@ The scope `meetings.space.created` is *sensitive*. Until Google verifies
 the app, a tutor sees an "unverified app" screen once, and the setup page
 tells them how to pass it.
 
+### Google sign-in
+
+Google login is separate from Meet setup: it requests only `openid email profile`.
+Use an OAuth **Web application** client. Register the exact redirect URI
+`https://meabeclick.com/auth/google/callback` (or `SITE_URL` plus that path).
+For localhost, register the exact local callback separately. The browser must
+use the same origin as `SITE_URL` so the OAuth browser-binding cookie returns.
+Caddy redirects `www.meabeclick.com` to the canonical `meabeclick.com` origin;
+the Compose Caddy configuration-revision label recreates the proxy on this
+release so that the new redirect takes effect without a separate SSH step.
+
+Set these server-side values in the existing `.env` (never commit secrets):
+
+```
+GOOGLE_LOGIN_CLIENT_ID=…
+GOOGLE_LOGIN_CLIENT_SECRET=…
+GOOGLE_TUTOR_EMAILS=approved-tutor@gmail.com,another-approved-tutor@gmail.com
+```
+
+The approved deployment settings in `src/lib/server/google-login-settings.ts`
+reuse `GOOGLE_WEB_CLIENT_ID` and `GOOGLE_WEB_CLIENT_SECRET`; the login callback
+was registered before enabling that setting. Keep its Meet callback registered.
+Setting either dedicated `GOOGLE_LOGIN_*` variable requires both to be present;
+a partial dedicated pair stays disabled rather than mixing clients. Prefer a dedicated basic-sign-in client/project if the existing
+project still shows Meet's sensitive-scope verification screen. Publish the OAuth
+consent app for real users, rather than leaving it limited to test users.
+
+The default tutor allowlist is exactly `nikates2929@gmail.com` and
+`lior3226@gmail.com`, as approved for this deployment. `GOOGLE_TUTOR_EMAILS`
+can override it; an explicit empty value disables Google on `/login`.
+Google login retains the dashboard's existing shared administrator privileges.
+`ADMIN_PASSWORD` stays configured as a fallback. Family Google login is hidden
+until a complete dedicated or approved reused client configuration is present; email and student codes still work.
+No Google API permissions, refresh tokens, or WhatsApp API credentials are needed.
+The WhatsApp action opens a prepared message for the parent to send.
+
+Migration 037 adds Google subject mappings, expiring OAuth transactions, and paired
+invitation IDs. Existing family sessions and links remain valid. New student links
+last 48 hours; codes remain 15 minutes. Reissuing supersedes unused invitations;
+accepting either channel consumes its companion. Chat previews never accept them.
+
+Use the existing commit-specific deployment process above when enabling the
+configuration. Verify a real Google account on mobile Safari/Chrome, an invited
+child, and an independent learner after configuration. Automated checks use a
+local fake Google that signs real test JWTs and serves its own JWKS; production
+has no fake-provider or token-verification bypass.
+
 ### Vision metrics
 
 `scripts/vision-metrics.mjs` prints the PRODUCT.md targets (active students,

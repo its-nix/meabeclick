@@ -739,7 +739,7 @@
     const who = access.scope === 'account'
       ? `למשפחה של ${access.accountName ?? ''}`
       : `ל${access.name ?? 'התלמיד/ה'} בלבד`;
-    const message = `כניסה אישית ${who} במאה בקליק:\n${access.link}\nהקישור תקף ל־15 דקות ולכניסה אחת.`;
+    const message = `כניסה אישית ${who} במאה בקליק:\n${access.link}\nהקישור תקף ל־${access.scope === 'student' ? '48 שעות' : '15 דקות'} ולכניסה אחת.`;
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   }
 
@@ -1571,7 +1571,7 @@
                         <code class="raw-access-link" dir="ltr">{links[studentKey].link}</code>
                       {/if}
                       <span class="rs-join">אין וואטסאפ? פתחו את <span dir="ltr">meabeclick.com/portal</span> והקלידו קוד צירוף: <b dir="ltr">{links[studentKey].joinCode}</b></span>
-                      <span class="rs-sub">תקף ל־15 דקות ולכניסה אחת.</span>
+                      <span class="rs-sub">הזמנה ל־48 שעות · קוד ל־15 דקות · כניסה אחת.</span>
                     {:else if linkConfirm === studentKey}
                       <strong>הכנת כניסה חדשה ל{rs.name} בלבד</strong>
                       <span class="rs-sub">קישור וקוד צירוף קודמים לתלמיד/ה שעדיין לא שימשו יפסיקו לעבוד.</span>

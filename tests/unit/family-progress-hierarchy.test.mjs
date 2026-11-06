@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 const parent = readFileSync('src/routes/app/parent/+page.svelte', 'utf8');
 const student = readFileSync('src/routes/app/student/+page.svelte', 'utf8');
 
-test('parent next lesson and learning evidence precede repeat access and detailed finance', () => {
+test('parent invitation is visible before lesson details while detailed finance stays in its own view', () => {
   const lesson = parent.indexOf('class="next-lesson-box"');
   const progress = parent.indexOf('class="progress-overall"');
   const access = parent.indexOf('class="section share"');
-  assert.ok(lesson < progress && progress < access);
-  assert.match(parent, /<details class="family-administration"[^>]*>/);
+  assert.ok(access < lesson && lesson < progress);
+  assert.match(parent, /<section class="family-administration"[^>]*>/);
   assert.match(parent, /<section class="section family-payments" hidden=\{parentView !== 'payments'\}>/);
   assert.equal((parent.match(/class="stats-bar"/g) ?? []).length, 1, 'financial counters remain only in the family finance disclosure');
 });

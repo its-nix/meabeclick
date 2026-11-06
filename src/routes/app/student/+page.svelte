@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ConnectGoogle from '$lib/components/ConnectGoogle.svelte';
   import { GRADE_LABEL } from '$lib/homework-grade.ts';
   import type { FamilyLesson } from '$lib/family-lesson.ts';
   import { homeworkProblems } from '$lib/homework-display.ts';
@@ -428,6 +429,8 @@
     <button class="sign-out" onclick={signOut} disabled={signingOut}>{signingOut ? 'יוצאים…' : 'יציאה'}</button>
       {#if logoutError}<p class="logout-error" role="alert">{logoutError}</p>{/if}
   </header>
+
+  <ConnectGoogle enabled={data.googleEnabled} linked={data.googleLinked} />
 
   {#if view === 'app' && DATA}
     <div id="app">

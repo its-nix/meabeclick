@@ -1,4 +1,7 @@
 <script lang="ts">
+  import GoogleSignIn from '$lib/components/GoogleSignIn.svelte';
+  import type { PageData } from './$types';
+  let { data }: { data: PageData } = $props();
   import { page } from '$app/state';
   import BrandMark from '$lib/components/BrandMark.svelte';
   import { safeNext as checkNext } from '$lib/safe-next.ts';
@@ -52,6 +55,9 @@
     <div class="logo"><BrandMark height={40} href={null} label={null} /></div>
     <h1>לוח בקרה</h1>
     <p>{tutorNames()} · שיעורים פרטיים</p>
+    {#if data.authError}<p role="alert">{data.authError}</p>{/if}
+    {#if data.googleEnabled}<GoogleSignIn intent="tutor" next={page.url.searchParams.get('next') ?? '/app/dashboard'} label="כניסה עם Google" />{/if}
+    <details open={!data.googleEnabled}><summary>כניסה עם סיסמה</summary>
     <label for="tutor-password">סיסמה</label>
     <input
       id="tutor-password" type="password"
@@ -64,11 +70,13 @@
     />
     <button disabled={loading} onclick={login}>כניסה</button>
     <div class="err" role="alert">{errorMsg}</div>
+    </details>
     <a href="/">→ חזרה לאתר</a>
   </div>
 </div>
 
 <style>
+  summary { cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);margin-block:12px; }
   .auth-page {
     min-height: 100vh;
     min-height: 100dvh;

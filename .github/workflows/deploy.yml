@@ -104,6 +104,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Check Google sign-in and family onboarding in Chromium
+        run: npm run test:auth:browser
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/apple-role-journeys/google-onboarding
+
       - name: Check role journeys, responsive UI and contrast in Chromium
         run: npm run test:ui:browser
         env:

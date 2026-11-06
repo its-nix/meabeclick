@@ -35,6 +35,8 @@ import { sql as sql034 } from './034_family_acquisition_source.ts';
 import { sql as sql035 } from './035_learning_experiences.ts';
 import { sql as sql036 } from './036_learning_release.ts';
 
+import { sql as sql037 } from './037_google_onboarding.ts';
+
 export interface Migration {
   version: number;
   name: string;
@@ -88,4 +90,5 @@ export const MIGRATIONS: Migration[] = [
   { version: 34, name: '034_family_acquisition_source', sql: sql034 },
   { version: 35, name: '035_learning_experiences', sql: sql035 },
   { version: 36, name: '036_learning_release', sql: sql036 },
+  { version: 37, name: '037_google_onboarding', sql: sql037 },
 ];

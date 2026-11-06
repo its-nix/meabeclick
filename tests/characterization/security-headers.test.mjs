@@ -52,7 +52,7 @@ test('an app page carries an enforcing CSP with a per-request script nonce', asy
     assert.deepEqual(d['frame-ancestors'], ["'self'"], 'matches Caddy\'s X-Frame-Options SAMEORIGIN');
     assert.deepEqual(d['object-src'], ["'none'"]);
     assert.deepEqual(d['base-uri'], ["'self'"]);
-    assert.deepEqual(d['form-action'], ["'self'"]);
+    assert.deepEqual(d['form-action'], ["'self'", 'https://accounts.google.com']);
 
     // The nonce is per request, or it is not a nonce.
     const again = await fetch(`${baseUrl}/`);

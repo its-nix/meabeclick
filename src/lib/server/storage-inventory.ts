@@ -53,6 +53,8 @@ export interface TableFact {
 
 export const STORAGE: Record<string, TableFact> = {
   // ── The entity model, which is where new work belongs ──────────────
+  google_identities: { status: 'live', note: 'Verified Google subjects mapped to existing family or student authorization.' },
+  google_auth_flows: { status: 'live', note: 'Browser-bound, expiring OAuth transactions and one-time pending signup profiles.' },
   accounts:      { status: 'live', note: 'The billing/login family.' },
   family_acquisition_sources: { status: 'live', note: 'Self-reported family source reused for future bookings; past booking snapshots remain unchanged.' },
   students_v2:   { status: 'live', note: 'The student. Keyed by id; `code` is the URL slug.' },
@@ -73,7 +75,7 @@ export const STORAGE: Record<string, TableFact> = {
   join_codes:    { status: 'live', note: 'A child\'s own way in, minted by the parent.' },
   access_credentials: {
     status: 'live',
-    note: 'Hashed, 15-minute, single-use account and student entry credentials; raw secrets are never stored.',
+    note: 'Hashed single-use entry: 15-minute account links/codes and 48-hour student invitations; raw secrets are never stored.',
   },
   access_credential_audit: {
     status: 'live',

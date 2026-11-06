@@ -26,7 +26,7 @@ for(const from of [34,35]) test(`learning migration upgrades schema ${from} with
     const student=db.prepare('SELECT * FROM students_v2').all();
     migrate(db);
     migrate(db); // A restart must not reapply either migration.
-    assert.equal(db.prepare('SELECT max(version) AS version FROM schema_version').get().version,36);
+    assert.equal(db.prepare('SELECT max(version) AS version FROM schema_version').get().version,Math.max(...MIGRATIONS.map(m=>m.version)));
     assert.deepEqual(db.prepare('SELECT * FROM lesson_materials').all(),material);
     assert.deepEqual(db.prepare('SELECT * FROM students_v2').all(),student);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);

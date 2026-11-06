@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import BottomNav, { type NavItem } from '$lib/components/BottomNav.svelte';
+  import ConnectGoogle from '$lib/components/ConnectGoogle.svelte';
   import Icon from '$lib/icons/Icon.svelte';
   import BrandMark from '$lib/components/BrandMark.svelte';
   /**
@@ -171,7 +172,6 @@
     loadError = '';
     share = null;
     shareOpen = false;
-    shareConfirm = false;
     showLink = false;
 
     try {
@@ -269,7 +269,6 @@
   interface Share { name: string; link: string; joinCode: string }
   let share = $state<Share | null>(null);
   let shareOpen = $state(false);
-  let shareConfirm = $state(false);
   let shareBusy = $state(false);
   let shareGeneration = 0;
   let shareErr = $state('');
@@ -293,8 +292,7 @@
       if (generation !== shareGeneration || requestedId !== currentId) return;
       share = result;
       shareOpen = true;
-      shareConfirm = false;
-    } catch {
+      } catch {
       if (generation === shareGeneration && requestedId === currentId) shareErr = 'לא הצלחנו להכין את הקישור. נסו שוב.';
     } finally {
       if (generation === shareGeneration) shareBusy = false;
@@ -374,6 +372,7 @@
       <p class="fam-sub">{overview.children.length} תלמידים בחשבון</p>
     </div>
 
+    <ConnectGoogle enabled={data.googleEnabled} linked={data.googleLinked} />
     <div class="kid-grid">
       {#each overview.children as kid (kid.code)}
         <!-- One card per child, each carrying enough state that a parent
@@ -504,6 +503,57 @@
 
 
 
+    <ConnectGoogle enabled={data.googleEnabled} linked={data.googleLinked} />
+    {#if !data.isSelf}
+      <!-- The child's own way in. A parent link opens the parent view, so a
+           child needs a session scoped to themselves — this is where they
+           get one. -->
+      <section class="family-administration" hidden={parentView !== 'home'} aria-label="הזמנת הילד או הילדה">
+      <div class="section share">
+        <div class="sec-header">
+          <span class="sec-icon"><Icon name="student" /></span>
+          <h2 class="sec-title">הזמנה ל{CURRENT.name}</h2>
+        </div>
+
+        <!-- The parent's own way to the child's board — the slides, the
+             games — without making a link first. A family session may open
+             it, and it offers the way back. -->
+        <a class="board-link" href="/app/student?s={currentId}">לפתוח עכשיו את הלוח של {CURRENT.name} ←</a>
+
+        {#if !shareOpen}
+          <p class="share-intro">
+            קישור אישי לדף של {CURRENT.name}, בלי להזין כתובת מייל של הילד/ה.
+            {#if data.googleEnabled}אפשר לחבר Google לכניסות הבאות.{/if}
+          </p>
+          <button class="share-open" onclick={loadShare} disabled={shareBusy}>
+            {shareBusy ? 'מכינים הזמנה…' : 'הזמנה בוואטסאפ'}
+          </button>
+          {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
+        {:else if share}
+          <p><strong>ההזמנה מוכנה</strong> · הקישור תקף ל־48 שעות ולכניסה אחת.</p>
+          <div class="share-actions">
+            <a class="share-primary" href={shareHref} target="_blank" rel="noopener">
+              <Icon name="message" size={17} /> שליחה בוואטסאפ
+            </a>
+            <button class="share-secondary" onclick={copyShare}>
+              {#if copied}<Icon name="check" size={16} /> הועתק{:else}<Icon name="link" size={16} /> העתקת קישור{/if}
+            </button>
+          </div>
+          {#if showLink}<div class="share-link" dir="ltr">{share.link}</div>{/if}
+
+          <div class="share-code">
+            <div class="share-code-label">אין וואטסאפ? פתחו את <span dir="ltr">{page.url.host}/portal</span> והקלידו קוד צירוף:</div>
+            <div class="share-code-value" dir="ltr">{share.joinCode}</div>
+            <div class="share-code-note">תקף ל־15 דקות ולכניסה אחת.</div>
+          </div>
+          <button class="share-secondary" onclick={loadShare} disabled={shareBusy}>{shareBusy ? 'מכינים…' : 'הכנת הזמנה חדשה'}</button>
+          <p class="share-intro">הזמנה חדשה מחליפה קישורים וקודים שטרם שימשו. מכשירים שכבר נכנסו נשארים מחוברים.</p>
+          {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
+        {/if}
+      </div>
+      </section>
+    {/if}
+
     {#if isDayOne && parentView === 'home'}
       <!-- Day one used to be six zero-states and a 0% bar: the family's
            first look at the thing they had just paid for. It is a promise
@@ -534,7 +584,7 @@
           </div>
         </div>
       {:else}
-        <div class="no-upcoming">אין שיעור קבוע — ניצור קשר לתיאום</div>
+        <div class="no-upcoming">עדיין לא נקבע שיעור. אפשר לבחור מועד כשמתאים לכם.</div>
       {/if}
     </div>
 
@@ -658,65 +708,7 @@
       </div>
     </div>
 
-    {#if !data.isSelf}
-      <!-- The child's own way in. A parent link opens the parent view, so a
-           child needs a session scoped to themselves — this is where they
-           get one. -->
-      <details class="family-administration" hidden={parentView !== 'home'}><summary>כניסה ללוח התלמיד/ה ושיתוף קישור</summary>
-      <div class="section share">
-        <div class="sec-header">
-          <span class="sec-icon"><Icon name="student" /></span>
-          <h2 class="sec-title">כניסה ל{CURRENT.name}</h2>
-        </div>
 
-        <!-- The parent's own way to the child's board — the slides, the
-             games — without making a link first. A family session may open
-             it, and it offers the way back. -->
-        <a class="board-link" href="/app/student?s={currentId}">לפתוח עכשיו את הלוח של {CURRENT.name} ←</a>
-
-        {#if !shareOpen && !shareConfirm}
-          <p class="share-intro">
-            שלחו ל{CURRENT.name} קישור אישי — לוח משלו/ה עם שיעורי הבית והמשחקים,
-            בלי גישה לתשלומים.
-          </p>
-          <button class="share-open" onclick={() => { shareConfirm = true; shareErr = ''; }}>
-            הכנת קישור וקוד
-          </button>
-          {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
-        {:else if shareConfirm && !shareOpen}
-          <div class="share-confirm">
-            <strong>להכין כניסה חדשה ל{CURRENT.name}?</strong>
-            <p>קישור אישי או קוד צירוף קודמים שעדיין לא שימשו יפסיקו לעבוד. מכשירים שכבר נכנסו יישארו מחוברים.</p>
-            <div class="share-actions">
-              <button class="share-primary" onclick={loadShare} disabled={shareBusy}>
-                {shareBusy ? 'מכינים…' : 'הכנת כניסה חדשה'}
-              </button>
-              <button class="share-secondary" onclick={() => { shareConfirm = false; }}>ביטול</button>
-            </div>
-            {#if shareBusy}<p role="status">מכינים…</p>{/if}
-            {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
-          </div>
-        {:else if share}
-          <p><strong>הכניסה מוכנה</strong></p>
-          <div class="share-actions">
-            <a class="share-primary" href={shareHref} target="_blank" rel="noopener">
-              <Icon name="message" size={17} /> שליחה בוואטסאפ
-            </a>
-            <button class="share-secondary" onclick={copyShare}>
-              {#if copied}<Icon name="check" size={16} /> הועתק{:else}<Icon name="link" size={16} /> העתקת קישור{/if}
-            </button>
-          </div>
-          {#if showLink}<div class="share-link" dir="ltr">{share.link}</div>{/if}
-
-          <div class="share-code">
-            <div class="share-code-label">אין וואטסאפ? פתחו את <span dir="ltr">{page.url.host}/portal</span> והקלידו קוד צירוף:</div>
-            <div class="share-code-value" dir="ltr">{share.joinCode}</div>
-            <div class="share-code-note">תקף ל־15 דקות ולכניסה אחת.</div>
-          </div>
-        {/if}
-      </div>
-      </details>
-    {/if}
 
     <section class="section family-payments" hidden={parentView !== 'payments'}>
       <div class="sec-header"><span class="sec-icon"><Icon name="payments" /></span><h2 class="sec-title">תשלומים</h2></div>
@@ -1098,7 +1090,7 @@
   }
   .fam-book:hover { background: var(--action-hover); }
   .family-administration, .family-finances { margin-block: 24px; }
-  :is(.family-administration, .family-finances) > summary { min-height: 44px; cursor: pointer; font-weight: 700; padding-block: 12px; color: var(--text-primary); }
+  .family-finances > summary { min-height: 44px; cursor: pointer; font-weight: 700; padding-block: 12px; color: var(--text-primary); }
 
   :is(summary, button, a):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>

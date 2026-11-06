@@ -14,12 +14,13 @@
  */
 import { redirect } from '@sveltejs/kit';
 import { resolveFamilyAccess, defaultStudent } from '$server/family.ts';
+import { googleEnabled, GOOGLE_ERRORS } from '$server/google-login.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals, url }) => {
   const access = locals.family ? resolveFamilyAccess(locals.family) : null;
 
-  if (access) {
+  if (access && !url.searchParams.has('authError')) {
     // A parent with more than one child picks a board; everyone else has
     // exactly one place to be and is taken there.
     if (access.canSeeParentView && !access.isSelf) redirect(303, '/app/parent');
@@ -33,6 +34,9 @@ export const load: PageServerLoad = ({ locals, url }) => {
   }
 
   return {
+    signedIn: !!access,
+    googleEnabled: googleEnabled(),
+    authError: GOOGLE_ERRORS[url.searchParams.get('authError') ?? ''] ?? '',
     /** Set by /enter when a link was expired, tampered with, or named a
      *  record that no longer exists. All three land here identically. */
     expired: url.searchParams.get('expired') === '1',

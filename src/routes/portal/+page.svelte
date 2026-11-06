@@ -1,4 +1,5 @@
 <script lang="ts">
+  import GoogleSignIn from '$lib/components/GoogleSignIn.svelte';
   import Icon from '$lib/icons/Icon.svelte';
   import BrandMark from '$lib/components/BrandMark.svelte';
   import { contactTutor } from '$lib/tutors.ts';
@@ -98,7 +99,15 @@
     {/if}
 
     <h1>כניסה לדף האישי</h1>
-    <p class="sub">בלי סיסמאות. בוחרים איך להיכנס:</p>
+    <p class="sub">הלמידה שלכם מתחילה כאן.</p>
+    {#if data.authError}<p class="notice" role="alert">{data.authError}</p>{/if}
+    {#if data.signedIn}<p class="hint"><a href="/portal">→ חזרה לדף שלי</a></p>{/if}
+    {#if data.googleEnabled}
+      <GoogleSignIn />
+      <p class="hint">כניסה והרשמה באותו מקום. הדף שלכם מחכה בפנים.</p>
+    {/if}
+    <details class="alternatives" open={!data.googleEnabled}>
+      <summary>{data.googleEnabled ? 'כניסה עם קישור או קוד' : 'כניסה בלי סיסמה'}</summary>
 
     <!-- Each door says who it is for AND how it works, so a child holding a
          code and a parent holding nothing both pick the right one without
@@ -175,6 +184,8 @@
       </div>
     {/if}
 
+    </details>
+
     <div class="links">
       <a href="/booking">להזמנת שיעור</a>
       <span aria-hidden="true">·</span>
@@ -184,6 +195,8 @@
 </div>
 
 <style>
+  .alternatives { margin-top: 20px; }
+  .alternatives > summary { min-height:44px; cursor:pointer; color:var(--text-muted); font-weight:600; padding-block:12px; }
   .auth-page {
     min-height: 100vh;
     min-height: 100dvh;

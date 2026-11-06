@@ -21,6 +21,7 @@ import { redirect } from '@sveltejs/kit';
 import { resolveFamilyAccess, studentInScope, defaultStudent } from '$server/family.ts';
 import { buildOverview } from '$server/overview.ts';
 import { todayInIsrael } from '$server/payments.ts';
+import { googleEnabled, hasGoogleIdentity } from '$server/google-login.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals, url }) => {
@@ -49,6 +50,8 @@ export const load: PageServerLoad = ({ locals, url }) => {
   const selected = inScope ?? defaultStudent(access);
 
   return {
+    googleEnabled: googleEnabled(),
+    googleLinked: hasGoogleIdentity(access.identity),
     accountName: access.account.name,
     isSelf: access.isSelf,
     view: showOverview ? ('overview' as const) : ('board' as const),

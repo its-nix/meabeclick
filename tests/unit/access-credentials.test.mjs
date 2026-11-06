@@ -113,3 +113,15 @@ test('credential audit retention is bounded under sustained invalid traffic', ()
   const count = Number(db().prepare(`SELECT COUNT(*) AS count FROM access_credential_audit`).get().count);
   assert.ok(count <= 10_000, `audit grew to ${count} rows`);
 });
+
+
+test('WhatsApp invitations last 48 hours, codes last 15 minutes, and either consumes the pair', () => {
+  const issued = access.issueStudentCredentials(firstStudentId, { type: 'parent', id: accountId });
+  assert.equal(issued.expiresAt - issued.createdAt, 48 * 60 * 60 * 1000);
+  const code = db().prepare("SELECT * FROM access_credentials WHERE invitation_id = (SELECT invitation_id FROM access_credentials WHERE id = ?) AND channel = 'join'").get(issued.id);
+  assert.equal(Date.parse(code.expires_at) - issued.createdAt, 15 * 60 * 1000);
+  assert.ok(access.peekLinkCredential(issued.link.split('#')[1]));
+  assert.ok(access.peekLinkCredential(issued.link.split('#')[1]), 'preview does not consume');
+  assert.ok(access.consumeJoinCredential(issued.joinCode));
+  assert.equal(access.consumeLinkCredential(issued.link.split('#')[1]), null, 'companion cannot be reused');
+});

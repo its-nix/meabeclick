@@ -5,6 +5,12 @@
 measurements and decisions below describe the earlier renderer, retained for
 historical evidence and compatibility with existing lessons.
 
+The current scene renderer and video exporter share the site's original logo,
+palette and Heebo typography through `src/lib/brand.ts`. New scenes also require
+private presenter notes and concrete, conversational Hebrew instructions. See
+the brand, wording and presenter-notes contract in `interactive-learning.md`;
+the historical eight-colour measurement below is not the current palette size.
+
 Todoist `id:6hRhM62pGwM7RMCq`. Evidence: the same 12 generations described
 in `game-standard.md`, graded against `lesson-generation-rubric.md`.
 

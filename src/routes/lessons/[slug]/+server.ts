@@ -17,6 +17,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     const lesson = assignedExperience(params.slug);
     if (lesson) return new Response(renderLearningDocument(lesson.experience, {
       slug: params.slug, preview: true, storageScope: `teacher:${params.slug}`, backUrl: '/app/dashboard',
+      presenterUrl: `/app/lessons/${encodeURIComponent(params.slug)}/presenter`,
     }), { headers: { ...documentHeaders(), 'Cache-Control': 'no-store' } });
   }
   if (locals.family && learningAccess(params.slug,locals) && assignedExperience(params.slug)) redirect(303,`/app/learn/${encodeURIComponent(params.slug)}`);

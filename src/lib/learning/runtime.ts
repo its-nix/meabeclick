@@ -44,6 +44,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   let active = 0, elapsed = 0, playing = false, speed = 1, animation = 0, previousTime = 0;
   let params = scenes[0].frames[0].values.slice();
   let selected: number | null = null;
+  let manipulated = false;
   let scope = config.storageScope ?? (config.demo ? 'demo' : 'pending');
   let states: Record<string, LearningProgress> = {};
   let userNavigated = false;
@@ -122,7 +123,15 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       const templates = all<HTMLTemplateElement>('[data-formula-template]', section);
       formulaElement.replaceChildren(templates[Math.min(f.frame, templates.length - 1)].content.cloneNode(true));
     }
-    rich(query('[data-caption]', section), scene.frames[f.frame].caption);
+    let caption = scene.frames[f.frame].caption;
+    if (manipulated) {
+      const numbers = values.map(value => String(Number(value.toFixed(2))));
+      if (hidden) caption = 'הנוסחה למעלה מציגה את הערכים שבחרתם. בדקו שהיא מתאימה לגרף היעד.';
+      else if (scene.visual === 'quadratic') caption = `עכשיו הקודקוד ב־\\((${numbers[1]},${numbers[2]})\\), והפרבולה נפתחת ${values[0] > 0 ? 'כלפי מעלה' : 'כלפי מטה'}.`;
+      else if (scene.visual === 'linear') caption = `השיפוע עכשיו \\(m=${numbers[0]}\\), והישר חותך את ציר \\(y\\) ב־\\((0,${numbers[1]})\\).`;
+      else if (scene.visual === 'number-line') caption = `הנקודה עכשיו ב־\\(${numbers[0]}\\).`;
+    }
+    rich(query('[data-caption]', section), caption);
     if (scene.visual === 'steps') {
       const step = query('[data-step-formula]', section);
       step.replaceChildren(all<HTMLTemplateElement>('[data-formula-template]', section)[f.frame].content.cloneNode(true));
@@ -144,6 +153,8 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
 
   function show(index: number, focus = false): void {
     pause(); active = Math.max(0, Math.min(scenes.length - 1, index));
+    manipulated = false;
+    if (location.hash.startsWith('#scene=')) history.replaceState(null, '', '#scene=' + scenes[active].id);
     elapsed = 0; selected = null; params = scenes[active].frames[0].values.slice();
     if (scenes[active].check?.kind === 'graph-target') {
       const target = scenes[active].check?.target;
@@ -243,6 +254,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     const scene = scenes[sceneIndex];
     query('[data-play]', section).addEventListener('click', () => {
       if (playing) { pause(); return; }
+      manipulated = false;
       if (reducedMotion) {
         elapsed = Math.min(duration(), elapsed + 4);
         if (elapsed === duration() && query<HTMLInputElement>('[data-timeline]', section).value === String(duration())) elapsed = 0;
@@ -255,14 +267,18 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     });
     query('[data-speed]', section).addEventListener('click', () => { speed = speed === 1 ? .5 : 1; query('[data-speed]', section).textContent = `${speed}×`; });
     query<HTMLInputElement>('[data-timeline]', section).addEventListener('input', event => {
+      manipulated = false;
       pause(); elapsed = Number((event.target as HTMLInputElement).value);
       params = at(scene as unknown as LearningExperience['scenes'][number], elapsed).values; render();
     });
     all<HTMLButtonElement>('[data-frame-dot]', section).forEach((dot, i) => dot.addEventListener('click', () => {
+      manipulated = false;
       pause(); elapsed = i*4; params = scene.frames[i].values.slice(); render();
     }));
     all<HTMLInputElement>('[data-param]', section).forEach(input => input.addEventListener('input', () => {
       pause();
+      manipulated = true;
+      feedback('');
       const index = Number(input.dataset.param), previous = params[index];
       params[index] = Number(input.value);
       if (scene.visual === 'quadratic' && index === 0 && params[0] === 0) params[0] = previous > 0 ? -1 : 1;
@@ -323,7 +339,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     pause();
     all<SVGSVGElement>('[data-print-plot]').forEach(svg => {
       const scene = scenes.find(s => s.id === svg.dataset.printPlot)!;
-      draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: scene.phase === 'challenge' });
+      draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: true });
     });
   });
   document.addEventListener('keydown', event => {
@@ -332,10 +348,20 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     if (event.key === 'ArrowRight' && active > 0) { event.preventDefault(); show(active-1, true); }
   });
 
-  if (config.demo) { restore(); show(active); status.textContent = 'שיעור לדוגמה · ההתקדמות נשמרת במכשיר הזה'; }
+  const linkedScene = () => scenes.findIndex(scene => scene.id === new URLSearchParams(location.hash.slice(1)).get('scene'));
+  const showInitial = () => {
+    const index = linkedScene();
+    if (index >= 0) { active = index; userNavigated = true; }
+    show(active);
+  };
+  addEventListener('hashchange', () => {
+    const index = linkedScene();
+    if (index >= 0) { userNavigated = true; show(index, true); }
+  });
+  if (config.demo) { restore(); showInitial(); status.textContent = 'שיעור לדוגמה · ההתקדמות נשמרת במכשיר הזה'; }
   else {
     if (scope !== 'pending') restore();
-    show(active);
+    showInitial();
     if (endpoint) void fetch(endpoint).then(async response => {
       if (!response.ok) { status.textContent = 'לשמירה ולבדיקת תשובות, פתחו את הקישור האישי שלכם.'; return; }
       const data = await response.json();

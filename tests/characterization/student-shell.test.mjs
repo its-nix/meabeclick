@@ -90,7 +90,7 @@ test('the nav cannot scroll a destination out of reach', async () => {
     // The build serves CSS as a linked stylesheet, not inline, so the rules
     // have to be fetched rather than read off the page.
     const css = await stylesheetsOf(baseUrl, html);
-    assert.match(css, /grid-auto-columns:\s*1fr/, 'destinations must share equal fractions');
+    assert.match(css, /grid-auto-columns:\s*(?:1fr|minmax\(0,\s*1fr\))/, 'destinations must share equal fractions');
     assert.match(css, /env\(safe-area-inset-bottom\)/,
       'the bar must clear the iPhone home indicator');
   } finally { await stop(); }

@@ -104,6 +104,20 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Check role journeys, responsive UI and contrast in Chromium
+        run: npm run test:ui:browser
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/apple-role-journeys
+
+      - name: Save synthetic role journey screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-role-journeys
+          path: ${{ runner.temp }}/apple-role-journeys
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Compute lowercase image name
         id: image
         run: echo "name=${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"

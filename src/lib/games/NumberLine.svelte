@@ -204,8 +204,8 @@
 <style>
   .target { text-align: center; margin-bottom: 1rem; }
   .target-val {
-    display: inline-block; background: var(--accent); color: #fff;
-    font-size: clamp(1.8rem, 7vw, 2.6rem); font-weight: 900;
+    display: inline-block; background: var(--action-fill); color: #fff;
+    font-size: clamp(1.8rem, 7vw, 2.6rem); font-weight:600;
     padding: 0.4rem 1.6rem; border-radius: 16px; direction: ltr;
   }
   .line-box {

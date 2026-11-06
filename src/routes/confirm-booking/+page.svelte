@@ -60,7 +60,7 @@
 <style>
   .wrap { max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; text-align: center; }
   .brand { display: flex; justify-content: center; margin-bottom: 20px; }
-  h1 { font-size: 1.5rem; font-weight: 900; margin: 0 0 8px; }
+  h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 8px; }
   .lead { color: var(--text-muted); margin: 0 0 16px; }
   dl {
     display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; text-align: start;
@@ -71,8 +71,8 @@
   dd { margin: 0; font-weight: 700; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; min-height: 48px;
-    padding: 0 24px; border: 0; border-radius: 999px; background: var(--accent); color: #fff;
-    font: inherit; font-weight: 800; text-decoration: none; cursor: pointer;
+    padding: 0 24px; border: 0; border-radius: 999px; background: var(--action-fill); color: #fff;
+    font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
   }
   .btn:disabled { opacity: 0.6; cursor: default; }
   .error { color: var(--danger); font-weight: 700; margin-top: 12px; }

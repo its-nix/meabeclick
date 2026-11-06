@@ -652,7 +652,7 @@
   .game-section { margin: 24px 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); }
   .game-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; flex-wrap: wrap; }
   .game-heading h2 { margin-top: 0; }
-  .add-game { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: var(--r-sm); background: var(--accent); color: white; font-weight: 800; text-decoration: none; }
+  .add-game { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: var(--r-sm); background: var(--action-fill); color: white; font-weight: 700; text-decoration: none; }
   .game-list { display: grid; gap: 8px; margin-block: 12px; }
   .game-list button { display: flex; justify-content: space-between; align-items: center; text-align: start; }
   .game-list button.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
@@ -683,7 +683,7 @@
     border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary);
   }
   button:disabled { opacity: .5; cursor: default; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  button.primary { background: var(--action-fill); border-color: var(--accent); color: #fff; font-weight: 700; }
   button.danger { color: var(--danger); }
   button.add { margin-bottom: 8px; }
   .msg { font-weight: 600; color: var(--accent); }
@@ -700,7 +700,7 @@
   .history li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary); font-size: .9rem; }
   .history li.current { border-color: var(--accent); }
   .live { color: var(--accent); }
-  .editor-actions { position: sticky; top: 0; z-index: 20; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
+  .editor-actions { position: sticky; top:var(--workspace-header-height,65px); z-index: 20; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
   .editor-actions .actions { width: 100%; margin: 4px 0; }
   .editor-actions .msg { width: 100%; margin: 0; }
   .editor-section { border-bottom: 1px solid var(--border); padding-block: 8px; }

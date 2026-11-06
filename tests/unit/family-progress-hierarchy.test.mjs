@@ -9,8 +9,8 @@ test('parent next lesson and learning evidence precede repeat access and detaile
   const progress = parent.indexOf('class="progress-overall"');
   const access = parent.indexOf('class="section share"');
   assert.ok(lesson < progress && progress < access);
-  assert.match(parent, /<details class="family-administration">/);
-  assert.match(parent, /<details class="section family-payments">/);
+  assert.match(parent, /<details class="family-administration"[^>]*>/);
+  assert.match(parent, /<section class="section family-payments" hidden=\{parentView !== 'payments'\}>/);
   assert.equal((parent.match(/class="stats-bar"/g) ?? []).length, 1, 'financial counters remain only in the family finance disclosure');
 });
 test('student keeps a second progress summary only for distinct skill mastery', () => {

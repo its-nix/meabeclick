@@ -166,8 +166,13 @@ export async function startServer({ env = {}, ports = [], fakeGoogle = false } =
     // `stop()`.
     const cleanup = async () => {
       if (child.exitCode === null && child.signalCode === null) {
+        // A loaded renderer can leave background handles alive after the HTTP
+        // server closes. Bound teardown of this disposable process only.
+        const exited = new Promise(res => child.once('exit', res));
+        const forceStop = setTimeout(() => child.kill('SIGKILL'), 3000);
+        forceStop.unref();
         child.kill('SIGTERM');
-        await new Promise(res => child.once('exit', res));
+        try { await exited; } finally { clearTimeout(forceStop); }
       }
       await rm(dataDir, { recursive: true, force: true });
     };

@@ -1,0 +1,29 @@
+/* Shared interaction quality for public pages and every role. Page layouts own hierarchy. */
+:where(main) { min-inline-size: 0; }
+:where(input:not([type='checkbox'], [type='radio']), select, textarea) { font-size: max(1rem, 16px); }
+:where(button, summary, a[class*='btn'], a[class*='button']) { min-block-size: 44px; }
+:where(button:not(:disabled)):active { filter: brightness(.95); }
+:where(details) { scroll-margin-block-start: 88px; }
+:where(summary) { cursor: pointer; }
+:where(table) { font-variant-numeric: tabular-nums; }
+:where(dialog)::backdrop { background: rgb(0 0 0 / .32); backdrop-filter: blur(4px); }
+:where(dialog) { color: var(--text-primary); background: var(--bg-card); }
+@media (prefers-reduced-transparency: reduce) { :where(dialog)::backdrop { backdrop-filter: none; } }
+@media (forced-colors: active) { :where(button, a, input, select, textarea, summary) { forced-color-adjust: auto; } }
+[hidden] { display: none !important; }
+
+@media (prefers-color-scheme: dark) { :where(img[src$='.svg']) { color-scheme: light; } }
+
+input::placeholder,textarea::placeholder{color:var(--text-muted);opacity:1}
+@media print{
+  :root{color-scheme:light;--bg-card:#fff;--bg-card-solid:#f5f5f7;--bg-surface:#f5f5f7;--control-bg:#eeeef0;--text-muted-strong:#48484a;--accent:#2563eb;--accent-deep:#1d4ed8;--danger:#b91c1c}
+  body{--interface-bg:#fff;--interface-ink:#1d1d1f;--interface-muted:#636366;--interface-muted-strong:#48484a;--interface-danger:#b91c1c;--interface-separator:#e5e5ea}
+  .bottom-nav,.tutor-header,.top-nav{display:none!important}
+}
+
+/* Keep phone forms at Safari's legible input size, including compact tutor tools. */
+@media(max-width:600px){
+  .tutor-workspace :is(input:not([type=checkbox],[type=radio]),select,textarea),
+  .auth-page :is(input:not([type=checkbox],[type=radio]),select,textarea),
+  .parent-page :is(input:not([type=checkbox],[type=radio]),select,textarea){font-size:max(1rem,16px)!important}
+}

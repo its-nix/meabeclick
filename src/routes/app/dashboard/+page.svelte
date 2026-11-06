@@ -956,6 +956,12 @@
     }
   }
 
+  let studentSearch = $state('');
+  const visibleStudents = $derived(realStudents.filter(student =>
+    `${student.name} ${student.subjects ?? ''} ${tutorsOf(student)}`.toLocaleLowerCase().includes(studentSearch.trim().toLocaleLowerCase()),
+  ));
+  const dashboardDate = new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+
   onMount(() => {
     data = loadData();
     // Computed once, off the browser's existing local blob and the roster
@@ -997,10 +1003,10 @@
 <main class="page workspace-page" id="workspace-content" tabindex="-1">
   <span class="save-indicator" class:show={saveIndicatorVisible} role="status">{saveIndicatorVisible ? '✓ נשמר' : ''}</span>
   {#if !selectedStudentCode}
-  <TutorPageHeader title="לוח בקרה" description="השיעורים הקרובים, התלמידים והמשימות שצריכות תשומת לב.">
+  <TutorPageHeader title="לוח בקרה" description={dashboardDate}>
     {#snippet actions()}
       <a class="workspace-button" href="#student-roster">כל התלמידים</a>
-      <button class="workspace-button workspace-button-primary" bind:this={newStudentTrigger} onclick={openModal}><Icon name="add" size={18} /> תלמיד/ה חדש/ה</button>
+      <button class="workspace-button" bind:this={newStudentTrigger} onclick={openModal}><Icon name="add" size={18} /> תלמיד/ה חדש/ה</button>
     {/snippet}
   </TutorPageHeader>
   <EngineNotice alert={pageData.engineAlert} />
@@ -1106,22 +1112,12 @@
     </div>
   {/if}
 
-  <h2 class="operations-title">לטיפול היום</h2>
+  {#if pageData.pendingReports.length}<h2 class="operations-title">לטיפול היום</h2>{/if}
   <ReportQueue lessons={pageData.pendingReports} />
   {#if Object.values(activityError).some(Boolean) || Object.values(ledgerError).some(Boolean)}
     <p role="status">חלק מפרטי התיקים אינם מעודכנים. <button class="link-btn" onclick={loadActivities}>ניסיון עדכון נוסף</button></p>
   {/if}
   <div class="operations">
-    <section aria-labelledby="homework-review-title">
-      <h2 id="homework-review-title">עבודות ממתינות לבדיקה</h2>
-      <ul class="operation-list">
-        {#each realStudents.filter(s => extrasFor(s.code).homework.some(h => h.submitted && !h.graded)) as s (s.code)}
-          <li><a href="/app/students/{s.code}?tab=homework">{s.name}</a><span>{extrasFor(s.code).homework.filter(h => h.submitted && !h.graded).length} ממתינות לבדיקה</span></li>
-        {:else}
-          <li>{Object.keys(serverExtras).length === realStudents.length ? 'אין עבודות שממתינות לבדיקה בנתונים שנטענו' : 'ממתינים לפרטי העבודות'}</li>
-        {/each}
-      </ul>
-    </section>
     <section aria-labelledby="upcoming-title">
       <h2 id="upcoming-title">השיעורים הקרובים</h2>
       {#if Object.keys(serverExtras).length < realStudents.length}
@@ -1136,8 +1132,20 @@
         {/each}
       </ul>
     </section>
-    <section aria-labelledby="payment-followup-title">
-      <h2 id="payment-followup-title">מעקב תשלומים</h2>
+    {#if realStudents.some(student => extrasFor(student.code).homework.some(task => task.submitted && !task.graded)) || Object.keys(serverExtras).length < realStudents.length}
+    <section aria-labelledby="homework-review-title">
+      <h2 id="homework-review-title">עבודות ממתינות לבדיקה</h2>
+      <ul class="operation-list">
+        {#each realStudents.filter(s => extrasFor(s.code).homework.some(h => h.submitted && !h.graded)) as s (s.code)}
+          <li><a href="/app/students/{s.code}?tab=homework">{s.name}</a><span>{extrasFor(s.code).homework.filter(h => h.submitted && !h.graded).length} ממתינות לבדיקה</span></li>
+        {:else}
+          <li>{Object.keys(serverExtras).length === realStudents.length ? 'אין עבודות שממתינות לבדיקה בנתונים שנטענו' : 'ממתינים לפרטי העבודות'}</li>
+        {/each}
+      </ul>
+    </section>
+    {/if}
+    <section class="payment-followup" aria-labelledby="payment-followup-title">
+      <details><summary><h2 id="payment-followup-title">מעקב תשלומים</h2><span>{allBalance ? formatAgorot(allBalance.dueAgorot) : 'טוענים…'} <span aria-hidden="true">⌄</span></span></summary>
       {#if balanceError}<p role="status">{balanceError} <button class="link-btn" onclick={loadAllBalance}>ניסיון נוסף</button></p>{/if}
       <p>{allBalance ? formatAgorot(allBalance.dueAgorot) + ' לגבייה' : 'היתרה הכוללת טרם נטענה'}</p>
       <ul class="operation-list">
@@ -1147,15 +1155,18 @@
           <li>{Object.keys(chargesFor).length === realStudents.length && !Object.values(ledgerError).some(Boolean) ? 'אין יתרות פתוחות בנתונים שנטענו' : 'חלק מפרטי החיובים אינם זמינים כרגע'}</li>
         {/each}
       </ul>
+      </details>
     </section>
   </div>
-  <h2 class="workspace-tutors-title" id="student-roster">תלמידים</h2>
+  <div class="roster-toolbar"><h2 class="workspace-tutors-title" id="student-roster">תלמידים <span>{realStudents.length}</span></h2>
+    <label class="roster-search"><Icon name="search" size={18} /><input type="search" aria-label="חיפוש תלמידים" placeholder="חיפוש לפי שם, מורה או תחום" bind:value={studentSearch} /></label>
+  </div>
   <div class="roster-table-wrap">
     <table class="roster-table">
       <caption class="sr-only">תלמידים — פתיחת תיק תלמיד/ה</caption>
       <thead><tr><th scope="col">תלמיד/ה</th><th scope="col">מורה</th><th scope="col">השיעור הבא</th></tr></thead>
       <tbody>
-        {#each realStudents as s (s.code)}
+        {#each visibleStudents as s (s.code)}
           {@const next = extrasFor(s.code).nextLesson}
           {@const reports = pageData.pendingReports.filter(l => l.studentCode === s.code).length}
           <tr>
@@ -1168,14 +1179,15 @@
             <td>{#if activityError[s.code]}לא מעודכן{:else if !serverExtras[s.code]}טוענים…{:else if next.date}<bdi>{formatDate(next.date)}</bdi><span class="roster-meta"><bdi>{next.time}</bdi></span>{:else}טרם נקבע{/if}</td>
           </tr>
         {:else}
-          <tr><td colspan="3">אין תלמידים עדיין — לחצו ״תלמיד חדש״ כדי להתחיל.</td></tr>
+          <tr><td colspan="3">{studentSearch ? 'לא נמצאו תלמידים בחיפוש הזה.' : 'אין תלמידים עדיין — לחצו ״תלמיד חדש״ כדי להתחיל.'}</td></tr>
         {/each}
       </tbody>
     </table>
   </div>
-  <h2 class="workspace-tutors-title">מורים</h2>
+  <details class="workspace-settings"><summary><span>מורים</span> ויומנים</summary>
   <TutorsCard tutors={pageData.tutors} googleReady={pageData.googleReady}
     onsaved={(t) => { tutors = tutors.map(x => (x.id === t.id ? { ...x, ...t } : x)); }} />
+  </details>
   {:else}
   <TutorPageHeader title={realStudents[0]?.name ?? 'תיק תלמיד/ה'}>
     {#snippet actions()}<a class="workspace-button" href="/app/dashboard">כל התלמידים</a>{/snippet}
@@ -1728,9 +1740,21 @@
 </dialog>
 
 <style>
+  .roster-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-block:32px 16px}
+  .roster-toolbar .workspace-tutors-title{margin:0;display:flex;align-items:center;gap:10px}
+  .workspace-tutors-title span{font-size:.875rem;font-weight:500;color:var(--text-muted)}
+  .roster-search{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding-inline:12px;min-height:44px;max-width:100%;color:var(--text-muted)}
+  .roster-search input{border:0;background:transparent;padding:8px 0;min-height:44px;width:230px;min-width:0;color:var(--text-primary);font-size:1rem}
+  .workspace-settings{margin-top:32px;border-top:1px solid var(--border)}
+  .workspace-settings>summary{padding-block:16px;min-height:56px;font-size:.9375rem;font-weight:600;cursor:pointer}
+  .payment-followup summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;cursor:pointer}
+  .payment-followup summary h2{margin:0;font-size:1rem}
+  .payment-followup summary>span{font-size:.875rem;color:var(--text-muted);font-variant-numeric:tabular-nums}
+  @media(max-width:600px){.roster-toolbar{gap:12px}.roster-search{width:100%}.roster-search input{width:100%}}
+
   :global(body) { background: var(--bg-base); }
 
-  input, textarea, select, button { font-family: 'Heebo', sans-serif; }
+  input, textarea, select, button { font-family: var(--font-ui); }
   input[type='text'], input[type='email'], input[type='date'], input[type='time'], input[type='number'], textarea, select {
     background: var(--bg-surface); border: 1.5px solid var(--border-strong);
     color: var(--text-primary); border-radius: var(--r-sm); padding: 8px 12px;
@@ -1744,22 +1768,22 @@
   /* ── Buttons ── */
   .btn {
     display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer;
-    font-family: 'Heebo', sans-serif; font-weight: 700; border-radius: var(--r-sm);
+    font-family: var(--font-ui); font-weight: 700; border-radius: var(--r-sm);
     padding: 8px 18px; font-size: .85rem; transition: opacity .2s, transform .15s;
     text-decoration: none;
   }
   .btn:hover { opacity: .88; transform: translateY(-1px); }
-  .btn-gold { background: var(--accent); color: #fff; }
+  .btn-gold { background: var(--action-fill); color: #fff; }
   .btn-outline { background: var(--accent-dim); border: 1.5px solid rgba(37,99,235,0.22); color: var(--accent-deep); }
-  .btn-ghost { background: rgba(37,99,235,0.04); border: 1.5px solid var(--border-strong); color: var(--text-muted); cursor: pointer; font-family: 'Heebo', sans-serif; font-weight: 700; border-radius: var(--r-sm); padding: 8px 18px; font-size: .85rem; }
+  .btn-ghost { background: rgba(37,99,235,0.04); border: 1.5px solid var(--border-strong); color: var(--text-muted); cursor: pointer; font-family: var(--font-ui); font-weight: 700; border-radius: var(--r-sm); padding: 8px 18px; font-size: .85rem; }
   .btn-danger { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.28); color: var(--danger); }
   .btn-sm { padding: 5px 12px; font-size: .78rem; }
 
   /* ── Layout ── */
   .workspace-tutors-title { font-size: 1.2rem; margin: 2rem 0 0.75rem; }
   .operations-title { font-size: 1.15rem; margin: 0 0 16px; }
-  .operations { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; margin-block: 24px 28px; }
-  .operations section { min-width: 0; padding: 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); }
+  .operations { display: grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:20px;margin-block:24px 28px;align-items:start; }
+  .operations section { min-width: 0; padding:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg); }
   .operations h2 { font-size: 1.05rem; margin-bottom: 12px; }
   .operation-list { list-style: none; padding: 0; margin: 0; }
   .operation-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; border-bottom: 1px solid var(--border); padding-block: 10px; }
@@ -1768,7 +1792,7 @@
   #student-roster { scroll-margin-top: 80px; }
   .roster-table-wrap { border: 1px solid var(--border); border-radius: var(--r-sm); overflow-x: auto; }
   .roster-table { width: 100%; border-collapse: collapse; background: var(--bg-card); }
-  .roster-table th { text-align: start; font-size: 0.85rem; color: var(--text-muted-strong); background: var(--bg-surface); }
+  .roster-table th { text-align: start; font-size: 0.85rem; color: var(--text-muted-strong); background:var(--bg-card-solid); }
   .roster-table th, .roster-table td { padding: 12px; overflow-wrap: anywhere; }
   .roster-table th:first-child { width: 42%; }
   .roster-table th:nth-child(2) { width: 22%; }
@@ -1776,23 +1800,23 @@
   .roster-table td bdi { white-space: nowrap; }
   .roster-table tbody tr { position: relative; border-top: 1px solid var(--border); }
   .roster-table tbody tr:hover, .roster-table tbody tr:focus-within { background: var(--bg-surface); }
-  .student-row-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--accent-deep); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  .student-row-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--accent-deep); font-weight: 700; text-decoration:none; }
   .student-row-link::after { content: ''; position: absolute; inset: 0; }
   .student-row-link:focus-visible::after { outline: 3px solid var(--accent); outline-offset: -3px; }
   .roster-meta { display: block; color: var(--text-muted-strong); font-size: 0.85rem; line-height: 1.5; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-  .cf-banner { background: #FEF2F2; border: 1.5px solid #FCA5A5; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
-  .cf-title { font-weight: 800; color: #B91C1C; margin-bottom: 8px; }
-  .cf-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid #FECACA; font-size: .9rem; }
-  .cf-resolve { border: 1.5px solid #B91C1C; background: none; color: #B91C1C; border-radius: 999px; padding: 3px 12px; cursor: pointer; font-size: .8rem; }
+  .cf-banner { background: var(--danger-bg); border: 1.5px solid var(--danger-border); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
+  .cf-title { font-weight: 700; color: var(--danger-text); margin-bottom: 8px; }
+  .cf-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--danger-border); font-size: .9rem; }
+  .cf-resolve { border: 1.5px solid var(--danger-text); background: none; color: var(--danger-text); border-radius: 999px; padding: 3px 12px; cursor: pointer; font-size: .8rem; }
 
   /* Calendar-READ issue banner — a feed /api/availability could not read,
      so its hours may show as free when they aren't. Deliberately distinct
      from .cf-banner by more than colour: a dashed border and its own ⛔
      icon + explicit consequence text, not red alone. */
   .cs-banner { background: var(--bg-card); border: 1.5px dashed var(--danger); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
-  .cs-title { font-weight: 800; color: var(--danger); margin-bottom: 8px; }
+  .cs-title { font-weight: 700; color: var(--danger); margin-bottom: 8px; }
   .cs-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 10px; padding: 6px 0; border-top: 1px solid var(--border-strong); font-size: .9rem; }
   .cs-src { font-weight: 700; color: var(--text-primary); }
   .cs-reason { color: var(--text-muted); font-size: .82rem; }
@@ -1802,7 +1826,7 @@
      automatic) — a calm informational banner, not an alarm; same visual
      weight as .codes-panel rather than .cf-banner's red. ── */
   .import-panel { background: var(--bg-card); border: 1.5px solid var(--border-strong); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; }
-  .import-title { font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+  .import-title { font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
   .import-copy { font-size: .85rem; color: var(--text-muted); line-height: 1.6; margin: 0 0 12px; }
   .import-table-wrap { overflow-x: auto; margin-bottom: 12px; }
   .import-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
@@ -1839,7 +1863,7 @@
   /* ── Section header ── */
   .sec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
   .sec-label2 { font-size: .75rem; color: var(--accent2-strong); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
-  .sec-h2 { font-size: 1.3rem; font-weight: 800; }
+  .sec-h2 { font-size: 1.3rem; font-weight: 700; }
 
   /* ── Homework results ── */
   /* min(340px, 100%): a card wants 340px, but on a phone narrower than that
@@ -1848,28 +1872,28 @@
   #hw-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; }
   .hwr-card { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 18px 20px; box-shadow: 0 2px 12px var(--shadow); }
   .hwr-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
-  .hwr-name { font-size: 1.05rem; font-weight: 800; }
+  .hwr-name { font-size: 1.05rem; font-weight: 700; }
   .hwr-when { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
   .hwr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 8px; margin-bottom: 14px; }
   .hwr-stat { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 4px; text-align: center; }
-  .hwr-val { font-size: 1.25rem; font-weight: 900; line-height: 1.15; }
+  .hwr-val { font-size: 1.25rem; font-weight: 700; line-height: 1.15; }
   .hwr-lbl { font-size: .68rem; color: var(--text-muted); margin-top: 2px; }
   .hwr-missed { border-top: 1px solid var(--border); padding-top: 10px; }
   .hwr-missed-title { font-size: .76rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; }
   .hwr-miss { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.28); border-radius: var(--r-sm); padding: 5px 10px; margin-bottom: 5px; font-size: .82rem; }
-  .hwr-miss-n { font-weight: 800; color: var(--danger); flex-shrink: 0; }
+  .hwr-miss-n { font-weight: 700; color: var(--danger); flex-shrink: 0; }
   /* ── Auto-generated lessons ── */
   #lessons-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; }
   .lsn-card { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 16px 18px; box-shadow: 0 2px 12px var(--shadow); }
   .lsn-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-  .lsn-title { font-size: 1rem; font-weight: 800; line-height: 1.35; }
+  .lsn-title { font-size: 1rem; font-weight: 700; line-height: 1.35; }
   .lsn-meta { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
-  .lsn-badge { font-size: .7rem; font-weight: 800; border-radius: 999px; padding: 2px 10px; white-space: nowrap; flex-shrink: 0; }
+  .lsn-badge { font-size: .7rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; white-space: nowrap; flex-shrink: 0; }
   .lsn-context { font-size: .82rem; color: var(--text-muted); margin-top: 8px; line-height: 1.6; }
   .lsn-problem { font-size: .8rem; color: var(--danger); background: rgba(220,38,38,0.08); border-radius: var(--r-sm); padding: 6px 10px; margin-top: 8px; }
   .lsn-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .lsn-links a { font-size: .78rem; font-weight: 700; text-decoration: none; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(37,99,235,0.22); border-radius: 999px; padding: 4px 11px; }
-  .lsn-links a:hover { background: var(--accent); color: #fff; }
+  .lsn-links a:hover { background: var(--action-fill); color: #fff; }
   .lsn-broken { font-size: .78rem; font-weight: 700; background: rgba(220,38,38,0.08); color: var(--danger); border: 1px solid rgba(220,38,38,0.28); border-radius: 999px; padding: 4px 11px; }
   .lsn-hw { font-size: .78rem; color: var(--text-muted); margin-top: 8px; }
 
@@ -1882,7 +1906,7 @@
   .sc-header { background: linear-gradient(135deg, var(--accent-dim), rgba(250,130,49,0.04)); border-bottom: 1px solid var(--border-strong); padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .sc-header-left { display: flex; align-items: center; gap: 14px; }
   .sc-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent-dim); border: 2px solid rgba(37,99,235,0.22); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
-  .sc-name { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
+  .sc-name { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
   .sc-subject { font-size: .82rem; color: var(--text-muted); margin-top: 2px; }
   .sc-badges { display: flex; gap: 6px; flex-wrap: wrap; }
   .badge { font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .04em; }
@@ -1936,13 +1960,13 @@
 
   .payment-summary { display: flex; gap: 20px; margin-bottom: 14px; padding: 12px 16px; background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.22); border-radius: var(--r-md); }
   .ps-item { text-align: center; }
-  .ps-item .psi-val { font-size: 1.3rem; font-weight: 900; }
+  .ps-item .psi-val { font-size: 1.3rem; font-weight: 700; }
   .ps-item .psi-lbl { font-size: .72rem; color: var(--text-muted); margin-top: 2px; }
 
   /* Next lesson */
   .next-lesson-box { background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.22); border-radius: var(--r-md); padding: 16px; }
   .nl-label { font-size: .72rem; font-weight: 700; color: var(--accent); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
-  .nl-date { font-size: 1.5rem; font-weight: 900; color: var(--text-primary); }
+  .nl-date { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
   .nl-meta { font-size: .85rem; color: var(--text-muted); margin-top: 4px; }
 
   /* Homework */
@@ -1999,7 +2023,7 @@
   .toast.success { border-color: var(--accent3-strong); background: linear-gradient(var(--accent3-dim), var(--accent3-dim)), var(--bg-card); }
   .toast.error   { border-color: rgba(220,38,38,0.28);   background: linear-gradient(rgba(220,38,38,0.08), rgba(220,38,38,0.08)), var(--bg-card); }
   /* Margin, not a space: Svelte trims the space at an {#if} edge. */
-  .toast a { margin-inline-start: 0.4em; color: inherit; font-weight: 800; text-decoration: underline; }
+  .toast a { margin-inline-start: 0.4em; color: inherit; font-weight: 700; text-decoration: underline; }
   .toast-close { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; border: 0; background: none; cursor: pointer; font-size: 1rem; color: var(--text-muted); line-height: 1; padding: 0; flex: none; }
 
   .confirm-bg { position: fixed; inset: 0; background: rgba(26,51,51,0.4); backdrop-filter: blur(6px); z-index: 950; display: none; align-items: center; justify-content: center; }
@@ -2008,7 +2032,7 @@
   .confirm-box p { font-size: .95rem; margin-bottom: 20px; white-space: pre-wrap; }
   .confirm-box .row { display: flex; gap: 10px; }
   .confirm-box button { flex: 1; border-radius: 999px; padding: 10px; font-family: inherit; font-weight: 700; font-size: .88rem; cursor: pointer; border: 1.5px solid var(--border); background: none; }
-  .confirm-box button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .confirm-box button.danger { background: var(--danger-fill); border-color: var(--danger); color: #fff; }
 
   /* Divider */
   .divider { height: 1px; background: var(--border-strong); margin: 14px 0; }
@@ -2023,10 +2047,10 @@
   .codes-panel { background: var(--bg-card); border: 1.5px solid var(--border-strong); border-radius: 18px; padding: 6px 4px; overflow-x: auto; }
   .codes-msg { padding: 16px; color: var(--text-muted); }
   .rs-sub { font-size: .78rem; color: var(--text-muted); margin-top: 3px; }
-  .access-kind { display: block; color: var(--text-muted); font-size: .72rem; font-weight: 800; }
+  .access-kind { display: block; color: var(--text-muted); font-size: .72rem; font-weight: 700; }
   .rs-scope { display: grid; gap: 8px; min-width: 0; }
   .rs-links { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .access-status { margin: 0; font-weight: 800; }
+  .access-status { margin: 0; font-weight: 700; }
   .rs-join { font-size: .82rem; color: var(--text-muted); }
   .rs-join b { direction: ltr; unicode-bidi: isolate; letter-spacing: .08em; color: var(--accent-deep); }
   .raw-access-link { display: block; max-width: 100%; overflow-wrap: anywhere; unicode-bidi: isolate; }

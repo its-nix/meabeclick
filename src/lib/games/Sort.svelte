@@ -97,13 +97,13 @@
 <style>
   .item-card {
     background: var(--bg-card); border: 2px solid var(--accent); border-radius: 18px;
-    padding: 26px 18px; text-align: center; font-size: 1.15rem; font-weight: 800;
+    padding: 26px 18px; text-align: center; font-size: 1.15rem; font-weight:600;
     line-height: 1.45; margin: 0.3rem 0 1rem;
   }
   .cats { display: grid; gap: 10px; }
   .cat {
     background: var(--bg-card); border: 2px solid var(--border); border-radius: 14px;
-    padding: 15px 12px; font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.15s;
+    padding: 15px 12px; font-size: 1rem; font-weight:600; cursor: pointer; transition: all 0.15s;
     font-family: inherit; width: 100%;
   }
   .cat:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); }

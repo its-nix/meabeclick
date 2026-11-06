@@ -71,7 +71,7 @@ test('the after-lesson email says how to pay', async () => {
 test('the parent board offers it where the money is', () => {
   const p = read('src/routes/app/parent/+page.svelte');
   assert.match(p, /import \{ PAYBOX_LINK, TUTOR_PHONE \} from '\$lib\/contact\.ts';/);
-  const payments = p.indexOf('<span class="sec-title">תשלומים</span>');
+  const payments = p.indexOf('<h2 class="sec-title">תשלומים</h2>');
   const button = p.indexOf('href={PAYBOX_LINK}');
   assert.ok(payments > 0 && button > payments, 'in the payments section');
 });

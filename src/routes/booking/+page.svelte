@@ -565,7 +565,7 @@
 
 <main class:booking-complete={step === 'success'}>
   {#if step !== 'success'}
-  <h1>🗓️ הזמנת שיעור</h1>
+  <h1>הזמנת שיעור</h1>
 
   <!-- Steps indicator -->
   <div class="steps-bar">
@@ -1092,7 +1092,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 1.1rem;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--text-primary);
     text-decoration: none;
   }
@@ -1130,9 +1130,9 @@
     font-size: 0.75rem; font-weight: 700;
     transition: background 0.2s, color 0.2s;
   }
-  .step-dot.active .dot { background: var(--accent); color: #fff; }
+  .step-dot.active .dot { background: var(--action-fill); color: #fff; }
   .step-dot.active { color: var(--accent); }
-  .step-dot.done .dot { background: var(--accent3-strong); color: #fff; }
+  .step-dot.done .dot { background: var(--success-fill); color: #fff; }
   .step-line { flex: 1; height: 2px; background: var(--border); margin: 0 0.6rem; }
 
   /* ── STEP 1: Plan cards ──────────────────────── */
@@ -1160,27 +1160,27 @@
     border-color: var(--accent);
     /* Was rgba(46,123,116,…) — a teal left over from a palette this
        project no longer uses, sitting against the blue accent token. */
-    box-shadow: 0 4px 16px var(--shadow-accent);
-    transform: translateY(-2px);
+    box-shadow:none;
+
   }
   .dur-card:active { transform: translateY(0); }
   /* Same treatment as the landing page's featured pricing card, so the
      parent sees the same plan singled out on both pages. */
   .dur-card.recommended {
     position: relative;
-    background: var(--pricing-featured-bg);
-    border-color: var(--pricing-featured-border);
-    box-shadow: 0 4px 24px var(--accent2-glow);
+    background:var(--bg-card);
+    border-color:var(--border);
+    box-shadow:none;
   }
   /* Selection is a word ("נבחר") plus a solid ring. --accent-dim is an 8%
      wash and disappears on the peach card; #2563eb clears 3:1 on white and
      on that wash. */
   .dur-card.selected {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent);
+    box-shadow:0 0 0 3px var(--accent);
   }
   .dur-card.recommended.selected {
-    box-shadow: 0 0 0 3px var(--accent), 0 4px 24px var(--accent2-glow);
+    box-shadow:0 0 0 3px var(--accent);
   }
   .dur-card:focus-visible {
     outline: 3px solid var(--accent);
@@ -1191,10 +1191,10 @@
     top: -12px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--accent2);
-    color: var(--btn-text);
+    background:var(--action-fill);
+    color:var(--action-text);
     font-size: 0.8rem;
-    font-weight: 800;
+    font-weight: 700;
     padding: 0.2rem 0.85rem;
     border-radius: 20px;
     white-space: nowrap;
@@ -1204,14 +1204,14 @@
   .dur-name {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 0.4rem; flex-wrap: wrap;
-    font-size: 1.1rem; font-weight: 800; color: var(--text-primary);
+    font-size: 1.1rem; font-weight: 700; color: var(--text-primary);
   }
   .dur-chosen {
-    font-size: 0.8rem; font-weight: 800; color: var(--accent-deep);
+    font-size: 0.8rem; font-weight: 700; color: var(--accent-deep);
     background: var(--accent-dim); border-radius: 999px; padding: 0.12rem 0.5rem;
   }
   .plan-continue { display: block; width: 100%; margin-top: 1.25rem; }
-  .dur-price { font-size: 1.45rem; font-weight: 900; color: var(--accent); line-height: 1.1; }
+  .dur-price { font-size: 1.45rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
   .dur-time { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
   .dur-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.45; margin-top: 0.2rem; }
 
@@ -1299,7 +1299,7 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .day-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .day-tab.active { background: var(--action-fill); border-color: var(--accent); color: #fff; }
 
   .day-label {
     font-size: 0.9rem;
@@ -1333,7 +1333,7 @@
     font-family: inherit;
     font-variant-numeric: tabular-nums;
   }
-  .slot:hover { background: var(--accent); color: #fff; transform: translateY(-1px); }
+  .slot:hover { background: var(--action-fill); color: #fff; transform: translateY(-1px); }
   .slot:active { transform: translateY(0); }
 
   /* ── The sheet ───────────────────────────────── */
@@ -1458,7 +1458,7 @@
   .live:empty { display: none; }
   .submit-error {
     margin-top: 1rem;
-    background: #fef2f2;
+    background: var(--danger-bg);
     border: 1.5px solid var(--danger);
     color: var(--danger);
     border-radius: var(--r-sm);
@@ -1491,18 +1491,18 @@
   }
   .btn-primary {
     flex: 1;
-    background: var(--accent);
+    background: var(--action-fill);
     color: #fff;
     border: none;
     border-radius: 12px;
     padding: 0.9rem;
     min-height: 52px;
     font-size: 1rem;
-    font-weight: 800;
+    font-weight: 700;
     cursor: pointer;
     font-family: inherit;
   }
-  .btn-primary:hover { background: var(--accent-deep); }
+  .btn-primary:hover { background: var(--action-hover); }
   .btn-primary:disabled { opacity: 0.55; cursor: default; }
   .btn-back {
     flex: 0 0 auto;
@@ -1565,17 +1565,17 @@
   .handoff-primary {
     display: block;
     margin-top: 0;
-    background: var(--accent);
+    background: var(--action-fill);
     color: #fff;
     border-radius: 12px;
     padding: 0.9rem;
     min-height: 52px;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 1rem;
     text-align: center;
     text-decoration: none;
   }
-  .handoff-primary:hover { background: var(--accent-deep); }
+  .handoff-primary:hover { background: var(--action-hover); }
   .handoff-actions { display: flex; gap: 0.55rem; margin-top: 0.6rem; }
   .handoff-options summary {
     display: list-item; min-height: 44px; padding-top: 0.7rem;
@@ -1722,7 +1722,7 @@
   }
   .pick-card.active { border-color: var(--accent); background: var(--accent-dim); }
   .pick-emoji { grid-area: emoji; font-size: 1.4rem; }
-  .pick-name { grid-area: name; font-weight: 800; font-size: 0.98rem; }
+  .pick-name { grid-area: name; font-weight: 700; font-size: 0.98rem; }
   .pick-meta { grid-area: meta; font-size: 0.8rem; color: var(--text-muted-strong); }
   .pick-card.pick-other { border-style: dashed; }
 

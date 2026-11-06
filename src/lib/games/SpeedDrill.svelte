@@ -120,9 +120,9 @@
   .q {
     background: var(--text-primary); color: #fff; border-radius: 18px;
     padding: 2rem 1rem; text-align: center;
-    font-size: clamp(1.7rem, 7vw, 2.6rem); font-weight: 900;
+    font-size: clamp(1.7rem, 7vw, 2.6rem); font-weight:600;
     unicode-bidi: plaintext; margin-bottom: 1rem;
   }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-  .grid .opt { margin: 0; text-align: center; unicode-bidi: plaintext; font-size: 1.15rem; font-weight: 800; }
+  .grid .opt { margin: 0; text-align: center; unicode-bidi: plaintext; font-size: 1.15rem; font-weight:600; }
 </style>

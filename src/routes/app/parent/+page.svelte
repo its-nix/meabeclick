@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import BottomNav, { type NavItem } from '$lib/components/BottomNav.svelte';
   import Icon from '$lib/icons/Icon.svelte';
   import BrandMark from '$lib/components/BrandMark.svelte';
   /**
@@ -37,7 +39,7 @@
   import type { PageData } from './$types';
   import { PAYBOX_LINK, TUTOR_PHONE } from '$lib/contact.ts';
   import FormulaText from '$lib/components/FormulaText.svelte';
-  import { contactTutor, tutorNames } from '$lib/tutors.ts';
+  import { contactTutor } from '$lib/tutors.ts';
 
   const noStudentsWhatsAppHref =
     `https://wa.me/${TUTOR_PHONE}?text=${encodeURIComponent('היי, הזמנתי שיעור אבל הדף האישי עוד לא נפתח')}`;
@@ -50,6 +52,38 @@
   };
 
   let { data }: { data: PageData } = $props();
+
+  const parentItems: NavItem[] = [
+    { id: 'home', label: 'סקירה', icon: 'portal' },
+    { id: 'progress', label: 'למידה', icon: 'progress' },
+    { id: 'payments', label: 'תשלומים', icon: 'payments' },
+  ];
+  let parentView = $state('home');
+  function readParentView() {
+    const value = new URL(location.href).searchParams.get('v');
+    return parentItems.some(item => item.id === value) ? value! : 'home';
+  }
+  function selectParentView(value: string) {
+    if (!parentItems.some(item => item.id === value)) return;
+    parentView = value;
+    const url = new URL(location.href);
+    url.searchParams.set('v', value);
+    history.pushState({ v: value }, '', url);
+    document.getElementById('parent-content')?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+  function restoreParentHistory() {
+    parentView = readParentView();
+    const code = new URL(location.href).searchParams.get('s');
+    if (code && code !== currentId && data.students.some(student => student.code === code)) {
+      openStudent(code);
+    }
+  }
+  onMount(() => {
+    parentView = readParentView();
+    window.addEventListener('popstate', restoreParentHistory);
+    return () => window.removeEventListener('popstate', restoreParentHistory);
+  });
 
   const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
   const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -100,6 +134,8 @@
   /* No 'choose' and no 'pin' view any more. Which children this parent may
      open is decided in +page.server.ts from their session, so the page
      opens straight onto a board. */
+  let signingOut = $state(false);
+  let logoutError = $state('');
   let currentId = $state<string | null>(null);
   let loading = $state(true);
   let loadError = $state('');
@@ -123,7 +159,9 @@
     return r.json();
   }
 
+  let portalGeneration = 0;
   async function openStudent(code: string) {
+    const requestGeneration = ++portalGeneration;
     shareGeneration++;
     shareBusy = false;
     shareErr = '';
@@ -138,6 +176,7 @@
 
     try {
       const d = await fetchPortal(code);
+      if (requestGeneration !== portalGeneration) return;
       if (!d) {
         // The session stopped being valid while the page was open — a
         // six-month cookie outliving a student the tutor removed, say.
@@ -148,17 +187,29 @@
       document.title = `פורטל הורים — ${CURRENT.name}`;
       // Keeps the address bar honest when switching between siblings, so a
       // bookmark or a reload lands on the same child.
-      history.replaceState(null, '', `/app/parent?s=${encodeURIComponent(code)}`);
+      const url = new URL(location.href);
+      url.pathname = '/app/parent';
+      url.searchParams.set('s', code);
+      history.replaceState(null, '', url);
     } catch {
-      loadError = 'לא הצלחנו לטעון את הדף. נסו לרענן.';
+      if (requestGeneration === portalGeneration) loadError = 'לא הצלחנו לטעון את הדף. נסו לרענן.';
     } finally {
-      loading = false;
+      if (requestGeneration === portalGeneration) loading = false;
     }
   }
 
   async function signOut() {
-    await fetch('/api/family', { method: 'DELETE' }).catch(() => {});
-    location.href = '/';
+    if (signingOut) return;
+    signingOut = true;
+    logoutError = '';
+    try {
+      const response = await fetch('/api/family', { method: 'DELETE' });
+      if (!response.ok) throw new Error('sign-out');
+      location.href = '/';
+    } catch {
+      logoutError = 'לא הצלחנו לצאת מהחשבון. נסו שוב.';
+      signingOut = false;
+    }
   }
 
   /* ── The family overview ──────────────────────────────────────────────
@@ -195,6 +246,10 @@
     const target = wantsOverview ? null : (data.selected || data.students[0]?.code || null);
 
     if (!target) {
+      portalGeneration++;
+      shareGeneration++;
+      shareBusy = false;
+      CURRENT = null;
       lastOpened = null;
       loading = false;
       /* Back from a child's board leaves the tab named after that child
@@ -274,15 +329,37 @@
   <title>פורטל הורים — מאה בקליק</title>
 </svelte:head>
 
-{#if overview}
-  <nav class="top-nav">
-    <div class="nav-brand"><BrandMark height={22} /> <span>פורטל הורים</span></div>
-    <div class="nav-actions">
-      <button class="nav-logout" onclick={signOut}>יציאה</button>
-    </div>
-  </nav>
+<header class="top-nav">
+    <div class="nav-brand">
+      <BrandMark height={28} label={null} />
+      <span class="nav-brand-title">{data.isSelf ? 'הדף שלי' : 'פורטל הורים'}</span>
 
-  <main class="page">
+    </div>
+    <div class="nav-actions">
+      {#if !overview && CURRENT && data.students.length > 1}
+        <!-- Only ever this parent's own children — the list comes from
+             their session, not from a global roster. -->
+        <label class="switcher">
+          <span class="sr-only">בחירת תלמיד/ה</span>
+          <select
+            value={currentId}
+            onchange={(e) => openStudent((e.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each data.students as s (s.code)}
+              <option value={s.code}>{s.emoji} {s.name}</option>
+            {/each}
+          </select>
+        </label>
+      {/if}
+      <button class="nav-logout" onclick={signOut} disabled={signingOut}>{signingOut ? 'יוצאים…' : 'יציאה'}</button>
+      {#if logoutError}<p class="logout-error" role="alert">{logoutError}</p>{/if}
+    </div>
+  </header>
+
+{#if overview}
+
+
+  <main class="page parent-page">
     <div class="fam-head">
       <!-- enroll.ts names an account after its first learner, so on an
            overview the account name is usually one of the cards below it.
@@ -373,9 +450,7 @@
     </div>
   </main>
 
-  <div class="footer">
-    <p>פורטל הורים · {tutorNames()} שיעורים פרטיים</p>
-  </div>
+
 {:else if loading}
   <div class="boot" role="status">
     <BrandMark height={26} />
@@ -410,47 +485,26 @@
     <a class="boot-cta-secondary" href="/booking">להזמנת שיעור</a>
   </div>
 {:else if CURRENT}
-  <nav class="top-nav">
-    <div class="nav-brand">
-      <BrandMark height={28} label={null} />
-      <span class="nav-brand-title">{data.isSelf ? 'הדף שלי' : 'פורטל הורים'}</span>
-      <span class="nav-brand-name">{CURRENT.name}</span>
-    </div>
-    <div class="nav-actions">
-      {#if data.students.length > 1}
-        <!-- Only ever this parent's own children — the list comes from
-             their session, not from a global roster. -->
-        <label class="switcher">
-          <span class="sr-only">בחירת תלמיד/ה</span>
-          <select
-            value={currentId}
-            onchange={(e) => openStudent((e.currentTarget as HTMLSelectElement).value)}
-          >
-            {#each data.students as s (s.code)}
-              <option value={s.code}>{s.emoji} {s.name}</option>
-            {/each}
-          </select>
-        </label>
-      {/if}
-      <button class="nav-logout" onclick={signOut}>יציאה</button>
-    </div>
-  </nav>
 
-  <main class="page">
+
+  <main class="page parent-page" id="parent-content" tabindex="-1">
     <div class="student-header">
       <div class="sh-avatar">{CURRENT.emoji || '👩‍🎓'}</div>
       <div>
         <h1 class="sh-name">{CURRENT.name}</h1>
         <div class="sh-meta">{[CURRENT.subject, CURRENT.level, CURRENT.tutor ? 'מורה: ' + CURRENT.tutor : ''].filter(Boolean).join(' · ')}</div>
-        <div class="sh-badges">
-          {#each [CURRENT.subject, CURRENT.level, CURRENT.style ? 'סגנון: ' + CURRENT.style : ''].filter(Boolean) as t}
-            <span class="sh-badge">{t}</span>
-          {/each}
-        </div>
+
       </div>
     </div>
 
-    {#if isDayOne}
+    <div class="parent-context-actions">
+      {#if data.students.length > 1}<a href="/app/parent">כל התלמידים שלי</a>{/if}
+      <a href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור</a>
+    </div>
+
+
+
+    {#if isDayOne && parentView === 'home'}
       <!-- Day one used to be six zero-states and a 0% bar: the family's
            first look at the thing they had just paid for. It is a promise
            now, and it names what is actually happening. -->
@@ -466,26 +520,26 @@
       </div>
     {/if}
 
-    <div class="section">
-      <div class="sec-header"><span class="sec-icon"><Icon name="calendar" /></span><span class="sec-title">השיעור הבא</span></div>
+    <div class="section" hidden={parentView !== 'home'}>
+      <div class="sec-header"><span class="sec-icon"><Icon name="calendar" /></span><h2 class="sec-title">השיעור הבא</h2></div>
       {#if CURRENT.nextLesson?.date}
         <div class="next-lesson-box">
-          <div class="nl-icon"><Icon name="calendar" size={22} /></div>
+
           <div>
             <div class="nl-date">{formatDateHe(CURRENT.nextLesson.date)}</div>
             <div class="nl-meta">{CURRENT.nextLesson.time ? 'שעה ' + CURRENT.nextLesson.time : ''} {CURRENT.nextLesson.type ? '· ' + CURRENT.nextLesson.type : ''}</div>
             <!-- The one way to reach the tutor about THIS lesson — prefilled,
                  so the message says which child and which date. -->
-            <a class="nl-contact" href={`https://wa.me/${TUTOR_PHONE}?text=${encodeURIComponent(`היי, לגבי השיעור של ${CURRENT.name} ב-${formatDateHe(CURRENT.nextLesson.date)}`)}`} target="_blank" rel="noopener">💬 שאלה, שינוי או ביטול</a>
+            <a class="nl-contact" href={`https://wa.me/${TUTOR_PHONE}?text=${encodeURIComponent(`היי, לגבי השיעור של ${CURRENT.name} ב-${formatDateHe(CURRENT.nextLesson.date)}`)}`} target="_blank" rel="noopener">שאלה, שינוי או ביטול <span aria-hidden="true">←</span></a>
           </div>
         </div>
       {:else}
-        <div class="no-upcoming">אין שיעור קבוע — ניצור קשר לתיאום 🗓️</div>
+        <div class="no-upcoming">אין שיעור קבוע — ניצור קשר לתיאום</div>
       {/if}
     </div>
 
-    <div class="section">
-      <div class="sec-header"><span class="sec-icon"><Icon name="progress" /></span><span class="sec-title">התקדמות</span></div>
+    <div class="section" hidden={parentView === 'payments'}>
+      <div class="sec-header"><span class="sec-icon"><Icon name="progress" /></span><h2 class="sec-title">התקדמות</h2></div>
       <div class="progress-overall">
         <div class="po-top">
           <!-- Says WHAT is counted. It said «רמת התקדמות כללית» for a
@@ -530,24 +584,22 @@
           </div>
         {/if}
       </div>
-      <div class="notes-card">
-        {#if CURRENT.progress?.note}
-          <!-- The tutor's note, written for the parent: the dashboard labels
-               it «מוצגת להורים בלבד». It used to be read from a portal-file
-               field nothing writes, while the real note went to the CHILD's
-               page. Plain text now — it is no longer trusted HTML. -->
-          <p class="notes-text">{CURRENT.progress.note}</p>
-        {:else}
-          <!-- Was --border-strong, a BORDER token used as a text colour:
-               #cbd5e1 on white is 1.48:1, barely visible. -->
-          <em class="notes-empty">אין הערות עדיין.</em>
-        {/if}
-      </div>
+      {#if CURRENT.progress?.note}
+        <!-- The tutor's note is intended for the parent and remains plain text. -->
+        <div class="notes-card"><p class="notes-text">{CURRENT.progress.note}</p></div>
+      {/if}
     </div>
 
-    <div class="section">
+    {#if parentView === 'home'}
+    <div class="parent-brief">
+      <button type="button" onclick={() => selectParentView('progress')}><span>שיעורי בית פתוחים</span><strong>{hwPending}</strong><span class="brief-action">ללמידה <span aria-hidden="true">←</span></span></button>
+      {#if CURRENT.balance}<button type="button" onclick={() => selectParentView('payments')}><span>לתשלום · כל המשפחה</span><strong>{formatAgorot(CURRENT.balance.dueAgorot)}</strong><span class="brief-action">לפירוט <span aria-hidden="true">←</span></span></button>{/if}
+    </div>
+    {/if}
+
+    <div class="section" hidden={parentView !== 'progress'}>
       <div class="sec-header">
-        <span class="sec-icon"><Icon name="subjects" /></span><span class="sec-title">יומן שיעורים</span>
+        <span class="sec-icon"><Icon name="subjects" /></span><h2 class="sec-title">יומן שיעורים</h2>
         <span class="sec-badge">{totalSessions} שיעורים</span>
       </div>
       <div class="table-wrap">
@@ -573,9 +625,9 @@
       </div>
     </div>
 
-    <div class="section">
+    <div class="section" hidden={parentView !== 'progress'}>
       <div class="sec-header">
-        <span class="sec-icon"><Icon name="homework" /></span><span class="sec-title">שיעורי בית</span>
+        <span class="sec-icon"><Icon name="homework" /></span><h2 class="sec-title">שיעורי בית</h2>
         <span class="sec-badge">{hwPending} פתוח{hwPending !== 1 ? 'ים' : ''}</span>
       </div>
       <div class="hw-list">
@@ -610,11 +662,11 @@
       <!-- The child's own way in. A parent link opens the parent view, so a
            child needs a session scoped to themselves — this is where they
            get one. -->
-      <details class="family-administration"><summary>כניסה ללוח התלמיד/ה ושיתוף קישור</summary>
+      <details class="family-administration" hidden={parentView !== 'home'}><summary>כניסה ללוח התלמיד/ה ושיתוף קישור</summary>
       <div class="section share">
         <div class="sec-header">
           <span class="sec-icon"><Icon name="student" /></span>
-          <span class="sec-title">כניסה ל{CURRENT.name}</span>
+          <h2 class="sec-title">כניסה ל{CURRENT.name}</h2>
         </div>
 
         <!-- The parent's own way to the child's board — the slides, the
@@ -666,8 +718,8 @@
       </details>
     {/if}
 
-    <details class="section family-payments">
-      <summary class="sec-header"><span class="sec-icon"><Icon name="payments" /></span><span class="sec-title">תשלומים</span></summary>
+    <section class="section family-payments" hidden={parentView !== 'payments'}>
+      <div class="sec-header"><span class="sec-icon"><Icon name="payments" /></span><h2 class="sec-title">תשלומים</h2></div>
       {#if CURRENT.balance}
         <div class="payments-summary">
           <div class="pay-sum-card pending">
@@ -686,10 +738,10 @@
         <p class="pay-note">הסכומים הם של כל המשפחה. הרשימה למטה היא של {CURRENT.name}.</p>
       {/if}
       <!-- The way to pay, beside what is owed. An app link: on a phone it opens PayBox. -->
-      <a class="pay-btn" href={PAYBOX_LINK} target="_blank" rel="noopener">💳 לתשלום ב-PayBox</a>
+      <a class="pay-btn" href={PAYBOX_LINK} target="_blank" rel="noopener"><Icon name="payments" size={18} /> לתשלום ב-PayBox</a>
       <p class="pay-note">התשלום אחרי כל שיעור.</p>
 
-      <div class="table-wrap">
+      <div class="table-wrap charges-table">
         <table class="data-table">
           <thead><tr><th>תאריך</th><th>שיעור</th><th>סכום</th><th>סטטוס</th></tr></thead>
           <tbody>
@@ -708,16 +760,17 @@
           </tbody>
         </table>
       </div>
-    </details>
+      <ul class="mobile-charges" aria-label="החיובים של התלמיד/ה">
+        {#each CURRENT.charges ?? [] as charge (charge.id)}
+          <li><div><strong>{formatDateHe(charge.date)}</strong><span class="charge-kind">{KIND_LABEL[charge.kind] ?? charge.kind}</span></div><div><strong>{formatAgorot(charge.amount_agorot)}</strong><span class="pay-badge {charge.status}">{STATUS_LABEL[charge.status] ?? charge.status}</span></div></li>
+        {:else}<li>אין עדיין חיובים</li>{/each}
+      </ul>
+    </section>
   </main>
 
-  <div class="board-actions">
-    <a class="fam-book" href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור נוסף</a>
-  </div>
 
-  <div class="footer">
-    <p>פורטל הורים · {tutorNames()} שיעורים פרטיים</p>
-  </div>
+
+
 {:else}
   <!-- Students exist and none is on screen: the moment between choosing a
        child and their board arriving, and the moment after a stale session
@@ -730,19 +783,43 @@
   </div>
 {/if}
 
+{#if !overview && data.students.length > 0}
+  <BottomNav items={parentItems} active={parentView} onselect={selectParentView} />
+{/if}
+
 <style>
+  .logout-error{font-size:.8125rem;color:var(--danger-text);max-width:24ch;line-height:1.5}
+
+  .nav-actions{min-width:0}
+  .nav-actions .nav-logout{flex:none}
+  .switcher{min-width:0;max-width:180px}
+  .switcher select{width:100%;max-width:100%}
+  .student-header>div:last-child{min-width:0}
+  .sh-name{overflow-wrap:anywhere}
+  .mobile-charges{display:none}
+  @media(max-width:600px){.nav-brand-title{display:none}.nav-actions{flex:1;justify-content:flex-end;flex-wrap:wrap}.switcher{flex:1 1 8rem;min-width:min(8rem,100%);max-width:none}.charges-table{display:none}.mobile-charges{display:grid;gap:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:0 16px}.mobile-charges li{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-block:16px;border-bottom:1px solid var(--border)}.mobile-charges li:last-child{border:0}.mobile-charges li>div{display:flex;flex-direction:column;gap:8px;min-width:0}.mobile-charges strong{font-size:1rem;font-weight:600}.mobile-charges .charge-kind{font-size:.8125rem;color:var(--text-muted)}}
+  .parent-context-actions{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:24px}
+  .parent-context-actions a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:.875rem;font-weight:500}
+  .parent-brief{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:28px}
+  .parent-brief button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);text-align:start;color:var(--text-primary);cursor:pointer}
+  .parent-brief button>span{font-size:.8125rem;color:var(--text-muted)}
+  .parent-brief strong{font-size:1.25rem;line-height:1.2;font-weight:600;font-variant-numeric:tabular-nums}
+  .parent-brief .brief-action{font-size:.8125rem;color:var(--accent-deep)}
+  .parent-page:focus{outline:none}
+  @media(max-width:360px){.parent-brief{grid-template-columns:minmax(0,1fr)}.sh-name{font-size:1.625rem}}
+
   :global(body) { background: var(--bg-base); }
 
   /* ── NAV ── */
   .top-nav {
     position: sticky; top: 0; z-index: 100;
     background: var(--nav-bg); backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border); padding: 0 2rem; height: 60px;
+    border-bottom: 1px solid var(--border); padding: 8px 2rem; min-height:64px; height:auto; gap:12px;
     display: flex; align-items: center; justify-content: space-between;
   }
   .nav-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .nav-brand-title { font-size: 1rem; font-weight: 800; color: var(--accent); white-space: nowrap; }
-  .nav-brand-name { color: var(--text-muted); font-weight: 400; font-size: 0.85rem; }
+  .nav-brand-title { font-size: 1rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
   .nav-logout {
     font-family: inherit; font-size: 0.82rem; font-weight: 700;
     color: var(--text-muted); background: none; border: 1px solid var(--border);
@@ -752,65 +829,43 @@
   .nav-logout:hover { color: var(--accent); border-color: var(--accent-soft); }
 
   /* ── MAIN ── */
-  .page { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 6rem; }
+  .page { max-width:var(--content-width);margin:0 auto;padding:32px 24px calc(var(--bottom-nav-height,80px) + max(12px,env(safe-area-inset-bottom)) + 24px); }
 
-  .student-header {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
-    border-radius: var(--r-lg); padding: 26px 30px;
-    display: flex; align-items: center; gap: 18px; margin-bottom: 1.8rem;
-    box-shadow: 0 6px 30px var(--accent-glow);
-  }
-  .sh-avatar {
-    width: 60px; height: 60px; border-radius: 50%;
-    background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.9rem; flex-shrink: 0;
-  }
-  .sh-name {
-    margin: 0; font-size: 1.6rem; font-weight: 900; color: #fff; line-height: 1.2; }
-  .sh-meta { font-size: 0.85rem; color: #fff; margin-top: 3px; }
-  .sh-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-  .sh-badge {
-    font-size: 0.72rem; font-weight: 700; padding: 3px 11px; border-radius: 20px;
-    /* Keep the wash slight: opaque white text clears AA over it at both
-       endpoints of the darker blue gradient. */
-    background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.45);
-  }
+  .student-header { display:flex;align-items:center;gap:14px;margin-bottom:12px; }
+  .sh-avatar { width:44px;height:44px;border-radius:14px;background:var(--control-bg);display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0; }
+  .sh-name { margin:0;font-size:1.875rem;font-weight:700;color:var(--text-primary);line-height:1.3; }
+  .sh-meta { font-size:.875rem;color:var(--text-muted);margin-top:4px; }
 
   .stats-bar { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 14px; margin-bottom: 2rem; }
   .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 18px 20px; box-shadow: 0 2px 12px var(--shadow); }
-  .stat-card .s-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
-  .stat-card .s-value { font-size: 1.9rem; font-weight: 900; color: var(--text-primary); line-height: 1.1; }
+  .stat-card .s-label { font-size:.8125rem;font-weight:500;color:var(--text-muted);margin-bottom:6px; }
+  .stat-card .s-value { font-size: 1.9rem; font-weight: 700; color: var(--text-primary); line-height: 1.1; }
   .stat-card .s-value.accent { color: var(--accent); }
   .stat-card .s-value.green  { color: var(--accent3-strong); }
   .stat-card .s-value.coral  { color: var(--accent2-strong); }
   .stat-card .s-sub { font-size: 0.76rem; color: var(--text-muted); margin-top: 4px; }
 
-  .section { margin-bottom: 2.2rem; }
-  .sec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+  .section { margin-bottom:28px; }
+  .sec-header { display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:0; }
   .sec-icon { font-size: 1.2rem; }
-  .sec-title { font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
+  .sec-title { font-size:1.125rem;font-weight:600;color:var(--text-primary); }
   /* --accent on --accent-dim is 4.44:1 at this size — just under AA.
      --accent-deep is the same hue one step darker, for small text on the
      tinted fills. */
-  .sec-badge { margin-right: auto; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: var(--accent-dim); color: var(--accent-deep); border: 1px solid rgba(37,99,235,0.25); }
+  .sec-badge { margin-inline-start:auto;font-size:.8125rem;font-weight:500;color:var(--text-muted); }
 
-  .next-lesson-box {
-    background: linear-gradient(135deg, var(--accent-dim), rgba(250,130,49,0.04));
-    border: 1.5px solid rgba(37,99,235,0.22); border-radius: var(--r-md);
-    padding: 18px 22px; display: flex; align-items: center; gap: 18px;
-  }
-  .nl-icon { font-size: 2.2rem; flex-shrink: 0; }
+  .next-lesson-box { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;display:flex;align-items:center;gap:16px; }
+
   /* text-transform: uppercase does nothing to Hebrew but announce an
      LTR template; the tracking only loosens the join between letters. */
-  .nl-date { font-size: 1.45rem; font-weight: 900; color: var(--text-primary); }
+  .nl-date { font-size:1.25rem;font-weight:600;color:var(--text-primary); }
   .nl-meta { font-size: 0.85rem; color: var(--text-muted-strong); margin-top: 2px; }
   .no-upcoming { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 20px; background: var(--bg-surface); border: 1px dashed var(--border); border-radius: var(--r-md); }
 
   .table-wrap { overflow-x: auto; border-radius: var(--r-md); box-shadow: 0 2px 12px var(--shadow); }
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: var(--bg-card); border-radius: var(--r-md); overflow: hidden; }
-  .data-table thead { background: var(--accent-dim); }
-  .data-table th { text-align: right; padding: 11px 15px; color: var(--accent); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; border-bottom: 1.5px solid rgba(37,99,235,0.18); }
+  .data-table thead { background:var(--bg-card-solid); }
+  .data-table th { text-align:start;padding:12px;color:var(--text-muted);font-size:.8125rem;font-weight:600;border-bottom:1px solid var(--border); }
   .data-table td { padding: 11px 15px; border-bottom: 1px solid var(--border); color: var(--text-primary); vertical-align: top; }
   .data-table tr:last-child td { border-bottom: none; }
   .data-table tr:hover td { background: var(--accent-dim); }
@@ -820,63 +875,57 @@
 
   .hw-list { display: flex; flex-direction: column; gap: 10px; }
   .hw-empty { text-align: center; color: var(--text-muted); padding: 22px; font-size: .9rem; }
-  .hw-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 16px; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 2px 8px var(--shadow); }
+  .hw-item { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap; }
   .hw-status-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }
-  .hw-content { flex: 1; }
+  .hw-content { flex:1;min-width:140px; }
   .hw-task { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
   .hw-task.done { text-decoration: line-through; color: var(--text-muted); font-weight: 400; }
   .hw-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
-  .hw-play {
-    display: inline-flex; align-items: center; gap: 4px;
-    margin-top: 7px; padding: 7px 14px; min-height: 34px;
-    background: var(--accent2-dim); color: var(--accent2-strong);
-    border: 1.5px solid var(--accent2-strong); border-radius: 999px;
-    font-size: 0.8rem; font-weight: 700; text-decoration: none;
-  }
+  .hw-play { display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:8px 12px;min-height:44px;background:var(--accent-dim);color:var(--accent-deep);border:0;border-radius:10px;font-size:.875rem;font-weight:600; }
   .hw-play:hover { background: var(--accent2); color: var(--btn-text); }
-  .hw-badge { flex-shrink: 0; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; align-self: flex-start; margin-top: 2px; }
+  .hw-badge { font-size:.75rem;font-weight:600;padding:4px 8px;border-radius:6px;align-self:flex-start; }
   .hw-badge.done { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); color: var(--accent3-strong); }
-  .hw-badge.open { background: #FEF3C7; border: 1px solid #D97706; color: #D97706; }
+  .hw-badge.open { background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); }
 
-  .progress-overall { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 20px 22px; box-shadow: 0 2px 10px var(--shadow); margin-bottom: 14px; }
-  .po-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .progress-overall { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px; }
+  .po-top { display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px; }
   .po-label { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
-  .po-pct { font-size: 1.4rem; font-weight: 900; color: var(--accent); }
-  .bar-bg { height: 10px; background: var(--border); border-radius: 6px; overflow: hidden; }
+  .po-pct { font-size:1rem;font-weight:600;color:var(--text-muted); }
+  .bar-bg { height:6px;background:var(--control-bg);border-radius:6px;overflow:hidden; }
   .seen { display: grid; gap: 14px; margin-top: 16px; }
   .seen-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted-strong); margin-bottom: 6px; }
   .seen ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
   .seen li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 0.92rem; color: var(--text-primary); }
   .seen li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
   .seen-tag { flex: none; font-size: 0.78rem; font-weight: 700; color: var(--accent); background: var(--accent-dim); border-radius: var(--r-sm); padding: 2px 8px; }
-  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-soft)); border-radius: 6px; transition: width 0.7s cubic-bezier(.4,0,.2,1); }
-  .notes-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); padding: 18px 20px; box-shadow: 0 2px 10px var(--shadow); font-size: 0.9rem; color: var(--text-muted); line-height: 1.8; }
+  .bar-fill { height:100%;background:var(--action-fill);border-radius:6px;transition:width var(--motion-normal); }
+  .notes-card { padding:4px 4px 0;font-size:.9375rem;color:var(--text-muted-strong);line-height:1.75; }
   .notes-card :global(strong) { color: var(--text-primary); }
 
-  .payments-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 1.2rem; }
-  .pay-sum-card { border-radius: var(--r-md); padding: 15px 18px; text-align: center; }
-  .pay-sum-card.paid    { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); }
-  .pay-sum-card.pending { background: #FEF3C7; border: 1px solid #D97706; }
-  .pay-sum-card.total   { background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.22); }
-  .psc-amount { font-size: 1.5rem; font-weight: 900; }
-  .pay-sum-card.paid    .psc-amount { color: var(--accent3-strong); }
-  .pay-sum-card.pending .psc-amount { color: #D97706; }
-  .pay-sum-card.total   .psc-amount { color: var(--accent); }
-  .psc-label { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 4px; }
+  .payments-summary { display:flex;flex-direction:column;gap:0;margin-bottom:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden; }
+  .pay-sum-card { display:flex;align-items:center;justify-content:space-between;gap:16px;border-radius:0;padding:18px 20px;background:var(--bg-card);border:0;border-bottom:1px solid var(--border);text-align:start; }
+  .pay-sum-card.paid { background:var(--bg-card);border:0; }
+  .pay-sum-card.pending { background:var(--bg-card);border:0;border-bottom:1px solid var(--border); }
+  .pay-sum-card.total { background:var(--bg-card);border:0;border-bottom:1px solid var(--border); }
+  .psc-amount { font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums; }
+  .pay-sum-card.paid    .psc-amount { color:var(--text-primary); }
+  .pay-sum-card.pending .psc-amount { color:var(--text-primary); }
+  .pay-sum-card.total   .psc-amount { color:var(--text-primary); }
+  .psc-label { order:-1;font-size:.9375rem;font-weight:500;color:var(--text-muted);margin:0; }
 
-  .footer { text-align: center; padding: 3rem 1rem 2rem; font-size: 0.8rem; color: var(--text-muted); }
+
 
   @media (max-width: 600px) {
-    .student-header { flex-direction: column; text-align: center; gap: 12px; }
-    .sh-badges { justify-content: center; }
+    .student-header { align-items:center;gap:12px; }
+
     .stats-bar { grid-template-columns: 1fr 1fr; }
-    .next-lesson-box { flex-direction: column; gap: 10px; }
-    .top-nav { padding: 0 1rem; }
+    .next-lesson-box { align-items:flex-start; }
+    .top-nav { padding: 8px 1rem; }
     /* The student's name repeats immediately below in .student-header (and
        in the switcher when there is more than one), so it is the safe thing
        to drop when the nav runs out of room. */
-    .nav-brand-name { display: none; }
-    .page { padding: 1.5rem 1rem 5rem; }
+
+    .page { padding:24px 20px calc(var(--bottom-nav-height,80px) + max(12px,env(safe-area-inset-bottom)) + 24px); }
   }
 
   /* ── Boot, day one, sharing ── */
@@ -892,13 +941,13 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .boot-icon { font-size: 2.6rem; }
-  .boot-title { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); }
+  .boot-title { font-size: 1.15rem; font-weight: 700; color: var(--text-primary); }
   .boot-sub { font-size: 0.9rem; line-height: 1.6; max-width: 22rem; }
   .boot-err { color: var(--danger); font-weight: 600; }
   .boot-retry, .boot-cta {
-    margin-top: 0.6rem; background: var(--accent); color: #fff;
+    margin-top: 0.6rem; background: var(--action-fill); color: #fff;
     border: 0; border-radius: 12px; padding: 0.75rem 1.6rem; min-height: 48px;
-    font-family: inherit; font-size: 0.95rem; font-weight: 800;
+    font-family: inherit; font-size: 0.95rem; font-weight: 700;
     cursor: pointer; text-decoration: none; display: inline-flex;
     align-items: center;
   }
@@ -921,9 +970,8 @@
      reaches for on a shared device. */
   .nav-actions .nav-logout { min-height: 44px; padding-inline: 1rem; }
   .notes-text { margin: 0; white-space: pre-line; }
-  .notes-empty { color: var(--text-muted); }
   .switcher select {
-    font-family: inherit; font-size: 0.9rem; font-weight: 700;
+    font-family: inherit; font-size: max(1rem,16px); font-weight: 600;
     padding: 0.5rem 0.7rem; min-height: 44px;
     border: 1.5px solid var(--border-strong); border-radius: 10px;
     background: var(--bg-card); color: var(--text-primary);
@@ -933,13 +981,9 @@
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
   }
 
-  .dayone {
-    display: flex; gap: 0.9rem; align-items: flex-start;
-    background: var(--bg-surface); border: 1.5px solid var(--accent);
-    border-radius: var(--r-lg); padding: 1.1rem 1.2rem; margin-bottom: 1.2rem;
-  }
+  .dayone { display:flex;gap:12px;align-items:flex-start;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:24px; }
   .dayone-icon { font-size: 1.7rem; line-height: 1; }
-  .dayone-title { font-weight: 800; font-size: 1.02rem; color: var(--text-primary); }
+  .dayone-title { font-weight: 700; font-size: 1.02rem; color: var(--text-primary); }
   .dayone-sub { font-size: 0.89rem; color: var(--text-muted-strong); line-height: 1.65; margin-top: 0.25rem; }
 
   .nl-contact { display: inline-block; margin-top: 6px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent-deep); text-decoration: none; }
@@ -947,9 +991,9 @@
   .lesson-slides { font-size: .82rem; color: var(--accent); font-weight: 600; }
   .share-intro { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 0.8rem; }
   .share-open {
-    background: var(--accent); color: #fff; border: 0; border-radius: 12px;
+    background: var(--action-fill); color: #fff; border: 0; border-radius: 12px;
     padding: 0.75rem 1.4rem; min-height: 48px;
-    font-family: inherit; font-size: 0.95rem; font-weight: 800; cursor: pointer;
+    font-family: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer;
   }
   .share-open:disabled { opacity: 0.6; cursor: default; }
   .share-err { color: var(--danger); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem; }
@@ -957,10 +1001,10 @@
   .share-primary, .share-secondary {
     flex: 1 1 10rem; text-align: center; border-radius: 12px;
     padding: 0.75rem 0.6rem; min-height: 48px;
-    font-family: inherit; font-size: 0.92rem; font-weight: 800;
+    font-family: inherit; font-size: 0.92rem; font-weight: 700;
     text-decoration: none; cursor: pointer;
   }
-  .share-primary { background: var(--accent); color: #fff; border: 0; }
+  .share-primary { background: var(--action-fill); color: #fff; border: 0; }
   .share-secondary {
     background: var(--bg-card); color: var(--text-primary);
     border: 1.5px solid var(--border-strong);
@@ -977,7 +1021,7 @@
   }
   .share-code-label { font-size: 0.85rem; color: var(--text-muted); }
   .share-code-value {
-    font-size: 1.7rem; font-weight: 900; letter-spacing: 0.14em;
+    font-size: 1.7rem; font-weight: 700; letter-spacing: 0.14em;
     color: var(--accent); margin: 0.35rem 0 0.2rem; user-select: all;
   }
   .share-code-note { font-size: 0.78rem; color: var(--text-muted); }
@@ -985,17 +1029,17 @@
   .pay-note { font-size: 0.82rem; color: var(--text-muted); margin: 0.7rem 0 0.2rem; }
   .pay-btn {
     display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 12px;
-    padding: 0 20px; border-radius: 999px; background: var(--accent); color: #fff;
-    font-weight: 800; text-decoration: none;
+    padding: 0 20px; border-radius: 999px; background: var(--action-fill); color: #fff;
+    font-weight: 700; text-decoration: none;
   }
   .pay-badge { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
   .pay-badge.paid { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); color: var(--accent3-strong); }
-  .pay-badge.owed { background: #fef3c7; border: 1px solid #92400e; color: #92400e; }
+  .pay-badge.owed { background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); }
   .pay-badge.void { background: var(--bg-base); border: 1px solid var(--border-strong); color: var(--text-muted); text-decoration: line-through; }
 
   /* ── Family overview ── */
   .fam-head { margin-bottom: 1.2rem; }
-  .fam-title { font-size: 1.6rem; font-weight: 900; margin: 0; }
+  .fam-title { font-size: 1.6rem; font-weight: 700; margin: 0; }
   .fam-sub { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.2rem; }
 
   .kid-grid {
@@ -1025,7 +1069,7 @@
     display: flex; align-items: center; justify-content: center;
     background: var(--bg-surface); border-radius: 50%;
   }
-  .kid-name { font-weight: 800; font-size: 1.05rem; }
+  .kid-name { font-weight: 700; font-size: 1.05rem; }
   .kid-meta { font-size: 0.83rem; color: var(--text-muted); margin-top: 1px; }
 
   .kid-rows {
@@ -1046,15 +1090,15 @@
   }
 
   .fam-actions { margin-top: 1.6rem; text-align: center; }
-  .board-actions { max-width: 1100px; margin: 0 auto; padding: 0 1.2rem 1.6rem; text-align: center; }
+
   .fam-book {
-    display: inline-block; background: var(--accent); color: #fff;
+    display: inline-block; background: var(--action-fill); color: #fff;
     border-radius: 12px; padding: 0.8rem 1.8rem; min-height: 48px;
-    font-weight: 800; font-size: 0.98rem; text-decoration: none;
+    font-weight: 700; font-size: 0.98rem; text-decoration: none;
   }
-  .fam-book:hover { background: var(--accent-deep); }
+  .fam-book:hover { background: var(--action-hover); }
   .family-administration, .family-finances { margin-block: 24px; }
-  :is(.family-administration, .family-finances, .family-payments) > summary { min-height: 44px; cursor: pointer; font-weight: 700; padding-block: 12px; color: var(--text-primary); }
-  .family-payments > summary { display: list-item; }
+  :is(.family-administration, .family-finances) > summary { min-height: 44px; cursor: pointer; font-weight: 700; padding-block: 12px; color: var(--text-primary); }
+
   :is(summary, button, a):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>

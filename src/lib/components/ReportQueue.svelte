@@ -62,10 +62,10 @@
 
 <style>
   .rq-banner {
-    background: var(--accent2-dim); border: 1.5px solid var(--accent2-strong);
+    background:var(--bg-card);border:1px solid var(--border);
     border-radius: 14px; padding: 14px 16px; margin-bottom: 16px;
   }
-  .rq-title { font-weight: 800; color: var(--accent2-strong); font-size: .92rem; margin-bottom: 4px; }
+  .rq-title { font-weight: 700; color:var(--text-primary);font-size:.9375rem; margin-bottom: 4px; }
   .rq-row {
     display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center;
     gap: 10px; padding: 8px 0; border-top: 1px solid var(--accent2-glow); font-size: .88rem;
@@ -74,8 +74,8 @@
   .rq-info { min-width: 0; }
   .rq-link {
     display: inline-flex; align-items: center; justify-content: center;
-    min-height: 44px; min-width: 44px; padding: 4px 18px; border-radius: 999px;
-    border: 1.5px solid var(--accent2-strong); color: var(--accent2-strong);
+    min-height: 44px; min-width: 44px; padding: 4px 18px; border-radius:10px;
+    border:1px solid var(--action-fill);background:var(--action-fill);color:var(--action-text);
     font-weight: 700; font-size: .82rem;
   }
 </style>

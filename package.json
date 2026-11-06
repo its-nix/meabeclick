@@ -25,7 +25,8 @@
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:ci": "node scripts/check-warnings.mjs",
-    "test:review:browser": "node tests/browser/learning-review.mjs"
+    "test:review:browser": "node tests/browser/learning-review.mjs",
+    "test:ui:browser": "node tests/browser/apple-role-journeys.mjs"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.7",

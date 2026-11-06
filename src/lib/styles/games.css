@@ -17,7 +17,7 @@
    an existing token.
    ============================================================ */
 :root {
-  --danger-dim: #fef2f2;
+  --danger-dim: var(--danger-bg);
 }
 
 .subject {
@@ -50,7 +50,7 @@
   min-width: 84px;
   text-align: center;
 }
-.stat-val { font-size: 1.15rem; font-weight: 800; color: var(--accent); line-height: 1.2; }
+.stat-val { font-size: 1.15rem; font-weight:600; color: var(--accent); line-height: 1.2; }
 .stat-val.clock { color: var(--accent2-strong); }
 .stat-val.clock.low { color: var(--danger); animation: game-pulse 1s infinite; }
 @keyframes game-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
@@ -66,13 +66,14 @@
 .progress-inner {
   height: 100%;
   border-radius: 5px;
-  background: linear-gradient(90deg, var(--accent), var(--accent3));
+  background:var(--action-fill);
   transition: width 0.4s ease;
 }
 
 .prompt {
-  background: var(--text-primary);
-  color: #fff;
+  background:var(--bg-card-solid);
+  color:var(--text-primary);
+  border:1px solid var(--border);
   border-radius: var(--r-md);
   padding: 1rem 1.2rem;
   text-align: center;
@@ -141,7 +142,7 @@
   background: var(--accent2);
   color: var(--btn-text);
   font-family: inherit;
-  font-weight: 800;
+  font-weight:600;
   font-size: 1rem;
   border: none;
   border-radius: 999px;

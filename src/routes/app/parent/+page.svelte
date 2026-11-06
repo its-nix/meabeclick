@@ -1028,7 +1028,7 @@
   }
   .pay-badge { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
   .pay-badge.paid { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); color: var(--accent3-strong); }
-  .pay-badge.owed { background: var(--warning-bg); border: 1px solid #92400e; color: #92400e; }
+  .pay-badge.owed { background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); }
   .pay-badge.void { background: var(--bg-base); border: 1px solid var(--border-strong); color: var(--text-muted); text-decoration: line-through; }
 
   /* ── Family overview ── */

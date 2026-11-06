@@ -797,7 +797,7 @@
   .badge { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 3px 11px; white-space: nowrap; flex-shrink: 0; }
   .badge.done { background: var(--accent3-dim); color: var(--accent3-strong); }
   .badge.open { background: var(--accent2-dim); color: var(--accent2-strong); }
-  .badge.late { background: var(--danger-bg); color: #DC2626; }
+  .badge.late { background: var(--danger-bg); color: var(--danger-text); }
   .play { display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:var(--action-fill);color:var(--action-text);text-decoration:none;border-radius:10px;padding:10px 16px;min-height:44px;font-weight:600;font-size:.9375rem; }
   .play:hover { opacity: .9; }
   .progress-words { font-size: .9rem; color: var(--text-secondary, inherit); margin-bottom: .2rem; }

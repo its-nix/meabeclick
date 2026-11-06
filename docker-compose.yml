@@ -63,6 +63,7 @@ services:
       # Caddy has not been restarted since the change it keeps working on
       # its old in-memory config until the next reload, which turns the
       # mismatch into a delayed-action outage.
+      - NODE_ENV=production
       - PORT=3000
       - ORIGIN=https://meabeclick.com
       # adapter-node's equivalent of Express's app.set('trust proxy', 1).

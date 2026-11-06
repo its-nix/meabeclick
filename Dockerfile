@@ -61,6 +61,7 @@ COPY --chown=node:node static ./static
 # the image's own filesystem — a token that cannot be rewritten works until
 # the first refresh and then fails as an auth error. Set here so the app and
 # any `docker compose exec` agree on one location.
+ENV NODE_ENV=production
 ENV CODEX_HOME=/app/.codex
 
 USER node

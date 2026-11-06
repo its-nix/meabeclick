@@ -35,7 +35,7 @@ import { strictOutputSchema, omitOptionalNulls } from './structured-output.ts';
 import { newFence, sanitizeField } from './prompt.ts';
 /* One source for the palette a deck writes into its own document — see
    $lib/brand.ts for why a hand-copy that agrees today is still a copy. */
-import { deckRootCss, DECK_FONT } from '../../brand.ts';
+import { deckRootCss, DECK_FONT, BRAND_LOGO_SRC } from '../../brand.ts';
 import type { LearningExperience } from '../../learning/model.ts';
 import { LEARNING_SCHEMA, LEARNING_INSTRUCTIONS } from '../../learning/schema.ts';
 import { experienceProblems, renderLearningDocument } from '../learning-render.ts';
@@ -668,6 +668,8 @@ async function generateOnce(req: LessonRequest): Promise<LessonPlan> {
     if (!plan.learning) {
       throw new LessonGenerationError('bad-output', 'lesson output omitted the interactive learning experience');
     }
+    const learningErrors = experienceProblems(plan.learning, { requirePresenterNotes: true });
+    if (learningErrors.length) throw new LessonGenerationError('bad-output', learningErrors.join('; '));
     // validateLesson() is the real gate on shape; this cast only asserts
     // "a JSON object", which parsePlan has already established.
     return plan as unknown as LessonPlan;
@@ -938,6 +940,7 @@ export function renderSlides(plan: LessonPlan, { subject, level, student }: { su
   body{direction:rtl;font-family:${DECK_FONT};background:var(--bg);color:var(--text);
        min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
   .deck{width:100%;max-width:900px}
+  .deck-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;font-weight:800}.deck-brand img{width:auto}
   .meta{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:.8rem}
   .slide{display:none;background:var(--card);border:1.5px solid var(--border);border-radius:20px;
          padding:2.4rem 2.2rem;min-height:60vh;position:relative}
@@ -968,7 +971,7 @@ export function renderSlides(plan: LessonPlan, { subject, level, student }: { su
   .nav button:disabled{opacity:.4;cursor:default}
   @media print{.nav,.meta,details summary{display:none}.slide{display:block!important;page-break-after:always;border:none}}
 </style></head><body>
-<div class="deck">
+<div class="deck"><div class="deck-brand"><img src="${BRAND_LOGO_SRC}" alt="" height="32"><span>מאה בקליק</span></div>
   <div class="meta">${esc(subject)} · ${esc(level)}${student ? ' · ' + esc(student) : ''} — ${esc(plan.gradeContext)}</div>
   ${sections}
   <div class="sr" aria-live="polite" id="where"></div>

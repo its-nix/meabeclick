@@ -72,7 +72,7 @@ export function drawLearningVisual(
   const x = (v: number) => left + (v - xDomain[0]) / (xDomain[1] - xDomain[0]) * (W - left - right);
   const y = (v: number) => H - bottom - (v - yDomain[0]) / (yDomain[1] - yDomain[0]) * (H - top - bottom);
   const label = (v: number) => String(Number(v.toFixed(2))).replace('-', '−');
-  if (options.hide) {
+  if (options.hide && !options.target) {
     svg.append(make('circle', { cx: 400, cy: 205, r: 72, class: 'plot-hold' }));
     svg.append(make('text', { x: 400, y: 224, 'text-anchor': 'middle', class: 'plot-question' }, '?'));
     svg.append(make('text', { x: 400, y: 320, 'text-anchor': 'middle', class: 'plot-note' }, 'הפעם נותנים לנוסחה לדבר'));
@@ -145,8 +145,11 @@ export function drawLearningVisual(
     }
     group.append(make('path', { d: points.join(' '), class: cls }));
   };
-  if (options.reference) curve(options.reference, 'plot-reference');
+  if (options.reference && !options.hide) curve(options.reference, 'plot-reference');
   if (options.target) curve(options.target, 'plot-target');
+  // The target is the question, not a worked answer. Independent construction
+  // hides the student's candidate and its vertex until checking succeeds.
+  if (options.hide) { svg.append(group); commit(); return; }
   curve(values, 'plot-curve');
   const px = kind === 'quadratic' ? values[1] : 0, py = kind === 'quadratic' ? values[2] : values[1];
   group.append(make('path', { d: `M${x(px)} ${zeroY} V${y(py)} H${zeroX}`, class: 'plot-projection' }));

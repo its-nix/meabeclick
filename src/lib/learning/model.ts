@@ -16,6 +16,12 @@ export interface LearningCheck {
   success: string;
   retry: string;
 }
+export interface PresenterNotes {
+  explanation: string;
+  ask: string;
+  expectedAnswer: string;
+  ifStuck: string;
+}
 export interface LearningScene {
   id: string;
   phase: 'discover' | 'explore' | 'practice' | 'challenge' | 'reflect';
@@ -27,6 +33,8 @@ export interface LearningScene {
   yDomain: number[];
   frames: LearningFrame[];
   check?: LearningCheck | null;
+  /** Teacher-only. Optional for stored lessons from before notes were generated. */
+  presenterNotes?: PresenterNotes;
 }
 export interface LearningExperience {
   version: 1;
@@ -70,7 +78,7 @@ export function gradeLearningCheck(check: LearningCheck, input: unknown): boolea
 }
 
 /** Shape and engine semantics. Formula compilation is checked separately by the renderer. */
-export function learningProblems(raw: unknown): string[] {
+export function learningProblems(raw: unknown, options: { requirePresenterNotes?: boolean } = {}): string[] {
   const errors: string[] = [];
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ['חוויית הלמידה אינה אובייקט'];
   const e = raw as LearningExperience;
@@ -88,6 +96,12 @@ export function learningProblems(raw: unknown): string[] {
     if (!s || typeof s !== 'object') { errors.push('סצנה לא תקינה'); continue; }
     if (!text(s.id, 60) || !/^[a-z0-9-]+$/.test(s.id) || ids.has(s.id)) errors.push('מזהי הסצנות חייבים להיות ייחודיים');
     ids.add(s.id);
+    if (options.requirePresenterNotes || s.presenterNotes !== undefined) {
+      const notes = s.presenterNotes;
+      if (!notes || typeof notes !== 'object' || Array.isArray(notes)
+        || !text(notes.explanation, 700) || !text(notes.ask, 350)
+        || !text(notes.expectedAnswer, 500) || !text(notes.ifStuck, 500)) errors.push(`חסרות הערות למורה או שהן ארוכות מדי: ${s.id}`);
+    }
     if (!Object.hasOwn(PHASE_LABELS, s.phase) || !text(s.title, 100) || !text(s.prompt, 280) || !text(s.takeaway, 280)) errors.push(`טקסט או שלב לא תקין: ${s.id}`);
     if (!Object.hasOwn(dimensions, s.visual)) { errors.push(`סוג המחשה לא נתמך: ${s.id}`); continue; }
     for (const domain of [s.xDomain, s.yDomain]) {
@@ -121,14 +135,15 @@ export function learningProblems(raw: unknown): string[] {
 }
 
 export type PublicExperience = Omit<LearningExperience, 'scenes'> & {
-  scenes: Array<Omit<LearningScene, 'check'> & { check?: Omit<LearningCheck, 'answer'> & { target?: number[] } | null }>;
+  scenes: Array<Omit<LearningScene, 'check' | 'presenterNotes'> & { check?: Omit<LearningCheck, 'answer'> & { target?: number[] } | null }>;
 };
 
 export function publicExperience(e: LearningExperience): PublicExperience {
   return { ...e, scenes: e.scenes.map(s => {
-    if (!s.check) return { ...s, check: null };
+    const { presenterNotes: _notes, ...publicScene } = s;
+    if (!s.check) return { ...publicScene, check: null };
     const { answer, success: _success, ...check } = s.check;
     // A target curve is intentionally visible; grading keys for other questions stay server-side.
-    return { ...s, check: { ...check, success: '', ...(s.check.kind === 'graph-target' && Array.isArray(answer) ? { target: answer } : {}) } };
+    return { ...publicScene, check: { ...check, success: '', ...(s.check.kind === 'graph-target' && Array.isArray(answer) ? { target: answer } : {}) } };
   }) };
 }

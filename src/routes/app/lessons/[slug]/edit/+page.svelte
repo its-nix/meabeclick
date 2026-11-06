@@ -314,7 +314,7 @@
   </nav>
   <h1>עריכת שיעור</h1>
   {#if data.hasLearning}
-    <p class="state">לשיעור הזה יש הסברים מונפשים ותרגול אינטראקטיבי. <a href="/app/lessons/{data.slug}/experience">עריכת מרחב הלמידה והתשובות ←</a></p>
+    <p class="state">לשיעור הזה יש הסברים מונפשים ותרגול אינטראקטיבי. <a href="/app/lessons/{data.slug}/experience">עריכת מרחב הלמידה והתשובות ←</a> · <a href="/app/lessons/{data.slug}/presenter" target="_blank" rel="noopener">הערות למורה ↗</a></p>
   {/if}
   <p class="meta">{data.lesson.student} · {data.lesson.subject ?? ''} {data.lesson.level ?? ''}</p>
   {#if data.seedVersion !== null}

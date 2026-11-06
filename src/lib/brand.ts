@@ -34,6 +34,12 @@ export const DECK_TOKEN_SOURCE: Record<string, string> = {
   cta: '--accent2',
   mint: '--accent3',
   border: '--border',
+  'brand-deep': '--accent-deep',
+  surface: '--bg-surface',
+  'muted-strong': '--text-muted-strong',
+  'cta-strong': '--accent2-strong',
+  'mint-strong': '--accent3-strong',
+  danger: '--danger',
 };
 
 export const DECK_PALETTE: Record<string, string> = {
@@ -45,7 +51,16 @@ export const DECK_PALETTE: Record<string, string> = {
   cta: '#fa8231',
   mint: '#10b981',
   border: '#e2e8f0',
+  'brand-deep': '#1d4ed8',
+  surface: '#eff6ff',
+  'muted-strong': '#475569',
+  'cta-strong': '#b83d0b',
+  'mint-strong': '#047857',
+  danger: '#dc2626',
 };
+
+/** Original artwork, shared by the site, generated lessons and video exports. */
+export const BRAND_LOGO_SRC = '/images/logos/logo-slate.svg?v=blue-20261025';
 
 /** The site's type face, so a deck and a page never disagree about it. */
 export const DECK_FONT = "'Heebo', sans-serif";

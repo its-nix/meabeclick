@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/icons/Icon.svelte';
+  import { lockScroll } from '$lib/scroll-lock.ts';
   import { onMount } from 'svelte';
   import Header from '$lib/components/Header.svelte';
   import Footer from '$lib/components/Footer.svelte';
@@ -82,137 +83,28 @@
   ];
 
   let backToTopEl: HTMLButtonElement;
-  let popupOverlayEl: HTMLDivElement;
-
-
+  let showStickyBooking = $state(false);
+  let releaseTutorScroll: (() => void) | undefined;
+  function openTutor(id: string) {
+    const dialog = document.getElementById(`info-${id}`) as HTMLDialogElement | null;
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    releaseTutorScroll = lockScroll();
+  }
+  function closeTutor(id: string) {
+    (document.getElementById(`info-${id}`) as HTMLDialogElement | null)?.close();
+  }
+  function tutorClosed() { releaseTutorScroll?.(); releaseTutorScroll = undefined; }
   onMount(() => {
-    /* ── Marketing attribution ───────────────── */
     initMarketing(new URL(location.href));
     track('landing_visit');
-
-    /* ── Back to top ─────────────────────────── */
     const onScroll = () => {
       backToTopEl.classList.toggle('visible', window.scrollY > 320);
+      showStickyBooking = (document.getElementById('hero')?.getBoundingClientRect().bottom ?? 0) <= 64;
     };
-    window.addEventListener('scroll', onScroll);
-
-    /* ── Tutor popups (mobile) ───────────────── */
-    /* .tutors-showcase carries a transform from its reveal animation, which makes it
-       a stacking context — so a popup nested inside it paints *below* the overlay no
-       matter how high its z-index is. Moving the popup to <body> while it is open is
-       what keeps it lit instead of washed out. */
-    function openPopup(popup: HTMLElement & { _home?: HTMLElement | null }) {
-      popup._home = popup.parentElement;
-      document.body.appendChild(popup);
-      popup.classList.add('active');
-      popupOverlayEl.classList.add('active');
-    }
-
-    function closeAllPopups() {
-      document.querySelectorAll<HTMLElement & { _home?: HTMLElement | null }>('.tutor-info').forEach((p) => {
-        p.classList.remove('active');
-        if (p._home) {
-          p._home.appendChild(p);
-          p._home = null;
-        }
-      });
-      popupOverlayEl.classList.remove('active');
-    }
-
-    const cardListeners: Array<() => void> = [];
-    document.querySelectorAll<HTMLElement>('.tutor-card').forEach((card) => {
-      const handler = () => {
-        if (window.innerWidth > 992) return;
-        const popup =
-          card.querySelector<HTMLElement>('.tutor-info') ||
-          document.querySelector<HTMLElement>('.tutor-info.active');
-        if (!popup) return;
-        const isOpen = popup.classList.contains('active');
-        closeAllPopups();
-        if (!isOpen) openPopup(popup);
-      };
-      card.addEventListener('click', handler);
-      cardListeners.push(() => card.removeEventListener('click', handler));
-    });
-
-    const closeHandlers: Array<() => void> = [];
-    document.querySelectorAll<HTMLElement>('[data-close]').forEach((btn) => {
-      const handler = (e: Event) => {
-        e.stopPropagation();
-        closeAllPopups();
-      };
-      btn.addEventListener('click', handler);
-      closeHandlers.push(() => btn.removeEventListener('click', handler));
-    });
-    popupOverlayEl.addEventListener('click', closeAllPopups);
-
-    /* ── Scroll reveal ───────────────────────── */
-    const revealObs = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add('visible');
-        });
-      },
-      { threshold: 0.1 }
-    );
-    document.querySelectorAll('.reveal').forEach((el) => revealObs.observe(el));
-
-    /* Safety net: sections below the fold stay at opacity 0 until scrolled to, which
-       means a full-page screenshot — or a browser that never fires the observer —
-       captures a blank page. After a few seconds, show everything regardless. */
-    const revealTimeout = setTimeout(() => {
-      document.querySelectorAll('.reveal:not(.visible)').forEach((el) => el.classList.add('visible'));
-    }, 3000);
-
-    /* ── Dashboard animations ───────────────── */
-    function countUp(el: HTMLElement, target: number, suffix: string, duration: number) {
-      let start = 0;
-      const step = target / (duration / 16);
-      const tick = () => {
-        start = Math.min(start + step, target);
-        el.textContent = Math.round(start) + suffix;
-        if (start < target) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }
-
-    function startDashboardAnim() {
-      const bar = document.getElementById('dp-bar-fill');
-      const statLessons = document.getElementById('dp-stat-lessons');
-      const statProgress = document.getElementById('dp-stat-progress');
-      if (!bar) return;
-
-      bar.style.width = '72%';
-      if (statLessons) countUp(statLessons, 3, '', 900);
-      if (statProgress) countUp(statProgress, 72, '%', 1400);
-    }
-
-    const dashObs = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            setTimeout(startDashboardAnim, 300);
-            dashObs.disconnect();
-          }
-        });
-      },
-      { threshold: 0.3 }
-    );
-    const dashEl = document.querySelector('.hero-dashboard-mini');
-    if (dashEl) dashObs.observe(dashEl);
-
-    return () => {
-      /* An open tutor popup lives on <body> (see openPopup), outside this
-         page's DOM, so it would outlive the page: a back/forward navigation
-         left it floating over the next page, blocking clicks. */
-      closeAllPopups();
-      window.removeEventListener('scroll', onScroll);
-      cardListeners.forEach((off) => off());
-      closeHandlers.forEach((off) => off());
-      revealObs.disconnect();
-      dashObs.disconnect();
-      clearTimeout(revealTimeout);
-    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); tutorClosed(); };
   });
 </script>
 
@@ -226,6 +118,7 @@
 <button class="back-to-top" bind:this={backToTopEl} aria-label="חזרה לראש" onclick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>↑</button>
 
 <Header />
+<main id="public-content">
 
   <section id="hero">
     <div class="hero-badge">שיעורים פרטיים במתמטיקה · מיסודי ועד בגרות</div>
@@ -237,6 +130,11 @@
       <span class="hero-sub-b">רואים את ההתקדמות ויודעים מה הצעד הבא</span>
     </div>
 
+    <div class="hero-primary-actions">
+      <a class="hero-book" href="/booking" onclick={() => track('cta_click', { target: 'booking' })}>בדקו מועד לשיעור <span aria-hidden="true">←</span></a>
+      <a class="hero-account" href="/portal">כבר לומדים איתנו? לדף האישי</a>
+    </div>
+
     <!-- Tutors + surrounding feature cards -->
     <div class="tutors-showcase">
 
@@ -245,17 +143,19 @@
 
         {#each TUTORS as tutor (tutor.id)}
           <div class="tutor-card tutor-{tutor.id}" id="tutor-{tutor.id}">
-            <img src={tutor.photo} class="tutor-img" alt={tutor.alt} />
-            <div class="tutor-name-badge">{tutor.name}</div>
-            <div class="tutor-info" id="info-{tutor.id}">
-              <div class="popup-close" data-close>×</div>
-              <h3>{tutor.heading}</h3>
+            <button type="button" class="tutor-trigger" aria-label="הכירו את {tutor.name}" aria-haspopup="dialog" onclick={() => openTutor(String(tutor.id))}>
+              <img src={tutor.photo} class="tutor-img" alt={tutor.alt} />
+              <span class="tutor-name-badge">{tutor.name}</span>
+            </button>
+            <dialog class="tutor-info" id="info-{tutor.id}" aria-labelledby="tutor-heading-{tutor.id}" onclose={tutorClosed}>
+              <button type="button" class="popup-close" aria-label="סגירת פרטי המורה" onclick={() => closeTutor(String(tutor.id))}>×</button>
+              <h3 id="tutor-heading-{tutor.id}">{tutor.heading}</h3>
               <ul>
                 {#each tutor.bio as line}
                   <li>{line}</li>
                 {/each}
               </ul>
-            </div>
+            </dialog>
           </div>
         {/each}
 
@@ -284,53 +184,12 @@
         </AutoCarousel>
       </div>
 
-      <!-- Center: Dashboard static preview -->
-        <div class="hero-dashboard-mini">
-          <div class="hero-preview-title">פורטל הורים</div>
-          <div class="dash-preview">
-            <!-- Student header -->
-            <div class="dp-header">
-              <div class="dp-avatar">🎓</div>
-              <div class="dp-info">
-                <div class="dp-name">ישראל ישראלי</div>
-                <div class="dp-meta">מתמטיקה · בינוני · מורה: ניקול</div>
-              </div>
-            </div>
-            <!-- Stats row -->
-            <div class="dp-stats">
-              <div class="dp-stat">
-                <div class="dp-stat-val" id="dp-stat-lessons">0</div>
-                <div class="dp-stat-lbl">שיעורים</div>
-              </div>
-<div class="dp-stat">
-                <div class="dp-stat-val" id="dp-stat-progress" style="color:#2563EB">0%</div>
-                <div class="dp-stat-lbl">התקדמות</div>
-              </div>
-            </div>
-            <!-- Progress bar -->
-            <div class="dp-bar-wrap">
-              <div class="dp-bar-fill" id="dp-bar-fill"></div>
-            </div>
-            <!-- Next lesson -->
-            <div class="dp-next">📅 שיעור הבא: כ׳ ניסן, 17:00</div>
-            <!-- Recent lessons -->
-            <div class="dp-section-title">שיעורים אחרונים</div>
-            <div class="dp-lesson-row">
-              <span class="dp-lesson-dot teal dp-pulse"></span>
-              <span class="dp-lesson-text">נגזרות — כלל השרשרת</span>
-              <span class="dp-lesson-date">13.4</span>
-            </div>
-            <div class="dp-lesson-row">
-              <span class="dp-lesson-dot coral"></span>
-              <span class="dp-lesson-text">מבוא לאינטגרלים</span>
-              <span class="dp-lesson-date">6.4</span>
-            </div>
-          </div>
-          <!-- Scroll hint -->
-          <div class="dp-scroll-hint">
-            <span class="dp-scroll-arrow">↓</span>
-          </div>
-        </div><!-- /hero-dashboard-mini -->
+      <!-- Public sample lesson -->
+        <article class="hero-dashboard-mini">
+          <h2>מרגישים את הלמידה</h2>
+          <p>הסברים בתנועה, ניסויים ותרגול שאפשר לחזור אליו בכל זמן.</p>
+          <a href="/learn/parabolas">להתנסות בשיעור לדוגמה <span aria-hidden="true">←</span></a>
+        </article>
 
     </div><!-- /tutors-showcase -->
 
@@ -480,7 +339,7 @@
 
 
   <!-- ── STICKY BOOKING BUTTON ───────────────────────────── -->
-  <section id="signup-button">
+  <section id="signup-button" class:shown={showStickyBooking} aria-hidden={!showStickyBooking}>
     <div class="sticky-cta-row">
       <a
         href="/booking"
@@ -550,15 +409,24 @@
     </div>
   </section>
 
+</main>
 <Footer />
 
-<div id="popup-overlay" bind:this={popupOverlayEl}></div>
+
 
 <style>
+.hero-primary-actions{display:flex;align-items:center;justify-content:center;gap:12px 24px;flex-wrap:wrap;margin:24px auto 40px}
+.hero-book{display:inline-flex;align-items:center;justify-content:center;gap:20px;min-height:48px;padding:12px 24px;border-radius:12px;background:var(--action-fill);color:var(--action-text);font-size:1rem;font-weight:600}
+.hero-account{display:inline-flex;align-items:center;min-height:44px;font-size:.9375rem;color:var(--accent-deep)}
+.tutor-trigger{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;background:transparent;color:var(--text-primary);font:inherit;cursor:pointer;border-radius:16px;padding:4px}
+.tutor-info:not([open]){display:none!important}
+dialog.tutor-info[open]{display:block;position:fixed;inset:0;width:min(420px,calc(100% - 32px));height:fit-content;max-height:calc(100dvh - 48px);margin:auto;padding:32px 24px 24px;transform:none;opacity:1;visibility:visible;pointer-events:auto;border:1px solid var(--border);border-radius:20px;background:var(--bg-card);color:var(--text-primary);text-align:start;overflow:auto;z-index:1700}
+dialog.tutor-info::backdrop{background:rgb(0 0 0 / .32);backdrop-filter:blur(4px)}
+
 /* ── Typography ────────────────────────────────────────────── */
 h1, h2, h3, h4 {
-  font-family: 'Heebo', sans-serif;
-  font-weight: 800;
+  font-family: var(--font-ui);
+  font-weight: 700;
   line-height: 1.2;
   color: var(--text-primary);
 }
@@ -580,7 +448,7 @@ h1, h2, h3, h4 {
 .section-title {
   font-size: clamp(1.6rem, 3.5vw, 2.4rem);
   margin-bottom: 0.5rem;
-  letter-spacing: -0.01em;
+
 }
 
 .section-sub {
@@ -632,16 +500,16 @@ h1, h2, h3, h4 {
   padding: 0.32rem 1rem;
   border-radius: 24px;
   margin-bottom: 1.5rem;
-  animation: fade-up 0.6s ease both;
+  animation:none;
 }
 
 .hero-title {
   font-size: clamp(2.8rem, 6.5vw, 5.2rem);
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.08;
   margin-bottom: 0.55rem;
-  letter-spacing: -0.02em;
-  animation: fade-up 0.65s ease 0.1s both;
+
+  animation:none;
 }
 .hero-title .accent { color: var(--accent2-strong); }
 
@@ -651,7 +519,7 @@ h1, h2, h3, h4 {
   align-items: center;
   gap: 0.15rem;
   margin-bottom: 2.6rem;
-  animation: fade-up 0.65s ease 0.2s both;
+  animation:none;
 }
 .hero-sub-a {
   font-size: clamp(1.1rem, 2.5vw, 1.7rem);
@@ -660,7 +528,7 @@ h1, h2, h3, h4 {
 }
 .hero-sub-b {
   font-size: clamp(1.35rem, 3vw, 2.2rem);
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -675,7 +543,7 @@ h1, h2, h3, h4 {
   max-width: 700px;
   margin: 0 auto;
   direction: ltr;
-  animation: fade-up 0.65s ease 0.4s both;
+  animation:none;
 }
 
 /* Hero Feature Card — illustration style */
@@ -765,10 +633,10 @@ h1, h2, h3, h4 {
   bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--accent);
+  background: var(--action-fill);
   color: white;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 700;
   padding: 0.14rem 0.65rem;
   border-radius: 12px;
   white-space: nowrap;
@@ -777,94 +645,10 @@ h1, h2, h3, h4 {
   box-shadow: 0 3px 10px var(--shadow-accent);
 }
 
-/* Tutor info popup */
-.tutor-info {
-  background: var(--bg-card)
-              linear-gradient(158deg, rgba(59, 130, 246, 0.10), rgba(255, 255, 255, 0) 58%);
-  border: 2px solid rgba(59, 130, 246, 0.35);
-  border-radius: var(--r-lg);
-  padding: 1.3rem 1.5rem;
-  /* A lit card: a tight brand halo plus a soft drop, instead of a flat grey shadow */
-  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.07),
-              0 18px 50px rgba(37, 99, 235, 0.22);
-  z-index: 9999;
-  min-width: 260px;
-}
-.tutor-info h3 {
-  font-size: 1.05rem;
-  color: var(--accent);
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
-}
-.tutor-info ul { display: flex; flex-direction: column; gap: 0.45rem; }
-.tutor-info ul li { font-size: 0.88rem; color: var(--text-muted); line-height: 1.45; }
-
-@media (min-width: 993px) {
-  .tutor-info {
-    position: absolute;
-    top: 50%;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease;
-  }
-  .tutor-nikol .tutor-info { left: 110%; transform: translateY(-50%) translateX(-6px); }
-  .tutor-lior  .tutor-info { right: 110%; transform: translateY(-50%) translateX(6px); }
-  .tutor-card:hover .tutor-info { opacity: 1; visibility: visible; transform: translateY(-50%) translateX(0); }
-}
-
-@media (max-width: 992px) {
-  .tutor-info {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(320px, 90vw);
-    z-index: 10000;
-  }
-  .tutor-info:global(.active) {
-    display: block;
-    animation: popupPop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  @keyframes popupPop {
-    from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
-    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tutor-info:global(.active), #popup-overlay:global(.active) { animation: none; }
-}
-
-.popup-close {
-  position: absolute;
-  top: 8px;
-  left: 10px;
-  width: 28px;
-  height: 28px;
-  background: var(--accent);
-  color: white;
-  border-radius: 50%;
-  font-size: 1.15rem;
-  font-weight: 700;
-  line-height: 28px;
-  text-align: center;
-  cursor: pointer;
-  display: none;
-}
-@media (max-width: 992px) { .popup-close { display: block; } }
-
-#popup-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  /* Light slate wash — dimming to black made the whole screen look switched off */
-  background: rgba(248, 250, 252, 0.62);
-  z-index: 9998;
-}
-#popup-overlay:global(.active) { display: block; animation: popupFade 0.25s ease; }
-@keyframes popupFade { from { opacity: 0; } to { opacity: 1; } }
+.tutor-info h3{font-size:1.25rem;color:var(--text-primary);margin-bottom:16px;font-weight:600;padding-inline-end:32px}
+.tutor-info ul{display:flex;flex-direction:column;gap:12px}
+.tutor-info ul li{font-size:.9375rem;line-height:1.7;color:var(--text-muted-strong)}
+.popup-close{position:absolute;inset-inline-end:12px;top:12px;display:grid;place-items:center;width:44px;height:44px;min-height:44px;border:0;border-radius:12px;background:var(--control-bg);color:var(--text-primary);font:inherit;font-size:1.5rem;cursor:pointer}
 
 /* ── FEATURES SHOWCASE ────────────────────────────────────── */
 #features-showcase {
@@ -917,7 +701,7 @@ h1, h2, h3, h4 {
 
 .showcase-card h3 {
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary);
 }
 .showcase-card p {
@@ -953,7 +737,7 @@ h1, h2, h3, h4 {
 }
 .dash-bar-row { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-muted); }
 .dash-bar { height: 7px; border-radius: 4px; background: var(--accent-dim); flex: 1; overflow: hidden; }
-.dash-fill { height: 100%; border-radius: 4px; background: var(--accent); }
+.dash-fill { height: 100%; border-radius: 4px; background: var(--action-fill); }
 
 /* Mini game cards */
 .mini-game-grid {
@@ -1119,7 +903,7 @@ h1, h2, h3, h4 {
   background: var(--accent2);
   color: var(--btn-text);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
   padding: 0.22rem 0.9rem;
   border-radius: 20px;
   white-space: nowrap;
@@ -1137,11 +921,11 @@ h1, h2, h3, h4 {
 }
 .pricing-card-price {
   font-size: 3.2rem;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--text-primary);
   line-height: 1;
   margin-bottom: 0.3rem;
-  letter-spacing: -0.03em;
+
 }
 .pricing-card-duration {
   font-size: 0.83rem;
@@ -1198,15 +982,15 @@ h1, h2, h3, h4 {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--action-fill);
   color: #fff;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.05rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.how-step h3 { margin: 0.1rem 0 0.25rem; font-size: 1.02rem; font-weight: 800; color: var(--text-primary); }
+.how-step h3 { margin: 0.1rem 0 0.25rem; font-size: 1.02rem; font-weight: 700; color: var(--text-primary); }
 .how-step p { margin: 0; color: var(--text-muted); font-size: 0.92rem; line-height: 1.7; }
 @media (min-width: 992px) {
   .how-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -1224,7 +1008,7 @@ h1, h2, h3, h4 {
   gap: 0.7rem;
   text-align: right;
 }
-.faq-title { margin: 0 0 0.3rem; font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
+.faq-title { margin: 0 0 0.3rem; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
 
 .faq-item {
   background: var(--bg-card);
@@ -1269,7 +1053,7 @@ h1, h2, h3, h4 {
   transition: transform 0.3s, background 0.2s;
 }
 .faq-item[open] .faq-icon {
-  background: var(--accent);
+  background: var(--action-fill);
   border-color: var(--accent);
   color: white;
   transform: rotate(45deg);
@@ -1343,9 +1127,9 @@ h1, h2, h3, h4 {
   gap: 0.6rem;
   background: var(--accent2);
   color: var(--btn-text);
-  font-family: 'Heebo', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1.05rem;
-  font-weight: 800;
+  font-weight: 700;
   padding: 0.82rem 2.5rem;
   border-radius: 40px;
   text-decoration: none;
@@ -1377,9 +1161,9 @@ h1, h2, h3, h4 {
   gap: 0.6rem;
   background: var(--bg-card);
   color: var(--whatsapp-strong);
-  font-family: 'Heebo', sans-serif;
+  font-family: var(--font-ui);
   font-size: 1.05rem;
-  font-weight: 800;
+  font-weight: 700;
   padding: 0.82rem 2.2rem;
   border-radius: 40px;
   border: 1.5px solid var(--whatsapp-strong);
@@ -1448,23 +1232,15 @@ h1, h2, h3, h4 {
 }
 .back-to-top:global(.visible) { opacity: 1; pointer-events: all; }
 .back-to-top:hover {
-  background: var(--accent);
+  background: var(--action-fill);
   color: white;
   border-color: var(--accent);
   transform: translateY(-2px);
 }
 
 /* ── SCROLL REVEAL ─────────────────────────────────────────── */
-.reveal {
-  opacity: 0;
-  transform: translateY(28px);
-  transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-}
+.reveal { opacity:1; transform:none; }
 .reveal:global(.visible) { opacity: 1; transform: translateY(0); }
-.reveal-delay-1 { transition-delay: 0.1s; }
-.reveal-delay-2 { transition-delay: 0.22s; }
-.reveal-delay-3 { transition-delay: 0.34s; }
 
 /* ── ANIMATIONS ────────────────────────────────────────────── */
 @keyframes fade-up {
@@ -1499,172 +1275,14 @@ h1, h2, h3, h4 {
 }
 .dash-preview::-webkit-scrollbar { display: none; }
 
-/* Scroll hint overlay */
-.dp-scroll-hint {
-  display: none;
-}
-
-.dp-scroll-arrow {
-  font-size: 0.75rem;
-  color: var(--accent);
-  font-weight: 700;
-  animation: bounce-down 1.4s ease-in-out infinite;
-}
-
 @keyframes bounce-down {
   0%, 100% { transform: translateY(0);   opacity: 1; }
   50%       { transform: translateY(4px); opacity: 0.5; }
-}
-
-.dp-header {
-  background: var(--accent);
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-.dp-avatar {
-  font-size: 1.4rem;
-  background: rgba(255,255,255,0.2);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.dp-name {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #fff;
-  line-height: 1.2;
-}
-
-.dp-meta {
-  font-size: 0.62rem;
-  color: rgba(255,255,255,0.82);
-}
-
-.dp-stats {
-  display: flex;
-  padding: 6px 10px;
-  gap: 6px;
-  border-bottom: 1px solid var(--faint, #E2E8F0);
-}
-
-.dp-stat {
-  flex: 1;
-  text-align: center;
-}
-
-.dp-stat-val {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--accent);
-  line-height: 1;
-}
-
-.dp-stat-lbl {
-  font-size: 0.52rem;
-  color: var(--text-muted, #64748B);
-  margin-top: 2px;
-}
-
-.dp-bar-wrap {
-  height: 5px;
-  background: #E2E8F0;
-  margin: 6px 10px 0;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.dp-bar-fill {
-  height: 100%;
-  background: linear-gradient(to left, var(--accent2), var(--accent));
-  border-radius: 10px;
-  width: 0%;
-  transition: width 1.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.dp-pulse {
-  position: relative;
-}
-.dp-pulse::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: var(--accent);
-  opacity: 0;
-  animation: dp-ripple 2s ease-out infinite;
 }
 @keyframes dp-ripple {
   0%   { transform: scale(1);   opacity: 0.6; }
   100% { transform: scale(2.8); opacity: 0; }
 }
-
-.dp-next {
-  font-size: 0.58rem;
-  color: var(--text-muted, #64748B);
-  padding: 4px 10px 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dp-section-title {
-  font-size: 0.56rem;
-  font-weight: 800;
-  color: var(--accent);
-  padding: 4px 10px 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.dp-lesson-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 10px;
-}
-
-.dp-lesson-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.dp-lesson-dot.teal  { background: var(--accent); }
-.dp-lesson-dot.coral { background: #FA8231; }
-
-.dp-lesson-text {
-  font-size: 0.58rem;
-  color: var(--text-primary, #1E293B);
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dp-lesson-date {
-  font-size: 0.52rem;
-  color: var(--text-muted, #64748B);
-  flex-shrink: 0;
-}
-
-.dp-hw-badge {
-  font-size: 0.48rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-.dp-hw-badge.open { background: rgba(250,130,49,0.12); color: var(--accent2-strong); }
-.dp-hw-badge.done { background: rgba(16,185,129,0.14); color: #047857; }
 
 /* ── Dashboard Mini Mockup ────────────────────────────────── */
 .dashboard-mockup-mini {
@@ -1693,7 +1311,7 @@ h1, h2, h3, h4 {
   padding: 2px 8px;
   font-size: 0.65rem;
   color: var(--text-muted);
-  font-family: 'Heebo', sans-serif;
+  font-family: var(--font-ui);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1798,9 +1416,9 @@ h1, h2, h3, h4 {
 }
 
 /* Titles */
-.sp-title-dark  { font-size: 0.62rem; font-weight: 700; color: #1E293B; line-height: 1.2; font-family: 'Heebo', sans-serif; }
-.sp-title-light { font-size: 0.62rem; font-weight: 700; color: #FFFFFF; line-height: 1.2; font-family: 'Heebo', sans-serif; }
-.sp-title-xl    { font-size: 0.65rem; font-weight: 800; color: #FFFFFF; line-height: 1.2; font-family: 'Heebo', sans-serif; }
+.sp-title-dark  { font-size: 0.62rem; font-weight: 700; color: #1E293B; line-height: 1.2; font-family: var(--font-ui); }
+.sp-title-light { font-size: 0.62rem; font-weight: 700; color: #FFFFFF; line-height: 1.2; font-family: var(--font-ui); }
+.sp-title-xl    { font-size: 0.65rem; font-weight: 700; color: #FFFFFF; line-height: 1.2; font-family: var(--font-ui); }
 
 /* Subtitles — hidden in mini carousel */
 .sp-sub-dark,
@@ -1900,24 +1518,7 @@ h1, h2, h3, h4 {
   }
 
   /* Labels below each panel */
-  .hero-preview-title {
-    display: block !important;
-    font-size: 0.55rem;
-    font-weight: 700;
-    text-align: center;
-    color: var(--text-muted);
-    background: none !important;
-    border: none !important;
-    padding: 3px 2px 0;
-    margin: 0;
-    letter-spacing: 0;
-    text-transform: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 100%;
-    backdrop-filter: none;
-  }
+
 
   .showcase-side {
     flex-direction: row;
@@ -1973,7 +1574,7 @@ h1, h2, h3, h4 {
   padding: 0 0.35rem;
   color: var(--text-primary);
   font-size: 1rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 .hero-feature-count {
   color: var(--text-muted);
@@ -2024,7 +1625,7 @@ h1, h2, h3, h4 {
   padding: 1.3rem 1.45rem;
   text-align: right;
 }
-.hero-feature-eyebrow { color: #2563EB; font-size: 0.75rem; font-weight: 800; }
+.hero-feature-eyebrow { color: #2563EB; font-size: 0.75rem; font-weight: 700; }
 .hero-feature-copy h3 { margin: 0.5rem 0 0.35rem; color: #0F172A; font-size: clamp(1.15rem, 2.2vw, 1.55rem); line-height: 1.25; }
 .hero-feature-copy p { margin: 0; color: #475569; font-size: 0.94rem; line-height: 1.65; }
 
@@ -2044,4 +1645,36 @@ h1, h2, h3, h4 {
 @media (prefers-reduced-motion: reduce) {
   .hero-feature-carousel :global(.ac-track) { scroll-behavior: auto; }
 }
+
+#hero{padding:56px 24px 64px}
+#hero::before{display:none}
+.hero-badge{background:transparent;border:0;border-radius:0;padding:0;color:var(--text-muted);font-weight:500;margin-bottom:16px}
+.hero-title{font-size:3.5rem;line-height:1.2;max-width:780px;margin-inline:auto;margin-bottom:16px}
+.hero-title .accent{color:var(--text-primary)}
+.hero-sub-a{font-size:1.125rem}.hero-sub-b{font-size:1.125rem;font-weight:500;color:var(--text-muted)}
+.hero-subtitle-row{margin-bottom:0}
+.tutor-name-badge{background:transparent;color:var(--text-primary);box-shadow:none;font-weight:600}
+.tutor-img{box-shadow:none;border:3px solid var(--bg-card)}
+.section-label{background:transparent;border:0;color:var(--text-muted);padding:0;border-radius:0;font-weight:500;letter-spacing:0}
+.section-title{font-size:2rem}
+.hero-feature-count{display:none}
+@media(max-width:600px){#hero{padding:36px 20px 40px}.hero-title{font-size:2.25rem}.hero-primary-actions{flex-direction:column;gap:8px;margin:24px 0 32px}.hero-book{width:100%}.tutors-preview{gap:20px}}
+
+.tutors-showcase{display:flex;flex-direction:column;align-items:stretch;gap:24px;max-width:700px;direction:rtl}
+.tutors-preview{display:flex;justify-content:center;gap:32px;width:100%;margin:0}
+.tutor-card{width:auto;height:auto;flex:none;animation:none}
+.tutor-trigger .tutor-img{width:72px;height:72px;border:3px solid var(--bg-card);box-shadow:none}
+.tutor-name-badge{position:static;transform:none;font-size:.9375rem;line-height:1.4;padding:0;letter-spacing:0}
+.hero-dashboard-mini{width:100%;max-width:none;border:1px solid var(--border);border-radius:18px;padding:24px;background:var(--bg-card);box-shadow:none;text-align:start;direction:rtl;margin:0}
+.hero-dashboard-mini h2{font-size:1.25rem;font-weight:600;margin-bottom:8px}
+.hero-dashboard-mini p{color:var(--text-muted);font-size:.9375rem;line-height:1.7}
+.hero-dashboard-mini a{display:inline-flex;gap:16px;align-items:center;min-height:44px;font-size:.9375rem;margin-top:12px;font-weight:500}
+#signup-button{background:var(--nav-bg);border-top:1px solid var(--border);backdrop-filter:blur(16px);padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.book-cta{background:var(--action-fill);color:var(--action-text);box-shadow:none;border-radius:12px}
+.book-cta:hover{color:var(--action-text);transform:none;box-shadow:none}
+.pricing-card.featured{background:var(--bg-card);border-color:var(--border-strong);box-shadow:none}
+.pricing-card.featured:hover{box-shadow:none}
+
+#signup-button{visibility:hidden;transform:translateY(100%);transition:transform var(--motion-normal),visibility var(--motion-normal)}
+#signup-button.shown{visibility:visible;transform:none}
 </style>

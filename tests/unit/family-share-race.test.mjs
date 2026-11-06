@@ -14,12 +14,12 @@ function sharingHarness() {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const fixture = new Function('fetch', 'fetchPortal', 'toDashboardShape', 'document', 'history', 'location', `
-    let currentId='child-a', loading=false, loadError='', CURRENT=null;
+    let currentId='child-a', loading=false, loadError='', CURRENT=null, portalGeneration=0;
     let share=null, shareOpen=false, shareConfirm=false, showLink=false, copied=false;
     let shareBusy=false, shareErr='', shareGeneration=0;
     ${js}
     return { issue:loadShare, select:openStudent, state:()=>({currentId,share,shareOpen,shareBusy,shareErr}) };
-  `)(() => new Promise(resolve => pending.push(resolve)), async code => ({name:code}), x => x, {}, {replaceState(){}}, {});
+  `)(() => new Promise(resolve => pending.push(resolve)), async code => ({name:code}), x => x, {}, {replaceState(){}}, {href:'https://example.test/app/parent?s=child-a'});
   return { ...fixture, respond: (index, name) => pending[index](Response.json({name,link:'/synthetic-only',joinCode:'TEST-ONLY'})) };
 }
 test('a delayed access response cannot appear on a different child board', async () => {

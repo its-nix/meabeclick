@@ -185,7 +185,7 @@
     box-shadow: 0 -8px 32px var(--shadow-md);
   }
   .head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-  .head h3 { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); }
+  .head h3 { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
   .icon-btn {
     min-width: 44px; min-height: 44px; border: none; background: none;
     font-size: 1.1rem; color: var(--text-muted); cursor: pointer;
@@ -217,7 +217,7 @@
 
   .save-btn {
     width: 100%; min-height: 44px; border: none; border-radius: 12px;
-    background: var(--accent); color: #fff; font-family: inherit; font-weight: 800;
+    background: var(--action-fill); color: #fff; font-family: inherit; font-weight: 700;
     font-size: .95rem; cursor: pointer; margin-bottom: 14px;
   }
   .save-btn:disabled { opacity: .6; cursor: default; }
@@ -234,7 +234,7 @@
   .chip.active { border-color: var(--accent2-strong); color: var(--accent2-strong); background: var(--accent2-dim); }
 
   .history { border-top: 1px solid var(--border); padding-top: 10px; }
-  .history h4 { font-size: .85rem; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
+  .history h4 { font-size: .85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
   .history .empty { font-size: .82rem; color: var(--text-muted); }
   .history ul { display: flex; flex-direction: column; gap: 8px; }
   .history li { border-bottom: 1px solid var(--border); padding-bottom: 8px; font-size: .82rem; }

@@ -44,12 +44,12 @@
 {/if}
 
 <style>
-  .engine-notice { background: #FFFBEB; border: 1.5px solid #FCD34D; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; color: var(--text-primary); }
-  .en-title { font-weight: 800; color: #92400E; margin-bottom: 6px; }
+  .engine-notice { background: var(--warning-bg); border:1px solid var(--warning-text); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; color: var(--text-primary); }
+  .en-title { font-weight: 700; color:var(--warning-text); margin-bottom: 6px; }
   p { margin: 0 0 6px; font-size: .92rem; line-height: 1.6; }
   a { color: var(--accent-deep); font-weight: 700; }
   .en-sub { font-weight: 700; font-size: .88rem; margin: 10px 0 4px; }
   ul { list-style: none; padding: 0; margin: 0; }
-  li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid #FDE68A; font-size: .9rem; }
-  .en-when { color: var(--text-muted); white-space: nowrap; }
+  li { display: flex; flex-wrap:wrap; justify-content: space-between; gap: 10px; padding: 6px 0; border-top:1px solid var(--border); font-size: .9rem; }
+  .en-when { color: var(--text-muted); white-space: normal; overflow-wrap:anywhere; max-width:100%; }
 </style>

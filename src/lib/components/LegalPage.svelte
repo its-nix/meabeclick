@@ -81,7 +81,7 @@
 
   h1 {
     font-size: clamp(1.6rem, 5vw, 2.1rem);
-    font-weight: 800;
+    font-weight: 700;
     color: var(--text-primary);
     line-height: 1.25;
   }

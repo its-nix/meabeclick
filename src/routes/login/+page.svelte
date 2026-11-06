@@ -52,8 +52,9 @@
     <div class="logo"><BrandMark height={40} href={null} label={null} /></div>
     <h1>לוח בקרה</h1>
     <p>{tutorNames()} · שיעורים פרטיים</p>
+    <label for="tutor-password">סיסמה</label>
     <input
-      type="password"
+      id="tutor-password" type="password"
       placeholder="סיסמה"
       autocomplete="current-password"
       autofocus
@@ -62,7 +63,7 @@
       onkeydown={onKeydown}
     />
     <button disabled={loading} onclick={login}>כניסה</button>
-    <div class="err">{errorMsg}</div>
+    <div class="err" role="alert">{errorMsg}</div>
     <a href="/">→ חזרה לאתר</a>
   </div>
 </div>
@@ -90,8 +91,9 @@
     .box { padding-block: 1rem; }
   }
   .logo { display: flex; justify-content: center; margin-bottom: 0.6rem; }
-  h1 { font-size: 1.5rem; font-weight: 900; color: var(--accent); margin-bottom: 0.2rem; }
+  h1 { font-size: 1.5rem; font-weight: 700; color: var(--accent); margin-bottom: 0.2rem; }
   p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.6rem; }
+  label{display:block;text-align:start;font-size:.875rem;font-weight:500;margin-bottom:8px}
   input {
     width: 100%;
     font-family: inherit;
@@ -110,10 +112,10 @@
   button {
     width: 100%;
     margin-top: 0.8rem;
-    background: var(--accent);
+    background: var(--action-fill);
     color: #fff;
     font-family: inherit;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 1rem;
     border: none;
     border-radius: 14px;

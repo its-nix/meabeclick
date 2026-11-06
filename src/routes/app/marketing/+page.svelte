@@ -61,6 +61,7 @@
       </nav>
     {/snippet}
   </TutorPageHeader>
+  <a class="metrics-link" href="/app/metrics">יעדים והגדרות מדדים <span aria-hidden="true">←</span></a>
   <p class="note">נתונים מאז {MEASUREMENT_START} · אירועים נשמרים 12 חודשים</p>
 
   <div class="summary">
@@ -154,6 +155,8 @@
 </main>
 
 <style>
+  .metrics-link{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:.875rem;margin-bottom:12px}
+
   :global(body) { background: var(--bg-base); }
 
   .note { font-size: .82rem; color: var(--text-muted); margin: 0 0 14px; }
@@ -180,7 +183,7 @@
     padding: 20px; text-align: start;
   }
   .stat-value {
-    font-size: 2rem; font-weight: 850; color: var(--text-primary); line-height: 1.4;
+    font-size: 2rem; font-weight: 700; color: var(--text-primary); line-height: 1.4;
     font-variant-numeric: tabular-nums;
   }
   .stat-label { font-size: .85rem; color: var(--text-muted-strong); }
@@ -214,8 +217,8 @@
   table.funnel tbody td { color: var(--text-primary); font-variant-numeric: tabular-nums; }
   table.funnel tbody tr:last-child td { border-bottom: none; }
 
-  .section-title { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); margin: 0 0 12px; }
-  caption { text-align: start; padding: 16px; font-weight: 800; }
+  .section-title { font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0 0 12px; }
+  caption { text-align: start; padding: 16px; font-weight: 700; }
   .table-hint { display: none; color: var(--text-muted); font-size: .8rem; margin: -4px 0 12px; }
 
   .heard-from { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }

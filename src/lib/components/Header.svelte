@@ -85,12 +85,15 @@
     </a>
 
     <div class="nav-right">
+      <a class="personal-entry" href="/portal">כניסה</a>
       <a class="nav-cta" href="/booking"><Icon name="booking" size={18} /> הזמנת שיעור</a>
     </div>
   </div>
 </section>
 
 <style>
+  .personal-entry{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding-inline:12px;font-size:.875rem;font-weight:500;color:var(--text-primary)}
+
   /* ── NAV ───────────────────────────────────────────────────── */
   #header {
     position: sticky;
@@ -106,8 +109,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 90px;
-    padding: 0 1.5rem;
+    min-height:64px;height:auto;
+    padding:10px 24px;
     max-width: 1080px;
     margin: 0 auto;
     position: relative;
@@ -126,7 +129,7 @@
     white-space: nowrap;
   }
   .nav-logo span { color: var(--accent); }
-  .nav-brand { font-size: 1.05rem; font-weight: 600; letter-spacing: 0.01em; color: var(--text-primary); }
+  .nav-brand { font-size:1rem; font-weight: 600; letter-spacing: 0.01em; color: var(--text-primary); }
 
   /* Hamburger button — right side (RTL start) */
   .hamburger {
@@ -169,21 +172,21 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    background: var(--accent2);
-    color: var(--btn-text);
-    font-family: 'Heebo', sans-serif;
+    background:var(--action-fill);
+    color:var(--action-text);
+    font-family: var(--font-ui);
     font-size: 0.85rem;
     font-weight: 700;
-    padding: 0.38rem 1rem;
-    border-radius: 20px;
+    min-height:44px;padding:10px 16px;
+    border-radius:10px;
     text-decoration: none;
-    box-shadow: 0 2px 10px var(--accent2-glow);
+    box-shadow:none;
     transition: all 0.22s ease;
   }
   .nav-cta:hover {
     opacity: 0.88;
-    transform: translateY(-1px);
-    color: var(--btn-text);
+
+    color:var(--action-text);
   }
 
   /* ── SIDEBAR ──────────────────────────────────────────────── */
@@ -220,7 +223,7 @@
     border-bottom: 1px solid var(--border);
   }
   .sidebar-title {
-    font-weight: 800;
+    font-weight: 700;
     font-size: 1rem;
     color: var(--text-primary);
   }
@@ -239,7 +242,7 @@
     justify-content: center;
     transition: all 0.2s;
   }
-  .sidebar-close:hover { background: var(--accent); color: white; }
+  .sidebar-close:hover { background: var(--action-fill); color: white; }
 
   .sidebar-nav {
     display: flex;
@@ -253,7 +256,7 @@
     display: block;
     background: transparent;
     border: none;
-    font-family: 'Heebo', sans-serif;
+    font-family: var(--font-ui);
     font-size: 1.05rem;
     font-weight: 600;
     color: var(--text-primary);
@@ -285,9 +288,9 @@
   }
   .sidebar-contact-phone {
     display: inline-block;
-    font-family: 'Heebo', sans-serif;
+    font-family: var(--font-ui);
     font-size: 1.15rem;
-    font-weight: 900;
+    font-weight: 700;
     color: var(--accent2-strong);
     text-decoration: none;
     direction: ltr;

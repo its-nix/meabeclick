@@ -86,14 +86,14 @@
   }
   .page-brand { display: flex; justify-content: center; margin-bottom: 1.4rem; }
   .error-emoji { font-size: 2.6rem; margin-bottom: 0.6rem; }
-  h1 { font-size: 1.35rem; font-weight: 900; margin-bottom: 0.6rem; }
+  h1 { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.6rem; }
   p { color: var(--text-muted); line-height: 1.7; }
   .error-home {
     display: inline-block;
     margin-top: 1.4rem;
     background: var(--accent2);
     color: var(--btn-text);
-    font-weight: 800;
+    font-weight: 700;
     font-size: 0.95rem;
     border-radius: 999px;
     padding: 0.7rem 1.8rem;

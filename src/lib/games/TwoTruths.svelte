@@ -91,8 +91,8 @@
 <style>
   .opt { line-height: 1.5; }
   .tag {
-    display: inline-block; font-size: 0.72rem; font-weight: 800;
+    display: inline-block; font-size: 0.72rem; font-weight:600;
     border-radius: 999px; padding: 1px 9px; margin-left: 7px;
-    background: var(--danger); color: #fff;
+    background: var(--danger-fill); color: #fff;
   }
 </style>

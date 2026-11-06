@@ -30,6 +30,7 @@
 /** Every icon the UI can ask for. Adding a name here is what makes it
  *  available; adding the matching SVG is what makes it branded. */
 export const ICONS = {
+  search: { fallback: '⌕', of: 'finding a student or learning material' },
   // ── navigation and sections ──
   'my-page':    { fallback: '🎒', of: 'the family\'s own board' },
   subjects:     { fallback: '📚', of: 'subjects, and the lesson log' },

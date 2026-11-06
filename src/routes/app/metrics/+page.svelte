@@ -12,20 +12,24 @@
   <header>
     <h1>יעדים והגדרות מדדים</h1>
     <p class="notice">הגדרות ויעדים בלבד — הנתונים בפועל אינם זמינים.</p>
+    <details class="measurement-details"><summary>על זמינות הנתונים</summary>
     <p>אין תמונת מצב מצרפית מאושרת. לא נקראים מקורות נתונים ולא מחושבים ערכים במסך זה. נתון לא ידוע אינו אפס ואינו אישור שהכול תקין.</p>
     <p>עדכון נתונים אחרון: לא ידוע. נדרשת תמונת מצב מצרפית בלבד, מאושרת ומסוננת לפרטיות, לפני הצגת ערכים בפועל.</p>
     <p>יעדי המוצר לתאריך <bdi dir="ltr">31.03.2027</bdi> מוצגים בנפרד מהמצב בפועל. הגישה נשארת לממשק המורים המוגן הקיים, ללא הרחבת הרשאות.</p>
+    </details>
   </header>
   <nav aria-label="קבוצות מדדים">
     {#each metricGroups as group}
       <a href="#{group.id}">{group.title}</a>
     {/each}
   </nav>
+  <details class="measurement-details"><summary>תקופות המדידה והגדרותיהן</summary>
   <aside aria-labelledby="windows-title">
     <h2 id="windows-title">תקופות המדידה</h2>
     <p>״30 הימים שחלפו״ ו־״24 השעות שחלפו״ הם משכי זמן רציפים לפי רגעי זמן ב־<bdi dir="ltr">UTC</bdi>: אחרי הגבול התחתון ועד רגע המדידה, כולל. אלה אינם ימים קלנדריים מקומיים.</p>
     <p>החודש הקלנדרי הקודם מיוחס לפי <bdi dir="ltr">Asia/Jerusalem</bdi>; תאריכים מוצגים לפי שעון ישראל. אין כאן חלון שבועי חדש או תאריכי מדידה בפועל.</p>
   </aside>
+  </details>
   {#each metricGroups as group}
     <section id={group.id} aria-labelledby="heading-{group.id}">
       <h2 id="heading-{group.id}">{group.title}</h2>
@@ -66,6 +70,9 @@
 </main>
 
 <style>
+  .measurement-details{margin-block:12px 20px}
+  .measurement-details>summary{font-size:.875rem;color:var(--text-muted-strong);min-height:44px;padding-block:12px}
+
   main { max-inline-size: 72rem; margin-inline: auto; padding: 1rem; color: var(--text-primary); overflow-wrap: anywhere; }
   header, aside, footer { margin-block: 1.5rem; }
   h1 { font-size: clamp(1.6rem, 5vw, 2.2rem); }

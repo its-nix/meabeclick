@@ -210,7 +210,7 @@
     justify-content: center;
     min-height: 44px;
     gap: 0.5rem;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 1.05rem;
     color: var(--text-primary);
     text-decoration: none;
@@ -228,7 +228,7 @@
     margin-bottom: 1rem;
   }
 
-  h1 { font-size: 1.3rem; font-weight: 800; text-align: center; }
+  h1 { font-size: 1.3rem; font-weight: 700; text-align: center; }
   .sub {
     color: var(--text-muted); font-size: 0.9rem;
     text-align: center; margin-top: 0.35rem; margin-bottom: 1.1rem;
@@ -288,7 +288,7 @@
   #join-code {
     text-align: center;
     letter-spacing: 0.12em;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 1.2rem;
     text-transform: uppercase;
   }
@@ -304,18 +304,18 @@
   .go {
     width: 100%;
     margin-top: 0.8rem;
-    background: var(--accent);
+    background: var(--action-fill);
     color: #fff;
     border: 0;
     padding: 0.8rem;
     min-height: 52px;
     border-radius: 12px;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 1rem;
     cursor: pointer;
     font-family: inherit;
   }
-  .go:hover { background: var(--accent-deep); }
+  .go:hover { background: var(--action-hover); }
   .go:disabled { opacity: 0.6; cursor: default; }
 
   .hint {
@@ -326,7 +326,7 @@
 
   .done { text-align: center; padding: 0.5rem 0; }
   .done-icon { font-size: 2.2rem; }
-  .done-title { font-weight: 800; font-size: 1.05rem; margin-top: 0.4rem; }
+  .done-title { font-weight: 700; font-size: 1.05rem; margin-top: 0.4rem; }
   .done-sub { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.35rem; line-height: 1.6; }
   .ghost {
     margin-top: 0.9rem;

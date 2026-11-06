@@ -504,7 +504,7 @@
     display: inline-flex; align-items: center; min-height: 44px;
     font-size: .88rem; font-weight: 700; color: var(--text-muted);
   }
-  .student-name { font-size: 1.4rem; font-weight: 900; color: var(--text-primary); margin: 6px 0 10px; }
+  .student-name { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin: 6px 0 10px; }
 
   .subject-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .chip {
@@ -541,7 +541,7 @@
   .goal-actions { display: flex; gap: 8px; }
   .btn-primary {
     min-height: 44px; border: none; border-radius: 12px; padding: 8px 20px;
-    background: var(--accent); color: #fff; font-family: inherit; font-weight: 800;
+    background: var(--action-fill); color: #fff; font-family: inherit; font-weight: 700;
     font-size: .9rem; cursor: pointer;
   }
   .btn-primary:disabled { opacity: .6; cursor: default; }
@@ -557,7 +557,7 @@
     background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 16px;
     padding: 18px; display: flex; flex-direction: column; gap: 10px;
   }
-  .create-card h2 { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+  .create-card h2 { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
   .create-card .empty { font-size: .88rem; color: var(--text-muted); }
   .return-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 8px; }
 </style>

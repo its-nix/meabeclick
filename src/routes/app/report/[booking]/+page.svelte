@@ -104,7 +104,7 @@
   }
 
   /* The ONLY route from a draft into the form, and it is a click.
-     
+
      Nothing preselects a draft and nothing ticks a skill because one
      exists. The approval gate is the feature (spec §7): a tutor confirming
      the system's opinion rather than recording her own is precisely the
@@ -337,7 +337,7 @@
     display: inline-flex; align-items: center; min-height: 44px;
     font-size: .88rem; font-weight: 700; color: var(--text-muted);
   }
-  .title { font-size: 1.2rem; font-weight: 900; color: var(--text-primary); margin: 6px 0 2px; }
+  .title { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin: 6px 0 2px; }
   .lesson-time { font-size: .85rem; color: var(--text-muted); margin-bottom: 14px; }
 
   .banner { border-radius: 12px; padding: 10px 14px; font-size: .86rem; margin-bottom: 12px; }
@@ -355,7 +355,7 @@
     margin-bottom: 12px;
   }
 
-  .section-title { font-size: 1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+  .section-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
   .empty { font-size: .86rem; color: var(--text-muted); padding: 6px 2px 12px; }
 
   .skill-list {
@@ -425,7 +425,7 @@
 
   .submit-btn {
     width: 100%; min-height: 48px; border: none; border-radius: 12px;
-    background: var(--accent); color: #fff; font-family: inherit; font-weight: 800;
+    background: var(--action-fill); color: #fff; font-family: inherit; font-weight: 700;
     font-size: .95rem; cursor: pointer;
   }
   .submit-btn:disabled { opacity: .5; cursor: default; }

@@ -9,12 +9,47 @@
 
 :root {
   color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Heebo Variable', 'Heebo', 'Segoe UI', sans-serif;
+  --action-fill: #2563eb;
+  --action-hover: #1d4ed8;
+  --success-fill: #047857;
+  --danger-fill: #b91c1c;
+  --whatsapp-fill: #11763a;
+  --action-text: #ffffff;
+  --text-on-accent: #ffffff;
+  --control-bg: #eeeef0;
+  --bg-subtle: #f5f5f7;
+  --danger-bg: #fef2f2;
+  --danger-border: #fca5a5;
+  --danger-text: #b91c1c;
+  --warning-bg: #fff4e8;
+  --warning-text: #984900;
+  --success-bg: #eaf8f1;
+  --text-secondary: #636366;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --page-width: 1120px;
+  --content-width: 880px;
+  /* Interface neutrals adapt independently of standalone teaching artwork. */
+  --interface-bg: #f5f5f7;
+  --interface-ink: #1d1d1f;
+  --interface-muted: #636366;
+  --interface-muted-strong: #48484a;
+  --interface-danger: #b91c1c;
+  --interface-separator: #e5e5ea;
+  --motion-fast: 140ms;
+  --motion-normal: 200ms;
 
   /* Backgrounds */
   --bg-base: #f8fafc;
   --bg-surface: #eff6ff;
   --bg-card: #ffffff;
-  --bg-card-solid: #f8fafc;
+  --bg-card-solid: #f5f5f7;
 
   /* Primary accent — soft blue (headings, links, brand marks).
      --accent-soft is decorative only: white text on it is 3.68:1. */
@@ -66,7 +101,7 @@
   /* Text */
   --text-primary: #1e293b;
   --text-muted: #64748b;
-  --text-faint: #94a3b8;
+  --text-faint: #6b6b70;
   /* Muted text ON A TINTED SURFACE. --text-muted clears 4.5:1 on white
      (4.76) but only reaches 4.37 on --bg-surface, so body copy inside a
      blue-tinted panel needs this instead. Same discipline as
@@ -87,7 +122,7 @@
      is a rename only — every rule that used the darker tier now says
      --border-strong explicitly, so index.html renders pixel-identical. */
   --border: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --border-strong: #b8b8bf;
 
   /* Shadows */
   --shadow: rgba(30, 41, 59, 0.06);
@@ -95,7 +130,7 @@
   --shadow-accent: rgba(37, 99, 235, 0.18);
 
   /* Nav */
-  --nav-bg: rgba(248, 250, 252, 0.92);
+  --nav-bg: rgba(245, 245, 247, 0.94);
 
   /* Pricing featured (peach) */
   --pricing-featured-bg: rgba(250, 130, 49, 0.07);
@@ -104,8 +139,8 @@
   /* Radii */
   --r-sm: 10px;
   --r-md: 16px;
-  --r-lg: 22px;
-  --r-xl: 32px;
+  --r-lg: 18px;
+  --r-xl: 24px;
 }
 
 /* ── Reset & base ──────────────────────────────────────────── */
@@ -119,11 +154,13 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-block: 88px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   direction: rtl;
-  font-family: 'Heebo', sans-serif;
+  font-family: var(--font-ui);
   background: var(--bg-base);
   color: var(--text-primary);
   min-height: 100vh;
@@ -143,3 +180,76 @@ a {
 ul {
   list-style: none;
 }
+
+/* Adaptive application surfaces. Filled actions keep their own contrast pair. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --interface-bg: #111113;
+    --interface-ink: #f5f5f7;
+    --interface-muted: #aaaab1;
+    --interface-muted-strong: #c4c4cc;
+    --interface-danger: #ff8e87;
+    --interface-separator: #353539;
+    --bg-base: #111113;
+    --bg-card: #1c1c1f;
+    --bg-card-solid: #242427;
+    --bg-surface: #202737;
+    --bg-subtle: #242427;
+    --control-bg: #303034;
+    --text-primary: #f5f5f7;
+    --text-muted: #aaaab1;
+    --text-muted-strong: #c4c4cc;
+    --text-secondary: #aaaab1;
+    --text-faint: #a0a0a8;
+    --accent: #8ab0ff;
+    --accent-deep: #a5c1ff;
+    --accent-soft: #699bff;
+    --accent-dim: rgba(100, 149, 255, .14);
+    --accent-glow: rgba(100, 149, 255, .14);
+    --accent2-strong: #ffb37a;
+    --accent2-dim: rgba(250, 130, 49, .12);
+    --accent3-strong: #65d6a8;
+    --accent3-dim: rgba(16, 185, 129, .12);
+    --whatsapp-strong: #71d89c;
+    --border: #353539;
+    --border-strong: #63636b;
+    --nav-bg: rgba(28, 28, 31, .96);
+    --danger: #ff8e87;
+    --danger-text: #ffaaa4;
+    --danger-bg: #3b2225;
+    --danger-border: #8d4b50;
+    --warning-bg: #34291d;
+    --warning-text: #f3be81;
+    --success-bg: #1b3229;
+    --shadow: rgba(0, 0, 0, .12);
+    --shadow-md: rgba(0, 0, 0, .24);
+    --pricing-featured-bg: #30251e;
+    --pricing-featured-border: #8e5b34;
+  }
+}
+
+body {
+  --bg-base: var(--interface-bg);
+  --text-primary: var(--interface-ink);
+  --text-muted: var(--interface-muted);
+  --text-muted-strong: var(--interface-muted-strong);
+  --danger: var(--interface-danger);
+  --border: var(--interface-separator);
+  line-height: 1.5; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font-family: inherit; }
+button, a, input, select, textarea, summary { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled), summary { touch-action: manipulation; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+button:disabled { cursor: default; }
+input, textarea, select { accent-color: var(--action-fill); }
+::selection { background: var(--accent-dim); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+@media (prefers-contrast: more) {
+  body { --border: var(--border-strong); --text-muted: var(--text-muted-strong); }
+}
+@media (prefers-reduced-transparency: reduce) { :root { --nav-bg: var(--bg-card); } }

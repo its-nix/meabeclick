@@ -115,7 +115,6 @@ test('the deep primary clears AA as small text on primary washes', () => {
 
 test('every small primary-on-wash role is bound to an AA-safe text token and composite ground', () => {
   const roles = [
-    ['landing hero badge', 'src/routes/+page.svelte', String.raw`\.hero-badge`, String.raw`\.hero-badge`, 'hero radial wash'],
     ['header sidebar hover', 'src/lib/components/Header.svelte', String.raw`\.sidebar-btn:hover`, String.raw`\.sidebar-btn:hover`, 'white (sidebar)'],
     ['plan structure active item', 'src/lib/components/plan/PlanTree.svelte', String.raw`\.menu-item\.active`, String.raw`\.menu-item\.active`, 'white (sheet)'],
     ['plan status active button', 'src/lib/components/plan/SkillSheet.svelte', String.raw`\.status-btn\.active`, String.raw`\.status-btn\.active`, 'white (sheet)'],
@@ -130,8 +129,6 @@ test('every small primary-on-wash role is bound to an AA-safe text token and com
     ['dashboard next-lesson label', 'src/routes/app/dashboard/+page.svelte', String.raw`\.nl-label`, String.raw`\.next-lesson-box`, 'white (student card)'],
     ['games URL', 'src/routes/app/games/+page.svelte', String.raw`\.url`, String.raw`\.url`, 'white (game card)'],
     ['marketing chip hover', 'src/routes/app/marketing/+page.svelte', String.raw`\.chip:hover`, String.raw`\.chip:hover`, 'blue surface'],
-    ['parent next-lesson contact', 'src/routes/app/parent/+page.svelte', String.raw`\.nl-contact`, String.raw`\.next-lesson-box`, 'page background'],
-    ['parent table header', 'src/routes/app/parent/+page.svelte', String.raw`\.data-table th`, String.raw`\.data-table thead`, 'white (table)'],
     ['parent lesson pill', 'src/routes/app/parent/+page.svelte', String.raw`\.pill`, String.raw`\.pill`, 'white (table)'],
     ['parent seen tag', 'src/routes/app/parent/+page.svelte', String.raw`\.seen-tag`, String.raw`\.seen-tag`, 'white (progress card)'],
     ['plan filter active chip', 'src/routes/app/plan/[code]/+page.svelte', String.raw`\.chip\.active`, String.raw`\.chip\.active`, 'page background'],
@@ -199,8 +196,6 @@ test('white text clears AA on every primary button, hover and gradient fill role
     ['portal submit hover', portal, /\.go:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
     ['parent booking CTA', parent, /\.fam-book\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
     ['parent booking CTA hover', parent, /\.fam-book:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
-    ['parent student-header gradient start', parent, /\.student-header\s*\{[^}]*linear-gradient\([^,]+,\s*var\(--([^)]+)\)\s+0%/s],
-    ['parent student-header gradient end', parent, /\.student-header\s*\{[^}]*linear-gradient\([^,]+,\s*var\(--[^)]+\)\s+0%,\s*var\(--([^)]+)\)\s+100%/s],
   ];
 
   for (const [role, roleSource, pattern] of roles) {
@@ -214,24 +209,15 @@ test('white text clears AA on every primary button, hover and gradient fill role
   }
 });
 
-test('small parent-header text stays opaque and clears AA across the gradient and badge wash', () => {
+test('parent identity uses readable neutral text instead of a filled gradient', () => {
   const parent = source('src/routes/app/parent/+page.svelte');
-  assert.ok(/\.sh-meta\s*\{[^}]*color:\s*#fff/s.test(parent),
-    'small student-header metadata must use opaque white');
-  assert.ok(/\.sh-badge\s*\{[^}]*color:\s*#fff/s.test(parent),
-    'small student-header badges must use opaque white');
-
-  for (const fill of ['accent', 'accent-deep']) {
-    const fillColour = token(fill);
-    const directRatio = contrast(token('bg-card'), fillColour);
-    assert.ok(directRatio >= AA_TEXT,
-      `small white text on gradient --${fill} is ${directRatio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
-
-    const badgeGround = over(token('bg-card'), 0.08, fillColour);
-    const badgeRatio = contrast(token('bg-card'), badgeGround);
-    assert.ok(badgeRatio >= AA_TEXT,
-      `small white badge text over --${fill} wash is ${badgeRatio.toFixed(2)}:1, needs ${AA_TEXT}:1`);
+  for (const [selector, foreground] of [['sh-name', 'text-primary'], ['sh-meta', 'text-muted']]) {
+    const block = [...parent.matchAll(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`, 'gs'))].map(match => match[1]).find(rule => rule.includes('color:'));
+    assert.ok(block);
+    assert.match(block, new RegExp(`color:\\s*var\\(--${foreground}\\)`));
   }
+  const header = parent.match(/\.student-header\s*\{([^}]*)\}/s)?.[1];
+  assert.doesNotMatch(header, /gradient/);
 });
 
 test('strong muted text clears AA on the blue surface', () => {

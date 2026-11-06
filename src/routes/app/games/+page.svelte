@@ -1,5 +1,4 @@
 <script lang="ts">
-  import BrandMark from '$lib/components/BrandMark.svelte';
   import { page } from '$app/state';
   import { safeTutorReturn } from '$lib/tutor-return.ts';
   /**
@@ -42,8 +41,8 @@
   <title>מאגר המשחקים — מאה בקליק</title>
 </svelte:head>
 
-<div class="wrap">
-  <div class="page-brand"><BrandMark height={26} /></div>
+<main class="wrap" id="workspace-content" tabindex="-1">
+
 
   <header>
     {#if data.selection}
@@ -53,7 +52,7 @@
       <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
     {:else}
       <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
-      <h1>🎮 מאגר המשחקים</h1>
+      <h1>מאגר המשחקים</h1>
       <div class="subject">כל סוגי המשחקים והדוגמאות שלהם</div>
     {/if}
   </header>
@@ -99,14 +98,14 @@
       </div>
     {/each}
   </div>
-</div>
+</main>
 
 <style>
   .wrap { max-width: 820px; margin: 0 auto; padding: 1rem; }
-  .page-brand { display: flex; padding-bottom: 0.9rem; }
-  header h1 { font-size: 1.6rem; font-weight: 900; }
+
+  header h1 { font-size: 1.6rem; font-weight: 700; }
   .subject { color: var(--text-muted); font-size: .95rem; margin-top: 2px; }
-  .eyebrow { color: var(--accent); font-weight: 800; font-size: .8rem; }
+  .eyebrow { color: var(--accent); font-weight: 700; font-size: .8rem; }
   .back { display: inline-flex; min-height: 44px; align-items: center; color: var(--accent); font-weight: 700; }
   .cards { display: grid; gap: .8rem; }
 
@@ -116,9 +115,9 @@
   }
   .card.soon { opacity: 0.62; }
   .row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-  .name { font-size: 1.1rem; font-weight: 900; }
+  .name { font-size: 1.1rem; font-weight: 700; }
   .pill {
-    font-size: 0.7rem; font-weight: 800; border-radius: 999px; padding: 2px 10px;
+    font-size: 0.7rem; font-weight: 700; border-radius: 999px; padding: 2px 10px;
   }
   .pill.ready { background: var(--accent3-dim); color: var(--accent3-strong); }
   .pill.soon  { background: var(--border); color: var(--text-muted); }
@@ -128,12 +127,12 @@
     display: inline-flex; align-items: center; gap: 5px;
     background: var(--accent2); color: #1E293B; text-decoration: none;
     border-radius: 999px; padding: 0.5rem 1.1rem; min-height: 44px;
-    font-weight: 800; font-size: 0.88rem;
+    font-weight: 700; font-size: 0.88rem;
   }
   .play:hover { opacity: 0.9; }
   .card-actions { margin-top: .7rem; display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
   .secondary { background: var(--bg-card); border: 1px solid var(--border-strong); color: var(--text-primary); }
-  .choose { min-height: 44px; padding: .5rem 1.1rem; border: 0; border-radius: 999px; background: var(--accent); color: white; font: inherit; font-weight: 800; cursor: pointer; }
+  .choose { min-height: 44px; padding: .5rem 1.1rem; border: 0; border-radius: 999px; background: var(--action-fill); color: white; font: inherit; font-weight: 700; cursor: pointer; }
   .choose:disabled { opacity: .55; cursor: default; }
   .error { color: var(--danger); font-weight: 700; }
   .url {

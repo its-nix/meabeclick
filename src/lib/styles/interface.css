@@ -17,7 +17,7 @@
 input::placeholder,textarea::placeholder{color:var(--text-muted);opacity:1}
 @media print{
   :root{color-scheme:light;--bg-card:#fff;--bg-card-solid:#f5f5f7;--bg-surface:#f5f5f7;--control-bg:#eeeef0;--text-muted-strong:#48484a;--accent:#2563eb;--accent-deep:#1d4ed8;--danger:#b91c1c}
-  body{--interface-bg:#fff;--interface-ink:#1d1d1f;--interface-muted:#636366;--interface-separator:#e5e5ea}
+  body{--interface-bg:#fff;--interface-ink:#1d1d1f;--interface-muted:#636366;--interface-muted-strong:#48484a;--interface-danger:#b91c1c;--interface-separator:#e5e5ea}
   .bottom-nav,.tutor-header,.top-nav{display:none!important}
 }
 

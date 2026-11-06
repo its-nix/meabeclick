@@ -74,7 +74,13 @@
   }
   onMount(() => {
     parentView = readParentView();
-    const restoreView = () => { parentView = readParentView(); };
+    const restoreView = () => {
+      parentView = readParentView();
+      const code = new URL(location.href).searchParams.get('s');
+      if (code && code !== currentId && data.students.some(student => student.code === code)) {
+        openStudent(code);
+      }
+    };
     window.addEventListener('popstate', restoreView);
     return () => window.removeEventListener('popstate', restoreView);
   });

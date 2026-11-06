@@ -57,10 +57,10 @@ export function renderLearningDocument(e: LearningExperience, options: {
       <header class="scene-header"><h1 tabindex="-1">${esc(s.title)}</h1><p>${mathText(s.prompt)}</p></header>
       <div class="visual-card">
         <div class="visual-top"><span class="visual-label">${s.visual === 'balance' ? 'המאזניים של המשוואה' : s.visual === 'steps' ? 'צעד אחד בכל פעם' : 'מעבדת הרעיונות'}</span><span class="coordinate-readout" dir="ltr"><span class="coordinate-dot"></span><span data-coordinate></span></span></div>
-        <div class="formula-display" data-formula>${mathFormula(s.check?.kind === 'graph-target' ? s.visual === 'quadratic' ? 'y=a(x-h)^2+k' : 'y=mx+b' : s.visual === 'steps' ? s.frames[0].tex : formulaForVisual(s.visual,s.frames[0].values))}</div>
+        <div class="formula-display" data-formula ${s.visual === 'steps' ? 'hidden' : ''}>${mathFormula(s.check?.kind === 'graph-target' ? s.visual === 'quadratic' ? 'y=a(x-h)^2+k' : 'y=mx+b' : s.visual === 'steps' ? s.frames[0].tex : formulaForVisual(s.visual,s.frames[0].values))}</div>
         <svg id="plot-${s.id}" class="plot" data-plot role="img" aria-label="${esc(s.check?.kind === 'graph-target' ? 'גרף היעד המקווקו — בנו נוסחה שמתאימה לכל העקום' : s.phase === 'challenge' ? 'המחשה שתתגלה אחרי פתרון האתגר' : `המחשה: ${s.title}`)}" ${s.visual === 'steps' ? 'hidden' : ''}></svg>
-        ${s.visual === 'steps' ? `<div class="steps-board"><div class="step-formula" data-step-formula>${mathFormula(s.frames[0].tex)}</div><div class="step-caption" data-step-caption>${esc(s.frames[0].caption)}</div></div>` : ''}
-        <p class="scene-caption" data-caption>${mathText(s.frames[0].caption)}</p>
+        ${s.visual === 'steps' ? `<div class="steps-board"><div class="step-formula" data-step-formula>${mathFormula(s.frames[0].tex)}</div><div class="step-caption" data-step-caption>${mathText(s.frames[0].caption)}</div></div>` : ''}
+        <p class="scene-caption" data-caption ${s.visual === 'steps' ? 'hidden' : ''}>${mathText(s.frames[0].caption)}</p>
         <div class="frame-dots" ${s.frames.length < 2 ? 'hidden' : ''}>${s.frames.map((_, n) => `<button class="frame-dot" data-frame-dot aria-label="שלב המחשה ${n+1}" aria-pressed="${n === 0}"></button>`).join('')}</div>
         <div class="playback" ${s.frames.length < 2 || s.phase === 'challenge' ? 'hidden' : ''}><button class="round-button" data-play aria-label="הפעלת ההסבר">▶</button><span class="clock" data-clock>0:00</span><input class="timeline" data-timeline type="range" min="0" max="${duration}" step=".05" value="0" aria-label="מיקום בהסבר המונפש"><button class="speed" data-speed aria-label="שינוי מהירות ההסבר">1×</button></div>
         ${controls(s)}

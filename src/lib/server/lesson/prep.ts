@@ -31,6 +31,7 @@ import { LessonGenerationError, engineBin, lessonEngine, claudeBin, opencodeBin 
 import { getRegistry } from './registry.ts';
 import { planFor } from '../../plans.ts';
 import { spawnAgent } from './spawn.ts';
+import { validateLessonGame, GameValidationError } from '../lesson-games.ts';
 import { strictOutputSchema, omitOptionalNulls } from './structured-output.ts';
 import { newFence, sanitizeField } from './prompt.ts';
 /* One source for the palette a deck writes into its own document — see
@@ -518,6 +519,7 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
     ...gameSelectionLines(),
     '',
     'הנחיות לנתונים של כל משחק:',
+    `- כמות הפריטים בכל משחק שנבחר חייבת להתאים לטווח שלו: ${Object.entries(TEMPLATE_FILES).map(([key,template]) => `${key}: ${(getRegistry().templates[template]?.itemRange ?? []).join('–')}`).join('; ')}. אל תקצר/י משחק לסבב בודד.`,
     ...LEARNING_INSTRUCTIONS,
     '- בחידון, ב-twoTruths, ב-errorHunt, ב-graphMatch וב-numberLine: לכל שאלה או סבב יש hint.',
     '  hint הוא רמז שמכוון לדרך בלי לגלות את התשובה — שאלה מנחה או תזכורת לכלל, לא התשובה ולא האפשרות הנכונה.',
@@ -551,6 +553,20 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
  * exactly like a malformed JSON response.
  */
 export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
+  const generateValidated = async () => {
+    const plan = dropAmbiguousPairs(balancePositions(await generateOnce(req)));
+    // New output must be playable/editable under the same contract as authored games.
+    // Historical plans remain readable; validation here applies only to fresh generation.
+    for (const [key, body] of Object.entries(plan.games ?? {})) {
+      if (body == null) continue;
+      try { validateLessonGame(TEMPLATE_FILES[key], toTemplateShape(key, body)); }
+      catch (error) {
+        const detail = error instanceof GameValidationError ? error.issues.map(issue => `${issue.path}: ${issue.message}`).join('; ') : String(error);
+        throw new LessonGenerationError('bad-output', `משחק ${key}: ${detail}`);
+      }
+    }
+    return plan;
+  };
   /* One retry, and only for a plan that came back unusable.
    *
    * A language model emitting a few thousand characters of JSON gets it
@@ -565,12 +581,12 @@ export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
    * changes nothing — for quota it actively makes things worse by spending
    * what little is left. */
   try {
-    return dropAmbiguousPairs(balancePositions(await generateOnce(req)));
+    return await generateValidated();
   } catch (err) {
     const kind = err instanceof LessonGenerationError ? err.kind : null;
     if (kind !== 'bad-output' && kind !== 'no-output') throw err;
     console.warn(`lesson: ${kind} from the engine (${(err as Error).message}), retrying once`);
-    return dropAmbiguousPairs(balancePositions(await generateOnce(req)));
+    return await generateValidated();
   }
 }
 

@@ -26,6 +26,51 @@ export. Short prompts and contextual feedback replace bullet-only teaching.
 
 ## Generation contract
 
+### Brand, student wording and presenter notes
+
+The renderer owns the visual identity. The site, lesson HTML, printed worksheet,
+teacher guide and video exporter use the original logo URL and palette from
+`src/lib/brand.ts`, with Heebo. Generated content cannot choose another logo,
+colour palette or typography. The video composition copies the original SVG
+artwork; it never redraws the mark. The public reference video is regenerated
+when its presentation changes.
+
+Multi-frame demonstrations retain their authored parameter values. Free
+exploration uses one frame and updates captions from the actual chosen values,
+so moving a slider cannot leave an explanation referring to an earlier graph.
+
+Student copy uses warm, direct Hebrew in the plural: a concrete example first,
+one visible change at a time, then the mathematical name or general rule.
+Define unfamiliar terms before using them. Prefer “מציבים x=2 ומקבלים אפס
+בסוגריים” to unexplained wording such as “הביטוי מתאפס”. Titles name the topic;
+instructions say what to do; captions explain what changed and why. No invented
+slogans, vague metaphors, or claims that a problem is easy. Graph-construction
+instructions describe the whole curve being graded, including shape; they must
+not promise a marked target point that the renderer does not draw.
+
+Every newly generated scene requires `presenterNotes` with four nonempty fields:
+`explanation` (what to say), `ask` (one question to pause for), `expectedAnswer`
+(what understanding to listen for), and `ifStuck` (a concrete next step).
+They refer to that scene's actual example and numbers. The generator's strict
+schema and validation require them, including for opening and reflection scenes.
+Earlier stored lessons remain valid without notes; the interface identifies
+missing notes instead of inventing teaching guidance.
+
+The tutor opens `/app/lessons/<slug>/presenter` from the lesson or experience
+editor. This private guide follows the published practice material, including
+report-driven replacements. Each scene opens in one reusable presentation
+window using `#scene=<id>`, keeping the guide separate from the shared screen.
+The experience editor can edit notes with the rest of the draft. Only publication
+changes the guide used with the published presentation. Private notes can also
+be printed from the guide.
+
+Notes are removed from student, demonstration and projector payloads, worksheets
+and exported video compositions. Their route requires tutor authentication and
+uses `private, no-store`. Editing only notes does not change the student content
+fingerprint or erase attempts, queued work or completion. This is structural
+validation and access control; mathematical correctness and whether a student
+understands the explanation still require reading the generated lesson.
+
 `src/lib/learning/model.ts` and `schema.ts` define `LearningExperience` v1.
 New generation must return `learning`; a missing experience is retried as
 bad output. Existing stored plans need no migration of their content.
@@ -106,6 +151,10 @@ locally graded teaching preview for the tutor.
 element identity while updating the diagram. The browser supplies pause,
 scrub, step and speed controls, with step-based behavior for reduced motion.
 No animation starts automatically. Sound is not required to use a lesson.
+An independent graph-construction question keeps its target curve visible as
+the question stimulus; the candidate curve, its projected vertex and comparison
+curve stay hidden until the student succeeds. Other independent questions keep
+their supporting graph hidden.
 
 ```sh
 npm run learning:video -- --prepare-only

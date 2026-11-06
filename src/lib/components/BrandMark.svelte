@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { BRAND_LOGO_SRC } from '$lib/brand.ts';
   /**
-   * The brand mark — the ONLY place `/images/logos/logo-slate.svg` is
-   * referenced. Every screen that shows the logo goes through here.
+   * The site brand mark. The canonical artwork URL lives in brand.ts so
+   * stand-alone lessons and video exports use this same original logo.
    *
    * ## Why a component for one `<img>`
    *
@@ -41,7 +42,7 @@
 {#snippet mark()}
   <img
     class="brand-mark"
-    src="/images/logos/logo-slate.svg?v=blue-20261025"
+    src={BRAND_LOGO_SRC}
     alt={label ?? ''}
     aria-hidden={label ? undefined : 'true'}
     {height}

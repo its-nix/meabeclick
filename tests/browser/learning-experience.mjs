@@ -6,8 +6,11 @@ import { chromium } from 'playwright-core';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, login } from '../characterization/harness.mjs';
 import { seedLearning } from '../characterization/learning-fixture.mjs';
+import { BRAND_LOGO_SRC, DECK_PALETTE } from '../../src/lib/brand.ts';
+import { PARABOLAS } from '../../src/lib/learning/parabolas.ts';
 import { renderLearningDocument } from '../../src/lib/server/learning-render.ts';
 
+const rgb = hex => `rgb(${[1,3,5].map(index => parseInt(hex.slice(index,index+2),16)).join(', ')})`;
 const evidence=process.env.EVIDENCE_DIR??join(tmpdir(),'meabeclick-learning-evidence');
 await mkdir(evidence,{recursive:true});
 const server=await startServer();
@@ -36,6 +39,11 @@ try {
   assert.equal(await page.locator('[data-scene-link]').nth(1).evaluate(e=>e.classList.contains('is-complete')),true);
   await page.locator('[data-scene-link]').nth(3).click();
   for(const [index,value] of [[1,'2'],[2,'1']]) await page.locator(`[data-scene="target"] [data-param="${index}"]`).evaluate((el,v)=>{el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}));},value);
+  await page.locator('[data-scene="target"] [data-param="0"]').evaluate(el=>{el.value='2';el.dispatchEvent(new Event('input',{bubbles:true}));});
+  await page.locator('[data-scene="target"] [data-submit]').click();
+  assert.equal(await page.locator('[data-scene="target"] [data-feedback]').getAttribute('data-kind'),'retry');
+  assert.match(await page.locator('[data-scene="target"] [data-feedback]').innerText(),/פתיחה/);
+  await page.locator('[data-scene="target"] [data-param="0"]').evaluate(el=>{el.value='1';el.dispatchEvent(new Event('input',{bubbles:true}));});
   await page.locator('[data-scene="target"] [data-submit]').click();
   assert.equal(await page.locator('[data-scene="target"] [data-feedback]').getAttribute('data-kind'),'success');
   await page.screenshot({path:join(evidence,'target.png'),fullPage:true});
@@ -50,6 +58,10 @@ try {
     report.viewports.push(width);
   }
   await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.locator('.lesson-logo').evaluate(img => img.complete && img.naturalWidth > 0), true);
+  assert.equal(await page.locator('.lesson-logo').getAttribute('src'), BRAND_LOGO_SRC);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), rgb(DECK_PALETTE.bg));
+  assert.equal(await page.locator('.primary-button').first().evaluate(el => getComputedStyle(el).backgroundColor), rgb(DECK_PALETTE.brand));
   await page.locator('[data-scene-link]').nth(2).click();
   await page.screenshot({path:join(evidence,'mobile.png'),fullPage:true});
   await page.pdf({path:join(evidence,'worksheet.pdf'),format:'A4',printBackground:true});
@@ -130,6 +142,26 @@ try {
   await editor.locator('[data-scene="independent"] [data-feedback][data-kind="success"]').waitFor();
   const afterTeaching=await (await family.request.get(`${server.baseUrl}/api/learning/${pupil.slug}`)).json();
   assert.deepEqual(afterTeaching.progress,beforeTeaching.progress,'teaching mode never submits student evidence');
+  assert.ok(!await editor.locator('#learning-data').evaluate(el => el.textContent.includes('presenterNotes')));
+  await editor.getByRole('link', {name:'הערות למורה ↗',exact:true}).waitFor();
+  await editor.goto(`${server.baseUrl}/app/lessons/${pupil.slug}/presenter`);
+  assert.equal(await editor.locator('.notes-section').count(), 7);
+  for (const width of [320,390,1440]) {
+    await editor.setViewportSize({width,height:900});
+    assert.equal(await editor.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `notes overflow ${width}`);
+    await editor.screenshot({path:join(evidence,`presenter-${width}.png`)});
+  }
+  const popupEvent = editor.waitForEvent('popup');
+  await editor.locator('#notes-target').getByRole('link',{name:'פתיחת השלב במצגת ↗',exact:true}).click();
+  const projection = await popupEvent;
+  await projection.locator('[data-scene="target"]:visible').waitFor();
+  await editor.locator('#notes-independent').getByRole('link',{name:'פתיחת השלב במצגת ↗',exact:true}).click();
+  await projection.locator('[data-scene="independent"]:visible').waitFor();
+  assert.equal(tutor.pages().length,2,'one reusable presentation window');
+  assert.ok(!await projection.locator('#learning-data').evaluate(el=>el.textContent.includes('presenterNotes')));
+  await projection.close();
+  await editor.pdf({path:join(evidence,'presenter-notes.pdf'),format:'A4',printBackground:true});
+  await editor.setViewportSize({width:1440,height:1050});
   await editor.goto(`${server.baseUrl}/app/lessons/${pupil.slug}/experience`);
   await editor.getByText('מה כדאי לתרגל יחד?',{exact:true}).click();
   await editor.getByText('נפתר · ניסיונות: 1 · רמזים: 0',{exact:true}).first().waitFor();
@@ -138,8 +170,26 @@ try {
   await editor.getByRole('status').filter({hasText:'הטיוטה נשמרה'}).waitFor();
   await editor.getByRole('button',{name:'עדכון התצוגה המקדימה'}).click();
   await editor.frameLocator('iframe').locator('.course-title').filter({hasText:'טיוטת בדיקה'}).waitFor({state:'attached'});
-  await editor.frameLocator('iframe').getByRole('heading',{name:'אותה צורה. מקום חדש.',exact:true}).waitFor();
+  await editor.frameLocator('iframe').getByRole('heading',{name:PARABOLAS.scenes[0].title,exact:true}).waitFor();
   await editor.screenshot({path:join(evidence,'tutor-editor.png'),fullPage:true});
+  await editor.goto(`${server.baseUrl}/app/learn/${pupil.slug}#scene=explore`);
+  for(const [index,value] of [[1,4],[2,2]])await editor.locator(`[data-scene="explore"] [data-param="${index}"]`).evaluate((el,v)=>{el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}));},value);
+  assert.match(await editor.locator('[data-scene="explore"] [data-caption]').innerText(),/4/);
+  assert.match(await editor.locator('[data-scene="explore"] [data-caption]').innerText(),/2/);
+  assert.equal(await editor.locator('[data-scene="explore"] [data-caption] [data-math-error]').count(),0);
+  const legacyDb=new DatabaseSync(server.dbPath);
+  const legacy=JSON.parse(legacyDb.prepare("SELECT content FROM lesson_materials WHERE lesson_slug=? AND kind='plan' ORDER BY version DESC LIMIT 1").get(againSlug).content);
+  legacy.learning.scenes.forEach(scene=>delete scene.presenterNotes);
+  legacyDb.prepare("UPDATE lesson_materials SET content=? WHERE lesson_slug=? AND kind='plan'").run(JSON.stringify(legacy),againSlug);
+  legacyDb.close();
+  await editor.goto(`${server.baseUrl}/app/lessons/${againSlug}/experience`);
+  const noteEditor=editor.locator('.presenter-note-editor').first();
+  await noteEditor.locator('summary').click();
+  await noteEditor.getByRole('button',{name:'הוספת הערות לשלב הזה',exact:true}).click();
+  await noteEditor.getByLabel('מה לומר',{exact:true}).fill('הערה חלקית שטרם הושלמה');
+  await noteEditor.getByRole('button',{name:'ביטול הוספת ההערות',exact:true}).click();
+  await editor.getByRole('button',{name:'שמירת טיוטה',exact:true}).click();
+  await editor.getByRole('status').filter({hasText:'הטיוטה נשמרה'}).waitFor();
   await tutor.close();
   await family.close();
   // A real, synthetic model output catches notation and initial-state assumptions
@@ -161,7 +211,27 @@ try {
   assert.equal(await page.locator('[data-scene]:visible [data-feedback]').getAttribute('data-kind'),'success');
   assert.ok(await page.locator('[data-scene]:visible [data-feedback] .katex').count()>0);
   await page.screenshot({path:join(evidence,'generated-challenge.png'),fullPage:true});
-  const {PARABOLAS}=await import('../../src/lib/learning/parabolas.ts');
+  const fresh=JSON.parse(await readFile(new URL('../fixtures/learning-generated-with-notes.json',import.meta.url),'utf8')).learning;
+  await context.route('**/fresh-generated-learning',route=>route.fulfill({contentType:'text/html; charset=utf-8',body:renderLearningDocument(fresh,{demo:true})}));
+  await page.goto(`${server.baseUrl}/fresh-generated-learning`);
+  assert.ok(!await page.locator('#learning-data').evaluate(el=>el.textContent.includes('presenterNotes')));
+  for (const index of [1,4]) {
+    await page.locator('[data-scene-link]').nth(index).click();
+    assert.equal(await page.locator('[data-scene]:visible [data-param]').count(),0,'worked demonstrations cannot contradict their authored values');
+  }
+  const freshChallengeIndex=fresh.scenes.findIndex(scene=>scene.phase==='challenge');
+  await page.locator('[data-scene-link]').nth(freshChallengeIndex).click();
+  assert.equal(await page.locator('[data-scene]:visible .plot-target').count(),1,'independent graph questions show the target stimulus');
+  assert.equal(await page.locator('[data-scene]:visible .plot-curve').count(),0,'candidate curve remains hidden until success');
+  assert.equal(await page.locator('[data-scene]:visible .plot-point').count(),0,'candidate vertex remains hidden');
+  await page.screenshot({path:join(evidence,'fresh-generated-challenge.png'),fullPage:true});
+  await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')));
+  assert.equal(await page.locator('.print-pages .plot-target').count(),1,'worksheet contains the target question');
+  assert.equal(await page.locator('.print-pages .plot-curve').count(),0,'worksheet does not give a constructed answer');
+  for(const [index,value] of fresh.scenes[freshChallengeIndex].check.answer.entries())await page.locator(`[data-scene]:visible [data-param="${index}"]`).evaluate((el,v)=>{el.value=String(v);el.dispatchEvent(new Event('input',{bubbles:true}));},value);
+  await page.locator('[data-scene]:visible [data-submit]').click();
+  await page.locator('[data-scene]:visible [data-feedback][data-kind="success"]').waitFor();
+  await page.pdf({path:join(evidence,'fresh-generated-worksheet.pdf'),format:'A4',printBackground:true});
   const nonUnit=structuredClone(PARABOLAS), nonUnitTarget=nonUnit.scenes.find(s=>s.id==='target');
   nonUnitTarget.frames[0].values=[2,0,0];nonUnitTarget.check.answer=[2,2,1];
   await context.route('**/non-unit-target',route=>route.fulfill({contentType:'text/html; charset=utf-8',body:renderLearningDocument(nonUnit,{demo:true})}));

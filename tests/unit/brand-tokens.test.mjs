@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DECK_PALETTE, DECK_TOKEN_SOURCE, DECK_FONT, deckRootCss } from '../../src/lib/brand.ts';
+import { DECK_PALETTE, DECK_TOKEN_SOURCE, DECK_FONT, deckRootCss, BRAND_LOGO_SRC } from '../../src/lib/brand.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const tokensCss = readFileSync(join(ROOT, 'src/lib/styles/tokens.css'), 'utf8');
@@ -86,8 +86,9 @@ test('logo and favicon use the primary blue rather than the retired green', () =
 });
 
 test('browser-facing logo URLs carry the same cache-busting theme version', () => {
-  const logoVersion = /logo-slate\.svg\?v=([a-z0-9-]+)/.exec(brandMark)?.[1];
+  const logoVersion = /logo-slate\.svg\?v=([a-z0-9-]+)/.exec(BRAND_LOGO_SRC)?.[1];
   const faviconVersion = /favicon\.svg\?v=([a-z0-9-]+)/.exec(appHtml)?.[1];
-  assert.ok(logoVersion, 'BrandMark must bust cached pre-restoration logo assets');
+  assert.ok(logoVersion, 'the shared logo must bust cached pre-restoration assets');
+  assert.match(brandMark, /src=\{BRAND_LOGO_SRC\}/);
   assert.equal(faviconVersion, logoVersion, 'logo and favicon cache versions must stay aligned');
 });

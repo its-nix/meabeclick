@@ -10,7 +10,9 @@ import { drawLearningVisual, learningFrameAt, formulaForVisual } from '../src/li
 import { experienceProblems } from '../src/lib/server/learning-render.ts';
 import { learningStyles } from '../src/lib/learning/styles.ts';
 import { writeLearningText } from '../src/lib/learning/runtime.ts';
+import { publicExperience } from '../src/lib/learning/model.ts';
 import { escapeHtml } from '../src/lib/learning/math.ts';
+import { BRAND_LOGO_SRC, deckRootCss } from '../src/lib/brand.ts';
 
 const args = process.argv.slice(2);
 const option = name => { const i = args.indexOf(name); return i < 0 ? null : args[i+1]; };
@@ -19,28 +21,30 @@ const raw = input ? JSON.parse(await readFile(resolve(input), 'utf8')) : PARABOL
 const experience = raw.learning ?? raw;
 const problems = experienceProblems(experience);
 if (problems.length) throw new Error(problems.join('; '));
-const scene = experience.scenes.find(s => s.id === (option('--scene') ?? experience.scenes[0].id));
-if (!scene) throw new Error('Unknown scene');
-const name = input ? `lesson-${createHash('sha256').update(JSON.stringify(experience)).digest('hex').slice(0,12)}-${scene.id}` : 'parabola-shift';
+const sourceScene = experience.scenes.find(s => s.id === (option('--scene') ?? experience.scenes[0].id));
+if (!sourceScene) throw new Error('Unknown scene');
+const { presenterNotes: _notes, ...scene } = sourceScene;
+const name = input ? `lesson-${createHash('sha256').update(JSON.stringify(publicExperience(experience))).digest('hex').slice(0,12)}-${scene.id}` : 'parabola-shift';
 const dir = resolve('learning-video', name);
 const assets = resolve(dir, 'assets');
 await mkdir(assets, { recursive: true });
 await cp('static/learning-assets', resolve(assets, 'math'), { recursive: true });
 await cp('node_modules/gsap/dist/gsap.min.js', resolve(assets, 'gsap.min.js'));
+await cp(resolve('static', BRAND_LOGO_SRC.split('?')[0].slice(1)), resolve(assets, 'logo.svg'));
 const duration = Math.max(1, scene.frames.length-1)*4+2;
-const css = (learningStyles.slice(0,learningStyles.indexOf('*{box-sizing'))
+const css = (deckRootCss() + learningStyles.slice(0,learningStyles.indexOf('*{box-sizing'))
   + learningStyles.match(/:root\{[^}]*\}/)[0]
   + learningStyles.slice(learningStyles.indexOf('.plot{'),learningStyles.indexOf('.scene-caption{')))
   .replaceAll('/learning-assets/', 'assets/math/');
 const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><link rel="stylesheet" href="assets/math/katex.min.css"><style>
 ${css}
-html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:#f4f5f2;color:#203b31}
+html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:var(--bg);color:var(--text)}
 #root{position:absolute;inset:0;padding:48px 64px;font-family:Heebo,Arial,sans-serif}
-.film-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.film-header span{font-size:18px;color:#626b61}.film-header h1{font-size:34px;margin:0;color:#203b31}.film-canvas{display:grid;grid-template-columns:310px 1fr;gap:35px;align-items:center;direction:rtl}.film-copy{font-size:24px;line-height:1.8}.film-copy small{display:block;font-size:16px;color:#626b61;margin-bottom:18px}.film-visual{background:#fff;border:1px solid #dce0d9;border-radius:18px;padding:18px 12px}.film-visual .plot{width:100%;height:410px;max-height:none}.film-equation{text-align:center;direction:ltr;font-size:30px;height:62px}.film-footer{font-size:16px;color:#626b61;margin-top:18px}.film-stage{color:#b84926;font-size:16px}
+.film-brand{display:flex;align-items:center;gap:12px}.film-brand img{display:block;width:auto}.film-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.film-header span{font-size:18px;color:var(--muted-strong)}.film-header h1{font-size:34px;margin:0;color:var(--text)}.film-canvas{display:grid;grid-template-columns:310px 1fr;gap:35px;align-items:center;direction:rtl}.film-copy{font-size:24px;line-height:1.8}.film-copy small{display:block;font-size:16px;color:var(--muted-strong);margin-bottom:18px}.film-visual{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px 12px}.film-visual .plot{width:100%;height:410px;max-height:none}.film-equation{text-align:center;direction:ltr;font-size:30px;height:62px}.film-footer{font-size:16px;color:var(--muted-strong);margin-top:18px}.film-stage{color:var(--cta-strong);font-size:16px}
 </style><script src="assets/math/katex.min.js"></script><script src="assets/gsap.min.js"></script></head><body>
 <div id="root" data-composition-id="${name}" data-start="0" data-duration="${duration}" data-width="1280" data-height="720" data-fps="30">
 <div id="lesson-scene" class="clip" data-start="0" data-duration="${duration}" data-track-index="1">
-<header class="film-header"><h1>${escapeHtml(experience.title)}</h1><span>מאה בקליק · רואים את הרעיון</span></header>
+<header class="film-header"><h1>${escapeHtml(experience.title)}</h1><div class="film-brand"><img src="assets/logo.svg" alt="" height="36"><span>מאה בקליק</span></div></header>
 <div class="film-canvas"><div class="film-copy"><small id="stage" dir="ltr">01 / ${scene.frames.length}</small><div id="caption"></div></div><div class="film-visual"><div id="equation" class="film-equation"></div><svg id="film-plot" class="plot" role="img" aria-label="${escapeHtml(scene.title)}"></svg></div></div>
 <footer class="film-footer">${escapeHtml(experience.objective)}</footer></div></div>
 <script>

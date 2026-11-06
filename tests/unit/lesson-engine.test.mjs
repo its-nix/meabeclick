@@ -250,9 +250,21 @@ JSON`);
   };
   check(schema);
   assert.ok(schema.required.includes('learning'));
+  assert.ok(schema.properties.learning.properties.scenes.items.required.includes('presenterNotes'));
   assert.deepEqual(schema.properties.games.properties.quiz.anyOf.at(-1),{type:'null'});
   assert.deepEqual(schema.properties.slides.items.properties.note.anyOf.at(-1),{type:'null'});
   assert.equal(schema.properties.learning.properties.scenes.items.properties.check.anyOf[0].type,'null');
+});
+
+test('new generation without scene notes fails and retries instead of silently publishing', async () => {
+  const plan = structuredClone(A_PLAN);
+  plan.learning.scenes.forEach(scene => delete scene.presenterNotes);
+  const { script } = await stubAgent(`cat > "$out" <<'JSON'
+${JSON.stringify(plan)}
+JSON`);
+  await withEnv({ CODEX_BIN: script }, async () => {
+    await assert.rejects(generateLesson(REQUEST), error => error.kind === 'bad-output' && /הערות למורה/.test(error.message));
+  });
 });
 
 test('strict-output null games and optional notes are removed while nullable learning checks remain', async()=>{

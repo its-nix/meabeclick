@@ -32,7 +32,7 @@
 <main class="experience-editor">
   <nav><a href="/app/lessons/{data.slug}/edit">→ חזרה לשיעור ולמשחקים</a></nav>
   <header><div><p class="eyebrow">חומרי הלימוד · גרסה {version}</p><h1>עריכת מרחב הלמידה</h1><p>תיקון ממוקד של ההסבר, ההמחשה או התרגול. כל שמירה יוצרת גרסה חדשה.</p></div><a href="/app/learn/{data.slug}?solutions=1" target="_blank" rel="noreferrer">פתיחת הגרסה שפורסמה והתשובון ↗</a></header>
-  <div class="toolbar"><button onclick={()=>save('draft')} disabled={busy}>שמירת טיוטה</button><button class="primary" onclick={()=>save('publish')} disabled={busy}>פרסום לתלמיד/ה</button><span>{busy?'שומרים…':dirty?'יש שינויים שלא נשמרו':'כל השינויים נשמרו'}</span></div>
+  <div class="toolbar"><a href="/app/lessons/{data.slug}/presenter" target="_blank" rel="noopener">הערות למצגת שפורסמה ↗</a><button onclick={()=>save('draft')} disabled={busy}>שמירת טיוטה</button><button class="primary" onclick={()=>save('publish')} disabled={busy}>פרסום לתלמיד/ה</button><span>{busy?'שומרים…':dirty?'יש שינויים שלא נשמרו':'כל השינויים נשמרו'}</span></div>
   {#if data.pendingRegeneration}<p>נוצרה הצעה חדשה שטרם אושרה. העריכה כאן ממשיכה מהעבודה ששמרת; אפשר להשוות להצעה בעורך השיעור.</p>{/if}
   {#if data.materialSlug!==data.slug}<p>זה התרגול שנבחר לפי מה שנלמד בשיעור. העריכה תעדכן את אותו תרגול שהתלמיד/ה פותח/ת.</p>{/if}
   {#if data.studentLearning}
@@ -49,6 +49,19 @@
     {#each lesson.scenes as scene,index (scene.id)}
       <details open={index===0}><summary><span>{String(index+1).padStart(2,'0')}</span>{scene.title}<small>{PHASE_LABELS[scene.phase]}</small></summary>
         <label>כותרת<input bind:value={scene.title} maxlength="100" /></label><label>הנחיה קצרה<textarea bind:value={scene.prompt} rows="2" maxlength="280"></textarea></label><label>הרעיון שנשאר<textarea bind:value={scene.takeaway} rows="2" maxlength="280"></textarea></label>
+        <details class="presenter-note-editor"><summary>הערות למורה בלבד</summary>
+          <p>ההערות מופיעות בדף המורה, בנפרד מהמצגת ומהתרגול לתלמידים.</p>
+          {#if scene.presenterNotes}
+            <label>מה לומר<textarea bind:value={scene.presenterNotes.explanation} rows="4" maxlength="700"></textarea></label>
+            <label>מה לשאול<textarea bind:value={scene.presenterNotes.ask} rows="2" maxlength="350"></textarea></label>
+            <label>תשובה והבנה רצויות<textarea bind:value={scene.presenterNotes.expectedAnswer} rows="3" maxlength="500"></textarea></label>
+            <label>אם נתקעים<textarea bind:value={scene.presenterNotes.ifStuck} rows="3" maxlength="500"></textarea></label>
+            {#if !data.learning.scenes[index].presenterNotes}<button type="button" onclick={()=>{delete scene.presenterNotes;}}>ביטול הוספת ההערות</button>{/if}
+          {:else}
+            <p>השיעור הזה נוצר לפני שהוספנו הערות למורה.</p>
+            <button onclick={()=>{scene.presenterNotes={explanation:'',ask:'',expectedAnswer:'',ifStuck:''};}}>הוספת הערות לשלב הזה</button>
+          {/if}
+        </details>
         <h3>שלבי ההסבר</h3>
         {#each scene.frames as frame,frameIndex}
           <fieldset><legend>שלב {frameIndex+1}</legend><label>הסבר קצר<textarea bind:value={frame.caption} rows="2" maxlength="180"></textarea></label>

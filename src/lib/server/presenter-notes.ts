@@ -1,0 +1,28 @@
+import { BRAND_LOGO_SRC, deckRootCss } from '../brand.ts';
+import type { LearningExperience } from '../learning/model.ts';
+import { escapeHtml as esc, mathText } from '../learning/math.ts';
+import { learningStyles } from '../learning/styles.ts';
+import { experienceProblems } from './learning-render.ts';
+
+/** Private teaching guide. Never embedded in a student document or its JSON. */
+export function renderPresenterNotes(lesson: LearningExperience, slug: string): string {
+  if (experienceProblems(lesson).length) throw new Error('Invalid presenter lesson');
+  const presentation = `/app/learn/${encodeURIComponent(slug)}`;
+  const sections = lesson.scenes.map((scene, index) => {
+    const notes = scene.presenterNotes;
+    return `<section id="notes-${scene.id}" class="notes-section"><header><div><span class="step">שלב ${index + 1} מתוך ${lesson.scenes.length}</span><h2>${esc(scene.title)}</h2></div><a class="button" href="${presentation}#scene=${scene.id}" target="lesson-presentation">פתיחת השלב במצגת ↗</a></header>
+      ${notes ? `<dl>${[
+        ['מה לומר', notes.explanation], ['מה לשאול', notes.ask],
+        ['תשובה והבנה רצויות', notes.expectedAnswer], ['אם נתקעים', notes.ifStuck],
+      ].map(([label, text]) => `<div><dt>${label}</dt><dd>${mathText(text)}</dd></div>`).join('')}</dl>`
+      : '<p class="missing">לשלב הזה עדיין אין הערות למורה. שיעורים שנוצרו לפני הוספת ההערות נשמרים כפי שהם; אפשר להוסיף הערות בעורך מרחב הלמידה.</p>'}</section>`;
+  }).join('');
+  return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>הערות למורה · ${esc(lesson.title)}</title><link rel="stylesheet" href="/learning-assets/katex.min.css"><style>
+    ${deckRootCss()}${learningStyles.slice(0,learningStyles.indexOf('*{box-sizing'))}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Heebo,Arial,sans-serif;line-height:1.8}a{color:var(--brand-deep)}.notes-top{background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}.notes-brand{display:flex;align-items:center;gap:10px;font-weight:800}.notes-brand img{width:auto}main{max-width:1040px;margin:auto;padding:32px 24px 64px}h1{font-size:30px;line-height:1.4;margin:0 0 12px}h2{font-size:21px;line-height:1.5;margin:4px 0}.intro{max-width:70ch;color:var(--muted-strong)}.actions{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}.button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;font:inherit;font-size:14px;font-weight:700;color:var(--brand-deep);text-decoration:none;cursor:pointer}.primary{background:var(--brand);border-color:var(--brand);color:white}.scene-index{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}.notes-section{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-top:20px;scroll-margin-top:16px}.notes-section header{display:flex;align-items:center;justify-content:space-between;gap:16px}.step,.private-label{color:var(--muted-strong);font-size:13px}.private-label{color:var(--cta-strong);font-weight:700}dl{margin:20px 0 0}dl>div{display:grid;grid-template-columns:160px minmax(0,1fr);gap:20px;padding:16px 0;border-top:1px solid var(--border)}dt{font-size:14px;font-weight:700;color:var(--muted-strong)}dd{margin:0;overflow-wrap:anywhere}.learning-math{display:inline-block;max-width:100%;direction:ltr;unicode-bidi:isolate;overflow-x:auto;vertical-align:middle}.missing{color:var(--muted-strong)}:is(a,button):focus-visible{outline:3px solid var(--brand);outline-offset:3px}@media(max-width:600px){main{padding:24px 16px}.notes-top{padding:12px 16px;flex-wrap:wrap}h1{font-size:25px}.notes-section{padding:20px}.notes-section header{align-items:flex-start;flex-direction:column}dl>div{grid-template-columns:minmax(0,1fr);gap:6px}.scene-index .button{font-size:13px}}@media print{@page{size:A4;margin:16mm}body{background:white}main{padding:0}.notes-top>a,.actions,.scene-index,.notes-section header>a{display:none}.notes-top{padding:0 0 12px}h1{font-size:22pt}.notes-section{break-inside:avoid;padding:16px}.learning-math{overflow:visible}}
+  </style></head><body><header class="notes-top"><div class="notes-brand"><img src="${BRAND_LOGO_SRC}" alt="" height="32"><span>מאה בקליק</span></div><span class="private-label">הערות למורה בלבד</span><a href="/app/lessons/${encodeURIComponent(slug)}/experience">עריכת ההסבר וההערות</a></header><main>
+    <h1>${esc(lesson.title)}</h1><p class="intro">המצגת נפתחת בחלון נפרד. שתפו את החלון שלה עם התלמיד/ה, והשאירו את ההערות אצלכם. ההערות כאן תואמות לגרסה שפורסמה.</p>
+    <div class="actions"><a class="button primary" href="${presentation}#scene=${lesson.scenes[0].id}" target="lesson-presentation">פתיחת המצגת לשיתוף מסך ↗</a><button class="button" id="print-notes">הדפסת הערות למורה</button></div>
+    <nav class="scene-index" aria-label="מעבר להערות לפי שלב">${lesson.scenes.map((scene,index)=>`<a class="button" href="#notes-${scene.id}">${index+1}. ${esc(scene.title)}</a>`).join('')}</nav>${sections}
+  </main><script>document.getElementById('print-notes').addEventListener('click',()=>window.print());</script></body></html>`;
+}

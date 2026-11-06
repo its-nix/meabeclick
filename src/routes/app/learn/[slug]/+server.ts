@@ -14,6 +14,7 @@ export const GET: RequestHandler = ({ params, locals, url }) => {
   if (solutions && !locals.authenticated) error(403, 'התשובון מיועד למורה');
   return new Response(renderLearningDocument(lesson.experience, {
     slug: params.slug, storageScope: locals.authenticated ? `teacher:${params.slug}` : access?.code, solutions, preview: locals.authenticated,
+    presenterUrl: locals.authenticated ? `/app/lessons/${encodeURIComponent(params.slug)}/presenter` : undefined,
     backUrl: locals.authenticated ? '/app/dashboard' : `/app/student?s=${encodeURIComponent(access!.code)}`,
   }), { headers: { ...documentHeaders(), 'Cache-Control': 'no-store' } });
 };

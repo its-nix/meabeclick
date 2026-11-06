@@ -9,19 +9,19 @@
 import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { generatedPlanStub } from '../generated-plan-stub.mjs';
+import { PARABOLAS } from '../../src/lib/learning/parabolas.ts';
 
 const P = await import('../../src/lib/server/lesson/prep.ts');
 
 const plan = () => ({
-  title: 'x', gradeContext: 'כיתה ח',
+  learning:PARABOLAS, title: 'x', gradeContext: 'כיתה ח',
   slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['נקודה'] })),
   examples: [{ problem: '1', steps: ['1'], answer: '1' }],
-  homework: [{ task: 'א', why: '', answer: '' }, { task: 'ב', why: '', answer: '' }],
+  homework: [{ task: 'א', why: 'הסבר', answer: '' }, { task: 'ב', why: 'הסבר', answer: '' }],
   games: {
-    quiz: { title: 'חידון', questions: [0, 1, 2, 3].map(i => ({ q: `ש${i}`, options: [`נכון${i}`, `לא${i}a`, `לא${i}b`], answer: 0 })) },
-    twoTruths: { title: 'שקר', rounds: [0, 1, 2].map(i => ({ statements: [`אמת${i}a`, `שקר${i}`, `אמת${i}b`], lieIndex: 1, why: '' })) },
+    quiz: { title: 'חידון', subject:'מתמטיקה', questions: [0, 1, 2, 3].map(i => ({ q: `ש${i}`, options: [`נכון${i}`, `לא${i}a`, `לא${i}b`], answer: 0, why:'הסבר' })) },
+    twoTruths: { title: 'שקר', subject:'מתמטיקה', rounds: [0, 1, 2].map(i => ({ statements: [`אמת${i}a`, `שקר${i}`, `אמת${i}b`], lieIndex: 1, why: 'הסבר' })) },
   },
 });
 
@@ -45,7 +45,13 @@ test('keys that already vary are left exactly as they were', () => {
   assert.deepEqual(P.balancePositions(p).games.quiz, copy);
 });
 
-test('generation applies it before anything validates the plan', () => {
-  const src = readFileSync(join(process.cwd(), 'src/lib/server/lesson/prep.ts'), 'utf8');
-  assert.equal((src.match(/balancePositions\(await generateOnce\(req\)\)/g) ?? []).length, 2, 'on both paths');
+test('fresh generation balances answer positions without changing answers on initial and retry paths',async()=>{
+  for(const invalidFirst of [false,true]){
+    const {result,runs}=await generatedPlanStub(plan(),{invalidFirst});
+    assert.equal(runs,invalidFirst?2:1);
+    assert.ok(new Set(result.games.quiz.questions.map(q=>q.answer)).size>1);
+    result.games.quiz.questions.forEach((q,i)=>assert.equal(q.options[q.answer],`נכון${i}`));
+    result.games.twoTruths.rounds.forEach((r,i)=>assert.equal(r.statements[r.lieIndex],`שקר${i}`));
+    assert.deepEqual(P.validateLesson(result),[]);
+  }
 });

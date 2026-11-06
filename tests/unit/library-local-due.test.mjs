@@ -16,9 +16,10 @@ const PLAN = {
   homework: [{ task: 'א', why: 'w', answer: 'k' }, { task: 'ב', why: 'w', answer: 'k' }],
   games: {
     quiz: { title: 'q', subject: 'm', questions: [
-      { q: '1', options: ['a', 'b', 'c'], answer: 0, why: '', hint: '' },
-      { q: '2', options: ['a', 'b', 'c'], answer: 1, why: '', hint: '' },
-      { q: '3', options: ['a', 'b', 'c'], answer: 2, why: '', hint: '' },
+      { q: '1', options: ['a', 'b', 'c'], answer: 0, why: 'הסבר', hint: '' },
+      { q: '2', options: ['a', 'b', 'c'], answer: 1, why: 'הסבר', hint: '' },
+      { q: '3', options: ['a', 'b', 'c'], answer: 2, why: 'הסבר', hint: '' },
+      { q: '4', options: ['a', 'b', 'c'], answer: 0, why: 'הסבר', hint: '' },
     ] },
     sequence: { title: 's', subject: 'm', steps: ['1', '2', '3'] },
   },

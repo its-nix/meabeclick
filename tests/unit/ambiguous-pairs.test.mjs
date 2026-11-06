@@ -10,19 +10,19 @@
 import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { generatedPlanStub } from '../generated-plan-stub.mjs';
+import { PARABOLAS } from '../../src/lib/learning/parabolas.ts';
 
 const P = await import('../../src/lib/server/lesson/prep.ts');
 
 const plan = (pairs) => ({
-  title: 'x', gradeContext: 'כיתה ח',
+  learning:PARABOLAS, title: 'x', gradeContext: 'כיתה ח',
   slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['נקודה'] })),
   examples: [{ problem: '1', steps: ['1'], answer: '1' }],
   homework: [{ task: 'א', why: '', answer: '' }, { task: 'ב', why: '', answer: '' }],
   games: {
-    matching: { title: 'התאמה', subject: '', pairs },
-    sequence: { title: 'סדר', subject: '', steps: ['א', 'ב', 'ג'] },
+    matching: { title: 'התאמה', subject: 'מתמטיקה', pairs },
+    sequence: { title: 'סדר', subject: 'מתמטיקה', steps: ['א', 'ב', 'ג'] },
   },
 });
 const pair = (left, right) => ({ left, right, hint: '' });
@@ -50,7 +50,12 @@ test('when dropping would leave fewer than three pairs, the game is left for val
   assert.ok(P.validateLesson(p).some(x => x.includes('זהים')));
 });
 
-test('generation applies it before anything validates the plan', () => {
-  const src = readFileSync(join(process.cwd(), 'src/lib/server/lesson/prep.ts'), 'utf8');
-  assert.equal((src.match(/return dropAmbiguousPairs\(balancePositions\(await generateOnce\(req\)\)\);/g) ?? []).length, 2);
+test('fresh generation removes ambiguous matching pairs before game validation on initial and retry paths',async()=>{
+  for(const invalidFirst of [false,true]){
+    const input=plan([pair('א','1'),pair('ב','2'),pair('ג','3'),pair('ד','3'),pair('ה','4')]);
+    const {result,runs}=await generatedPlanStub(input,{invalidFirst});
+    assert.equal(runs,invalidFirst?2:1);
+    assert.deepEqual(result.games.matching.pairs.map(pair=>pair.left),['א','ב','ג','ה']);
+    assert.deepEqual(P.validateLesson(result),[]);
+  }
 });

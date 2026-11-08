@@ -6,6 +6,7 @@
  * results.db carries over unchanged.
  */
 
+import { serializeQuestionEvidence } from '../games/adaptive.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -36,6 +37,8 @@ export type ResultRow = {
   stars: number | null;
   seconds: number | null;
   missed: string | null;
+  hints: number | null;
+  question_evidence: string | null;
 };
 
 export type LessonRow = {
@@ -280,18 +283,22 @@ export interface WriteResultInput {
   stars?: unknown;
   durationSec?: unknown;
   missed?: unknown;
+  hints?: unknown;
+  questionEvidence?: unknown;
 }
 
 export function writeResult(b: WriteResultInput): void {
   db.prepare(`
-    INSERT INTO results (student, at, data_id, template, score, total, tries, stars, seconds, missed)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO results (student, at, data_id, template, score, total, tries, stars, seconds, missed, hints, question_evidence)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     String(b.student).trim().slice(0, 60),
     new Date().toISOString(),
     str(b.dataId, 120), str(b.template, 40),
     int(b.score), int(b.total), int(b.tries), int(b.stars), int(b.durationSec),
     JSON.stringify((Array.isArray(b.missed) ? b.missed : []).slice(0, 40).map(m => String(m).slice(0, 200))),
+    b.hints == null ? null : int(b.hints),
+    serializeQuestionEvidence(b.questionEvidence),
   );
 }
 
@@ -318,15 +325,15 @@ export function readResults(studentId?: number): Record<string, StudentResultsSu
      dashboard) is unchanged. */
   const rows = studentId !== undefined ? db.prepare(`
     SELECT r.id, s.name AS student, r.at, r.data_id, r.template, r.score, r.total,
-           r.tries, r.stars, r.seconds, r.missed
+           r.tries, r.stars, r.seconds, r.missed, r.hints, r.question_evidence
     FROM results_v2 r JOIN students_v2 s ON s.id = r.student_id
     WHERE r.student_id = ? ORDER BY r.at DESC
   `).all(studentId) as ResultRow[] : db.prepare(`
-    SELECT id, student, at, data_id, template, score, total, tries, stars, seconds, missed
+    SELECT id, student, at, data_id, template, score, total, tries, stars, seconds, missed, hints, question_evidence
     FROM results
     UNION ALL
     SELECT r.id, s.name AS student, r.at, r.data_id, r.template, r.score, r.total,
-           r.tries, r.stars, r.seconds, r.missed
+           r.tries, r.stars, r.seconds, r.missed, r.hints, r.question_evidence
     FROM results_v2 r
     JOIN students_v2 s ON s.id = r.student_id
     ORDER BY at DESC

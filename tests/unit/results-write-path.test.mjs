@@ -95,3 +95,46 @@ test('an unresolvable play still reaches the tutor through readResults', async (
   await post('אור', 'shared-quiz-2');
   assert.ok(D.readResults()['אור'], 'finished homework must not look broken');
 });
+
+test('signed submissions retain bounded question difficulty evidence without changing lesson skills', async () => {
+  const questionEvidence = Array.from({ length: 205 }, (_, i) => ({ questionId: `q${i}`, difficulty: i % 3 + 1, correct: i % 2 === 0, hints: i === 0 ? null : 0 }));
+  const before = D.handle().prepare('SELECT count(*) AS n FROM plan_nodes').get().n;
+  const dataId = 'adaptive-signed';
+  const t = new URL(`http://x${U.gameUrl({ template: 'quiz', dataId, student: 'noga' })}`).searchParams.get('t');
+  const res = await POST({ request: new Request('http://localhost/api/game-result', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ student: 'noga', dataId, t, template: 'quiz', score: 7, total: 10, hints: null, questionEvidence }),
+  }) });
+  assert.equal((await res.json()).stored, true);
+  const row = v2Rows().find(r => r.data_id === dataId);
+  assert.equal(row.hints, null);
+  const evidence = JSON.parse(row.question_evidence);
+  assert.equal(evidence.length, 200);
+  assert.deepEqual(evidence[0], { questionId: 'q0', difficulty: 1, correct: true, hints: null });
+  assert.equal(D.handle().prepare('SELECT count(*) AS n FROM plan_nodes').get().n, before);
+  const historic = v2Rows().find(r => r.data_id === 'code-quiz');
+  assert.equal(historic.question_evidence, null);
+  const { resultsForStudent } = await import('../../src/lib/server/results.ts');
+  assert.equal(resultsForStudent(noga.id).find(r => r.data_id === dataId).question_evidence, row.question_evidence);
+});
+
+test('unsigned evidence cannot write results; ambiguous signed identity preserves evidence in legacy storage', async () => {
+  const evidence = [{ questionId: 'q1', difficulty: 3, correct: false, hints: null }];
+  const before = v2Rows().length + legacyRows().length;
+  const bad = await POST({ request: new Request('http://localhost/api/game-result', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ student: 'noga', dataId: 'evidence-unsigned', questionEvidence: evidence }),
+  }) });
+  assert.equal(bad.status, 403);
+  assert.equal(v2Rows().length + legacyRows().length, before);
+  const dataId = 'adaptive-ambiguous';
+  const t = new URL(`http://x${U.gameUrl({ template: 'quiz', dataId, student: 'אור' })}`).searchParams.get('t');
+  await POST({ request: new Request('http://localhost/api/game-result', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ student: 'אור', dataId, t, hints: 0, questionEvidence: evidence }),
+  }) });
+  const row = legacyRows().find(r => r.data_id === dataId);
+  assert.equal(row.hints, 0);
+  assert.deepEqual(JSON.parse(row.question_evidence), evidence);
+  assert.ok(D.readResults()['אור'].plays >= 1);
+});

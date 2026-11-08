@@ -40,6 +40,9 @@ import { deckRootCss, DECK_FONT, BRAND_LOGO_SRC } from '../../brand.ts';
 import type { LearningExperience } from '../../learning/model.ts';
 import { LEARNING_SCHEMA, LEARNING_INSTRUCTIONS } from '../../learning/schema.ts';
 import { experienceProblems, renderLearningDocument } from '../learning-render.ts';
+import { structuredProblems } from './structured-validation.ts';
+import { gameGenerationSchema, GAME_GENERATION_PROMPT, validateGeneratedGameBank } from './game-generation.ts';
+import { CRITIQUE_SCHEMA, candidateHash, critiqueIssues, critiquePrompt, qualityPaths, repairPrompt, attachGenerationQualityReport, type GenerationQualityReport, type QualityAttempt, type QualityIssue, type QualityCheck } from './quality.ts';
 
 /** Long, because a whole lesson is minutes of work. /api/ask sets its own,
  *  far shorter budget — see src/lib/server/lesson/spawn.ts. */
@@ -77,6 +80,8 @@ export interface HomeworkItem {
   answer?: string;
 }
 
+export interface GeneratedQuestionMetadata { id?: string; difficulty?: 1 | 2 | 3 }
+
 export interface MemoryGame {
   title: string;
   subject: string;
@@ -86,19 +91,19 @@ export interface MemoryGame {
 export interface TwoTruthsGame {
   title: string;
   subject: string;
-  rounds: { statements: string[]; lieIndex: number; why: string; hint: string }[];
+  rounds: (GeneratedQuestionMetadata & { statements: string[]; lieIndex: number; why: string; hint: string })[];
 }
 
 export interface ErrorHuntGame {
   title: string;
   subject: string;
-  rounds: { problem: string; steps: string[]; badStep: number; why: string; hint: string }[];
+  rounds: (GeneratedQuestionMetadata & { problem: string; steps: string[]; badStep: number; why: string; hint: string })[];
 }
 
 export interface QuizGame {
   title: string;
   subject: string;
-  questions: { q: string; options: string[]; answer: number; why: string; hint: string }[];
+  questions: (GeneratedQuestionMetadata & { q: string; options: string[]; answer: number; why: string; hint: string })[];
 }
 
 export interface MatchingGame {
@@ -131,7 +136,7 @@ export interface SpeedDrillGame {
   title: string;
   subject: string;
   seconds: number;
-  items: { q: string; a: string; options: string[] }[];
+  items: (GeneratedQuestionMetadata & { q: string; a: string; options: string[] })[];
 }
 
 export interface LabellingGame {
@@ -144,7 +149,7 @@ export interface LabellingGame {
 export interface GraphMatchGame {
   title: string;
   subject: string;
-  rounds: {
+  rounds: (GeneratedQuestionMetadata & {
     prompt: string;
     mainLabel: string;
     main: number[];
@@ -152,7 +157,7 @@ export interface GraphMatchGame {
     answer: number;
     why: string;
     hint: string;
-  }[];
+  })[];
 }
 
 export interface NumberLineGame {
@@ -160,7 +165,7 @@ export interface NumberLineGame {
   subject: string;
   min: number;
   max: number;
-  rounds: { target: number; label: string; tolerance: number; why: string; hint: string }[];
+  rounds: (GeneratedQuestionMetadata & { target: number; label: string; tolerance: number; why: string; hint: string })[];
 }
 
 export interface GamesMap {
@@ -460,6 +465,10 @@ const LESSON_SCHEMA = {
   },
 };
 
+for (const [key, schema] of Object.entries(LESSON_SCHEMA.properties.games.properties)) {
+  Object.assign(schema, gameGenerationSchema(key, schema));
+}
+
 const CODEX_LESSON_SCHEMA = strictOutputSchema(LESSON_SCHEMA);
 
 /**
@@ -521,6 +530,7 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
     'הנחיות לנתונים של כל משחק:',
     `- כמות הפריטים בכל משחק שנבחר חייבת להתאים לטווח שלו: ${Object.entries(TEMPLATE_FILES).map(([key,template]) => `${key}: ${(getRegistry().templates[template]?.itemRange ?? []).join('–')}`).join('; ')}. אל תקצר/י משחק לסבב בודד.`,
     ...LEARNING_INSTRUCTIONS,
+    GAME_GENERATION_PROMPT,
     '- בחידון, ב-twoTruths, ב-errorHunt, ב-graphMatch וב-numberLine: לכל שאלה או סבב יש hint.',
     '  hint הוא רמז שמכוון לדרך בלי לגלות את התשובה — שאלה מנחה או תזכורת לכלל, לא התשובה ולא האפשרות הנכונה.',
     '- memory: שינון מונחים ונוסחאות. לפחות 6 זוגות.',
@@ -552,42 +562,63 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
  * Hebrew sentence — which is how a revoked credential spent weeks looking
  * exactly like a malformed JSON response.
  */
-export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
-  const generateValidated = async () => {
-    const plan = dropAmbiguousPairs(balancePositions(await generateOnce(req)));
-    // New output must be playable/editable under the same contract as authored games.
-    // Historical plans remain readable; validation here applies only to fresh generation.
-    for (const [key, body] of Object.entries(plan.games ?? {})) {
-      if (body == null) continue;
-      try { validateLessonGame(TEMPLATE_FILES[key], toTemplateShape(key, body)); }
-      catch (error) {
-        const detail = error instanceof GameValidationError ? error.issues.map(issue => `${issue.path}: ${issue.message}`).join('; ') : String(error);
-        throw new LessonGenerationError('bad-output', `משחק ${key}: ${detail}`);
+export interface GenerationOptions { onQualityReport?: (report: GenerationQualityReport) => void }
+export async function generateLesson(req: LessonRequest, options: GenerationOptions = {}): Promise<LessonPlan> {
+  const report: GenerationQualityReport = { version:1, scope:'generation-snapshot', status:'failed', at:new Date().toISOString(), engine:lessonEngine(), model:process.env.LESSON_MODEL ?? null, attempts:[] };
+  try {
+    let prompt = buildPrompt(req);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const assessment: QualityAttempt = {candidateHash:null, issues:[], critique:'not-run'};
+      report.attempts.push(assessment);
+      let rejected: unknown = null;
+      try {
+        let plan = await generateOnce(prompt, raw => { rejected = raw; });
+        rejected = plan;
+        const issues = structuredProblems(plan, LESSON_SCHEMA);
+        if (!issues.length) {
+          plan = dropAmbiguousPairs(balancePositions(plan));
+          issues.push(...freshQualityIssues(plan));
+        }
+        assessment.candidateHash = candidateHash(plan);
+        assessment.issues = issues;
+        if (!issues.length) {
+          const paths = qualityPaths(plan);
+          if (paths.length > 160) throw new LessonGenerationError('bad-output', 'Too many artifacts for bounded quality critique');
+          let critique: Record<string, unknown> | null;
+          try { critique = await structuredReply(critiquePrompt(req, plan), CRITIQUE_SCHEMA, Math.min(lessonTimeoutMs(), 120_000)); }
+          catch (error) {
+            assessment.critique = error instanceof LessonGenerationError && ['bad-output','no-output'].includes(error.kind) ? 'invalid' : 'engine-failed';
+            throw error;
+          }
+          const findings = critiqueIssues(critique, paths);
+          if (findings === null) {
+            assessment.critique = 'invalid';
+            throw new LessonGenerationError('bad-output', 'Quality critique did not cover the candidate artifacts with valid structured checks');
+          }
+          assessment.checks = critique!.checks as QualityCheck[];
+          assessment.critique = findings.length ? 'failed' : 'passed';
+          issues.push(...findings);
+        }
+        if (!issues.length) {
+          report.status = 'passed';
+          attachGenerationQualityReport(plan, report);
+          return plan;
+        }
+        throw new LessonGenerationError('bad-output', issues.map(issue=>`${issue.path}: ${issue.message}`).join('; '));
+      } catch (error) {
+        const retryable = error instanceof LessonGenerationError && ['bad-output','no-output'].includes(error.kind) && assessment.critique === 'not-run';
+        const qualityFailure = assessment.critique === 'failed';
+        if (!assessment.issues.length) assessment.issues.push({path:'lesson', code:error instanceof LessonGenerationError ? error.kind : 'generation-failed', message:error instanceof Error ? error.message : 'Generation failed'});
+        if (attempt === 0 && (retryable || qualityFailure)) {
+          prompt = repairPrompt(buildPrompt(req), rejected, assessment.issues);
+          continue;
+        }
+        if (error && typeof error === 'object') attachGenerationQualityReport(error, report);
+        throw error;
       }
     }
-    return plan;
-  };
-  /* One retry, and only for a plan that came back unusable.
-   *
-   * A language model emitting a few thousand characters of JSON gets it
-   * right almost every time and occasionally does not — a stray bracket,
-   * a truncated tail. Observed in production: the same prompt that produced
-   * a valid eight-slide lesson locally came back unparseable once, and the
-   * booking simply lost its lesson. One retry turns a dice roll into a
-   * near-certainty for the cost of a second generation on the rare bad one.
-   *
-   * NOT retried: engine-missing, engine-auth, engine-quota, engine-timeout.
-   * Those describe the environment rather than the answer, and asking again
-   * changes nothing — for quota it actively makes things worse by spending
-   * what little is left. */
-  try {
-    return await generateValidated();
-  } catch (err) {
-    const kind = err instanceof LessonGenerationError ? err.kind : null;
-    if (kind !== 'bad-output' && kind !== 'no-output') throw err;
-    console.warn(`lesson: ${kind} from the engine (${(err as Error).message}), retrying once`);
-    return await generateValidated();
-  }
+    throw new Error('Unreachable generation state');
+  } finally { options.onQualityReport?.(report); }
 }
 
 /**
@@ -649,49 +680,64 @@ export function balancePositions(plan: LessonPlan): LessonPlan {
   return plan;
 }
 
-async function generateOnce(req: LessonRequest): Promise<LessonPlan> {
+function freshQualityIssues(plan: LessonPlan): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const add = (path:string, code:string, message:string) => issues.push({path,code,message});
+  if (!Array.isArray(plan.slides) || !Array.isArray(plan.examples) || !Array.isArray(plan.homework) || !plan.games || typeof plan.games !== 'object' || Array.isArray(plan.games)) {
+    add('lesson','structure','slides, examples and homework must be arrays, and games must be an object');
+    return issues;
+  }
+  if (typeof plan.title !== 'string' || !plan.title.trim() || typeof plan.gradeContext !== 'string' || !plan.gradeContext.trim()) add('lesson','structure','Lesson needs a title and grade context');
+  plan.slides.forEach((slide,i)=>{
+    if (!slide || typeof slide.heading !== 'string' || !slide.heading.trim() || !Array.isArray(slide.bullets) || !slide.bullets.length || slide.bullets.some(text=>typeof text !== 'string' || !text.trim()) || (slide.note !== undefined && typeof slide.note !== 'string')) add(`slides[${i}]`,'structure','Slide needs a heading and nonempty text bullets');
+  });
+  if (!plan.learning) add('learning','structure','lesson output omitted the interactive learning experience');
+  else for (const message of experienceProblems(plan.learning, {requirePresenterNotes:true})) {
+    const scene = plan.learning.scenes?.find(scene=>message.includes(scene.id));
+    add(scene ? `learning.scenes[${plan.learning.scenes.indexOf(scene)}]` : 'learning','structure',message);
+  }
+  try { for (const message of validateLesson(plan)) add('lesson','structure',message); }
+  catch { add('lesson','structure','Lesson artifacts have invalid types'); }
+  for (const [key, body] of Object.entries(plan.games ?? {})) {
+    if (body == null) continue;
+    try {
+      validateLessonGame(TEMPLATE_FILES[key],toTemplateShape(key,body));
+      for (const message of validateGeneratedGameBank(key,body)) add(`games.${key}`,'question-bank',message);
+    }
+    catch (error) {
+      if (error instanceof GameValidationError) for (const issue of error.issues) add(`games.${key}.${issue.path}`,'structure',issue.message);
+      else add(`games.${key}`,'structure','Invalid game artifact');
+    }
+  }
+  plan.examples?.forEach((example,i)=> {
+    if (!example || typeof example.problem !== 'string' || !example.problem.trim() || !Array.isArray(example.steps) || example.steps.filter(step=>typeof step === 'string' && step.trim()).length < 2 || example.steps.some(step=>typeof step !== 'string') || typeof example.answer !== 'string' || !example.answer.trim()) add(`examples[${i}]`,'worked-steps','A worked example needs a concrete problem, at least two nonempty intermediate steps and an answer');
+  });
+  plan.homework?.forEach((item,i)=> {
+    if (!item || typeof item.task !== 'string' || !item.task.trim() || typeof item.why !== 'string' || !item.why.trim() || typeof item.answer !== 'string' || !item.answer.trim()) add(`homework[${i}]`,'homework-key','Homework needs a concrete task, purpose and private answer key');
+  });
+  return issues;
+}
+async function generateOnce(prompt: string, onRaw: (raw:unknown)=>void): Promise<LessonPlan> {
+  const parsed = await structuredReply(prompt, CODEX_LESSON_SCHEMA, lessonTimeoutMs(), onRaw);
+  return omitOptionalNulls(parsed, LESSON_SCHEMA) as unknown as LessonPlan;
+}
+async function structuredReply(prompt: string, schema: object, timeoutMs: number, onRaw?: (raw:unknown)=>void): Promise<Record<string, unknown>> {
   const jobId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const jobDir = join(tmpdir(), 'mea-beclick-lesson-jobs', jobId);
   const planPath = join(jobDir, 'plan.json');
   await mkdir(jobDir, { recursive: true });
-
   try {
-    await runAgent(buildPrompt(req), jobDir, planPath);
-
+    await runAgent(prompt, jobDir, planPath, schema, timeoutMs);
     let raw: string;
-    try {
-      raw = await readFile(planPath, 'utf8');
-    } catch {
-      throw new LessonGenerationError('no-output', 'codex exited cleanly but produced no plan.json');
-    }
-
+    try { raw = await readFile(planPath, 'utf8'); }
+    catch { throw new LessonGenerationError('no-output','Engine exited cleanly but produced no plan.json'); }
+    onRaw?.(raw);
+    if (raw.length > 512 * 1024) throw new LessonGenerationError('bad-output','Engine output exceeded the artifact size limit');
     const parsed = parsePlan(raw);
-    if (parsed === null) {
-      /* Head AND tail. Malformed JSON from a model almost always breaks at
-         the END — a truncated response, an unclosed array — and a detail
-         that shows only the first 4000 characters proves the beginning was
-         fine while hiding the part that failed. That cost a production
-         generation to learn. */
-      throw new LessonGenerationError(
-        'bad-output',
-        `codex returned something that is not a JSON object (${raw.length} chars)`,
-        raw.length > 2600
-          ? `${raw.slice(0, 1200)}\n…[${raw.length - 2600} chars omitted]…\n${raw.slice(-1400)}`
-          : raw,
-      );
-    }
-    const plan = omitOptionalNulls(parsed, LESSON_SCHEMA) as Record<string, unknown>;
-    if (!plan.learning) {
-      throw new LessonGenerationError('bad-output', 'lesson output omitted the interactive learning experience');
-    }
-    const learningErrors = experienceProblems(plan.learning, { requirePresenterNotes: true });
-    if (learningErrors.length) throw new LessonGenerationError('bad-output', learningErrors.join('; '));
-    // validateLesson() is the real gate on shape; this cast only asserts
-    // "a JSON object", which parsePlan has already established.
-    return plan as unknown as LessonPlan;
-  } finally {
-    await rm(jobDir, { recursive: true, force: true }).catch(() => {});
-  }
+    if (parsed === null) throw new LessonGenerationError('bad-output', `Engine returned something that is not a JSON object (${raw.length} chars)`, raw.length > 2600 ? `${raw.slice(0,1200)}\n…[${raw.length-2600} chars omitted]…\n${raw.slice(-1400)}` : raw);
+    onRaw?.(parsed);
+    return parsed;
+  } finally { await rm(jobDir, {recursive:true,force:true}).catch(()=>{}); }
 }
 
 /**
@@ -844,7 +890,7 @@ export function extractJsonObject(reply: string): string | null {
  *  would have written it so everything after is the same. A reply with no
  *  object in it is written as it came, for parsePlan to call bad-output
  *  with the text in the log. */
-async function runStdoutAgent(engine: 'claude' | 'opencode', prompt: string, cwd: string, planPath: string): Promise<void> {
+async function runStdoutAgent(engine: 'claude' | 'opencode', prompt: string, cwd: string, planPath: string, timeoutMs: number): Promise<void> {
   const model = process.env.LESSON_MODEL;
   let reply: string;
   if (engine === 'claude') {
@@ -853,7 +899,7 @@ async function runStdoutAgent(engine: 'claude' | 'opencode', prompt: string, cwd
        nothing. */
     const args = ['-p', '--output-format', 'text', '--tools', '', '--no-session-persistence'];
     if (model) args.push('--model', model);
-    reply = await spawnAgent(claudeBin(), args, prompt, cwd, { label: 'claude', timeoutMs: lessonTimeoutMs(), collectStdout: true });
+    reply = await spawnAgent(claudeBin(), args, prompt, cwd, { label: 'claude', timeoutMs, collectStdout: true });
   } else {
     /* opencode takes its message in argv, so the prompt goes as an attached
        file and argv carries only a fixed instruction. */
@@ -861,17 +907,17 @@ async function runStdoutAgent(engine: 'claude' | 'opencode', prompt: string, cwd
     await writeFile(file, prompt, 'utf8');
     const args = ['run', 'Follow the instructions in the attached file exactly, and reply with the JSON only.', '-f', file];
     if (model) args.push('-m', model);
-    reply = await spawnAgent(opencodeBin(), args, '', cwd, { label: 'opencode', timeoutMs: lessonTimeoutMs(), collectStdout: true });
+    reply = await spawnAgent(opencodeBin(), args, '', cwd, { label: 'opencode', timeoutMs, collectStdout: true });
   }
   const found = extractJsonObject(reply);
   if (found !== null || reply.trim()) await writeFile(planPath, found ?? reply, 'utf8');
 }
 
-async function runAgent(prompt: string, cwd: string, planPath: string): Promise<void> {
+async function runAgent(prompt: string, cwd: string, planPath: string, schema: object, timeoutMs: number): Promise<void> {
   const engine = lessonEngine();
-  if (engine !== 'codex') return runStdoutAgent(engine, prompt, cwd, planPath);
+  if (engine !== 'codex') return runStdoutAgent(engine, prompt, cwd, planPath, timeoutMs);
   const schemaPath = join(cwd, 'output-schema.json');
-  await writeFile(schemaPath, JSON.stringify(CODEX_LESSON_SCHEMA), 'utf8');
+  await writeFile(schemaPath, JSON.stringify(schema), 'utf8');
   const args = [
     'exec', '-C', cwd,
     '--skip-git-repo-check', '--ephemeral', '--ignore-user-config',
@@ -886,7 +932,7 @@ async function runAgent(prompt: string, cwd: string, planPath: string): Promise<
   if (process.env.LESSON_MODEL) args.push('-m', process.env.LESSON_MODEL);
   args.push('-');
 
-  await spawnAgent(engineBin(), args, prompt, cwd, { label: 'codex', timeoutMs: lessonTimeoutMs() });
+  await spawnAgent(engineBin(), args, prompt, cwd, { label: 'codex', timeoutMs });
 }
 
 /** Self-contained RTL deck, site palette, arrow-key navigation. */

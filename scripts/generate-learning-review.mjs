@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { basename, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { REVIEW_CASES } from './learning-review-cases.mjs';
-import { validateManifest, readVerifiedPlan, validatePlan, sourceFingerprint, SOURCE_FILES } from './learning-review-validation.mjs';
+import { validateManifest, readVerifiedPlan, readVerifiedQualityReport, validatePlan, sourceFingerprint, SOURCE_FILES } from './learning-review-validation.mjs';
 
 const args=process.argv.slice(2),options=new Map();
 const valued=new Set(['--out','--model','--effort','--concurrency','--case','--batch']);
@@ -38,26 +38,39 @@ try {
   const fingerprint=await sourceFingerprint();
   const cli=execFileSync(process.env.CODEX_BIN||'codex',['--version'],{encoding:'utf8',timeout:30000}).trim();
   const {generateLesson,lessonTimeoutMs}=await import('../src/lib/server/lesson/prep.ts');
-  const config={model,effort,cli,sourceFingerprint:fingerprint,sourceFiles:SOURCE_FILES,timeoutMs:lessonTimeoutMs()};
+  const {getGenerationQualityReport}=await import('../src/lib/server/lesson/quality.ts');
+  const config={model,effort,cli,sourceFingerprint:fingerprint,sourceFiles:SOURCE_FILES,timeoutMs:lessonTimeoutMs(),qualityReportsRequired:true};
   const manifestPath=join(out,'manifest.json');
   let manifest={version:1,batch:option('batch',basename(out)),syntheticOnly:true,approval:'needs-human-review',createdAt:new Date().toISOString(),config,cases:REVIEW_CASES.map(brief=>({brief,status:'pending'}))};
   if(existsSync(manifestPath)) {
     manifest=JSON.parse(await readFile(manifestPath,'utf8'));validateManifest(manifest);
     if(manifest.sourceVerification?.status==='failed')throw Error('Batch source integrity previously failed. Generate a new candidate directory.');
     if(JSON.stringify(manifest.config)!==JSON.stringify(config))throw Error('Generator/model differs from existing batch. Use a new output directory.');
-    for(const item of manifest.cases.filter(c=>c.status==='ready'))await validatePlan(await readVerifiedPlan(out,item));
+    for(const item of manifest.cases.filter(c=>c.status==='ready')) {
+      const plan=await readVerifiedPlan(out,item);await validatePlan(plan);
+      await readVerifiedQualityReport(out,item,plan,manifest.config.qualityReportsRequired===true);
+    }
   }
   let checkpoint=Promise.resolve();
   const save=()=>{const snapshot=JSON.stringify(manifest,null,2);checkpoint=checkpoint.then(async()=>{await writeFile(manifestPath+'.tmp',snapshot);await rename(manifestPath+'.tmp',manifestPath);});return checkpoint;};
   let stop=false;
   const pending=manifest.cases.filter(c=>(!selected||selected.includes(c.brief.id))&&c.status!=='ready'&&(c.status!=='failed'||options.has('--retry-failed')));
+  async function saveQuality(item, value) {
+    const report=getGenerationQualityReport(value);
+    if(!report)return;
+    const content=JSON.stringify(report,null,2)+'\n';
+    await writeFile(join(out,item.brief.id+'.quality.json'),content,{mode:0o600});
+    item.qualitySha256=createHash('sha256').update(content).digest('hex');
+  }
   async function run(item) {
     if(stop)return;
     if(item.status==='failed'||item.status==='generating')item.previousAttempts=[...(item.previousAttempts??[]),{status:item.status,startedAt:item.startedAt,error:item.error}];
-    item.status='generating';item.startedAt=new Date().toISOString();delete item.error;
+    item.status='generating';item.startedAt=new Date().toISOString();delete item.error;delete item.qualitySha256;
     await save();console.log(`START ${item.brief.id}`);
     try {
       const plan=await generateLesson(item.brief);
+      await saveQuality(item,plan);
+      await readVerifiedQualityReport(out,item,plan,true);
       try{await validatePlan(plan);}catch(error){await writeFile(join(out,item.brief.id+'.rejected.json'),JSON.stringify(plan,null,2),{mode:0o600});throw error;}
       const content=JSON.stringify(plan,null,2)+'\n';
       await writeFile(join(out,item.brief.id+'.json'),content);
@@ -65,6 +78,7 @@ try {
       item.status='ready';item.finishedAt=new Date().toISOString();item.seconds=Math.round((Date.parse(item.finishedAt)-Date.parse(item.startedAt))/1000);
       console.log(`READY ${item.brief.id} ${item.seconds}s ${plan.learning.scenes.length} stages`);
     }catch(error){
+      if(!item.qualitySha256)await saveQuality(item,error);
       item.status='failed';item.error={kind:error.kind??'validation',message:error.issues?.map(issue=>`${issue.path}: ${issue.message}`).join('; ')||error.message};
       // Diagnostics can contain echoed prompts; local only, private permissions, never included in the corpus.
       if(error.detail)await writeFile(join(out,item.brief.id+'.diagnostic.log'),String(error.detail),{mode:0o600});

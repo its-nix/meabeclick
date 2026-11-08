@@ -26,7 +26,7 @@ test('ten review bundles are tutor-only, private, playable and isolated from cus
     const paths=['/app/learning-review'];
     for(const item of corpus.cases){
       const id=item.brief.id;
-      paths.push(...['lesson','presenter','homework'].map(view=>`/app/learning-review?case=${id}&view=${view}`));
+      paths.push(...['lesson','presenter','homework','quality'].map(view=>`/app/learning-review?case=${id}&view=${view}`));
       for(const [key,body]of Object.entries(item.plan.games))if(body)paths.push(`/app/review-game/${id}/${TEMPLATE_FILES[key]}`);
     }
     for(const path of paths){

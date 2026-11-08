@@ -27,3 +27,15 @@ Runner regressions cover resume without repeated generation, checksum verificati
 ## Review observation to discuss — example 01, stage 4 notes
 
 The independent reviewer found correct arithmetic throughout the refined fractions bundle. The oral phrase for \(3/12\) and \(4/12\) should use fractional units (“שלוש שתים־עשריות”, “ארבע שתים־עשריות”), rather than sounding like integer counts. This is recorded for the teaching-language iteration; the numbered pilot remains an authentic generated candidate awaiting owner feedback.
+
+## Shared machinery iteration — 2026-11-08
+
+Lior clarified that the review examples are evidence for improving reusable artifact generation across topics and artifact types. The old teal/parchment specification is stale; the shared blue/slate brand remains authoritative. The recurring requirements are concrete explanations and intermediate steps, appropriate mathematical visuals, private teacher guidance, context alignment, consistent answer keys, useful independent practice and precise repair feedback.
+
+The implementation adds bounded fraction bars, right triangles and quadratic-function tangents to the common web/print/video scene renderer. Numeric question stimuli are separated from worked explanations, including the raw student payload and compiled formula templates. Supplied decimal values remain legible; derived tangent slopes avoid decimal cancellation noise. Guidance now describes the controls actually provided by the renderer. A real fractions candidate exposed a request for unsupported sliders, which prompted that shared instruction and critique correction rather than a hand edit of the candidate.
+
+Fresh generation checks every artifact's structure and obtains a separate structured critique of its mathematics, answer key, context and teaching. One repair receives the exact rejected candidate and failures. Malformed critiques and engine faults fail closed. Private append-only reports assess a hashed generation snapshot; later tutor edits do not inherit a pass. Historical material reads remain compatible. Review packaging verifies both candidate and assessment checksums and refuses source drift.
+
+New question banks carry stable identifiers and three difficulty levels within the assigned skills. Finite sessions use ten unseen questions; timed speed drill keeps its timer. Hint use and results influence only current-session selection, and signed results retain per-question difficulty evidence. Initial adaptive options use deterministic ordering to prevent server/client hydration from attaching the wrong answer handler. Historical banks retain their existing playback behavior.
+
+Synthetic regressions and browser checks cover privacy, numeric precision, matching diagrams and formulas, adaptive evidence, timed completion and preview isolation. The representative real-model batch is recorded separately below when complete. Model critique is evidence for tutor review, not teaching approval; no customer assignments or existing pilot artifacts are replaced by this iteration.

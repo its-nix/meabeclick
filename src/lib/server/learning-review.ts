@@ -1,12 +1,14 @@
 /** Synthetic review fixtures only. No import into library or customer assignments. */
 import corpus from './learning-review-corpus.json' with { type: 'json' };
+import { candidateHash, type GenerationQualityReport } from './lesson/quality.ts';
+import { formatDateTime } from '../dates.ts';
 import { BRAND_LOGO_SRC, deckRootCss } from '../brand.ts';
 import { escapeHtml as esc, mathText } from '../learning/math.ts';
 import { TEMPLATE_FILES, toTemplateShape, type LessonPlan } from './lesson/prep.ts';
 import { validateLessonGame } from './lesson-games.ts';
 
 type GenerationConfig = { model: string; effort: string; cli: string; sourceFingerprint: string };
-export type ReviewCase = { brief: { id: string; title: string; level: string; request: string }; plan: LessonPlan };
+export type ReviewCase = { brief: { id: string; title: string; level: string; request: string }; plan: LessonPlan; qualityReport?: GenerationQualityReport };
 export const reviewCorpus = corpus as unknown as {
   manifest: { batch: string; syntheticOnly: boolean; approval: string; config: GenerationConfig; generationVersions?: { batch: string; config: GenerationConfig }[] };
   cases: ReviewCase[];
@@ -30,8 +32,25 @@ function document(title: string, content: string) {
 export function renderReviewIndex() {
   const versions = reviewCorpus.manifest.generationVersions ?? [{batch:reviewCorpus.manifest.batch,config:reviewCorpus.manifest.config}];
   const versionDetails=versions.map(({config},i)=>`<p>גרסת יצירה ${i+1}: ${esc(config.model ?? '')} · ${esc(config.effort ?? '')} · ${esc(config.cli ?? '')}</p><code>${esc(config.sourceFingerprint ?? '')}</code>`).join('');
-  return document('דוגמאות לבדיקה', `<h1>10 דוגמאות. בונים את השיעור הבא יחד.</h1><section class="intro"><p>דוגמאות מתלמידים מדומים, לבדיקה שלכם בלבד. הן עדיין לא אושרו לשימוש עם תלמידים.</p><p>פתחו מצגת והערות למורה בשני חלונות. נסו גם תרגיל ומשחק, ובדקו: האם ההסבר ברור? האם התלמיד יודע מה לעשות? האם המשוב עוזר כשיש טעות?</p><p>שלחו לנו משוב בשיחה: <strong>מספר הדוגמה, השלב, מה הפריע ומה הייתם רוצים במקום.</strong> אפשר גם פשוט לתאר מה לא עבד.</p><p class="muted">הבדיקה לא משנה שיעורי לקוחות ולא שומרת ציונים. בכל מצגת אפשר להדפיס או לשמור PDF.</p><details><summary>פרטי הגרסה לבדיקה</summary>${versionDetails}</details></section>${reviewCorpus.cases.map((item,index) => `<article id="${item.brief.id}"><small>דוגמה ${index+1} · ${esc(item.brief.level)}</small><h2>${esc(item.brief.title)}</h2><p>${esc(item.brief.request)}</p><nav class="links" aria-label="${esc(item.brief.title)}"><a href="${esc(reviewUrl(item.brief.id))}">מצגת אינטראקטיבית ↗</a><a href="${esc(reviewUrl(item.brief.id,'presenter'))}">הערות למורה</a><a href="${esc(reviewUrl(item.brief.id,'homework'))}">שיעורי בית</a>${reviewGames(item).map((game,i)=>`<a href="${game.url}">משחק ${i+1}: ${esc(game.title)}</a>`).join('')}</nav></article>`).join('')}`);
+  return document('דוגמאות לבדיקה', `<h1>10 דוגמאות. בונים את השיעור הבא יחד.</h1><section class="intro"><p>דוגמאות מתלמידים מדומים, לבדיקה שלכם בלבד. הן עדיין לא אושרו לשימוש עם תלמידים.</p><p>פתחו מצגת והערות למורה בשני חלונות. נסו גם תרגיל ומשחק, ובדקו: האם ההסבר ברור? האם התלמיד יודע מה לעשות? האם המשוב עוזר כשיש טעות?</p><p>שלחו לנו משוב בשיחה: <strong>מספר הדוגמה, השלב, מה הפריע ומה הייתם רוצים במקום.</strong> אפשר גם פשוט לתאר מה לא עבד.</p><p class="muted">הבדיקה לא משנה שיעורי לקוחות ולא שומרת ציונים. בכל מצגת אפשר להדפיס או לשמור PDF.</p><details><summary>פרטי הגרסה לבדיקה</summary>${versionDetails}</details></section>${reviewCorpus.cases.map((item,index) => `<article id="${item.brief.id}"><small>דוגמה ${index+1} · ${esc(item.brief.level)}</small><h2>${esc(item.brief.title)}</h2><p>${esc(item.brief.request)}</p><nav class="links" aria-label="${esc(item.brief.title)}"><a href="${esc(reviewUrl(item.brief.id))}">מצגת אינטראקטיבית ↗</a><a href="${esc(reviewUrl(item.brief.id,'presenter'))}">הערות למורה</a><a href="${esc(reviewUrl(item.brief.id,'homework'))}">שיעורי בית</a><a href="${esc(reviewUrl(item.brief.id,'quality'))}">דוח איכות</a>${reviewGames(item).map((game,i)=>`<a href="${game.url}">משחק ${i+1}: ${esc(game.title)}</a>`).join('')}</nav></article>`).join('')}`);
 }
 export function renderReviewHomework(item: ReviewCase) {
   return document(`שיעורי בית · ${item.brief.title}`, `<h1>${esc(item.brief.title)} · שיעורי בית</h1><p class="muted">דוגמה לבדיקה · תרגול אינטראקטיבי נוסף נמצא במצגת ובמשחקים. התשובות כאן מיועדות למורה.</p><nav class="links"><a href="${esc(reviewUrl(item.brief.id))}">לתרגול האינטראקטיבי</a><button id="print">הדפסה / PDF</button></nav>${item.plan.homework.map((task,index)=>`<article><h2>תרגיל ${index+1}</h2><p>${mathText(task.task)}</p><p class="muted">${mathText(task.why)}</p><details><summary>תשובה למורה</summary><p>${mathText(task.answer ?? 'לא נוצרה תשובה לתרגיל הזה')}</p></details></article>`).join('')}<script>document.getElementById('print').addEventListener('click',()=>window.print());</script>`);
+}
+
+export function renderReviewQuality(item: ReviewCase): string {
+  const report = item.qualityReport;
+  const introduction = `<h1>דוח איכות · ${esc(item.brief.title)}</h1><p>זו בדיקה אוטומטית של גרסת היצירה. היא אינה אישור פדגוגי ואינה מחליפה בדיקת מורה.</p><nav class="links"><a href="${esc(reviewUrl(item.brief.id))}">לחומר שנבדק</a></nav>`;
+  if (!report) return document(`דוח איכות · ${item.brief.title}`, `${introduction}<article><p>לא תועד דוח איכות בגרסת היצירה הזו. אין להסיק מכך שהחומר עבר בדיקה.</p></article>`);
+  const last = report.attempts.at(-1);
+  const matches = last?.candidateHash === candidateHash(item.plan);
+  const passed = matches && report.status === 'passed' && last.critique === 'passed' && !last.issues.length;
+  const status = !matches ? 'הדוח מתייחס לגרסה אחרת של החומר.' : passed ? 'הבדיקות עברו עבור הגרסה הזו.' : 'החומר לא עבר את כל בדיקות האיכות.';
+  const labels = { math: 'נכונות', answerKey: 'תשובות ומשוב', context: 'התאמה לשיעור', teaching: 'הסבר ודוגמאות' };
+  const attempts = report.attempts.map((attempt, index) => {
+    const checks = attempt.checks?.map(check => `<li><code dir="ltr">${esc(check.path)}</code><p>${(Object.keys(labels) as Array<keyof typeof labels>).map(key => `${labels[key]}: ${check[key] === 'pass' ? 'תקין' : 'לתיקון'}`).join(' · ')}</p><p>${esc(check.explanation)}</p></li>`).join('');
+    const issues = attempt.issues.map(issue => `<li><code dir="ltr">${esc(issue.path)} · ${esc(issue.code)}</code><p>${esc(issue.message)}</p></li>`).join('');
+    return `<article><h2>ניסיון ${index + 1}</h2><p>${attempt.critique === 'passed' && !attempt.issues.length ? 'בדיקת המודל עברה.' : 'נמצאו ליקויים או שהבדיקה לא הושלמה.'}</p>${issues ? `<ul>${issues}</ul>` : ''}${checks ? `<details><summary>בדיקות לפי רכיב</summary><ul>${checks}</ul></details>` : ''}</article>`;
+  }).join('');
+  return document(`דוח איכות · ${item.brief.title}`, `${introduction}<p role="status"><strong>${status}</strong></p><p class="muted">הדוח חל על תמונת המצב שנבדקה בלבד. שינויים בחומר מצריכים בדיקה חדשה.</p>${attempts}<details><summary>פרטי הבדיקה</summary><p>מנוע: <bdi>${esc(report.engine)}</bdi> · מודל: <bdi>${esc(report.model ?? 'לא תועד')}</bdi></p><p><bdi>${esc(formatDateTime(report.at))}</bdi></p><code>${esc(last?.candidateHash ?? '')}</code></details>`);
 }

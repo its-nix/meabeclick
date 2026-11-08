@@ -12,6 +12,7 @@
  * has played a master, and every booking copied from it afterwards takes
  * its published plan.
  */
+import { isAdaptiveBank, type QuestionMetadata } from '../../games/adaptive.ts';
 import {
   renderSlides, validateLesson, type HomeworkItem, type LessonPlan, type QuizGame, type Slide, type WorkedExample,
   type TwoTruthsGame, type ErrorHuntGame, type MatchingGame,
@@ -20,9 +21,9 @@ import { readLessons, inTransaction } from '../db.ts';
 import { addMaterial, history, type MaterialRow } from '../materials.ts';
 import { isLibrarySlug } from '../library/slug.ts';
 
-type QuizQuestion = QuizGame['questions'][number];
-type TwoTruthsRound = TwoTruthsGame['rounds'][number];
-type ErrorHuntRound = ErrorHuntGame['rounds'][number];
+type QuizQuestion = QuizGame['questions'][number] & QuestionMetadata;
+type TwoTruthsRound = TwoTruthsGame['rounds'][number] & QuestionMetadata;
+type ErrorHuntRound = ErrorHuntGame['rounds'][number] & QuestionMetadata;
 type MatchPair = MatchingGame['pairs'][number];
 
 /** The games a master's editor offers, beyond its quiz: the four most of
@@ -67,6 +68,15 @@ const lines = (v: unknown): string[] => {
   const out = (Array.isArray(v) ? v : []).map(text).filter(Boolean);
   if (out.length > MAX_ITEMS) throw new TooLong(`יותר מדי שורות — עד ${MAX_ITEMS} ברשימה אחת`);
   return out;
+};
+
+/** Optional practice metadata survives editor round trips; malformed supplied values are refused. */
+const metadata = (r: Record<string, unknown>): QuestionMetadata => {
+  if (r.id === undefined && r.difficulty === undefined) return {};
+  if (typeof r.id !== 'string' || !r.id.trim() || r.id.length > 120 || ![1, 2, 3].includes(Number(r.difficulty)) || typeof r.difficulty !== 'number') {
+    throw new TooLong('מזהה השאלה ורמת הקושי (1–3) אינם תקינים');
+  }
+  return { id: r.id.trim(), difficulty: r.difficulty as 1 | 2 | 3 };
 };
 
 type Result = { ok: true; edit: PlanEdit } | { ok: false; error: string };
@@ -134,7 +144,7 @@ function check(input: unknown): Result {
       if (!Number.isInteger(r.answer) || (r.answer as number) < 0 || (r.answer as number) >= options.length) {
         return { ok: false, error: `בשאלה ${i + 1} לא סומנה תשובה נכונה` };
       }
-      edit.quiz.push({ q, options, answer: r.answer as number, why: text(r.why), hint: text(r.hint) });
+      edit.quiz.push({ ...metadata(r), q, options, answer: r.answer as number, why: text(r.why), hint: text(r.hint) });
     }
   }
 
@@ -158,7 +168,7 @@ function check(input: unknown): Result {
       const blank = statements.findIndex(s => !s);
       if (blank >= 0) return { ok: false, error: `במשפט ${blank + 1} של סבב ${i + 1} אין טקסט` };
       if (!markedIn(r.lieIndex, 3)) return { ok: false, error: `בסבב ${i + 1} לא סומן המשפט השקרי` };
-      edit.twoTruths.push({ statements, lieIndex: r.lieIndex as number, why: text(r.why), hint: text(r.hint) });
+      edit.twoTruths.push({ ...metadata(r), statements, lieIndex: r.lieIndex as number, why: text(r.why), hint: text(r.hint) });
     }
   }
 
@@ -175,7 +185,7 @@ function check(input: unknown): Result {
       const blank = steps.findIndex(s => !s);
       if (blank >= 0) return { ok: false, error: `בשלב ${blank + 1} של סבב ${i + 1} אין טקסט` };
       if (!markedIn(r.badStep, steps.length)) return { ok: false, error: `בסבב ${i + 1} לא סומן השלב השגוי` };
-      edit.errorHunt.push({ problem, steps, badStep: r.badStep as number, why: text(r.why), hint: text(r.hint) });
+      edit.errorHunt.push({ ...metadata(r), problem, steps, badStep: r.badStep as number, why: text(r.why), hint: text(r.hint) });
     }
   }
 
@@ -211,6 +221,11 @@ function check(input: unknown): Result {
     }
   }
 
+  for (const questions of [edit.quiz, edit.twoTruths, edit.errorHunt]) {
+    if (questions?.some(q => q.id !== undefined || q.difficulty !== undefined) && !isAdaptiveBank(questions)) {
+      return { ok: false, error: 'בנק תרגול כולל לפחות 10 שאלות, מזהים ייחודיים ורמת קושי 1–3 לכל שאלה' };
+    }
+  }
   return { ok: true, edit };
 }
 
@@ -226,9 +241,9 @@ export function formPlan(raw: unknown): {
   examples: { problem: string; steps: string[]; answer: string }[];
   /** Null when the plan has no quiz: there is nothing to edit, and the
    *  editor must not offer to create one. */
-  quiz: { q: string; options: string[]; answer: number; why: string; hint: string }[] | null;
-  twoTruths: { statements: string[]; lieIndex: number; why: string; hint: string }[] | null;
-  errorHunt: { problem: string; steps: string[]; badStep: number; why: string; hint: string }[] | null;
+  quiz: (QuestionMetadata & { q: string; options: string[]; answer: number; why: string; hint: string })[] | null;
+  twoTruths: (QuestionMetadata & { statements: string[]; lieIndex: number; why: string; hint: string })[] | null;
+  errorHunt: (QuestionMetadata & { problem: string; steps: string[]; badStep: number; why: string; hint: string })[] | null;
   sequence: string[] | null;
   matching: { left: string; right: string; hint: string }[] | null;
   homework: { task: string; why: string; answer: string }[];
@@ -250,14 +265,14 @@ export function formPlan(raw: unknown): {
     examples: (Array.isArray(r.examples) ? r.examples : []).map(obj)
       .map(e => ({ problem: str(e.problem), steps: list(e.steps), answer: str(e.answer) })),
     quiz: quiz ? (Array.isArray(quiz.questions) ? quiz.questions : []).map(obj).map(q => ({
-      q: str(q.q), options: list(q.options), why: str(q.why), hint: str(q.hint),
+      ...metadata(q), q: str(q.q), options: list(q.options), why: str(q.why), hint: str(q.hint),
       answer: Number.isInteger(q.answer) ? q.answer as number : 0,
     })) : null,
     twoTruths: game('twoTruths', g => (Array.isArray(g.rounds) ? g.rounds : []).map(obj).map(x => ({
-      statements: list(x.statements), lieIndex: index(x.lieIndex), why: str(x.why), hint: str(x.hint),
+      ...metadata(x), statements: list(x.statements), lieIndex: index(x.lieIndex), why: str(x.why), hint: str(x.hint),
     }))),
     errorHunt: game('errorHunt', g => (Array.isArray(g.rounds) ? g.rounds : []).map(obj).map(x => ({
-      problem: str(x.problem), steps: list(x.steps), badStep: index(x.badStep), why: str(x.why), hint: str(x.hint),
+      ...metadata(x), problem: str(x.problem), steps: list(x.steps), badStep: index(x.badStep), why: str(x.why), hint: str(x.hint),
     }))),
     sequence: game('sequence', g => list(g.steps)),
     matching: game('matching', g => (Array.isArray(g.pairs) ? g.pairs : []).map(obj).map(x => ({

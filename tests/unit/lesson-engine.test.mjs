@@ -58,26 +58,27 @@ async function stubAgent(body) {
   const script = join(dir, 'agent');
   await writeFile(script, `#!/bin/sh
 # Drain stdin: the runner writes the prompt there and the real CLI reads it.
-cat > "${dir}/prompt.txt"
+cat > "${dir}/input.txt"
 # Pull the value of -o out of argv, the way codex exec is invoked.
 out=""
 schema=""
 while [ $# -gt 0 ]; do
   case "$1" in -o) out="$2"; shift 2 ;; --output-schema) schema="$2"; shift 2 ;; *) shift ;; esac
 done
+if head -n 1 "${dir}/input.txt" | grep -q '^GENERATION_QUALITY_CRITIQUE'; then
+ cat > "$out" <<'CRITIQUE'
+${JSON.stringify(passingCritique(A_PLAN))}
+CRITIQUE
+ exit 0
+fi
+cp "${dir}/input.txt" "${dir}/prompt.txt"
 ${body}
 `, { mode: 0o755 });
   return { script, dir, promptPath: join(dir, 'prompt.txt') };
 }
 
-const A_PLAN = {
-  learning: (await import('../../src/lib/learning/parabolas.ts')).PARABOLAS,
-  title: 'שברים', gradeContext: 'כיתה ז',
-  slides: [{ heading: 'מה זה שבר', bullets: ['חלק מתוך שלם'] }],
-  examples: [{ problem: '1/2 + 1/4', steps: ['מכנה משותף'], answer: '3/4' }],
-  homework: [{ task: 'תרגיל 1', why: 'תרגול' }],
-  games: {},
-};
+const {generationPlan,passingCritique} = await import('../helpers/generation-plan.mjs');
+const A_PLAN = generationPlan();
 
 const REQUEST = { subject: 'מתמטיקה', request: 'שברים', level: 'כיתה ז', student: 'יובל' };
 
@@ -263,17 +264,17 @@ test('new generation without scene notes fails and retries instead of silently p
 ${JSON.stringify(plan)}
 JSON`);
   await withEnv({ CODEX_BIN: script }, async () => {
-    await assert.rejects(generateLesson(REQUEST), error => error.kind === 'bad-output' && /הערות למורה/.test(error.message));
+    await assert.rejects(generateLesson(REQUEST), error => error.kind === 'bad-output' && /learning\.scenes\[0\]\.presenterNotes/.test(error.message));
   });
 });
 
 test('strict-output null games and optional notes are removed while nullable learning checks remain', async()=>{
-  const wire={...structuredClone(A_PLAN),slides:[{heading:'כותרת',bullets:['תוכן'],note:null}],games:{quiz:null,matching:null}};
+  const wire=structuredClone(A_PLAN);wire.slides[0].note=null;wire.games.quiz=null;wire.games.twoTruths=null;
   const {script}=await stubAgent(`cat > "$out" <<'JSON'
 ${JSON.stringify(wire)}
 JSON`);
   const plan=await withEnv({CODEX_BIN:script},()=>generateLesson(REQUEST));
-  assert.deepEqual(plan.games,{});
+  assert.deepEqual(plan.games,A_PLAN.games);
   assert.equal(Object.hasOwn(plan.slides[0],'note'),false);
   assert.equal(plan.learning.scenes[0].check,null);
 });

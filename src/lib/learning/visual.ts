@@ -9,23 +9,38 @@ export function learningFrameAt(scene: LearningScene, seconds: number): { values
   const next = Math.min(scene.frames.length - 1, index + 1);
   const p = Math.max(0, Math.min(1, (t - index * beat - 1.2) / 1.6));
   const smooth = p * p * (3 - 2 * p);
+  const discrete = ['balance', 'fraction-bar', 'right-triangle', 'function-tangent'].includes(scene.visual);
   return {
-    values: scene.frames[index].values.map((v, i) => scene.visual === 'balance'
+    values: scene.frames[index].values.map((v, i) => discrete
       ? (smooth < .5 ? v : scene.frames[next].values[i])
       : v + (scene.frames[next].values[i] - v) * smooth),
-    frame: p > 0 ? next : index,
+    frame: discrete ? (smooth < .5 ? index : next) : p > 0 ? next : index,
     progress: t / duration,
   };
 }
 
 export function formulaForVisual(kind: VisualKind, values: number[]): string {
-  const n = (v: number) => String(Math.abs(v) < 0.005 ? 0 : Number(v.toFixed(2)));
+  const precise = kind === 'right-triangle' || kind === 'function-tangent';
+  const n = (v: number) => {
+    const value = precise ? String(v) : String(Math.abs(v) < 0.005 ? 0 : Number(v.toFixed(2)));
+    const [mantissa, exponent] = value.split('e');
+    return exponent === undefined ? value : `${mantissa}\\times10^{${Number(exponent)}}`;
+  };
   const sign = (v: number) => v < 0 ? `-${n(-v)}` : `+${n(v)}`;
   if (kind === 'quadratic') {
     const [a, h, k] = values;
     return `y=${a === 1 ? '' : a === -1 ? '-' : n(a)}${h === 0 ? 'x^2' : `(x${sign(-h)})^2`}${k === 0 ? '' : sign(k)}`;
   }
   if (kind === 'linear') return `y=${values[0] === 1 ? '' : values[0] === -1 ? '-' : n(values[0])}x${values[1] === 0 ? '' : sign(values[1])}`;
+  if (kind === 'fraction-bar') return `\\frac{${values[0]}}{${values[1]}}`;
+  if (kind === 'right-triangle') {
+    const base = (v: number) => String(v).includes('e') ? `\\left(${n(v)}\\right)` : n(v);
+    return `c^2=${base(values[0])}^2+${base(values[1])}^2`;
+  }
+  if (kind === 'function-tangent') {
+    const [a,b,c,t] = values;
+    return `f(x)=${n(a)}x^2${sign(b)}x${sign(c)},\\quad x_0=${n(t)}`;
+  }
   if (kind === 'balance') return `${values[0] === 1 ? '' : n(values[0])}x${values[1] === 0 ? '' : sign(values[1])}=${n(values[2])}`;
   if (kind === 'number-line') {
     for (let denominator = 2; denominator <= 12; denominator++) {
@@ -39,7 +54,7 @@ export function formulaForVisual(kind: VisualKind, values: number[]): string {
 /** No captured dependencies: this function is also embedded in standalone HTML/video. */
 export function drawLearningVisual(
   targetSvg: SVGSVGElement, kind: VisualKind, values: number[], xDomain: number[], yDomain: number[],
-  options: { target?: number[]; hide?: boolean; reference?: number[] } = {},
+  options: { target?: number[]; hide?: boolean; reference?: number[]; question?: boolean } = {},
 ): void {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
@@ -71,7 +86,9 @@ export function drawLearningVisual(
   const W = 800, H = 460, left = 58, top = 28, right = 30, bottom = 42;
   const x = (v: number) => left + (v - xDomain[0]) / (xDomain[1] - xDomain[0]) * (W - left - right);
   const y = (v: number) => H - bottom - (v - yDomain[0]) / (yDomain[1] - yDomain[0]) * (H - top - bottom);
-  const label = (v: number) => String(Number(v.toFixed(2))).replace('-', '−');
+  // New numeric givens keep their supplied precision, including very small nonzero values.
+  const precise = kind === 'right-triangle' || kind === 'function-tangent';
+  const label = (v: number) => (precise ? String(v) : String(Number(v.toFixed(2)))).replace('-', '−');
   if (options.hide && !options.target) {
     svg.append(make('circle', { cx: 400, cy: 205, r: 72, class: 'plot-hold' }));
     svg.append(make('text', { x: 400, y: 224, 'text-anchor': 'middle', class: 'plot-question' }, '?'));
@@ -79,6 +96,27 @@ export function drawLearningVisual(
     commit(); return;
   }
   if (kind === 'steps') { commit(); return; }
+  if (kind === 'fraction-bar') {
+    const [part,whole] = values;
+    for (let i=0; i<whole; i++) svg.append(make('rect', {
+      x: 70+i*660/whole, y: 155, width: 660/whole, height: 126,
+      class: i<part ? 'fraction-cell fraction-filled' : 'fraction-cell',
+      'data-partition': i,
+    }));
+    svg.append(make('text', {x:400,y:335,'text-anchor':'middle',class:'plot-note'}, options.question ? 'כל החלקים שווים בגודלם' : `${part} / ${whole}`));
+    commit(); return;
+  }
+  if (kind === 'right-triangle') {
+    const [a,b] = values;
+    const scale = Math.min(530/a, 280/b), ox=135, oy=365, ax=ox+a*scale, by=oy-b*scale;
+    svg.append(make('path',{d:`M${ox} ${by} L${ox} ${oy} L${ax} ${oy} Z`,class:'triangle-shape'}));
+    const mark = Math.min(24,a*scale/4,b*scale/4);
+    svg.append(make('path',{d:`M${ox} ${oy-mark} h${mark} v${mark}`,class:'triangle-angle'}));
+    svg.append(make('text',{x:(ox+ax)/2,y:oy+38,'text-anchor':'middle',class:'plot-coordinate'},label(a)));
+    svg.append(make('text',{x:ox-25,y:(oy+by)/2,'text-anchor':'end',class:'plot-coordinate'},label(b)));
+    svg.append(make('text',{x:(ox+ax)/2+28,y:(oy+by)/2-18,'text-anchor':'middle',class:'plot-coordinate','data-derived':'hypotenuse'},options.question ? '?' : `c ${Number.isInteger(Math.hypot(a,b)) ? '=' : '≈'} ${label(Math.hypot(a,b))}`));
+    commit(); return;
+  }
   if (kind === 'balance') {
     const [coefficient, constant, total] = values;
     svg.append(make('line', { x1: 150, y1: 202, x2: 650, y2: 202, class: 'balance-beam' }));
@@ -140,7 +178,7 @@ export function drawLearningVisual(
     const points: string[] = [];
     for (let i = 0; i <= 240; i++) {
       const vx = xDomain[0] + (xDomain[1] - xDomain[0]) * i / 240;
-      const vy = kind === 'quadratic' ? params[0] * (vx-params[1])**2 + params[2] : params[0]*vx+params[1];
+      const vy = kind === 'quadratic' ? params[0] * (vx-params[1])**2 + params[2] : kind === 'function-tangent' ? params[0]*vx*vx+params[1]*vx+params[2] : params[0]*vx+params[1];
       points.push(`${i ? 'L' : 'M'}${x(vx).toFixed(2)},${Math.max(-2000, Math.min(2000, y(vy))).toFixed(2)}`);
     }
     group.append(make('path', { d: points.join(' '), class: cls }));
@@ -151,6 +189,25 @@ export function drawLearningVisual(
   // hides the student's candidate and its vertex until checking succeeds.
   if (options.hide) { svg.append(group); commit(); return; }
   curve(values, 'plot-curve');
+  if (kind === 'function-tangent') {
+    const [a,b,c,t] = values, height=a*t*t+b*t+c;
+    // Decimal givens cancel exactly: a floating-point epsilon would also erase real small slopes.
+    // Finite scene values bound this arithmetic to a few hundred decimal places.
+    const decimal = (v: number): [bigint, number] => {
+      const [mantissa, power = '0'] = String(v).split('e');
+      const [whole, fraction = ''] = mantissa.split('.');
+      return [BigInt(whole + fraction), Number(power) - fraction.length];
+    };
+    const [av, ae] = decimal(a), [tv, te] = decimal(t), [bv, be] = decimal(b);
+    const exponent = Math.min(ae + te, be);
+    const coefficient = 2n * av * tv * 10n ** BigInt(ae + te - exponent) + bv * 10n ** BigInt(be - exponent);
+    const slope = Number(`${coefficient}e${exponent}`);
+    group.append(make('line',{x1:x(xDomain[0]),y1:y(height+slope*(xDomain[0]-t)),x2:x(xDomain[1]),y2:y(height+slope*(xDomain[1]-t)),class:'plot-tangent'}));
+    group.append(make('circle',{cx:x(t),cy:y(height),r:8,class:'plot-point'}));
+    svg.append(group);
+    svg.append(make('text',{x:400,y:445,'text-anchor':'middle',class:'plot-note','data-derived':'slope'},options.question ? `x = ${label(t)}` : `x = ${label(t)}, m = ${label(slope)}`));
+    commit(); return;
+  }
   const px = kind === 'quadratic' ? values[1] : 0, py = kind === 'quadratic' ? values[2] : values[1];
   group.append(make('path', { d: `M${x(px)} ${zeroY} V${y(py)} H${zeroX}`, class: 'plot-projection' }));
   group.append(make('circle', { cx: x(px), cy: y(py), r: 18, class: 'plot-point-halo' }));

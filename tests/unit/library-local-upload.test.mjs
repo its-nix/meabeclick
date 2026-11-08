@@ -12,27 +12,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 
-const PLAN = {
-  learning: (await import('../../src/lib/learning/parabolas.ts')).PARABOLAS,
-  title: 'שיעור', gradeContext: 'כיתה יא',
-  slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['y = 2x + 1'] })),
-  examples: [{ problem: 'y = 3x', steps: ['m = 3'], answer: '3' }],
-  homework: [{ task: 'א', why: 'w', answer: 'k' }, { task: 'ב', why: 'w', answer: 'k' }],
-  games: {
-    quiz: { title: 'q', subject: 'm', questions: [
-      { q: '1', options: ['a', 'b', 'c'], answer: 0, why: 'הסבר', hint: '' },
-      { q: '2', options: ['a', 'b', 'c'], answer: 1, why: 'הסבר', hint: '' },
-      { q: '3', options: ['a', 'b', 'c'], answer: 2, why: 'הסבר', hint: '' },
-      { q: '4', options: ['a', 'b', 'c'], answer: 0, why: 'הסבר', hint: '' },
-    ] },
-    sequence: { title: 's', subject: 'm', steps: ['1', '2', '3'] },
-  },
-};
+const {generationPlan,passingCritique}=await import('../helpers/generation-plan.mjs');
+const PLAN = generationPlan();
 
 async function setup({ failFirstImports }) {
   const dir = await mkdtemp(join(tmpdir(), 'library-upload-'));
   await writeFile(join(dir, 'plan.json'), JSON.stringify(PLAN));
-  await writeFile(join(dir, 'claude'), `#!/bin/sh\ncat > /dev/null\ncat "${dir}/plan.json"\n`, { mode: 0o755 });
+  await writeFile(join(dir, 'critique.json'), JSON.stringify(passingCritique(PLAN)));
+  await writeFile(join(dir, 'claude'), `#!/bin/sh\ncat > "${dir}/prompt.txt"\nif grep -q '^GENERATION_QUALITY_CRITIQUE' "${dir}/prompt.txt"; then cat "${dir}/critique.json"; else cat "${dir}/plan.json"; fi\n`, { mode: 0o755 });
   /* A fake ssh: the read of production's items (a docker exec) answers {}, an import
      fails its first ${failFirstImports} times (curl's "could not connect",
      exit 7) and then answers 200. */

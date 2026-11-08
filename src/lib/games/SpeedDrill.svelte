@@ -12,12 +12,17 @@
   import { getContext } from 'svelte';
   import { GAME_CONTEXT_KEY, verdict, type GameEngineContext, type GameData } from './engine.ts';
 
-  type Item = { q: string; a: string; options: string[] };
+  import { isAdaptiveBank, selectQuestion, questionEvidence, type QuestionMetadata, type QuestionEvidence } from './adaptive.ts';
+
+  type Item = QuestionMetadata & { q: string; a: string; options: string[] };
   type OptBtn = { text: string; state: 'idle' | 'correct' | 'wrong' };
 
   let { data }: { data: GameData } = $props();
   const engine = getContext<GameEngineContext>(GAME_CONTEXT_KEY);
   const items = (data.items as Item[] | undefined) ?? [];
+  const adaptive = isAdaptiveBank(items);
+  const evidence: QuestionEvidence[] = [];
+  let ended = false;
   const seconds = (data.seconds as number | undefined) ?? 60;
 
   let phase = $state<'intro' | 'playing'>('intro');
@@ -37,8 +42,12 @@
   $effect(() => () => { if (tick) clearInterval(tick); }); // stop the countdown if navigated away mid-drill
 
   function nextQ() {
-    if (!queue.length) queue = engine.shuffle([...items]);
-    cur = queue.pop() ?? null;
+    if (ended) return;
+    if (adaptive) cur = selectQuestion(items, evidence, { timed: true });
+    else {
+      if (!queue.length) queue = engine.shuffle([...items]);
+      cur = queue.pop() ?? null;
+    }
     if (!cur) return;
     answering = false;
     opts = engine.shuffle([...cur.options]).map((text) => ({ text, state: 'idle' as const }));
@@ -56,10 +65,11 @@
   }
 
   function answer(o: OptBtn) {
-    if (answering || !cur) return;
+    if (answering || !cur || ended || left <= 0) return;
     answering = true;
     asked++;
     const ok = o.text === cur.a;
+    if (adaptive) evidence.push(questionEvidence(cur, ok, 0));
     if (ok) {
       score++;
       streak++;
@@ -76,11 +86,13 @@
   }
 
   function end() {
+    if (ended) return;
+    ended = true;
     if (tick) { clearInterval(tick); tick = null; }
     const prevBest = engine.best() ?? 0;
     let line = `הרצף הארוך ביותר: <strong>${bestStreak}</strong> 🔥`;
     if (score > prevBest) line += '<br>שיא אישי חדש! 🏆';
-    engine.finish({ template: 'speed-drill', score, total: Math.max(asked, 1), extraLine: line, missed });
+    engine.finish({ template: 'speed-drill', score, total: Math.max(asked, 1), extraLine: line, missed, ...(adaptive ? { questionEvidence: evidence } : {}) });
   }
 </script>
 

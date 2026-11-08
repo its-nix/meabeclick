@@ -62,6 +62,9 @@ export function spawnAgent(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+    // Decode across chunk boundaries so Hebrew cannot become replacement characters.
+    child.stdout!.setEncoding('utf8');
+    child.stderr!.setEncoding('utf8');
 
     let out = '';
     let err = '';

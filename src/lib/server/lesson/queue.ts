@@ -12,6 +12,7 @@
 import { israelDay, israelToday } from '../../dates.ts';
 import { PLANS } from '../../plans.ts';
 import { TUTOR_PHONE } from '../../contact.ts';
+import { saveGenerationQualityReport } from './quality-store.ts';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import {
@@ -261,7 +262,7 @@ async function run(
     durationMin: booking.durationMin,
   };
 
-  const plan = fromLibrary ? fromLibrary.plan : await generateLesson(meta);
+  const plan = fromLibrary ? fromLibrary.plan : await generateLesson(meta, {onQualityReport: report => saveGenerationQualityReport(slug, report)});
   /* Recorded the moment the library is chosen, before validation: a copy
      is not an engine run whatever becomes of it, and the gate
      (scripts/vision-metrics.mjs) must count neither a held nor a failed

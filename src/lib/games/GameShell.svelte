@@ -139,6 +139,7 @@
       durationSec: secs,
       stars,
       missed: input.missed ?? [],
+      ...(input.questionEvidence ? { questionEvidence: input.questionEvidence } : {}),
       /* Only sent when the template measured it. Omitting it stores NULL,
          which means "no help was on offer" — distinct from 0, "help was
          there and went unused". The suggestion engine relies on telling

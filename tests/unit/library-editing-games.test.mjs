@@ -98,3 +98,19 @@ test('the form gets each game the plan has, and null for the ones it has not', (
   assert.equal(f.errorHunt, null);
   assert.equal(f.matching, null);
 });
+
+test('adaptive metadata survives form normalization and apply while old questions retain exact shape', () => {
+  const questions = Array.from({length:15}, (_,i)=>({id:`q${i}`,difficulty:i%3+1,q:`Q${i}`,options:['a','b'],answer:0,why:'why',hint:'hint'}));
+  const base = { ...core(), games: { quiz: { title: 'Q', subject:'math', questions } } };
+  const form = formPlan(base);
+  assert.equal(form.quiz[0].id, 'q0');
+  assert.equal(form.quiz[0].difficulty, 1);
+  const normalized = normalizeEdit({...core(),quiz:form.quiz});
+  assert.equal(normalized.ok,true);
+  const applied = applyEdit(base,normalized.edit);
+  assert.deepEqual(applied.games.quiz.questions,questions);
+  const short = normalizeEdit({...core(),quiz:form.quiz.slice(0,9)});
+  assert.equal(short.ok,false,'metadata banks cannot silently fall back to legacy short playback');
+  const duplicate = normalizeEdit({...core(),quiz:[...form.quiz.slice(1),form.quiz[1]]});
+  assert.equal(duplicate.ok,false);
+});

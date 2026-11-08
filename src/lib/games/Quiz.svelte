@@ -7,14 +7,26 @@
    */
   import { getContext } from 'svelte';
   import { GAME_CONTEXT_KEY, offersHints, verdict, type GameEngineContext, type GameData } from './engine.ts';
+  import { QUESTION_SESSION_LENGTH, isAdaptiveBank, selectQuestion, questionEvidence, shuffleQuestionOptions, type QuestionMetadata, type QuestionEvidence } from './adaptive.ts';
   import RoundHint from './RoundHint.svelte';
 
-  type Question = { q: string; options: string[]; answer: number; why?: string; hint?: string };
+  type Question = QuestionMetadata & { q: string; options: string[]; answer: number; why?: string; hint?: string };
   type Opt = { text: string; right: boolean; state: 'idle' | 'correct' | 'wrong' };
 
   let { data }: { data: GameData } = $props();
   const engine = getContext<GameEngineContext>(GAME_CONTEXT_KEY);
-  const questions = (data.questions as Question[] | undefined) ?? [];
+  const bank = (data.questions as Question[] | undefined) ?? [];
+  const adaptive = isAdaptiveBank(bank);
+  let questions = $state(adaptive ? bank.slice(0, QUESTION_SESSION_LENGTH) : bank);
+  const evidence: QuestionEvidence[] = [];
+  let roundHintsStart = 0;
+  function selectRound() {
+    if (adaptive) questions[idx] = selectQuestion(bank, evidence)!;
+    roundHintsStart = hintsUsed;
+  }
+  function recordAnswer(correct: boolean) {
+    if (adaptive) evidence.push(questionEvidence(questions[idx], correct, hintsUsed - roundHintsStart));
+  }
 
   let idx = $state(0);
   let score = $state(0);
@@ -27,15 +39,18 @@
   const elapsed = $derived(engine.secs());
 
   function renderQuestion() {
+    selectRound();
     const q = questions[idx];
     answered = false;
     whyText = '';
-    opts = engine.shuffle(q.options.map((text, i) => ({ text, right: i === q.answer, state: 'idle' as const })));
+    const choices = q.options.map((text, i) => ({ text, right: i === q.answer, state: 'idle' as const }));
+    opts = adaptive ? shuffleQuestionOptions(choices, q.id!) : engine.shuffle(choices);
   }
 
   function choose(o: Opt) {
     if (answered) return;
     answered = true;
+    recordAnswer(o.right);
     opts.forEach((x) => { if (x.right) x.state = 'correct'; });
     if (o.right) score++;
     else { o.state = 'wrong'; missed.push(questions[idx].q); }
@@ -46,7 +61,7 @@
   function next() {
     idx++;
     if (idx < questions.length) renderQuestion();
-    else engine.finish({ template: 'quiz', score, total: questions.length, missed, ...(offersHints(questions) ? { hints: hintsUsed } : {}) });
+    else engine.finish({ template: 'quiz', score, total: questions.length, missed, ...(adaptive ? { questionEvidence: evidence } : {}), ...(offersHints(questions) ? { hints: hintsUsed } : {}) });
   }
 
   if (questions.length) {

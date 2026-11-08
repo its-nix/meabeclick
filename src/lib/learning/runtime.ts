@@ -105,25 +105,29 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   function render(values = params, time = elapsed): void {
     const scene = scenes[active], section = sections[active];
     const state = progress(scene.id);
-    const hidden = scene.phase === 'challenge' && !!scene.check && !state.solved;
+    const question = !!scene.questionVisual && !!scene.check && !state.solved;
+    const hidden = (scene.phase === 'challenge' && !!scene.check && !state.solved) || question;
     const svg = query<SVGSVGElement>('[data-plot]', section);
     draw(svg, scene.visual, values, scene.xDomain, scene.yDomain, {
       target: scene.check?.kind === 'graph-target' ? scene.check.target : undefined,
-      hide: hidden,
+      hide: hidden && !question,
+      question,
       reference: scene.visual === 'quadratic' && !hidden && scene.phase !== 'challenge' ? [1, 0, 0] : undefined,
     });
     const f = at(scene as unknown as LearningExperience['scenes'][number], time);
     const katex = (window as unknown as { katex?: { renderToString: (tex: string, opts: object) => string } }).katex;
     const formulaElement = query('[data-formula]', section);
     // Generated formulas are compiled server-side. Only trusted numeric engine output is rendered here.
-    const controlled = scene.visual !== 'steps';
-    if (controlled && katex && (!hidden || scene.check?.kind === 'graph-target')) {
+    const controlled = ['quadratic', 'linear', 'balance', 'number-line'].includes(scene.visual);
+    if (question) {
+      formulaElement.replaceChildren(query<HTMLTemplateElement>('[data-question-formula]', section).content.cloneNode(true));
+    } else if (controlled && katex && (!hidden || scene.check?.kind === 'graph-target')) {
       formulaElement.innerHTML = katex.renderToString(formula(scene.visual, values), { throwOnError: true, trust: false });
     } else {
       const templates = all<HTMLTemplateElement>('[data-formula-template]', section);
       formulaElement.replaceChildren(templates[Math.min(f.frame, templates.length - 1)].content.cloneNode(true));
     }
-    let caption = scene.frames[f.frame].caption;
+    let caption = question ? scene.questionVisual!.caption : scene.frames[f.frame].caption;
     if (manipulated) {
       const numbers = values.map(value => String(Number(value.toFixed(2))));
       if (hidden) caption = 'הנוסחה למעלה מציגה את הערכים שבחרתם. בדקו שהיא מתאימה לגרף היעד.';
@@ -134,8 +138,8 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     rich(query('[data-caption]', section), caption);
     if (scene.visual === 'steps') {
       const step = query('[data-step-formula]', section);
-      step.replaceChildren(all<HTMLTemplateElement>('[data-formula-template]', section)[f.frame].content.cloneNode(true));
-      rich(query('[data-step-caption]', section), scene.frames[f.frame].caption);
+      step.replaceChildren((question ? query<HTMLTemplateElement>('[data-question-formula]', section) : all<HTMLTemplateElement>('[data-formula-template]', section)[f.frame]).content.cloneNode(true));
+      rich(query('[data-step-caption]', section), caption);
     }
     const coordinate = query('[data-coordinate]', section);
     coordinate.textContent = hidden ? 'האתגר שלכם' : scene.visual === 'quadratic'
@@ -176,12 +180,14 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     if (focus) { query<HTMLElement>('h1', section).focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: reducedMotion ? 'instant' : 'smooth' }); }
   }
 
-  const localGrade = (check: LearningCheck, value: unknown): boolean => {
+  const localGrade = (check: LearningCheck, value: unknown, relativeTolerance = false): boolean => {
     if (check.kind === 'graph-target') return Array.isArray(value) && Array.isArray(check.answer) && value.length === check.answer.length && check.answer.every((n, i) => typeof value[i] === 'number' && Math.abs(n-value[i]) < .025);
     const normalized = String(value ?? '').trim().replace(/[−–]/g, '-').replace(/,/g, '.').replace(/\s/g, '').replace(/[٠-٩]/g, c => String(c.charCodeAt(0)-0x660));
     if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:\/[+-]?(?:\d+(?:\.\d*)?|\.\d+))?$/.test(normalized)) return false;
     const [a, b] = normalized.split('/').map(Number), n = b === undefined ? a : a / b;
-    return Number.isFinite(n) && typeof check.answer === 'number' && Math.abs(n-check.answer) < 1e-7;
+    if (!Number.isFinite(n) || typeof check.answer !== 'number') return false;
+    const tolerance = relativeTolerance ? Math.min(1e-7, Math.abs(check.answer) * 1e-7) : 1e-7;
+    return n === check.answer || Math.abs(n-check.answer) < tolerance;
   };
 
   async function send(event: Pending): Promise<boolean> {
@@ -211,7 +217,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       if (action === 'hint') state.hints = Math.min(scene.check?.hints.length ?? 0, state.hints+1);
       if (action === 'answer' && config.demoChecks?.[scene.id]) {
         state.attempts++;
-        const correct = localGrade(config.demoChecks[scene.id], value);
+        const correct = localGrade(config.demoChecks[scene.id], value, ['fraction-bar', 'right-triangle', 'function-tangent'].includes(scene.visual));
         state.solved ||= correct;
         feedback(correct ? config.demoChecks[scene.id].success : scene.check!.retry, correct ? 'success' : 'retry');
         if (correct) { render(); query('[data-next-label]').textContent = 'ממשיכים'; }
@@ -339,7 +345,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     pause();
     all<SVGSVGElement>('[data-print-plot]').forEach(svg => {
       const scene = scenes.find(s => s.id === svg.dataset.printPlot)!;
-      draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: true });
+      draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: !scene.questionVisual, question: !!scene.questionVisual });
     });
   });
   document.addEventListener('keydown', event => {

@@ -22,14 +22,26 @@
    */
   import { getContext } from 'svelte';
   import { GAME_CONTEXT_KEY, offersHints, verdict, type GameEngineContext, type GameData } from './engine.ts';
+  import { QUESTION_SESSION_LENGTH, isAdaptiveBank, selectQuestion, questionEvidence, type QuestionMetadata, type QuestionEvidence } from './adaptive.ts';
   import RoundHint from './RoundHint.svelte';
 
-  type Round = { prompt: string; mainLabel?: string; main: number[]; options: number[][]; answer: number; why?: string; hint?: string };
+  type Round = QuestionMetadata & { prompt: string; mainLabel?: string; main: number[]; options: number[][]; answer: number; why?: string; hint?: string };
   type OptBtn = { svg: string; label: string; correct: boolean; state: 'idle' | 'correct' | 'wrong' };
 
   let { data }: { data: GameData } = $props();
   const engine = getContext<GameEngineContext>(GAME_CONTEXT_KEY);
-  const rounds = (data.rounds as Round[] | undefined) ?? [];
+  const bank = (data.rounds as Round[] | undefined) ?? [];
+  const adaptive = isAdaptiveBank(bank);
+  let rounds = $state(adaptive ? bank.slice(0, QUESTION_SESSION_LENGTH) : bank);
+  const evidence: QuestionEvidence[] = [];
+  let roundHintsStart = 0;
+  function selectRound() {
+    if (adaptive) rounds[idx] = selectQuestion(bank, evidence)!;
+    roundHintsStart = hintsUsed;
+  }
+  function recordAnswer(correct: boolean) {
+    if (adaptive) evidence.push(questionEvidence(rounds[idx], correct, hintsUsed - roundHintsStart));
+  }
 
   let idx = $state(0);
   let score = $state(0);
@@ -79,6 +91,7 @@
   }
 
   function renderRound() {
+    selectRound();
     answered = false;
     whyText = '';
     const r = rounds[idx];
@@ -94,6 +107,7 @@
   function choose(o: OptBtn) {
     if (answered) return;
     answered = true;
+    recordAnswer(o.correct);
     opts.forEach((x) => { if (x.correct) x.state = 'correct'; });
     if (o.correct) score++;
     else { o.state = 'wrong'; missed.push(rounds[idx].prompt); }
@@ -105,7 +119,7 @@
   function next() {
     idx++;
     if (idx < rounds.length) renderRound();
-    else engine.finish({ template: 'graph-match', score, total: rounds.length, missed, ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
+    else engine.finish({ template: 'graph-match', score, total: rounds.length, missed, ...(adaptive ? { questionEvidence: evidence } : {}), ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
   }
 
   if (rounds.length) {

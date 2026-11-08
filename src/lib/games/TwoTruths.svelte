@@ -3,14 +3,26 @@
   /** Port of games/two-truths.html. */
   import { getContext } from 'svelte';
   import { GAME_CONTEXT_KEY, offersHints, verdict, type GameEngineContext, type GameData } from './engine.ts';
+  import { QUESTION_SESSION_LENGTH, isAdaptiveBank, selectQuestion, questionEvidence, shuffleQuestionOptions, type QuestionMetadata, type QuestionEvidence } from './adaptive.ts';
   import RoundHint from './RoundHint.svelte';
 
-  type Round = { statements: string[]; lieIndex: number; why: string; hint?: string };
+  type Round = QuestionMetadata & { statements: string[]; lieIndex: number; why: string; hint?: string };
   type Item = { text: string; isLie: boolean; state: 'idle' | 'correct' | 'wrong' };
 
   let { data }: { data: GameData } = $props();
   const engine = getContext<GameEngineContext>(GAME_CONTEXT_KEY);
-  const rounds = (data.rounds as Round[] | undefined) ?? [];
+  const bank = (data.rounds as Round[] | undefined) ?? [];
+  const adaptive = isAdaptiveBank(bank);
+  let rounds = $state(adaptive ? bank.slice(0, QUESTION_SESSION_LENGTH) : bank);
+  const evidence: QuestionEvidence[] = [];
+  let roundHintsStart = 0;
+  function selectRound() {
+    if (adaptive) rounds[idx] = selectQuestion(bank, evidence)!;
+    roundHintsStart = hintsUsed;
+  }
+  function recordAnswer(correct: boolean) {
+    if (adaptive) evidence.push(questionEvidence(rounds[idx], correct, hintsUsed - roundHintsStart));
+  }
 
   let idx = $state(0);
   let score = $state(0);
@@ -23,15 +35,18 @@
   const elapsed = $derived(engine.secs());
 
   function renderRound() {
+    selectRound();
     answered = false;
     whyText = '';
     const r = rounds[idx];
-    items = engine.shuffle(r.statements.map((text, i) => ({ text, isLie: i === r.lieIndex, state: 'idle' as const })));
+    const choices = r.statements.map((text, i) => ({ text, isLie: i === r.lieIndex, state: 'idle' as const }));
+    items = adaptive ? shuffleQuestionOptions(choices, r.id!) : engine.shuffle(choices);
   }
 
   function choose(it: Item) {
     if (answered) return;
     answered = true;
+    recordAnswer(it.isLie);
     items.forEach((x) => { if (x.isLie) x.state = 'correct'; });
     if (it.isLie) score++;
     else {
@@ -45,7 +60,7 @@
   function next() {
     idx++;
     if (idx < rounds.length) renderRound();
-    else engine.finish({ template: 'two-truths', score, total: rounds.length, missed, ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
+    else engine.finish({ template: 'two-truths', score, total: rounds.length, missed, ...(adaptive ? { questionEvidence: evidence } : {}), ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
   }
 
   if (rounds.length) {
@@ -92,7 +107,7 @@
   .opt { line-height: 1.5; }
   .tag {
     display: inline-block; font-size: 0.72rem; font-weight:600;
-    border-radius: 999px; padding: 1px 9px; margin-left: 7px;
+    border-radius: 999px; padding: 1px 9px; margin-inline-end: 7px;
     background: var(--danger-fill); color: #fff;
   }
 </style>

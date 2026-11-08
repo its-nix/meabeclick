@@ -3,7 +3,7 @@
 import { readFile, writeFile, mkdtemp, rm, rename } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { validateManifest, readVerifiedPlan, validatePlan, sourceFingerprint, LEGACY_SOURCE_FILES } from './learning-review-validation.mjs';
+import { validateManifest, readVerifiedPlan, readVerifiedQualityReport, validatePlan, sourceFingerprint, LEGACY_SOURCE_FILES } from './learning-review-validation.mjs';
 const args=process.argv.slice(2),replacements=[];
 let baselineDirectory,destination='src/lib/server/learning-review-corpus.json',hasDestination=false;
 for(let i=0;i<args.length;i++){
@@ -35,7 +35,8 @@ try {
     if(!chosen)throw Error(`No validated generation available: ${initial.brief.id}`);
     const item=chosen.manifest.cases.find(c=>c.brief.id===initial.brief.id);
     const plan=await readVerifiedPlan(chosen.out,item);await validatePlan(plan);
-    cases.push({brief:item.brief,plan});
+    const qualityReport=await readVerifiedQualityReport(chosen.out,item,plan,chosen.manifest.config.qualityReportsRequired===true);
+    cases.push({brief:item.brief,plan,...(qualityReport?{qualityReport}:{})});
     metadata.push({...item,generationConfig:chosen.manifest.config,sourceBatch:chosen.manifest.batch});
   }
   const manifest={...baseline,cases:metadata,assembledAt:new Date().toISOString(),validatedWithSource:await sourceFingerprint(),generationVersions:versions.map(v=>({batch:v.manifest.batch,config:v.manifest.config,sourceVerification:v.manifest.sourceVerification,failedCases:v.manifest.cases.filter(c=>c.status==='failed').map(c=>({id:c.brief.id,error:c.error}))})),mixedSourceVersions:new Set(metadata.map(c=>c.generationConfig.sourceFingerprint)).size>1};

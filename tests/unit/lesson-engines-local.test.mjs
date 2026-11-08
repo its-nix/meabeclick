@@ -18,14 +18,8 @@ process.env.DATA_DIR = await mkdtemp(join(tmpdir(), 'lesson-engines-local-'));
 const { lessonEngine } = await import('../../src/lib/server/lesson/engine.ts');
 const { generateLesson, extractJsonObject } = await import('../../src/lib/server/lesson/prep.ts');
 
-const A_PLAN = {
-  learning: (await import('../../src/lib/learning/parabolas.ts')).PARABOLAS,
-  title: 'פונקציה לינארית', gradeContext: '4 יח"ל',
-  slides: [{ heading: 'שיפוע', bullets: ['y = mx + b'] }],
-  examples: [{ problem: 'y = 2x + 1', steps: ['m = 2'], answer: 'שיפוע 2' }],
-  homework: [{ task: 'שרטטו y = x - 3', why: 'תרגול', answer: 'ישר דרך (0,-3)' }],
-  games: {},
-};
+const {generationPlan,passingCritique} = await import('../helpers/generation-plan.mjs');
+const A_PLAN = generationPlan();
 const REQUEST = { subject: 'מתמטיקה', request: 'פונקציה לינארית', level: 'כיתה יא', student: '' };
 
 const KEYS = ['LESSON_ENGINE', 'CLAUDE_BIN', 'OPENCODE_BIN', 'CODEX_BIN', 'LESSON_MODEL', 'LESSON_TIMEOUT_MINUTES'];
@@ -45,7 +39,19 @@ async function stub(body) {
   const script = join(dir, 'engine');
   await writeFile(script, `#!/bin/sh
 printf '%s\\n' "$@" > "${dir}/argv.txt"
-cat > "${dir}/stdin.txt"
+cat > "${dir}/input.txt"
+previous=""
+for arg in "$@"; do
+ if [ "$previous" = '-f' ]; then cp "$arg" "${dir}/input.txt"; fi
+ previous="$arg"
+done
+if head -n 1 "${dir}/input.txt" | grep -q '^GENERATION_QUALITY_CRITIQUE'; then
+ cat <<'CRITIQUE'
+${JSON.stringify(passingCritique(A_PLAN))}
+CRITIQUE
+ exit 0
+fi
+cp "${dir}/input.txt" "${dir}/stdin.txt"
 ${body}
 `, { mode: 0o755 });
   const read = (f) => readFile(join(dir, f), 'utf8');

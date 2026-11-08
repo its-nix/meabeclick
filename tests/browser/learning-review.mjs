@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import corpus from '../../src/lib/server/learning-review-corpus.json' with { type:'json' };
 import { startServer, login } from '../characterization/harness.mjs';
 import { TEMPLATE_FILES } from '../../src/lib/server/lesson/prep.ts';
+import { isAdaptiveBank, QUESTION_SESSION_LENGTH } from '../../src/lib/games/adaptive.ts';
 
 const evidence=process.env.EVIDENCE_DIR??join(tmpdir(),'meabeclick-review-evidence');
 await mkdir(evidence,{recursive:true});
@@ -74,10 +75,11 @@ try{
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${item.brief.id}/${key} overflow`);
       if(key==='quiz'||key==='twoTruths'){
         const rounds=key==='quiz'?body.questions:body.rounds;
-        for(let i=0;i<rounds.length;i++){
+        const count=isAdaptiveBank(rounds)?QUESTION_SESSION_LENGTH:rounds.length;
+        for(let i=0;i<count;i++){
           assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0,'valid round math');
           await page.locator('.opt').first().click();
-          await page.getByRole('button',{name:i+1<rounds.length?'הבא ←':'סיום 🏁',exact:true}).click();
+          await page.getByRole('button',{name:i+1<count?'הבא ←':'סיום 🏁',exact:true}).click();
         }
         await page.locator('#done').waitFor();
       }

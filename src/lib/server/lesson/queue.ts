@@ -1,3 +1,8 @@
+import { latestTopicReport } from '../reports/topics.ts';
+import { reportForBooking } from '../reports/store.ts';
+import { preparationCoverageFor } from '../reports/preparation.ts';
+import { learningTopicProblems } from '../../learning/model.ts';
+import type { TopicReportRevision } from '../reports/topics.ts';
 /**
  * Fires lesson generation the moment a lesson is booked.
  *
@@ -13,13 +18,14 @@ import { israelDay, israelToday } from '../../dates.ts';
 import { PLANS } from '../../plans.ts';
 import { TUTOR_PHONE } from '../../contact.ts';
 import { saveGenerationQualityReport } from './quality-store.ts';
+import { writeFileSync } from 'node:fs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import {
   generateLesson, renderSlides, validateLesson, TEMPLATE_FILES, toTemplateShape,
   type LessonPlan,
 } from './prep.ts';
-import { createLesson, finishLesson } from '../db.ts';
+import { createLesson, finishLesson, inTransaction } from '../db.ts';
 /* getStudentByCode, NOT db.ts's same-named getStudent: that one reads
    `FROM students`, the table students_v2 retired. See appendToPortal. */
 import { getStudentByCode } from '../entities.ts';
@@ -126,7 +132,8 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
      cap applies to it — its lessons keep coming even when the engine
      cannot. See library/use.ts. */
   const target: TargetSkill | null = targetSkillFor(opts.enrolledCode ?? null, booking.subject);
-  const fromLibrary = target ? libraryPlanFor(target.templateId, target.key) : null;
+  const priorCoverage = preparationCoverageFor(opts.enrolledCode ?? null,booking.subject);
+  const fromLibrary = target && !priorCoverage ? libraryPlanFor(target.templateId, target.key) : null;
 
   if (!fromLibrary) {
     // Structural pre-flight only — "has anyone configured credentials", not
@@ -161,7 +168,7 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
   });
 
   // Intentionally not awaited.
-  run(slug, booking, opts, target, fromLibrary).catch(err => {
+  run(slug, booking, opts, target, fromLibrary, priorCoverage).catch(err => {
     // The engine's own words go to the log and ONLY to the log — see the
     // warning on LessonGenerationError.detail.
     const kind = err instanceof LessonGenerationError ? err.kind : 'unclassified';
@@ -251,8 +258,11 @@ async function run(
   /* The master's published plan when the target skill is prepared: then
      this lesson is a copy of it, and no engine runs. */
   fromLibrary: { masterSlug: string; plan: LessonPlan } | null,
+  priorCoverage: TopicReportRevision | null = null,
 ): Promise<void> {
 
+  // Capture before generation/publishing awaits; a newer filing invalidates broad practice.
+  const reportRevision=opts.bookingId ? reportForBooking(opts.bookingId)?.filing_revision??0 : 0;
   const meta: RunMeta = {
     subject: booking.subject,
     level:   booking.level ?? '',
@@ -262,7 +272,8 @@ async function run(
     durationMin: booking.durationMin,
   };
 
-  const plan = fromLibrary ? fromLibrary.plan : await generateLesson(meta, {onQualityReport: report => saveGenerationQualityReport(slug, report)});
+  const knownSkillKeys=target?[target.key]:[];
+  const plan = fromLibrary ? fromLibrary.plan : await generateLesson({...meta,priorCoverage,knownSkillKeys}, {onQualityReport: report => saveGenerationQualityReport(slug, report)});
   /* Recorded the moment the library is chosen, before validation: a copy
      is not an engine run whatever becomes of it, and the gate
      (scripts/vision-metrics.mjs) must count neither a held nor a failed
@@ -273,7 +284,7 @@ async function run(
 
   // Structurally broken material is held rather than published — a game with
   // badStep out of range would break in a child's hands.
-  const problems = validateLesson(plan);
+  const problems = [...validateLesson(plan),...learningTopicProblems(plan.learning,knownSkillKeys)];
   if (problems.length) {
     await publishDraftOnly(slug, plan, meta);
     finishLesson(slug, {
@@ -300,7 +311,7 @@ async function run(
      clean run. The status stays `ready` because the material is real and
      its slides render; `problem` is what records the missing delivery. */
   const onPortal = await appendToPortal(opts.enrolledCode ?? null, plan, published, target, {
-    bookingId: opts.bookingId ?? null, heldUntil: heldUntilFor(booking.end, booking.start),
+    bookingId: opts.bookingId ?? null, heldUntil: heldUntilFor(booking.end, booking.start), reportRevision,
     lessonDate: booking.start ? israelDay(booking.start) : null,
   });
   if (!onPortal) {
@@ -429,17 +440,22 @@ export async function appendToPortal(
   code: string | null, plan: LessonPlan, published: Published,
   target: TargetSkill | null = null,
   /** Booking-time homework is held for its lesson (migration 018). */
-  hold: { bookingId: number | null; heldUntil: string | null; lessonDate?: string | null } = { bookingId: null, heldUntil: null },
+  hold: { bookingId: number | null; heldUntil: string | null; lessonDate?: string | null; reportRevision?: number } = { bookingId: null, heldUntil: null },
 ): Promise<boolean> {
   const student = code ? getStudentByCode(code) : null;
   if (!student) return false;
 
+  const expectedRevision=hold.reportRevision ?? (hold.bookingId ? reportForBooking(hold.bookingId)?.filing_revision??0 : 0);
   const path = join(portalDir(), `${student.code}.json`);
   let data: any;
   try { data = JSON.parse(await readFile(path, 'utf8')); } catch { return false; }
+  return inTransaction(()=>{
   if (plan.learning) assignLearning(published.slug, student.id, {...hold,nodeId:target?.id ?? null});
 
-  data.games = [...published.games, ...(data.games ?? [])].slice(0, 20);
+  // Generated games have no independently verified topic provenance. Recheck
+  // after the async read; explicit or superseded scope cannot publish them.
+  const releaseGames=hold.bookingId===null || (!latestTopicReport(hold.bookingId) && (reportForBooking(hold.bookingId)?.filing_revision??0)===expectedRevision);
+  if(releaseGames)data.games = [...published.games, ...(data.games ?? [])].slice(0, 20);
 
   /* Homework goes to the `homework` TABLE, not into this file.
      
@@ -488,7 +504,7 @@ export async function appendToPortal(
      comment above). So their link to a skill lives in its own table, keyed
      per student because a data id identifies a game, not a child's copy of
      one. */
-  if (target) {
+  if (target && releaseGames) {
     for (const g of published.games) linkGameToSkill(student.id, g.dataId, target.id);
   }
 
@@ -501,8 +517,10 @@ export async function appendToPortal(
   ].slice(0, 20);
   data.updated = today();
 
-  await writeFile(path, JSON.stringify(data, null, 2), 'utf8');
+  // No await between scope/revision checks and the final file/evidence write.
+  writeFileSync(path, JSON.stringify(data, null, 2), 'utf8');
   return true;
+  });
 }
 
 async function notify(opts: TriggerOpts, text: string): Promise<void> {

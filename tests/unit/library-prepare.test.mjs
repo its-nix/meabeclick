@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {generationPlan} from '../helpers/generation-plan.mjs';
 
 const dir = await mkdtemp(join(tmpdir(), 'library-'));
 process.env.DATA_DIR = dir;
@@ -55,6 +56,7 @@ test("preparing a skill generates its master once, at the template's grade, aime
   assert.equal(asked[0].skill, 'שאלות מילוליות בעזרת משוואות ממעלה ראשונה');
   assert.equal(asked[0].level, 'כיתה ח');
   assert.equal(asked[0].subject, 'מתמטיקה');
+  assert.deepEqual(asked[0].knownSkillKeys,['alg.eq.word']);
 
   // An ordinary lesson underneath: row, published plan, slides on disk.
   const row = readLessons().find(l => l.slug === item.slug);
@@ -143,4 +145,13 @@ test('a preparation cut short by a restart ends as failed, saying so — never s
   assert.equal(S.itemFor('math-7', 'b').status, 'failed');
   assert.equal(S.itemFor('math-7', 'c').status, 'ready');
   assert.equal(readLessons().find(l => l.slug === 'lib-cut-short').status, 'failed', 'its master lesson is not left generating');
+});
+
+test('an injected library plan cannot publish topic links outside its assigned skill',async()=>{
+  const generated=generationPlan();
+  generated.learning.topics=[{id:'topic',title:'נושא',sceneIds:[generated.learning.scenes[0].id],skillKeys:['foreign']}];
+  const item=await P.prepareSkill('math-8','alg.eq.word',{generate:async()=>generated});
+  assert.equal(item.status,'held');
+  assert.equal(latestPublished(item.slug,'plan'),null);
+  assert.match(item.problem,/topic manifest membership/);
 });

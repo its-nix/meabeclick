@@ -1,13 +1,14 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { initialCoverage, type ReportMaterial, type TopicChoice } from '$lib/report-coverage.ts';
   import { safeTutorReturn } from '$lib/tutor-return.ts';
   /**
    * The end-of-lesson report form: one lesson, filed once and correctable
    * afterwards.
    *
    * Every write here follows the plan page's "never optimistic" rule: POST,
-   * then navigate only once the server has confirmed the write. Nothing on
-   * this screen is pre-ticked, and a ticked skill starts with no status —
+   * then navigate only once the server has confirmed the write. Understanding
+   * starts unticked, and a ticked skill starts with no status —
    * a hurried submit must never record a judgement she did not make, so
    * the button stays disabled until every ticked row has one.
    */
@@ -26,6 +27,7 @@
   // boundary even for a type.
   interface SkillRow {
     id: number;
+    key: string;
     title: string;
     topic: string;
     branch: string;
@@ -56,6 +58,13 @@
   // below, so the server rendered a blank textarea and only client-side
   // hydration ever wrote the real value into it.
   let note = $state(untrack(() => (data.reportable ? data.report?.note : null) ?? ''));
+  let coverage = $state(untrack(() => initialCoverage(
+    data.reportable ? data.reportMaterials : [], data.reportable ? data.topicReport : null,
+  )));
+  let coverageConfirmed = $state(false);
+  let allSkills = $derived([...suggested, ...rest]);
+  let editableTopics = $derived(coverage.selection === 'manual' || coverage.material?.topics.length === 0);
+  let coveredCount = $derived(coverage.topics.filter(topic => topic.covered).length);
   let saving = $state(false);
   let formError = $state<string | null>(null);
   let searchOpen = $state(false);
@@ -72,6 +81,8 @@
     ticked = Object.fromEntries(all.map(s => [s.id, false]));
     statusChoice = Object.fromEntries(all.map(s => [s.id, '']));
     note = data.report?.note ?? '';
+    coverage = initialCoverage(data.reportMaterials, data.topicReport);
+    coverageConfirmed = false;
     saving = false;
     formError = null;
     searchOpen = false;
@@ -91,8 +102,40 @@
   // submit as though it could succeed. A note-only submit is unaffected.
   let noPlanToRecordAgainst = $derived((!data.reportable || data.planId === null) && tickedIds.length > 0);
   let canSubmit = $derived(
-    !saving && !noPlanToRecordAgainst && tickedIds.every(id => !!statusChoice[id]),
+    !saving && !noPlanToRecordAgainst && !!coverage.selection && coverageConfirmed
+      && coverage.topics.every(topic => !!topic.title.trim())
+      && tickedIds.every(id => !!statusChoice[id]),
   );
+
+  function selectSource(e: Event) {
+    if (!data.reportable) return;
+    const selection = (e.currentTarget as HTMLSelectElement).value;
+    if (selection === 'filed') coverage = initialCoverage(data.reportMaterials, data.topicReport);
+    else {
+      const material: ReportMaterial | null = selection.startsWith('material:')
+        ? data.reportMaterials.find(item => `material:${item.slug}` === selection) ?? null : null;
+      coverage = { selection, material, topics: material?.topics.map(topic => ({
+        ...topic, sceneIds: [...topic.sceneIds], skillKeys: [...topic.skillKeys], covered: false, comment: null,
+      })) ?? [] };
+    }
+    coverageConfirmed = false;
+  }
+
+  function addTopic() {
+    coverage.topics.push({ id: `manual-${crypto.randomUUID()}`, title: '', sceneIds: [], skillKeys: [], covered: false, comment: null });
+    coverageConfirmed = false;
+  }
+
+  function changeComment(topic: TopicChoice, e: Event) {
+    topic.comment = (e.currentTarget as HTMLTextAreaElement).value || null;
+    coverageConfirmed = false;
+  }
+
+  function changeScene(topic: TopicChoice, e: Event) {
+    const scene = (e.currentTarget as HTMLSelectElement).value;
+    topic.sceneIds = scene ? [scene] : [];
+    coverageConfirmed = false;
+  }
 
   function toggle(id: number) {
     ticked[id] = !ticked[id];
@@ -142,6 +185,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: data.booking.id,
+          expectedRevision: data.reportable ? data.report?.filing_revision ?? 0 : 0,
+          coverage: coverage.selection === 'legacy' ? undefined : {
+            source: coverage.material ? 'material' : 'manual',
+            ...(coverage.material ? { materialSlug: coverage.material.slug, materialId: coverage.material.materialId } : {}),
+            topics: coverage.topics.map(topic => ({ ...topic, title: editableTopics ? topic.title.trim() : topic.title, comment: topic.comment?.trim() || null })),
+          },
           note: note.trim() ? note.trim() : null,
           entries: tickedIds.map(id => ({ nodeId: id, status: statusChoice[id] })),
         }),
@@ -168,7 +217,7 @@
   <title>דיווח שיעור — {data.student.name}</title>
 </svelte:head>
 
-<main class="page">
+<main class="page" id="workspace-content">
   <nav class="return-nav" aria-label="חזרה לסביבת העבודה">
   <a class="back" href={returnTo}>חזרה לסביבת העבודה</a>
   <a class="back overview-link" href="/app/dashboard">סקירה תפעולית</a>
@@ -181,6 +230,114 @@
 
   {#if formError}
     <p class="banner error" role="alert">{formError}</p>
+  {/if}
+
+  {#if data.reportable}
+    {#if data.topicHistory.length}
+      <details class="report-history">
+        <summary>היסטוריית דיווח · {data.topicHistory.length} גרסאות</summary>
+        <p class="section-help">הגרסה האחרונה קובעת את הכיסוי הנוכחי. הגרסאות הקודמות נשמרות לעיון בלבד.</p>
+        {#each data.topicHistory.toReversed() as revision (revision.revision)}
+          <article class="history-revision" aria-label={`דיווח גרסה ${revision.revision}`}>
+            <h3 class="topic-title">דיווח גרסה {revision.revision}{revision.revision === data.topicReport?.revision ? ' · נוכחי' : ' · קודם'}</h3>
+            <p class="material-provenance">{revision.snapshot ? `${revision.snapshot.title} · גרסת מצגת ${revision.snapshot.version}` : 'מקור: דיווח ידני ללא מצגת'}</p>
+            {#if revision.topics.length}
+              <ul>
+                {#each revision.topics as topic (topic.id)}
+                  <li><span class="history-status">{topic.covered ? 'נלמד' : 'לא נלמד'}</span> · <bdi>{topic.title}</bdi>
+                    {#if topic.comment}<p class="history-comment" dir="auto">{topic.comment}</p>{/if}
+                  </li>
+                {/each}
+              </ul>
+            {:else}<p class="section-help">רשימת נושאים ריקה · לא נלמד אף נושא.</p>{/if}
+          </article>
+        {/each}
+      </details>
+    {/if}
+    <section class="coverage-section" aria-labelledby="coverage-heading">
+      <h2 id="coverage-heading" class="section-title">מה עברתם?</h2>
+      <p class="section-help">סמנו את הנושאים שנלמדו בפועל. ההבנה נרשמת בנפרד בהמשך.</p>
+      <label class="field">
+        <span>מקור הדיווח</span>
+        <select aria-label="מקור הדיווח" value={coverage.selection} onchange={selectSource} disabled={saving}>
+          <option value="" disabled>בחרו את המצגת שנלמדה</option>
+          {#if data.topicReport?.snapshot}
+            <option value="filed">הגרסה שנשמרה בדיווח · {data.topicReport.snapshot.title} · גרסה {data.topicReport.snapshot.version}</option>
+          {/if}
+          {#each data.reportMaterials as material (material.slug)}
+            <option value={`material:${material.slug}`}>{material.title} · גרסה {material.version}</option>
+          {/each}
+          <option value="manual">דיווח נושאים ידני ללא מצגת</option>
+          <option value="legacy" disabled={!!data.topicReport}>דיווח לפי תכנית בלבד · כיסוי לא ידוע (ישן)</option>
+        </select>
+      </label>
+      {#if coverage.material}
+        <p class="material-provenance">{coverage.material.title} · גרסה {coverage.material.version}
+          {#if coverage.selection === 'filed'} · גרסה שמורה בדיווח{/if}
+        </p>
+        {#if coverage.selection === 'filed'}
+          <p class="section-help">התיקון שומר את נושאי הגרסה המקורית. קישורי השלבים פותחים את אותה גרסה שנשמרה.</p>
+        {/if}
+      {/if}
+      {#if coverage.selection === 'legacy'}
+        <p class="filed-summary">כיסוי לא ידוע: בדיווח הישן לא נשמרת רשימת נושאים שנלמדו או לא נלמדו.</p>
+      {:else if coverage.selection}
+        {#if editableTopics}
+          <p class="section-help">{coverage.material ? 'למצגת הזו אין רשימת נושאים. הוסיפו את הנושאים שלימדתם, בלי לשנות את המצגת.' : 'אפשר להוסיף נושאים ידנית, או לאשר שלא נלמד אף נושא.'}</p>
+        {/if}
+        <div class="topic-list">
+          {#each coverage.topics as topic, index (topic.id)}
+            <article class="topic-card">
+              {#if editableTopics}
+                <label class="field"><span>שם הנושא {index + 1}</span>
+                  <input aria-label={`שם הנושא ${index + 1}`} dir="auto" maxlength="200" bind:value={topic.title} oninput={() => coverageConfirmed = false} disabled={saving} />
+                </label>
+              {:else}
+                <h3 class="topic-title" dir="auto">{topic.title}</h3>
+              {/if}
+              <label class="coverage-check">
+                <input type="checkbox" bind:checked={topic.covered} onchange={() => coverageConfirmed = false} disabled={saving} />
+                <span>נלמד{topic.title ? `: ${topic.title}` : ''}</span>
+              </label>
+              {#if editableTopics}
+                <div class="topic-links-editor">
+                  {#if coverage.material?.sceneIds.length}
+                    <label class="field"><span>שלב במצגת (לא חובה)</span>
+                      <select aria-label={`שלב עבור נושא ${index + 1}`} value={topic.sceneIds[0] ?? ''} onchange={(e) => changeScene(topic, e)} disabled={saving}>
+                        <option value="">ללא קישור לשלב</option>
+                        {#each coverage.material.sceneIds as scene, sceneIndex}<option value={scene}>שלב {sceneIndex + 1}</option>{/each}
+                      </select>
+                    </label>
+                  {/if}
+                  {#if allSkills.length}
+                    <label class="field"><span>קישור ליכולות בתכנית (לא חובה)</span>
+                      <select multiple aria-label={`יכולות עבור נושא ${index + 1}`} bind:value={topic.skillKeys} onchange={() => coverageConfirmed = false} disabled={saving}>
+                        {#each allSkills as skill (skill.id)}<option value={skill.key}>{skill.title}</option>{/each}
+                      </select>
+                    </label>
+                  {/if}
+                </div>
+              {/if}
+              {#if coverage.material && topic.sceneIds.length}
+                <nav class="scene-links" aria-label={`שלבים בנושא ${topic.title}`}>
+                  {#each topic.sceneIds as scene}
+                    <a href={`/app/report/${data.booking.id}/material?materialId=${coverage.material.materialId}#scene=${encodeURIComponent(scene)}`} target="_blank" rel="noopener">פתיחת שלב {coverage.material.sceneIds.indexOf(scene) + 1} במצגת ↗</a>
+                  {/each}
+                </nav>
+              {/if}
+              <label class="field topic-comment"><span>הערה בנושא (לא חובה)</span>
+                <textarea rows="2" maxlength="2000" dir="auto" aria-label={`הערה בנושא ${topic.title || index + 1}`} value={topic.comment ?? ''} oninput={(e) => changeComment(topic, e)} disabled={saving}></textarea>
+              </label>
+              {#if editableTopics}
+                <button class="text-button" type="button" disabled={saving} onclick={() => { coverage.topics.splice(index, 1); coverageConfirmed = false; }}>הסרת הנושא {index + 1}</button>
+              {/if}
+            </article>
+          {/each}
+        </div>
+        {#if editableTopics}<button type="button" class="add-topic" onclick={addTopic} disabled={saving || coverage.topics.length >= 40}>+ הוספת נושא</button>{/if}
+        <p class="coverage-count" aria-live="polite">נלמדו {coveredCount} מתוך {coverage.topics.length} נושאים. נושא שלא סומן נשמר כלא נלמד.</p>
+      {/if}
+    </section>
   {/if}
 
   {#if !data.reportable}
@@ -208,7 +365,8 @@
       </p>
     {/if}
 
-    <h2 class="section-title">מה עברתם?</h2>
+    <h2 class="section-title">הבנה לפי יכולת בתכנית (לא חובה)</h2>
+    <p class="section-help">בחירת מצב מתעדת את ההבנה בלבד ואינה מסמנת נושא כנלמד.</p>
 
     {#if suggested.length}
       <div class="skill-list">
@@ -322,6 +480,11 @@
       <p class="banner error" role="alert">אי אפשר לרשום יכולות בלי תכנית לימודים לשיעור הזה — אפשר לשלוח הערה בלבד.</p>
     {/if}
 
+    <label class="coverage-check confirm-coverage">
+      <input type="checkbox" bind:checked={coverageConfirmed} disabled={saving || !coverage.selection} />
+      <span>{coverage.selection === 'legacy' ? 'אישרתי דיווח ישן עם כיסוי לא ידוע.' : 'בדקתי את הרשימה כולה, כולל הנושאים שלא נלמדו. אפשר לשלוח גם אם לא נלמד אף נושא.'}</span>
+    </label>
+
     <button class="submit-btn" disabled={!canSubmit} onclick={submit}>
       {saving ? 'שולח…' : (data.report ? 'תיקון הדיווח' : 'שליחת הדיווח')}
     </button>
@@ -406,7 +569,7 @@
 
   .search-block { margin-bottom: 16px; }
   .search-toggle {
-    min-height: 44px; width: 100%; text-align: right; background: none; border: none;
+    min-height: 44px; width: 100%; text-align: start; background: none; border: none;
     font-family: inherit; font-size: .85rem; font-weight: 700; color: var(--accent); cursor: pointer;
   }
   .search-input {
@@ -429,5 +592,32 @@
     font-size: .95rem; cursor: pointer;
   }
   .submit-btn:disabled { opacity: .5; cursor: default; }
+  .report-history { margin-block: 20px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-surface); }
+  .report-history summary { min-height: 44px; align-content: center; font-weight: 700; cursor: pointer; }
+  .history-revision { padding-block: 16px; border-block-start: 1px solid var(--border); }
+  .history-revision ul { padding-inline-start: 20px; margin-block: 8px 0; }
+  .history-revision li { padding-block: 6px; font-size: .9rem; line-height: 1.7; overflow-wrap: anywhere; }
+  .history-status { font-weight: 700; }
+  .history-comment { margin-block: 4px 0; color: var(--text-muted-strong); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .coverage-section { margin-block: 20px 28px; }
+  .section-help, .material-provenance, .coverage-count { font-size: .86rem; color: var(--text-muted-strong); line-height: 1.7; margin-block: 6px 14px; }
+  .material-provenance { font-weight: 700; }
+  .topic-list { display: grid; gap: 12px; }
+  .topic-card { padding: 16px; background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 14px; min-width: 0; }
+  .topic-title { font-size: .98rem; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+  .coverage-check { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-size: .9rem; line-height: 1.7; overflow-wrap: anywhere; }
+  .coverage-check input { width: 20px; height: 20px; flex-shrink: 0; }
+  .confirm-coverage { margin-block: 22px 14px; align-items: flex-start; }
+  .confirm-coverage input { margin-block-start: 5px; }
+  .field input { min-height: 44px; width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-strong); border-radius: 10px; font: inherit; font-size: 16px; color: var(--text-primary); background: var(--bg-card); }
+  .field select { width: 100%; min-width: 0; max-width: 100%; }
+  .field select[multiple] { min-height: 120px; }
+  .topic-links-editor { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+  .scene-links { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 4px 10px; }
+  .scene-links a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-size: .82rem; font-weight: 700; overflow-wrap: anywhere; }
+  .add-topic, .text-button { min-height: 44px; padding: 8px 14px; font: inherit; font-size: .86rem; font-weight: 700; color: var(--accent); background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+  .add-topic { margin-block-start: 12px; }
+  .text-button { background: transparent; }
+  :is(button, input, select, textarea, a):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
   .return-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 20px; margin-bottom: 8px; }
 </style>

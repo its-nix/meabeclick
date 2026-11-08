@@ -12,11 +12,12 @@
  */
 import { handle } from '../db.ts';
 import { nodeInPlan, planForEnrollment } from '../plans/store.ts';
+import { latestTopicReport, validateTopicCoverage, persistTopicReport, ReportRevisionConflict, type TopicCoverageInput } from './topics.ts';
 import type { SkillStatus } from '../../plan-status.ts';
 
 export type ReportRow = {
   id: number; booking_id: number; student_id: number; enrollment_id: number | null;
-  note: string | null; created_at: string; updated_at: string;
+  note: string | null; created_at: string; updated_at: string; filing_revision: number;
 };
 
 export type BookingRow = {
@@ -131,6 +132,7 @@ export function notesForReport(reportId: number): ReportNoteRow[] {
 export function fileReport(input: {
   bookingId: number; note: string | null;
   entries: { nodeId: number; status: SkillStatus }[];
+  expectedRevision?: number; coverage?: TopicCoverageInput;
 }): number {
   const db = handle();
   const booking = bookingForReport(input.bookingId);
@@ -139,6 +141,11 @@ export function fileReport(input: {
   db.exec('BEGIN');
   try {
     const at = now();
+    const priorCoverage = latestTopicReport(input.bookingId);
+    const currentRevision = reportForBooking(input.bookingId)?.filing_revision ?? 0;
+    if ((input.coverage !== undefined || input.expectedRevision !== undefined || priorCoverage !== null) && input.expectedRevision !== currentRevision) throw new ReportRevisionConflict();
+    if (priorCoverage !== null && input.coverage === undefined) throw new Error('explicit coverage correction required');
+    const coverage = input.coverage === undefined ? null : validateTopicCoverage(input.bookingId,input.coverage);
 
     // If entries are provided, enrollment must exist and have a plan.
     // A note-only report (entries.length === 0) needs neither.
@@ -166,6 +173,9 @@ export function fileReport(input: {
       ).run(input.bookingId, booking.student_id, booking.enrollment_id, input.note, at, at);
       reportId = Number((db.prepare(`SELECT last_insert_rowid() AS id`).get() as { id: number }).id);
     }
+
+    db.prepare(`UPDATE lesson_reports SET filing_revision=? WHERE id=?`).run(currentRevision+1,reportId);
+    if (coverage) persistTopicReport(reportId,coverage,currentRevision+1,at);
 
     // The note's own history — a row per filing, appended never rewritten
     // (spec §4/§3 apply to the note the same way they apply to skill status).
@@ -211,7 +221,7 @@ export function fileReport(input: {
           LIMIT 1`
       ).get(plan!.id, entry.nodeId, reportId);
 
-      if (!alreadyCovered) {
+      if (!coverage && !alreadyCovered) {
         db.prepare(
           `INSERT INTO plan_events (plan_id, node_id, type, note, source, report_id, at)
            VALUES (?, ?, 'covered', NULL, 'report', ?, ?)`

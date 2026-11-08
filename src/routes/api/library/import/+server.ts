@@ -49,7 +49,7 @@ export const POST: RequestHandler = async (event) => {
 
   let problems: string[];
   try {
-    problems = validateLesson(plan as LessonPlan);
+    problems = validateLesson(plan as LessonPlan,[skill]);
   } catch {
     problems = ['השיעור לא במבנה של שיעור'];
   }

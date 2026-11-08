@@ -30,6 +30,8 @@ export type HomeworkRow = {
    *  it — migration 018. Both NULL on every row older than it. */
   booking_id: number | null;
   held_until: string | null;
+  withheld_report_revision: number | null;
+  topic_provenance: string | null;
   /** The answer key, for the tutor only (migration 022). */
   answer: string | null;
 };
@@ -147,7 +149,11 @@ export function addHomework(h: {
   `).run(h.lessonId ?? null, h.studentId, h.task, h.template ?? null,
          h.dataId ?? null, h.assignedAt ?? new Date().toISOString(), h.dueAt ?? null,
          h.nodeId ?? null, h.bookingId ?? null, h.heldUntil ?? null, h.answer ?? null);
-  return Number(info.lastInsertRowid);
+  const id=Number(info.lastInsertRowid);
+  if(h.bookingId && h.heldUntil){
+    handle().prepare(`UPDATE homework SET withheld_report_revision=(SELECT v.id FROM lesson_report_revisions v JOIN lesson_reports r ON r.id=v.report_id WHERE r.booking_id=? ORDER BY v.revision DESC LIMIT 1) WHERE id=?`).run(h.bookingId,id);
+  }
+  return id;
 }
 
 /**
@@ -247,7 +253,7 @@ export function homeworkForStudent(
            ) AS skill
     FROM homework h
     WHERE h.student_id = ?
-      AND (? OR h.held_until IS NULL OR h.held_until <= ?)
+      AND (? OR (h.withheld_report_revision IS NULL AND (h.held_until IS NULL OR h.held_until <= ?)))
     ORDER BY h.assigned_at DESC, h.id ASC
   `).all(studentId, opts.includeHeld ? 1 : 0, opts.now ?? new Date().toISOString()) as (HomeworkRow & { submitted_flag: number; skill: string | null })[];
 
@@ -268,14 +274,14 @@ export function homeworkAwaitingGrade(studentId: number): HomeworkRow[] {
  *  makes a late or repeated report a no-op (spec D3, D4). */
 export function heldHomeworkForBooking(bookingId: number, now: string = new Date().toISOString()): HomeworkRow[] {
   return handle().prepare(
-    `SELECT * FROM homework WHERE booking_id = ? AND held_until IS NOT NULL AND held_until > ? ORDER BY id`
+    `SELECT * FROM homework WHERE booking_id = ? AND withheld_report_revision IS NULL AND held_until IS NOT NULL AND held_until > ? ORDER BY id`
   ).all(bookingId, now) as HomeworkRow[];
 }
 
 /** Shows a lesson's held homework now. Returns how many rows went out. */
 export function releaseHeld(bookingId: number): number {
   const info = handle().prepare(
-    `UPDATE homework SET held_until = NULL WHERE booking_id = ? AND held_until IS NOT NULL`
+    `UPDATE homework SET held_until = NULL WHERE booking_id = ? AND withheld_report_revision IS NULL AND held_until IS NOT NULL`
   ).run(bookingId);
   return Number(info.changes);
 }
@@ -299,7 +305,7 @@ export function replaceHeld(
 ): boolean {
   return inTransaction(() => {
     const removed = handle().prepare(
-      `DELETE FROM homework WHERE booking_id = ? AND held_until IS NOT NULL AND held_until > ?`
+      `DELETE FROM homework WHERE booking_id = ? AND withheld_report_revision IS NULL AND held_until IS NOT NULL AND held_until > ?`
     ).run(bookingId, now);
     if (Number(removed.changes) === 0) return false;
     for (const t of tasks) addHomework({ studentId, task: t.task, nodeId: t.nodeId, bookingId, answer: t.answer ?? null, assignedAt: now });

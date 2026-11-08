@@ -58,6 +58,7 @@ export function libraryRequest(templateId: string, skillKey: string) {
     level: levelOf(template),
     student: '',
     skill: found.skill.title,
+    knownSkillKeys: [skillKey],
     request: `${found.skill.title} (${found.context})`,
     durationMin: 90,
   };
@@ -77,7 +78,7 @@ export async function prepareSkill(templateId: string, skillKey: string, deps: P
 
   try {
     const plan = await generate(meta, {onQualityReport: report => saveGenerationQualityReport(slug, report)});
-    const problems = validateLesson(plan);
+    const problems = validateLesson(plan,meta.knownSkillKeys);
     if (problems.length) {
       await publishDraftOnly(slug, plan, meta);
       const problem = problems.join(' · ');

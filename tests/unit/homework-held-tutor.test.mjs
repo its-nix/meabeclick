@@ -24,7 +24,7 @@ test('the route says until when a task is held', () => {
 
 test('the dashboard marks a held task as waiting for its lesson', () => {
   assert.match(readFileSync(join(process.cwd(), 'src/lib/tutor-homework.ts'), 'utf8'), /heldUntil: string \| null/);
-  assert.match(dash, /\{#if hw\.heldUntil\}/);
+  assert.match(dash, /\{:else if hw\.heldUntil\}/);
   assert.match(dash, /ממתין לדיווח על השיעור/);
 });
 
@@ -32,4 +32,10 @@ test('family routes never ask for held rows', () => {
   for (const f of ['src/routes/api/portal/[code]/+server.ts', 'src/routes/api/portal/[code]/homework/+server.ts', 'src/lib/server/progress.ts']) {
     assert.doesNotMatch(readFileSync(join(process.cwd(), f), 'utf8'), /includeHeld/, f);
   }
+});
+
+test('durable topic withholding is shown without promising automatic release',()=>{
+ assert.match(route,/withheld:\s*h\.withheld_report_revision\s*!==\s*null/);
+ assert.match(dash,/hw\.withheld/);
+ assert.match(dash,/הכנה בלבד · מחוץ לנושאים שדווחו/);
 });

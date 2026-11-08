@@ -5,12 +5,13 @@ import { tmpdir } from 'node:os';
 import { passingCritique } from './helpers/generation-plan.mjs';
 import { generateLesson } from '../src/lib/server/lesson/prep.ts';
 
-export async function generatedPlanStub(plan,{invalidFirst=false}={}) {
+export async function generatedPlanStub(plan,{invalidFirst=false,repairOutput}={}) {
   const dir=await mkdtemp(join(tmpdir(),'generated-plan-stub-'));
   const saved={CODEX_BIN:process.env.CODEX_BIN,LESSON_ENGINE:process.env.LESSON_ENGINE};
   try {
     const fixture=join(dir,'plan.json'),calls=join(dir,'calls'),cli=join(dir,'codex');
     await writeFile(fixture,JSON.stringify(plan));
+    const repair=join(dir,'repair.json');if(repairOutput!==undefined)await writeFile(repair,JSON.stringify(repairOutput));
     const critique=join(dir,'critique.json'),critiqueCalls=join(dir,'critique-calls');
     await writeFile(critique,JSON.stringify(passingCritique(plan)));
     await writeFile(cli,`#!/usr/bin/env node
@@ -19,6 +20,7 @@ let prompt='';process.stdin.on('data',chunk=>prompt+=chunk);process.stdin.on('en
 const output=args[args.indexOf('-o')+1];
 if(prompt.startsWith('GENERATION_QUALITY_CRITIQUE')){fs.appendFileSync(${JSON.stringify(critiqueCalls)},'call\\n');fs.copyFileSync(${JSON.stringify(critique)},output);return;}
 const first=!fs.existsSync(calls);fs.appendFileSync(calls,'call\\n');
+if(prompt.includes('TARGETED_ARTIFACT_REPAIR')&&fs.existsSync(${JSON.stringify(repair)})){fs.copyFileSync(${JSON.stringify(repair)},output);return;}
 if(first&&${invalidFirst})fs.writeFileSync(output,'{"truncated":');else fs.copyFileSync(${JSON.stringify(fixture)},output);
 });
 `,{mode:0o755});

@@ -8,6 +8,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
+import { eligibleReportMaterials, latestTopicReport, topicReportHistory } from '$server/reports/topics.ts';
 import { bookingForReport, reportForBooking } from '$server/reports/store.ts';
 import { planForEnrollment, planData, lastLessonAt } from '$server/plans/store.ts';
 import { evidenceForSkill } from '$server/plans/evidence.ts';
@@ -105,6 +106,9 @@ export const load: PageServerLoad = async (event) => {
     planId: plan?.id ?? null,
     report,
     filedEntries,
+    reportMaterials: eligibleReportMaterials(booking.id),
+    topicReport: latestTopicReport(booking.id),
+    topicHistory: topicReportHistory(booking.id),
     // Offered first, then everything else behind the search line.
     suggested: skills.filter(s => s.recommended || IN_PROGRESS.includes(s.status)),
     rest: skills.filter(s => !(s.recommended || IN_PROGRESS.includes(s.status))),

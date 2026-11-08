@@ -95,3 +95,13 @@ test('numeric bank bounds have assessment paths and trusted replacements',()=>{
   const expected=structuredClone(plan);expected.games.numberLine.min=-10;
   assert.deepEqual(repair.apply({'games.numberLine.min':-10}),expected);
 });
+
+test('topic metadata has its own assessment and repair unit without changing teaching scenes',()=>{
+  const plan=generationPlan();plan.learning.topics=[{id:'topic',title:'שם שגוי',sceneIds:[plan.learning.scenes[1].id],skillKeys:[]}];
+  assert.ok(qualityPaths(plan).includes('learning.topics[0]'));
+  const repair=artifactRepair(plan,[{path:'learning.topics[0]',code:'critique.context',message:'topic title mismatches its scene'}],LESSON_SCHEMA);
+  assert.deepEqual(repair.paths,['learning.topics[0]']);
+  const topic={...plan.learning.topics[0],title:'הזזת הפרבולה'};
+  const expected=structuredClone(plan);expected.learning.topics[0]=topic;
+  assert.deepEqual(repair.apply({'learning.topics[0]':topic}),expected);
+});

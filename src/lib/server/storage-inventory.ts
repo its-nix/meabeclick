@@ -100,6 +100,8 @@ export const STORAGE: Record<string, TableFact> = {
   lesson_game_assignments: { status: 'live', note: 'Tutor-managed game drafts and the current published revision for a live lesson and student.' },
   lesson_game_revisions: { status: 'live', note: 'Immutable published lesson-specific game bodies, keyed by data_id.' },
   lesson_reports:     { status: 'live', note: 'The tutor\'s end-of-lesson report.' },
+  lesson_report_revisions: { status: 'live', note: 'Immutable tutor-only material snapshots, topic coverage and corrections for each report filing.' },
+  lesson_report_assessments: { status: 'live', note: 'Private independent homework checks tied to the exact report revision before scoped release.' },
   lesson_report_notes:{ status: 'live', note: 'Free text attached to a report.' },
   report_prompts:     { status: 'live', note: 'Which lessons have already been chased. INSERT OR IGNORE.' },
   lesson_requests:    { status: 'live', note: 'What a parent asked for with a booking.' },

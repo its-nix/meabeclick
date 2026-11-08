@@ -6,6 +6,7 @@ export interface LearningFrame {
   /** quadratic: [a,h,k]; linear: [m,b]; number-line: [value]; balance: [coefficient,constant,total]; fraction-bar: [part,whole]; right-triangle: [legA,legB]; function-tangent: [a,b,c,t] for ax²+bx+c at x=t. */
   values: number[];
 }
+export const LEARNING_FRAME_TEXT_LIMITS = {tex:600, caption:180} as const;
 export interface LearningCheck {
   kind: 'choice' | 'number' | 'graph-target';
   question: string;
@@ -109,14 +110,14 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
     }
     if (!Object.hasOwn(PHASE_LABELS, s.phase) || !text(s.title, 100) || !text(s.prompt, 280) || !text(s.takeaway, 280)) errors.push(`טקסט או שלב לא תקין: ${s.id}`);
     if (!Object.hasOwn(dimensions, s.visual)) { errors.push(`סוג המחשה לא נתמך: ${s.id}`); continue; }
-    if (s.questionVisual != null && (!s.check || !s.questionVisual || !text(s.questionVisual.tex, 600) || !text(s.questionVisual.caption, 180))) errors.push(`המחשת שאלה לא תקינה: ${s.id}`);
+    if (s.questionVisual != null && (!s.check || !s.questionVisual || !text(s.questionVisual.tex, LEARNING_FRAME_TEXT_LIMITS.tex) || !text(s.questionVisual.caption, LEARNING_FRAME_TEXT_LIMITS.caption))) errors.push(`המחשת שאלה לא תקינה: ${s.id}`);
     if (s.check && ['fraction-bar', 'right-triangle', 'function-tangent'].includes(s.visual) && !s.questionVisual) errors.push(`נדרשים נוסחה וכיתוב נפרדים לשאלה: ${s.id}`);
     for (const domain of [s.xDomain, s.yDomain]) {
       if (!Array.isArray(domain) || domain.length !== 2 || !domain.every(finite) || domain[0] >= domain[1] || domain[1] - domain[0] > 100) errors.push(`טווח צירים לא תקין: ${s.id}`);
     }
     if (!Array.isArray(s.frames) || s.frames.length < 1 || s.frames.length > 6) { errors.push(`חסרים שלבי המחשה: ${s.id}`); continue; }
     for (const f of s.frames) {
-      if (!f || !text(f.caption, 180) || !text(f.tex, 600) || !Array.isArray(f.values) || f.values.length !== dimensions[s.visual] || !f.values.every(finite)) {
+      if (!f || !text(f.caption, LEARNING_FRAME_TEXT_LIMITS.caption) || !text(f.tex, LEARNING_FRAME_TEXT_LIMITS.tex) || !Array.isArray(f.values) || f.values.length !== dimensions[s.visual] || !f.values.every(finite)) {
         errors.push(`שלב המחשה לא תקין: ${s.id}`); continue;
       }
       if (s.visual === 'fraction-bar' && (!f.values.every(Number.isInteger) || f.values[1] < 1 || f.values[1] > 24 || f.values[0] < 0 || f.values[0] > f.values[1])) errors.push(`חלוקת שלם לא תקינה: ${s.id}`);

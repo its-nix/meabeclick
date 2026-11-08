@@ -173,3 +173,33 @@ first collection item. Contextual additions need a new, relevant draft based
 on the current unsaved lesson/game, with existing content and publication
 preserved until the teacher reviews and saves. That proposal workflow has
 not been implemented in this branch.
+
+
+## Implementation continuation: text trust boundary
+
+A new regression demonstrated that empty, whitespace-only or overlong frame/stimulus
+text could satisfy the generator schema but fail the renderer. The schema and
+runtime now share existing formula/caption length limits; fresh schemas and local
+validation also require non-whitespace content. Nullable-union diagnostics identify
+the exact failing field, with actual and allowed lengths, rather than hiding it in
+a generic object-shape error. An independent bounded code review has no remaining
+findings. Historical renderer acceptance and stored content are unchanged.
+
+Latest tested source fingerprint:
+`eb6e37c4d56ccf254c5f8c247caaa2061e3bdf609342260e0588fb6ae8c074a4`.
+The Linux snapshot matches the worktree source. Node 22.20.0: **1,807/1,807 tests**,
+production build and warning gate pass (22 baseline warnings). Initial harness
+failures were traced to a non-executable tmpfs and an old tracked test log in the
+reused sanitized checkout; test executables and logs were isolated correctly before
+the complete passing run. Failed harness logs are retained outside the checkout.
+
+No real-generation acceptance is claimed for this correction. The prior four-case
+trial remains rejected and sealed under its own source. No models are running.
+
+Two design choices have been raised with Lior: mechanically targeted artifact repair
+within the existing one-round budget, and reporting at teachable-topic versus whole-
+plan-skill granularity. The strict formatting policy remains unchanged. Proposed
+repair design: `docs/superpowers/specs/2026-11-08-targeted-artifact-repair-design.md`.
+Reporting is isolated on `codex/presentation-report`; its design accounts for partial
+skill practice, immutable sources, explicit zero coverage, report corrections and
+stale async completion. Neither proposed feature has been implemented yet.

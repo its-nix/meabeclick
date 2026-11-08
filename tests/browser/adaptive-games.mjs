@@ -25,7 +25,10 @@ const banks = {
  quiz: {questions:base.map((r,i)=>({...r,q:`synthetic-${i}`,options:[`right${i}`,`wrong${i}`],answer:0}))},
  'error-hunt':{rounds:base.map((r,i)=>({...r,problem:`synthetic-${i}`,steps:[`start${i}`,`error${i}`],badStep:1}))},
  'two-truths':{rounds:base.map((r,i)=>({...r,statements:[`truth-a-${i}`,`truth-b-${i}`,`false-${i}`],lieIndex:2}))},
- 'graph-match':{rounds:base.map((r,i)=>({...r,prompt:`synthetic-${i}`,main:[0,i+1,0],mainLabel:'f(x)',options:[[0,i+1,0],[i+1,0,i+1]],answer:0}))},
+ 'graph-match':{rounds:base.map((r,i)=>({...r,prompt:`synthetic-${i}`,mainLabel:'f(x)',
+  ...(i%3===0?{main:[0,1,2,3,4],options:[[0,0.5,1,1.5,2],[0,1,2,3,4]]}
+   :i%3===1?{main:[-2,-1,0,1,2],options:[[-6,-3,0,3,6],[-4,-2,0,2,4]]}
+   :{main:[3,3,3,3,3],options:[[0,0,0,0,0],[2,2,2,2,2]]}),answer:0}))},
  'number-line':{min:0,max:20,rounds:base.map((r,i)=>({...r,target:i,label:String(i),tolerance:0.5}))},
  'speed-drill':{seconds:2,items:base.map(({hint,...r},i)=>({...r,q:`synthetic-${i}`,a:`right${i}`,options:[`right${i}`,`wrong${i}`,`other${i}`]}))},
 };
@@ -35,7 +38,7 @@ for(const [template,body] of Object.entries(banks)) {
  db.prepare(`INSERT INTO lesson_game_assignments(id,lesson_id,student_id,template,title,status,draft_body,created_at,updated_at) VALUES(?,?,?,?,?,'draft',?,?,?)`).run(`synthetic-${template}`,lesson.id,student.id,template,body.title,JSON.stringify(body),new Date().toISOString(),new Date().toISOString());
 }
 const browser = await chromium.launch({executablePath:process.env.CHROME_BIN??(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':chromium.executablePath()),headless:true});
-const report={syntheticOnly:true,viewport:{width:390,height:844},templates:[],previewWrites:0,errors:[],screenshots:[]};
+const report={syntheticOnly:true,viewport:{width:390,height:844},templates:[],previewWrites:0,errors:[],screenshots:[],graphComparisons:[]};
 try {
  const context = await browser.newContext({viewport:{width:390,height:844}});
  const cookie = await login(server.baseUrl);const [name,...value]=cookie.split('=');
@@ -56,7 +59,17 @@ try {
     await page.getByRole('button',{name:`right${i}`,exact:true}).click();
    }else if(template==='error-hunt')await page.locator('.step').nth(1).click();
    else if(template==='two-truths')await page.locator('.opt').filter({hasText:'false-'}).click();
-   else if(template==='graph-match')await page.locator('.gopt').first().click();
+   else if(template==='graph-match'){
+    const points=await page.locator('.gopt polyline').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('points')));
+    assert.equal(new Set(points).size,points.length,`proportional alternatives must remain geometrically distinct: ${points.join(' | ')}`);
+    const axes=await page.locator('.main-graph svg > line:first-of-type, .gopt svg > line:first-of-type').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('y1')));
+    assert.equal(new Set(axes).size,1,'main and option graphs share the same zero baseline');
+    const labels=await page.locator('.main-graph svg,.gopt svg').evaluateAll(nodes=>nodes.map(svg=>Array.from(svg.querySelectorAll('text'),n=>n.textContent)));
+    assert.ok(labels[0].length>=2,'numeric y ticks explain the common units');
+    assert.ok(labels.every(ticks=>JSON.stringify(ticks)===JSON.stringify(labels[0])),'all curves show the same numeric scale');
+    report.graphComparisons.push({prompt:await page.locator('.prompt').innerText(),points,zeroY:axes[0],ticks:labels[0]});
+    await page.locator('.gopt').first().click();
+   }
    else {
     const target=Number(await page.locator('.target-val').innerText());
     await page.locator('[role=slider]').press('Home');

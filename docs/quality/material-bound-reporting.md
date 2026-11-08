@@ -48,3 +48,20 @@ byte-for-byte after that outside-Git candidate check.
 Migration040 is implemented but not deployed. Broad library/game reuse stays
 withheld for explicit topic scope until compatible provenance exists. Human
 teaching review and production rollout remain pending.
+
+
+A real-provider synthetic smoke also completed through the actual scoped-homework
+helper: one covered horizontal-translation topic and one excluded vertical-
+translation topic linked to the same skill. It generated three distinct tasks;
+a fresh assessor passed all five checks. Manual recomputation confirmed3 units
+right, `y=(x-5)^2`, vertex(4,0) and value4 at x=6. Student text contains neither the
+private sentinel nor source metadata. This small smoke used the helper's current
+Codex CLI default model with medium effort (the helper does not pin a model), so
+it is not a model comparison or broad teaching-quality claim. No booking, database
+filing or release was performed. Source fingerprint matches the full-suite run.
+
+Reviewable draft: [PR106](https://github.com/its-nix/meabeclick/pull/106), stacked
+on [PR104](https://github.com/its-nix/meabeclick/pull/104). Source changes are committed
+throughd2dab4c;65ce148 merges only the parent evidence documentation. Full local
+Linux verification is recorded above; the existing GitHub workflow filters PRs
+to main, so this stacked PR has no automatic CI run. No deployment occurred.

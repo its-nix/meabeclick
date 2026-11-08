@@ -20,7 +20,8 @@ if(args.includes('--version')){console.log('codex-stub 1');process.exit(0);}
 fs.appendFileSync(process.env.REVIEW_CALLS,'call\\n');
 if(process.env.REVIEW_FAIL){console.error('test engine failure');process.exit(1);}
 const schema=JSON.parse(fs.readFileSync(args[args.indexOf('--output-schema')+1],'utf8'));
-fs.copyFileSync(schema.properties.checks?process.env.REVIEW_CRITIQUE:process.env.REVIEW_FIXTURE,args[args.indexOf('-o')+1]);
+if(schema.properties.checks&&process.env.REVIEW_CRITIQUE_TIMEOUT){process.stdin.resume();setTimeout(()=>process.exit(0),5000);}
+else fs.copyFileSync(schema.properties.checks?process.env.REVIEW_CRITIQUE:process.env.REVIEW_FIXTURE,args[args.indexOf('-o')+1]);
 `,{mode:0o755});
   const out=join(dir,'output'),calls=join(dir,'calls');
   const run=(extra=[],env={})=>spawnSync(process.execPath,['scripts/generate-learning-review.mjs','--out',out,'--model','test-model',...extra],{encoding:'utf8',timeout:60000,env:{...process.env,CODEX_BIN:cli,REVIEW_FIXTURE:fixture,REVIEW_CRITIQUE:critique,REVIEW_CALLS:calls,...env}});
@@ -69,6 +70,22 @@ test('shared failure stops scheduling, and a live batch lock prevents all genera
     writeFileSync(join(s.out,'.generation-lock'),JSON.stringify({pid:process.pid}));
     const locked=s.run(['--retry-failed']);assert.notEqual(locked.status,0);assert.match(locked.stderr,/Batch locked/);
     assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,1);
+  }finally{s.cleanup();}
+});
+test('a first critique timeout stops the batch with nine cases pending and preserves its failed report',()=>{
+  const s=setup();try{
+    const failed=s.run(['--concurrency','1'],{REVIEW_CRITIQUE_TIMEOUT:'1',LESSON_TIMEOUT_MINUTES:'0.02'});
+    assert.notEqual(failed.status,0,failed.stdout+failed.stderr);
+    assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,2,'one lesson and one timed-out critique, then no further engine calls');
+    const manifest=JSON.parse(readFileSync(join(s.out,'manifest.json'),'utf8'));
+    assert.equal(manifest.cases[0].status,'failed');
+    assert.equal(manifest.cases[0].error.kind,'engine-timeout');
+    assert.equal(manifest.cases.filter(c=>c.status==='pending').length,9);
+    const report=JSON.parse(readFileSync(join(s.out,manifest.cases[0].brief.id+'.quality.json'),'utf8'));
+    assert.equal(report.status,'failed');assert.equal(report.attempts.length,1);
+    assert.equal(report.attempts[0].critique,'engine-failed');
+    assert.ok(manifest.cases[0].qualitySha256);
+    assert.equal(existsSync(join(s.out,'.generation-lock')),false);
   }finally{s.cleanup();}
 });
 test('a targeted new batch succeeds for its selected case without claiming a full corpus',()=>{

@@ -83,7 +83,7 @@ try {
       // Diagnostics can contain echoed prompts; local only, private permissions, never included in the corpus.
       if(error.detail)await writeFile(join(out,item.brief.id+'.diagnostic.log'),String(error.detail),{mode:0o600});
       console.log(`FAILED ${item.brief.id}: ${item.error.kind}`);
-      if(['engine-quota','engine-auth','engine-missing','engine-failed'].includes(item.error.kind))stop=true;
+      if(['engine-quota','engine-auth','engine-missing','engine-failed','engine-timeout'].includes(item.error.kind))stop=true;
     }
     await save();
   }

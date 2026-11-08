@@ -586,7 +586,7 @@ export async function generateLesson(req: LessonRequest, options: GenerationOpti
           const paths = qualityPaths(plan);
           if (paths.length > 160) throw new LessonGenerationError('bad-output', 'Too many artifacts for bounded quality critique');
           let critique: Record<string, unknown> | null;
-          try { critique = await structuredReply(critiquePrompt(req, plan), CRITIQUE_SCHEMA, Math.min(lessonTimeoutMs(), 120_000)); }
+          try { critique = await structuredReply(critiquePrompt(req, plan), CRITIQUE_SCHEMA, Math.min(lessonTimeoutMs(), LESSON_TIMEOUT_MS)); }
           catch (error) {
             assessment.critique = error instanceof LessonGenerationError && ['bad-output','no-output'].includes(error.kind) ? 'invalid' : 'engine-failed';
             throw error;

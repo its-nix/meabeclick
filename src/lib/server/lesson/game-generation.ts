@@ -3,7 +3,9 @@ export const QUESTION_BANK_KEYS: Record<string, string> = {
   quiz: 'questions', 'error-hunt': 'rounds', errorHunt: 'rounds', 'two-truths': 'rounds', twoTruths: 'rounds',
   'graph-match': 'rounds', graphMatch: 'rounds', 'number-line': 'rounds', numberLine: 'rounds', 'speed-drill': 'items', speedDrill: 'items',
 };
-export const GAME_GENERATION_PROMPT = `במשחקי שאלות (quiz, errorHunt, twoTruths, graphMatch, numberLine, speedDrill) צור בנק של 15 שאלות ייחודיות ומגוונות (לפחות 10), עם id ייחודי לכל שאלה ו-difficulty שהוא 1, 2 או 3. כל שלוש הרמות חייבות להופיע. הרמות משנות מורכבות רק במיומנויות שהוקצו לשיעור; אין להוסיף מיומנות חדשה. אין לשכפל או לרפד שאלות כדי להשלים כמות. משחק רגיל בוחר 10 שאלות; speedDrill נשאר קצוב בזמן. פעילויות לוח שומרות על כמות פריטים טבעית. הביצוע הוא ראיית תרגול בלבד ואינו משנה תכנית למידה.`;
+export const POSITION_INDEPENDENT_FEEDBACK = 'כאשר אפשרויות או משפטים עשויים להחליף סדר, המשוב וההסבר (כולל why) מתייחסים לטענה או לביטוי עצמם, בלי להפנות למיקום, למספר סידורי, לאות או לאינדקס של אפשרות או משפט. גם רמז אינו מפנה למיקום אפשרות, והוא מכוון לדרך בלי לחשוף את התשובה. שדות המפתח המספריים answer ו־lieIndex נשארים אינדקסים כרגיל; ההנחיה נוגעת לטקסט המוצג. מותר להפנות למספר צעד בפתרון שסדרו קבוע, כמו errorHunt, כאשר ההפניה מתארת את הצעד הנכון.';
+export const GAME_GENERATION_PROMPT = `במשחקי שאלות (quiz, errorHunt, twoTruths, graphMatch, numberLine, speedDrill) צור בנק של 15 שאלות ייחודיות ומגוונות (לפחות 10), עם id ייחודי לכל שאלה ו-difficulty שהוא 1, 2 או 3. כל שלוש הרמות חייבות להופיע. הרמות משנות מורכבות רק במיומנויות שהוקצו לשיעור; אין להוסיף מיומנות חדשה. אין לשכפל או לרפד שאלות כדי להשלים כמות. משחק רגיל בוחר 10 שאלות; speedDrill נשאר קצוב בזמן. פעילויות לוח שומרות על כמות פריטים טבעית. הביצוע הוא ראיית תרגול בלבד ואינו משנה תכנית למידה.
+${POSITION_INDEPENDENT_FEEDBACK}`;
 /** Augment one game's existing JSON schema without mutating it. */
 export function gameGenerationSchema<T>(template: string, schema: T): T {
   const key = QUESTION_BANK_KEYS[template];

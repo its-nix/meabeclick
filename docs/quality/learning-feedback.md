@@ -38,4 +38,18 @@ Fresh generation checks every artifact's structure and obtains a separate struct
 
 New question banks carry stable identifiers and three difficulty levels within the assigned skills. Finite sessions use ten unseen questions; timed speed drill keeps its timer. Hint use and results influence only current-session selection, and signed results retain per-question difficulty evidence. Initial adaptive options use deterministic ordering to prevent server/client hydration from attaching the wrong answer handler. Historical banks retain their existing playback behavior.
 
-Synthetic regressions and browser checks cover privacy, numeric precision, matching diagrams and formulas, adaptive evidence, timed completion and preview isolation. The representative real-model batch is recorded separately below when complete. Model critique is evidence for tutor review, not teaching approval; no customer assignments or existing pilot artifacts are replaced by this iteration.
+Synthetic regressions and browser checks cover privacy, numeric precision, matching diagrams and formulas, adaptive evidence, timed completion and preview isolation. The [execution record](../superpowers/reports/2026-11-08-generation-machinery.md) records accepted and rejected real-model cases; a complete replacement corpus has not passed validation. Model critique is evidence for tutor review, not teaching approval; no customer assignments or existing pilot artifacts are replaced by this iteration.
+
+### Findings from real generated candidates
+
+Independent review rejected some candidates that passed automated critique. A valid but inefficient equation step must not be labelled mathematically false. Error Hunt must identify the first genuinely invalid transition, including the distinction between function height and tangent slope. Both production and critique now receive these requirements from the shared contract.
+
+An ordinary quadratic exploration exposes only `h` and `k`; asking the student to manipulate `a` was impossible. Shared control metadata now drives both rendered inputs and model instructions, including each control's range and restrictions. Teaching sequences begin with a concrete example before naming the rule, and challenges remain within the assigned skills. A bounded repair preserves passing artifacts unless a minimal dependency correction is necessary. Earned student feedback belongs in `check.success`; the renderer does not automatically reveal authored worked frames after success.
+
+Graph Match previously scaled each option independently, making proportional lines look identical. All curves now share coordinates and numeric axis ticks. Fresh generation rejects a target copied from the already visible reference and choices that collapse to the same plotted curve. Prompts state the renderer's centered, unit-spaced sampling grid. Existing stored games remain readable.
+
+Fifteen-question banks exposed a rotation bug that could drop options after the thirteenth round. Rotation now uses the bank-independent option offset, with permutation/key/metadata regressions through forty questions. Explanations identify the mathematical claim rather than its shuffled option position. Fixed Error Hunt step references remain valid.
+
+A real critique exceeded its former two-minute deadline. Critique now honors a lower configured budget up to the existing five-minute ceiling, uses concise passing explanations and stops new batch scheduling on an engine timeout. Timeout regressions use a long-enough fixture budget to distinguish a hung critic from slow test-process startup. Engine faults still do not consume semantic repair attempts.
+
+The execution record tracks accepted and rejected candidates, exact source/model configurations, checksums and outstanding teaching review. New model trials use separate sealed directories; changing the evaluation model does not change the production model configuration.

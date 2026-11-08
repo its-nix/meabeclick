@@ -60,9 +60,11 @@ Own game components/engine, registry, lesson-game editing/validation, results pe
 - [x] Register migrations and all new generation-source fingerprint files.
 - [x] Independently review combined correctness, privacy and backward compatibility.
 - [x] Build, warning gate, Linux/Node 22 full suite and learning/review browser checks.
-- [ ] Verify an available local model; run a new synthetic review batch outside Git.
-- [ ] Compare topics and report candidate quality without treating automation as teaching approval.
-- [ ] Update sanitized feedback history and existing Todoist tasks with exact execution status.
+- [x] Verify available local models; run bounded synthetic batches outside Git.
+- [x] Compare topics and report accepted/rejected cases without treating automation as teaching approval.
+- [x] Update sanitized feedback history and existing Todoist tasks with exact execution status.
+- [ ] Obtain a complete ten-case candidate that passes validation and independent content review; the final targeted run rejected all four remaining cases.
+- [ ] Obtain human teaching approval and a separately authorized rollout.
 
 ## Execution record
 

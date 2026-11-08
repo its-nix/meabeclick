@@ -63,6 +63,9 @@ export function persistTopicReport(reportId:number, value:Omit<TopicReportRevisi
  const inserted=handle().prepare(`INSERT INTO lesson_report_revisions(report_id,revision,source,snapshot_json,topics_json,created_at) VALUES(?,?,?,?,?,?)`).run(reportId,revision,value.source,value.snapshot?JSON.stringify(value.snapshot):null,JSON.stringify(value.topics),at);
  const booking=(handle().prepare('SELECT booking_id FROM lesson_reports WHERE id=?').get(reportId) as {booking_id:number}).booking_id;
  handle().prepare(`UPDATE homework SET withheld_report_revision=? WHERE booking_id=? AND (withheld_report_revision IS NOT NULL OR held_until>?)`).run(Number(inserted.lastInsertRowid),booking,at);
+ // An elapsed deadline already granted practice access, even if the lazy family
+ // read has not materialized it yet. Preserve it before restricting preparation.
+ handle().prepare(`UPDATE learning_assignments SET practice_state='assigned',held_until=NULL WHERE booking_id=? AND practice_state='held' AND held_until<=? AND NOT EXISTS (SELECT 1 FROM bookings_v2 b WHERE b.id=learning_assignments.booking_id AND b.status='cancelled')`).run(booking,at);
  handle().prepare(`UPDATE learning_assignments SET practice_state='withdrawn',held_until=NULL WHERE booking_id=? AND practice_state='held' AND held_until>?`).run(booking,at);
 }
 /** Only the latest report in this enrollment informs preparation; this is scope, not mastery. */

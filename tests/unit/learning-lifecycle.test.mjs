@@ -72,3 +72,14 @@ test('booking and skill identity cannot be borrowed from another student',()=>{
   assert.throws(()=>assignLearning(one.slug,one.student.id,{bookingId:two.bookingId,nodeId:null,heldUntil:null}),/booking does not belong/);
   assert.throws(()=>assignLearning(one.slug,one.student.id,{bookingId:one.bookingId,nodeId:two.skills[0].id,heldUntil:null}),/skill does not belong/);
 });
+
+test('late explicit filing preserves already-due interactive practice without requiring a prior family read',async()=>{
+ const {fileReport}=await import('../../src/lib/server/reports/store.ts');
+ for(const readBefore of [false,true]){
+  const s=setup();handle().prepare(`UPDATE learning_assignments SET held_until='2026-01-01T00:00:00.000Z' WHERE lesson_slug=?`).run(s.slug);
+  if(readBefore)assert.equal(learningForStudent(s.student.id).length,1);
+  fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:0,coverage:{source:'manual',topics:[]}});
+  const row=handle().prepare('SELECT practice_state,held_until FROM learning_assignments WHERE lesson_slug=?').get(s.slug);
+  assert.equal(row.practice_state,'assigned');assert.equal(row.held_until,null);assert.equal(learningForStudent(s.student.id).length,1);
+ }
+});

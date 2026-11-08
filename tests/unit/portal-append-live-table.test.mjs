@@ -124,3 +124,35 @@ test("a generated lesson's homework keeps its written order, however long writin
   assert.equal(await appendToPortal(code, { ...plan, homework }, published), true);
   assert.deepEqual(HW.homeworkForStudent(studentId).map(h => h.task), homework.map(h => h.task));
 });
+
+async function reportedBooking(code) {
+  const student=liveOnlyStudent(code),path=await portalFileFor(code,{games:[{title:'already delivered',template:'memory',dataId:'old-delivered'}]});
+  E.upsertEnrollment({studentId:student.id,subject:'מתמטיקה',level:'ט',teacherId:null});
+  const enrollment=E.enrollmentsForStudent(student.id)[0],P=await import('../../src/lib/server/plans/store.ts');
+  const template={id:'late-games',version:1,subject:'מתמטיקה',track:'test',reviewed:null,topics:[{key:'t',title:'t',branches:[{key:'b',title:'b',skills:[{key:'s',title:'s',requires:[]}]}]}]};
+  const planId=P.createPlan({studentId:student.id,enrollmentId:enrollment.id,template,goal:'test'}),skill=P.planData(planId).nodes.find(n=>n.kind==='skill');
+  const {handle}=await import('../../src/lib/server/db.ts');
+  const bookingId=Number(handle().prepare(`INSERT INTO bookings_v2(student_id,enrollment_id,start,"end",duration,at,status) VALUES(?,?,'2026-01-01T10:00:00Z','2026-01-01T11:00:00Z',60,'2026-01-01','confirmed')`).run(student.id,enrollment.id).lastInsertRowid);
+  return {student,path,bookingId,skill,handle};
+}
+const explicit=(covered=false)=>({source:'manual',topics:covered?[{id:'one-part',title:'רק חלק אחד',sceneIds:[],skillKeys:['s'],covered:true,comment:null}]:[]});
+
+test('late generated games after explicit zero or partial coverage stay preparation without evidence links',async()=>{
+ const R=await import('../../src/lib/server/reports/store.ts');
+ for(const partial of [false,true]){
+  const s=await reportedBooking(`late-explicit-${partial}`);
+  R.fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:0,coverage:explicit(partial)});
+  await appendToPortal(s.student.code,plan,published,{id:s.skill.id,key:'s',title:'s',templateId:'late-games'},{bookingId:s.bookingId,heldUntil:'2099-01-01'});
+  const data=JSON.parse(await readFile(s.path,'utf8'));assert.deepEqual(data.games.map(g=>g.dataId),['old-delivered']);
+  assert.equal(s.handle().prepare('SELECT count(*) n FROM game_skills WHERE student_id=?').get(s.student.id).n,0);
+ }
+});
+
+test('a report correction during the async portal read cannot publish stale generated games',async()=>{
+ const R=await import('../../src/lib/server/reports/store.ts'),s=await reportedBooking('late-correction');
+ R.fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:0});
+ const pending=appendToPortal(s.student.code,plan,published,{id:s.skill.id,key:'s',title:'s',templateId:'late-games'},{bookingId:s.bookingId,heldUntil:'2099-01-01',reportRevision:1});
+ R.fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:1,coverage:explicit()});
+ assert.equal(await pending,true);assert.deepEqual(JSON.parse(await readFile(s.path,'utf8')).games.map(g=>g.dataId),['old-delivered']);
+ assert.equal(s.handle().prepare('SELECT count(*) n FROM game_skills WHERE student_id=?').get(s.student.id).n,0);
+});

@@ -2,6 +2,7 @@
   import Icon from '$lib/icons/Icon.svelte';
   import FormulaText from '$lib/components/FormulaText.svelte';
   import TutorPageHeader from '$lib/components/TutorPageHeader.svelte';
+  import TutorPaymentTable from '$lib/components/TutorPaymentTable.svelte';
   import ReportQueue from '$lib/components/ReportQueue.svelte';
   import EngineNotice from '$lib/components/EngineNotice.svelte';
   import TutorsCard from '$lib/components/TutorsCard.svelte';
@@ -834,8 +835,6 @@
   /* ═══════════════════ real payments — tutor marks charges ═══════════════════
      Driven by realStudents (the real entity model above), not data.students
      (the localStorage CRM) — see this file's header comment. */
-  const KIND_LABEL: Record<string, string> = { single: 'יחיד', double: 'כפול', triple: 'משולש' };
-  const STATUS_LABEL: Record<string, string> = { owed: 'לתשלום', paid: 'שולם', void: 'בוטל' };
 
   let chargesFor = $state<Record<string, Array<{ id: number; date: string; kind: string; amount_agorot: number; status: string }>>>({});
   let picked = $state(new SvelteSet<number>());
@@ -925,7 +924,7 @@
   interface LessonEntry {
     slug: string; student: string; subject: string | null; title: string | null; topic: string | null;
     context: string | null; status: string; problem: string | null; slidesUrl: string | null;
-    homework: unknown[]; games: LessonGame[]; level: string | null;
+    homework: unknown[]; games: LessonGame[]; level: string | null; lessonAt: string | null;
   }
   let lessons = $state<LessonEntry[]>([]);
   let lessonsLoading = $state(true);
@@ -1344,39 +1343,16 @@
 
               <button class="btn btn-outline btn-sm" style="margin-bottom:10px" onclick={() => toggleForm(`${s.code}:session`)}>+ הוסף שיעור</button>
 
-              <fieldset class="ledger" disabled={ledgerBusy[s.code] || ledgerLoading[s.code] || !!ledgerError[s.code] || !chargesFor[s.code]}>
-                <legend class="sr-only">רישומי תשלום</legend>
-                {#if chargesFor[s.code]?.length}
-                  <table class="payments-table">
-                    <caption class="sr-only">חיובים ותשלומים</caption>
-                    <thead><tr><th scope="col">בחירה</th><th scope="col">תאריך</th><th scope="col">סוג</th><th scope="col">סכום</th><th scope="col">מצב</th><th scope="col">פעולות</th></tr></thead>
-                    <tbody>
-                      {#each chargesFor[s.code] as c (c.id)}
-                        <tr>
-                          <td data-label="בחירה"><input class="charge-check" type="checkbox" aria-label="בחירת חיוב מ־{formatDate(c.date)} בסך {formatAgorot(c.amount_agorot)}" checked={picked.has(c.id)} onchange={() => toggle(c.id)} /></td>
-                          <td data-label="תאריך">{formatDate(c.date)}</td>
-                          <td data-label="סוג">{KIND_LABEL[c.kind] ?? c.kind}</td>
-                          <td data-label="סכום">{formatAgorot(c.amount_agorot)}</td>
-                          <td data-label="מצב">{STATUS_LABEL[c.status] ?? c.status}</td>
-                          <td data-label="פעולות"><div class="ledger-actions">
-                            {#if c.status !== 'void'}
-                              <button class="btn btn-ghost btn-sm" onclick={() => togglePaid(s.code, String(c.id))}>{c.status === 'paid' ? 'סמן כלא שולם' : 'סמן כשולם'}</button>
-                              <button class="btn btn-danger btn-sm" onclick={() => voidSession(s.code, String(c.id))}>ביטול חיוב</button>
-                            {/if}
-                          </div></td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
-                  <div class="pay-actions">
-                    <button class="btn btn-outline" onclick={() => mark(s.code, 'paid')}>סימון הנבחרים כשולם</button>
-                    <button class="btn btn-outline" onclick={() => mark(s.code, 'owed')}>החזרת הנבחרים לחוב</button>
-                    <button class="btn btn-danger" onclick={() => mark(s.code, 'void')}>ביטול החיובים שנבחרו</button>
-                  </div>
-                {:else if chargesFor[s.code] && !ledgerError[s.code]}
-                  <p>אין רישומי תשלום עדיין.</p>
-                {/if}
-              </fieldset>
+              <TutorPaymentTable
+                charges={chargesFor[s.code]}
+                selected={picked}
+                disabled={ledgerBusy[s.code] || ledgerLoading[s.code] || !!ledgerError[s.code] || !chargesFor[s.code]}
+                {formatDate}
+                onpick={toggle}
+                ontogglepaid={(id) => togglePaid(s.code, String(id))}
+                onvoid={(id) => voidSession(s.code, String(id))}
+                onmark={(status) => mark(s.code, status)}
+              />
             </div>
 
             <!-- HOMEWORK -->
@@ -1660,6 +1636,7 @@
             <div>
               <div class="lsn-title">{l.title || l.topic || '—'}</div>
               <div class="lsn-meta">{l.student} · {l.subject || ''} {l.level || ''}</div>
+              <div class="lsn-meta">מועד השיעור: {#if l.lessonAt}<time datetime={l.lessonAt}><bdi dir="ltr">{formatDateTime(l.lessonAt)}</bdi></time>{:else}טרם נקבע{/if}</div>
             </div>
             <span class="lsn-badge" style="color:{b[1]};background:{b[2]}">{b[0]}</span>
           </div>
@@ -1798,11 +1775,10 @@
   .roster-table th:nth-child(2) { width: 22%; }
   .roster-table td:last-child { font-size: 0.875rem; }
   .roster-table td bdi { white-space: nowrap; }
-  .roster-table tbody tr { position: relative; border-top: 1px solid var(--border); }
+  .roster-table tbody tr { border-top: 1px solid var(--border); }
   .roster-table tbody tr:hover, .roster-table tbody tr:focus-within { background: var(--bg-surface); }
-  .student-row-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--accent-deep); font-weight: 700; text-decoration:none; }
-  .student-row-link::after { content: ''; position: absolute; inset: 0; }
-  .student-row-link:focus-visible::after { outline: 3px solid var(--accent); outline-offset: -3px; }
+  .student-row-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; width: 100%; color: var(--accent-deep); font-weight: 700; text-decoration:none; }
+  .student-row-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
   .roster-meta { display: block; color: var(--text-muted-strong); font-size: 0.85rem; line-height: 1.5; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
@@ -1940,23 +1916,7 @@
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label, .field-label { font-size: .72rem; font-weight: 700; color: var(--text-muted); letter-spacing: .05em; text-transform: uppercase; }
 
-  /* Payments table */
-  .ledger { border: 0; padding: 0; margin: 0; min-width: 0; }
-  .ledger-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .charge-check { width: 44px; height: 44px; accent-color: var(--accent); }
   .payment-summary { flex-wrap: wrap; }
-  @media (max-width: 700px) {
-    .payments-table, .payments-table tbody, .payments-table tr, .payments-table td { display: block; width: 100%; }
-    .payments-table thead { display: none; }
-    .payments-table tr { border-bottom: 1px solid var(--border); padding-block: 12px; }
-    .payments-table td { border: 0; padding: 4px 0; overflow-wrap: anywhere; }
-    .payments-table td::before { content: attr(data-label); font-weight: 700; margin-inline-end: 12px; }
-  }
-  .payments-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-  .payments-table th { text-align: right; padding: 8px 10px; color: var(--accent); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1.5px solid var(--border-strong); background: var(--accent-dim); }
-  .payments-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-strong); color: var(--text-primary); }
-  .payments-table tr:last-child td { border-bottom: none; }
-  .payments-table tr:hover td { background: var(--accent-dim); }
 
   .payment-summary { display: flex; gap: 20px; margin-bottom: 14px; padding: 12px 16px; background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.22); border-radius: var(--r-md); }
   .ps-item { text-align: center; }
@@ -2070,7 +2030,6 @@
   .plan-link { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }
 
   /* Payments panel */
-  .pay-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
   @media (max-width: 600px) {
     .roster-table th, .roster-table td { padding: 10px 8px; }

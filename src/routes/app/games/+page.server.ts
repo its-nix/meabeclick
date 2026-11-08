@@ -10,30 +10,20 @@
  * not live under DATA_DIR — see spec §7), so it is imported directly rather
  * than served through a content route.
  *
- * Each ready template's "try the example" link needs a real
- * /app/play/[template] URL, which — per src/lib/server/urls.ts — must be
- * signed. Signing requires the HMAC secret, which is server-only, so the
- * link is built here rather than in the client script the old page used.
- * There is no real "assigned student" for a catalog preview, so the
- * signature is minted for a placeholder demo identity; nothing depends on
- * that identity being real until a lesson is actually assigned. (The
- * template page these links point at, /app/play/[template], is ported in a
- * later task — until then these links 404, same as any other homework link
- * would before that route exists.)
+ * Catalog examples use authenticated tutor previews, without student
+ * signatures or score writes. Their return link preserves the lesson picker.
  *
  * Reads the registry through src/lib/server/lesson/registry.ts — the same
  * typed access the lesson-generation pipeline uses — rather than a second,
  * independent read of games/registry.json.
  */
 import { requireAuth } from '$server/auth.ts';
-import { gameUrl } from '$server/urls.ts';
+import { tutorGameUrl } from '$server/urls.ts';
 import { getRegistry } from '$server/lesson/registry.ts';
 import { getStudentByCode } from '$server/entities.ts';
 import { lessonForStudent, lessonGameSkillsForStudent } from '$server/lesson-games.ts';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-
-const DEMO_STUDENT = 'דוגמה';
 
 export interface CatalogEntry {
   key: string;
@@ -76,7 +66,7 @@ export const load: PageServerLoad = async (event) => {
     let exampleUrl: string | null = null;
     if (ready && t.example) {
       try {
-        exampleUrl = gameUrl({ template: key, dataId: t.example, student: DEMO_STUDENT });
+        exampleUrl = tutorGameUrl({ template: key, dataId: t.example, returnTo: event.url.pathname + event.url.search });
       } catch {
         exampleUrl = null;
       }

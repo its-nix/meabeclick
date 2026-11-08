@@ -125,7 +125,7 @@ test('every small primary-on-wash role is bound to an AA-safe text token and com
     ['game error code', 'src/lib/styles/games.css', String.raw`\.msg code`, String.raw`\.msg code`, 'page background'],
     ['dashboard outline button', 'src/routes/app/dashboard/+page.svelte', String.raw`\.btn-outline`, String.raw`\.btn-outline`, 'page background'],
     ['dashboard lesson link', 'src/routes/app/dashboard/+page.svelte', String.raw`\.lsn-links a`, String.raw`\.lsn-links a`, 'white (lesson card)'],
-    ['dashboard payments header', 'src/routes/app/dashboard/+page.svelte', String.raw`\.payments-table th`, String.raw`\.payments-table th`, 'white (student card)'],
+    ['dashboard payments header', 'src/lib/components/TutorPaymentTable.svelte', String.raw`th`, String.raw`th`, 'white (student card)'],
     ['dashboard next-lesson label', 'src/routes/app/dashboard/+page.svelte', String.raw`\.nl-label`, String.raw`\.next-lesson-box`, 'white (student card)'],
     ['games URL', 'src/routes/app/games/+page.svelte', String.raw`\.url`, String.raw`\.url`, 'white (game card)'],
     ['marketing chip hover', 'src/routes/app/marketing/+page.svelte', String.raw`\.chip:hover`, String.raw`\.chip:hover`, 'blue surface'],

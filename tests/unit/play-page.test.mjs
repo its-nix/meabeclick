@@ -24,6 +24,9 @@ const loaderSource = `
       const rest = specifier.slice('$server/'.length);
       return nextResolve(new URL(rest, ${JSON.stringify(SERVER_ROOT)}).href, context);
     }
+    if (specifier.startsWith('$lib/')) {
+      return nextResolve(new URL('../' + specifier.slice('$lib/'.length), ${JSON.stringify(SERVER_ROOT)}).href, context);
+    }
     return nextResolve(specifier, context);
   }
 `;

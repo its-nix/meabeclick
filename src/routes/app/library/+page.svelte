@@ -103,7 +103,7 @@
           {#if d.item?.problem}<p class="problem">{d.item.problem}</p>{/if}
           <div class="actions">
             {#if d.item?.status === 'ready' && d.item.slug}
-              <a href="/lessons/{d.item.slug}" target="_blank" rel="noopener">צפייה</a>
+                <a href="/app/lessons/{d.item.slug}/view?returnTo={encodeURIComponent(libraryPath)}">צפייה</a>
               <a href="/app/lessons/{d.item.slug}/edit?returnTo={encodeURIComponent(libraryPath)}">עריכה</a>
             {:else if !d.item || !['queued', 'preparing'].includes(d.item.status)}
               <button class="link" disabled={busy[busyKey]} onclick={() => prepare(d.templateId, { skill: d.skillKey }, busyKey)}>
@@ -172,7 +172,7 @@
             <td><span class="status {st.cls}">{st.label}</span>{#if row.item?.problem}<p class="problem">{row.item.problem}</p>{/if}</td>
             <td><div class="actions">
               {#if row.item?.status === 'ready' && row.item.slug}
-                <a href="/lessons/{row.item.slug}" target="_blank" rel="noopener" aria-label="צפייה: {row.title} — {row.track} (חלון חדש)">צפייה</a>
+                <a href="/app/lessons/{row.item.slug}/view?returnTo={encodeURIComponent(libraryPath)}" aria-label="צפייה: {row.title} — {row.track}">צפייה</a>
                 <a href="/app/lessons/{row.item.slug}/edit?returnTo={encodeURIComponent(libraryPath)}" aria-label="עריכה: {row.title} — {row.track}">עריכה</a>
               {/if}
               {#if !row.item || !['queued', 'preparing'].includes(row.item.status)}

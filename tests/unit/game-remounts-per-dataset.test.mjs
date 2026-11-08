@@ -74,3 +74,8 @@ test('every template still reads its data once, which is why the key matters', (
     + '(it is, for GameShell\'s timer and the per-template score state)',
   );
 });
+
+test('switching a dataset between tutor preview and student play starts a fresh shell', () => {
+  assert.match(page, /\{#key [^\n]*data\.dataId[^\n]*data\.preview/,
+    'the preview timer, score state and queue-flush guard must not survive into student play');
+});

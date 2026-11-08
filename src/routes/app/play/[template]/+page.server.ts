@@ -5,6 +5,8 @@
  * readable); this route fetches it here, after verifying the URL's
  * signature (src/lib/server/urls.ts), so a game data file is only ever
  * served alongside proof the link was legitimately issued to `student`.
+ * Tutor previews instead require a tutor session and never receive a
+ * student identity or signature that could file a score.
  *
  * Also where the personal-best fix (tracked bug 6hJh337GrfGQj5Hq) lands:
  * `getBest(student, dataId)` reads the real, cross-device score history
@@ -27,6 +29,7 @@ import { isKnownTemplate } from '$server/lesson/registry.ts';
 import { practiceGoal } from '$server/lesson/targeting.ts';
 import { getLessonGame, readPublishedLessonGame } from '$server/lesson-games.ts';
 import { requireAuth } from '$server/auth.ts';
+import { safeTutorReturn } from '$lib/tutor-return.ts';
 import type { GameData } from '$lib/games/engine.ts';
 import type { PageServerLoad } from './$types';
 
@@ -55,6 +58,7 @@ export const load: PageServerLoad = async (event) => {
   const previewId = url.searchParams.get('preview');
   if (previewId) {
     requireAuth(event);
+    event.setHeaders({ 'Cache-Control': 'private, no-store' });
     const assignment = getLessonGame(previewId);
     if (!assignment || assignment.template !== params.template || assignment.status === 'archived') {
       error(404, 'טיוטת המשחק לא נמצאה');
@@ -72,13 +76,18 @@ export const load: PageServerLoad = async (event) => {
   }
 
   const dataId = url.searchParams.get('d');
-  const student = url.searchParams.get('s') ?? '';
-  const t = url.searchParams.get('t');
+  const teacher = url.searchParams.get('teacher') === '1';
+  if (teacher) {
+    requireAuth(event);
+    event.setHeaders({ 'Cache-Control': 'private, no-store' });
+  }
+  const student = teacher ? '' : url.searchParams.get('s') ?? '';
+  const t = teacher ? null : url.searchParams.get('t');
 
-  if (!dataId || !verifyGameSignature({ dataId, student, t })) {
+  if (!dataId || (!teacher && !verifyGameSignature({ dataId, student, t }))) {
     error(403, 'קישור לא תקין');
   }
-  const resolvedStudentId = resolveStudent(student);
+  const resolvedStudentId = teacher ? null : resolveStudent(student);
 
   /* Generic catalog ids (`example-*`) are rows in game_filler. The
      database wins when a file of that same id is also on the volume, so
@@ -94,7 +103,7 @@ export const load: PageServerLoad = async (event) => {
   let gameData: GameData;
   const lessonGame = readPublishedLessonGame(dataId);
   if (lessonGame) {
-    if (resolvedStudentId === null || lessonGame.studentId !== resolvedStudentId || lessonGame.template !== params.template) {
+    if (lessonGame.template !== params.template || (!teacher && (resolvedStudentId === null || lessonGame.studentId !== resolvedStudentId))) {
       error(403, 'המשחק לא שייך לתלמיד/ה');
     }
     gameData = lessonGame.body as GameData;
@@ -112,6 +121,17 @@ export const load: PageServerLoad = async (event) => {
         error(404, `לא נמצא קובץ המשחק ${dataId}.json`);
       }
     }
+  }
+
+  if (teacher) {
+    return {
+      template: params.template, dataId,
+      student: 'תלמיד/ה לדוגמה', t: null,
+      title: gameData.title || '',
+      subject: [gameData.subject, 'תצוגה מקדימה למורה'].filter(Boolean).join(' · '),
+      best: null, skill: null, gameData, preview: true,
+      backUrl: safeTutorReturn(url.searchParams.get('returnTo'), url.origin),
+    };
   }
 
   /* `student` is whatever the signed link carries — a stable code on links

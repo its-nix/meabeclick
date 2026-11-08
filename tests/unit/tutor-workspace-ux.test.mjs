@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const page = readFileSync('src/routes/app/dashboard/+page.svelte', 'utf8');
+const payments = readFileSync('src/lib/components/TutorPaymentTable.svelte', 'utf8');
 
 test('failed profile edits retain field-specific recoverable drafts and adjacent retry', () => {
   assert.match(page, /profileDrafts/);
@@ -14,15 +15,17 @@ test('failed profile edits retain field-specific recoverable drafts and adjacent
 });
 
 test('one payment ledger retains bulk actions and labels loading or stale data', () => {
-  assert.equal((page.match(/class="payments-table"/g) ?? []).length, 1);
+  assert.equal((page.match(/<TutorPaymentTable/g) ?? []).length, 1);
+  assert.equal((payments.match(/<table>/g) ?? []).length, 1);
   assert.doesNotMatch(page, /class="pay-row"/);
   assert.match(page, /activityError\[s.code\]/);
   assert.match(page, /activityLoading\[s.code\]/);
   assert.match(page, /ledgerBusy\[s.code\]/);
   assert.match(page, /activitySequence\[code\] !== sequence/);
-  assert.match(page, /checked=\{picked.has\(c.id\)\}/);
-  assert.match(page, /onclick=\{\(\) => mark\(s.code, 'paid'\)\}/);
-  assert.match(page, /data-label="פעולות"/);
+  assert.match(payments, /checked=\{selected.has\(charge.id\)\}/);
+  assert.match(page, /onmark=\{\(status\) => mark\(s.code, status\)\}/);
+  assert.match(payments, /onclick=\{\(\) => onmark\('paid'\)\}/);
+  assert.match(payments, /<th scope="col">פעולות<\/th>/);
   assert.match(page, /לא ניתן לטעון כרגע/);
   const badges = page.slice(page.indexOf('class="sc-badges"'), page.indexOf('</div>', page.indexOf('class="sc-badges"')));
   assert.ok(badges.indexOf('ledgerError[s.code]') < badges.indexOf('ledgerLoading[s.code]'), 'an initial load failure must not keep claiming to load');

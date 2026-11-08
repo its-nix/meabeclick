@@ -55,8 +55,9 @@
        questions had the score written to the new game's record.
 
        Outside GameShell, not just around <Board>: the shell owns the timer
-       and the reporting, and both have to start again too. -->
-  {#key `${data.template}:${data.dataId}`}
+       and the reporting, and both have to start again too. Switching between
+       tutor preview and student play must also restart the shell. -->
+  {#key `${data.template}:${data.dataId}:${data.preview}`}
   <GameShell
     title={data.title}
     subject={data.subject}

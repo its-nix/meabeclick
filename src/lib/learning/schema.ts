@@ -17,7 +17,7 @@ export const LEARNING_SCHEMA = {
         },
         visual: { type: 'string', enum: ['quadratic', 'linear', 'number-line', 'balance', 'fraction-bar', 'right-triangle', 'function-tangent', 'steps'] },
         xDomain: numbers, yDomain: numbers,
-        questionVisual: { anyOf: [{type: 'null'}, { type: 'object', required: ['tex', 'caption'], properties: { tex: text, caption: text } }] },
+        questionVisual: { description: 'Question-only stimulus for a single-frame check. Must be null whenever frames has more than one item. Required for fraction-bar, right-triangle and function-tangent checks; optional for other single-frame checks.', anyOf: [{type: 'null'}, { type: 'object', required: ['tex', 'caption'], properties: { tex: text, caption: text } }] },
         frames: { type: 'array', items: { type: 'object', required: ['caption', 'tex', 'values'], properties: { caption: text, tex: text, values: numbers } } },
         check: { anyOf: [{ type: 'null' }, {
           type: 'object', required: ['kind', 'question', 'options', 'answer', 'hints', 'success', 'retry'],
@@ -55,6 +55,7 @@ export const LEARNING_INSTRUCTIONS = [
   'visual=right-triangle: values=[legA,legB], אורכי הניצבים חיוביים עד 100. קנה המידה אחיד בשני הכיוונים. רק הניצבים נתונים; היתר מחושב בהדגמה ומסומן ? בשאלה. מתאים לפיתגורס, לא למשולש כללי.',
   'visual=function-tangent: values=[a,b,c,t], עבור f(x)=ax^2+bx+c ומשיק בנקודה x=t. הערך המוחלט של a בין 0.1 ל־10, של b,c עד 100. נקודת ההשקה חייבת להיות בתוך טווחי הצירים. המשיק מחושב עם שיפוע 2at+b. אין נגזרת כללית או קוד.',
   'בכל check של שלוש ההמחשות החדשות חובה questionVisual={tex,caption}: נוסחת נתונים בלבד וכיתוב שאלה בלבד, בלי התשובה, חישוב ביניים פתור או נוסחת פתרון. frame יחיד מכיל את נתוני השאלה. היתר/שבר כתוב/שיפוע לא מסומנים מספרית בשאלה; ההמחשה עצמה נשארת נתון. פתרון והסבר נשמרים ב־frames ובמשוב ההצלחה. אין להכניס תשובה לכותרת או להנחיה.',
+  'בכל סוג המחשה, questionVisual שאינו null מותר רק כשיש check ו־frame יחיד. בהסבר מודרך, תרגול מודרך או סיכום עם כמה frames קובעים questionVisual=null; אין לשלב גירוי שאלה בלבד עם כמה שלבי פתרון. בסצנת challenge ובכל graph-target עדיין חובה frame יחיד, גם בלי questionVisual.',
   'בהמחשות החדשות tex הוא ההסבר המתמטי שכתבתם לפי נתוני frame, למשל שקילות שברים או פיתגורס. הוא מוצג בהדגמה; בשאלה מוצג questionVisual.tex בלבד. אל תסמכו על נוסחה אוטומטית כדי ללמד שלבי חישוב.',
   'visual=steps: values=[]; הצג/הציגי את התרגיל הפתור בצעדים מתמטיים, לא בבולטים. לשברים ולחלק־שלם העדיפו fraction-bar, לפיתגורס right-triangle ולפונקציה ריבועית עם משיק function-tangent. השתמש/י ב־steps כשאין ייצוג מספרי מתאים או כשמלמדים פעולות אלגבריות. אין להמציא גרף לנושא שאינו גרפי.',
   'כאשר מלמדים שינוי בצורת הכתיבה, למשל השלמה לריבוע, חובה visual=steps ולהציג גם את פעולת הביניים שמסבירה את המעבר. quadratic ו־linear מציגים נוסחה שמחושבת מהפרמטרים, ולכן אינם מיועדים להחלפת נוסחאות שקולות באותם values. אל תקפצו מהתרגיל ישר לתוצאה.',

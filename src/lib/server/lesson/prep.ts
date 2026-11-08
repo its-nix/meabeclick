@@ -43,6 +43,7 @@ import type { LearningExperience } from '../../learning/model.ts';
 import { LEARNING_SCHEMA, LEARNING_INSTRUCTIONS } from '../../learning/schema.ts';
 import { experienceProblems, renderLearningDocument } from '../learning-render.ts';
 import { structuredProblems } from './structured-validation.ts';
+import {artifactRepair,type ArtifactRepair} from './artifact-repair.ts';
 import { gameGenerationSchema, GAME_GENERATION_PROMPT, validateGeneratedGameBank } from './game-generation.ts';
 import { CRITIQUE_SCHEMA, candidateHash, critiqueIssues, critiquePrompt, qualityPaths, repairPrompt, attachGenerationQualityReport, type GenerationQualityReport, type QualityAttempt, type QualityIssue, type QualityCheck } from './quality.ts';
 
@@ -241,7 +242,7 @@ export interface LessonRequest {
 /* The three "ready" game types that cover the most ground: recall,
    misconception, and diagnosis. Schemas match games/registry.json exactly, so
    generated data drops straight into the existing templates. */
-const LESSON_SCHEMA = {
+export const LESSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['title', 'gradeContext', 'slides', 'examples', 'homework', 'games', 'learning'],
@@ -574,16 +575,25 @@ export async function generateLesson(req: LessonRequest, options: GenerationOpti
   const report: GenerationQualityReport = { version:1, scope:'generation-snapshot', status:'failed', at:new Date().toISOString(), engine:lessonEngine(), model:process.env.LESSON_MODEL ?? null, attempts:[] };
   try {
     let prompt = buildPrompt(req);
+    let repair:ArtifactRepair|null=null;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const assessment: QualityAttempt = {candidateHash:null, issues:[], critique:'not-run'};
+      const assessment: QualityAttempt = {candidateHash:null, issues:[], critique:'not-run',
+        ...(attempt ? {repair:repair ? {mode:'artifacts' as const,paths:repair.paths} : {mode:'full' as const}} : {})};
       report.attempts.push(assessment);
       let rejected: unknown = null;
       try {
-        let plan = await generateOnce(prompt, raw => { rejected = raw; });
+        let plan:LessonPlan;
+        if (repair) {
+          const reply=await structuredReply(prompt,repair.schema,lessonTimeoutMs(),raw=>{rejected=raw;});
+          assessment.issues=structuredProblems(reply,repair.schema);
+          if (assessment.issues.length) throw new LessonGenerationError('bad-output',assessment.issues.map(issue=>`${issue.path}: ${issue.message}`).join('; '));
+          plan=repair.apply(reply);
+        } else plan = await generateOnce(prompt, raw => { rejected = raw; });
         rejected = plan;
         const issues = structuredProblems(plan, LESSON_SCHEMA);
         if (!issues.length) {
-          plan = dropAmbiguousPairs(balancePositions(plan));
+          plan = normalizeGeneratedCandidate(plan,repair?.paths);
+          rejected = plan;
           issues.push(...freshQualityIssues(plan));
         }
         assessment.candidateHash = candidateHash(plan);
@@ -617,7 +627,8 @@ export async function generateLesson(req: LessonRequest, options: GenerationOpti
         const qualityFailure = assessment.critique === 'failed';
         if (!assessment.issues.length) assessment.issues.push({path:'lesson', code:error instanceof LessonGenerationError ? error.kind : 'generation-failed', message:error instanceof Error ? error.message : 'Generation failed'});
         if (attempt === 0 && (retryable || qualityFailure)) {
-          prompt = repairPrompt(buildPrompt(req), rejected, assessment.issues);
+          repair = artifactRepair(rejected,assessment.issues,LESSON_SCHEMA);
+          prompt = repairPrompt(buildPrompt(req), rejected, assessment.issues,repair ?? undefined);
           continue;
         }
         if (error && typeof error === 'object') attachGenerationQualityReport(error, report);
@@ -687,6 +698,14 @@ export function balancePositions(plan: LessonPlan): LessonPlan {
   return plan;
 }
 
+function normalizeGeneratedCandidate(plan:LessonPlan,paths?:string[]):LessonPlan {
+  if (!paths) return dropAmbiguousPairs(balancePositions(plan));
+  const games=Object.fromEntries(Object.entries(plan.games).filter(([key])=>paths.includes(`games.${key}`)));
+  if (!Object.keys(games).length) return plan;
+  const normalized=dropAmbiguousPairs(balancePositions({...plan,games}));
+  return {...plan,games:{...plan.games,...normalized.games}};
+}
+
 function freshQualityIssues(plan: LessonPlan): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const add = (path:string, code:string, message:string) => issues.push({path,code,message});
@@ -700,20 +719,27 @@ function freshQualityIssues(plan: LessonPlan): QualityIssue[] {
   });
   if (!plan.learning) add('learning','structure','lesson output omitted the interactive learning experience');
   else for (const message of experienceProblems(plan.learning, {requirePresenterNotes:true})) {
-    const scene = plan.learning.scenes?.find(scene=>message.includes(scene.id));
+    const scene = plan.learning.scenes?.find(scene=>message.endsWith(' '+scene.id));
     add(scene ? `learning.scenes[${plan.learning.scenes.indexOf(scene)}]` : 'learning','structure',message);
   }
-  try { for (const message of validateLesson(plan)) add('lesson','structure',message); }
+  try { for (const message of validateLesson(plan)) if (!issues.some(issue=>issue.message===message)) add('lesson','structure',message); }
   catch { add('lesson','structure','Lesson artifacts have invalid types'); }
   for (const [key, body] of Object.entries(plan.games ?? {})) {
     if (body == null) continue;
     try {
       validateLessonGame(TEMPLATE_FILES[key],toTemplateShape(key,body));
-      for (const message of validateGeneratedGameBank(key,body)) add(`games.${key}`,'question-bank',message);
     }
     catch (error) {
-      if (error instanceof GameValidationError) for (const issue of error.issues) add(`games.${key}.${issue.path}`,'structure',issue.message);
+      if (error instanceof GameValidationError) for (const issue of error.issues) {
+        const location=issue.path==='game' ? '' : issue.path.replace(/^game\./,'');
+        add(`games.${key}`+(location ? '.'+location : ''),'structure',issue.message);
+      }
       else add(`games.${key}`,'structure','Invalid game artifact');
+    }
+    for (const message of validateGeneratedGameBank(key,body)) {
+      const location=message.slice(0,message.indexOf(':'));
+      const path=location.startsWith(key+'.') ? `games.${key}.${location.slice(key.length+1)}` : `games.${key}`;
+      add(path,'question-bank',message);
     }
   }
   plan.examples?.forEach((example,i)=> {

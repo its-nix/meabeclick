@@ -62,7 +62,7 @@ test('explicit understanding remains separate from topic coverage on corrections
  c.topics[0].covered=false;R.fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:1,coverage:c});assert.equal(T.latestTopicReport(s.bookingId).topics.filter(t=>t.covered).length,0);
 });
 
-const passedAssessment={passed:true,mathematics:true,answerKeys:true,coveredScope:true,exclusions:true,reason:'verified synthetic'};
+const passedAssessment={passed:true,mathematics:true,answerKeys:true,coveredScope:true,exclusions:true,studentVisibility:true,reason:'verified synthetic'};
 test('explicit homework requires independent assessment and no broad failure fallback',async()=>{
  const {afterReport}=await import('../../src/lib/server/reports/after.ts'),L=await import('../../src/lib/server/lessons.ts');
  const s=fixture();L.addHomework({studentId:s.student.id,bookingId:s.bookingId,task:'broad prepared',heldUntil:'2099-01-01'});R.fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:0,coverage:coverage(s)});
@@ -133,4 +133,12 @@ test('future preparation receives only the effective material-scoped correction 
  R.fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:0,coverage:c});c.topics[0].covered=false;c.topics[1].covered=true;c.topics[1].comment='להתחיל לאט';
  R.fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:1,coverage:c});
  const context=prep.preparationCoverageFor(s.student.code,'מתמטיקה');assert.equal(context.revision,2);assert.equal(context.snapshot.slug,s.slug);assert.deepEqual(context.topics.filter(t=>t.covered).map(t=>t.id),['vertical']);assert.equal(context.topics[1].comment,'להתחיל לאט');assert.equal(prep.preparationCoverageFor(s.student.code,'פיזיקה'),null);
+});
+
+for(const visibility of [false,undefined])test(`otherwise-passing scoped practice is withheld when student visibility is ${String(visibility)}`,async()=>{
+ const {afterReport}=await import('../../src/lib/server/reports/after.ts'),L=await import('../../src/lib/server/lessons.ts');
+ const s=fixture();R.fileReport({bookingId:s.bookingId,note:null,entries:[],expectedRevision:0,coverage:coverage(s)});
+ const assessment={...passedAssessment,studentVisibility:visibility};
+ const result=await afterReport({bookingId:s.bookingId,note:null,nodeIds:[],reportRevision:1},{generateTopics:async()=>[{task:'התשובה היא 2; המורה אמרה: רק ימינה',answer:'2',nodeId:s.skill.id,topicIds:['horizontal']}],assessTopics:async()=>assessment});
+ assert.equal(result,'withheld');assert.equal(L.homeworkForStudent(s.student.id).length,0);
 });

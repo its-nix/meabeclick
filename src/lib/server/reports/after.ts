@@ -171,12 +171,13 @@ async function afterTopicReport(bookingId:number, expected:number, report:TopicR
   tasks=await (deps.generateTopics??generateTopicHomework)(context);
   assessment=await (deps.assessTopics??assessTopicHomework)(context,tasks);
  }catch{
-  assessment={passed:false,mathematics:false,answerKeys:false,coveredScope:false,exclusions:false,reason:'generation-or-assessment-failed'};
+  assessment={passed:false,mathematics:false,answerKeys:false,coveredScope:false,exclusions:false,studentVisibility:false,reason:'generation-or-assessment-failed'};
  }
  return inTransaction(()=>{
   if(latestTopicReport(bookingId)?.id!==report.id)return 'none';
+  assessment={...assessment,passed:assessment.passed && assessment.studentVisibility===true};
   handle().prepare(`INSERT INTO lesson_report_assessments(revision_id,passed,assessment_json,created_at) VALUES(?,?,?,?)`).run(report.id,Number(assessment.passed),JSON.stringify(assessment),new Date().toISOString());
-  if(!tasks?.length||!assessment.passed||!assessment.mathematics||!assessment.answerKeys||!assessment.coveredScope||!assessment.exclusions)return 'withheld';
+  if(!tasks?.length||!assessment.passed||!assessment.mathematics||!assessment.answerKeys||!assessment.coveredScope||!assessment.exclusions||assessment.studentVisibility!==true)return 'withheld';
   const allowed=new Set(report.topics.filter(t=>t.covered).map(t=>t.id));
   if(tasks.some(t=>!t.answer?.trim()||!t.topicIds.length||t.topicIds.some(id=>!allowed.has(id))))return 'withheld';
   if(handle().prepare(`SELECT 1 FROM homework WHERE booking_id=? AND withheld_report_revision IS NULL AND (held_until IS NULL OR held_until<=?) LIMIT 1`).get(bookingId,new Date().toISOString()))return 'none';

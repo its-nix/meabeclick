@@ -26,19 +26,19 @@
 Files: new `src/lib/server/lesson/artifact-repair.ts`; `tests/unit/artifact-repair.test.mjs`.
 Interfaces: `artifactRepair(candidate: unknown, issues: QualityIssue[], schema: OutputSchema): ArtifactRepair|null`; result has `paths`, strict `schema`, and `apply(reply: unknown): LessonPlan`.
 
-- [ ] RED: nested scene field chooses that scene; applying its replacement preserves all other artifacts and input.
-- [ ] GREEN: trusted catalog for slides/examples/homework/scenes, bank items and whole games; validate/normalize optional nulls before cloning/applying.
-- [ ] RED→GREEN: parent subsumption, index boundaries, malformed initial data, foreign/missing replacements and invalid types.
-- [ ] Verify focused Node tests and commit the module with its tests.
+- [x] RED: nested scene field chooses that scene; applying its replacement preserves all other artifacts and input.
+- [x] GREEN: trusted catalog for slides/examples/homework/scenes, bank items and whole games; validate/normalize optional nulls before cloning/applying.
+- [x] RED→GREEN: parent subsumption, index boundaries, malformed initial data, foreign/missing replacements and invalid types.
+- [x] Verify focused Node tests and commit the module with its tests.
 
 ### Task2: Generation integration
 
 Files: `prep.ts`, `quality.ts`, generation quality tests.
 
-- [ ] RED: semantic repair returns replacement units, not a new lesson; passing content cannot be changed.
-- [ ] GREEN: wire strict repair schema/application on attempt2 and private repair-mode/path evidence.
-- [ ] RED→GREEN: scoped normalization, unknown/global full fallback, new final critique failures, malformed repair/engine faults and duplicate aggregate errors.
-- [ ] Verify existing retry/privacy tests and commit the integration.
+- [x] RED: semantic repair returns replacement units, not a new lesson; passing content cannot be changed.
+- [x] GREEN: wire strict repair schema/application on attempt2 and private repair-mode/path evidence.
+- [x] RED→GREEN: scoped normalization, unknown/global full fallback, new final critique failures, malformed repair/engine faults and duplicate aggregate errors.
+- [x] Verify existing retry/privacy tests and commit the integration.
 
 ### Task3: Verification and authentic evidence
 
@@ -55,3 +55,5 @@ Files: provenance scripts/tests and sanitized execution/feedback docs.
 Start: f8bdffc. Existing baseline:1,807 Linux tests, build/check and CI pass.
 Ruling: JSON object replacement keys are unique application slots; validation checks the exact parsed key set. No new raw-JSON duplicate-key parser is introduced; full schema/content assessment remains authoritative.
 Ruling: Repair normalization applies only to explicitly replaced whole games. Individual question replacements retain their authored valid option/key bindings.
+
+Progress: Task1 8a6b831. Task2 integration:43 focused tests pass; full fallback, scoped normalization, final rejection and engine-fault regressions included. Historical44-file batch audit passes against ef5c1d0 without changing original evidence.

@@ -40,7 +40,10 @@ export function artifactRepair(candidate:unknown,issues:QualityIssue[],schema:Ou
     const bankKey=QUESTION_BANK_KEYS[key],bank=object(game) ? game[bankKey] : null;
     const itemSchema=gameSchema.properties?.[bankKey]?.items;
     if (Array.isArray(bank) && itemSchema) { lengths.set(`games.${key}.${bankKey}`,bank.length);bank.forEach((_,i)=>units.set(`games.${key}.${bankKey}[${i}]`,{
-      schema:itemSchema,set:(plan,value)=>{(plan.games as Record<string,Record<string,unknown[]>>)[key][bankKey][i]=value;},
+      schema:itemSchema,set:(plan,value)=>{
+        const body=(plan.games as Record<string,unknown>)[key] as Record<string,unknown>;
+        (body[bankKey] as unknown[])[i]=value;
+      },
     })); }
   }
   const selected:string[]=[];

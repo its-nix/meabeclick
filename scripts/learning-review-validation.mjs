@@ -7,7 +7,8 @@ export const LEGACY_SOURCE_FILES = ['src/lib/server/lesson/prep.ts','src/lib/ser
 export const PRE_QUALITY_SOURCE_FILES=[...LEGACY_SOURCE_FILES,'src/lib/server/lesson-games.ts','src/lib/server/lesson/prompt.ts','src/lib/server/lesson/spawn.ts','src/lib/server/lesson/engine.ts','src/lib/server/lesson/engine-health.ts','src/lib/server/lesson/registry.ts','src/lib/learning/math.ts','src/lib/bidi.ts','src/lib/plans.ts','package-lock.json','scripts/generate-learning-review.mjs','scripts/learning-review-validation.mjs'];
 export const PRE_GRAPH_SOURCE_FILES=[...PRE_QUALITY_SOURCE_FILES,'src/lib/server/lesson/quality.ts','src/lib/server/learning-store.ts','src/lib/server/lesson/structured-validation.ts','src/lib/server/lesson/game-generation.ts','src/lib/games/adaptive.ts','scripts/render-learning-video.mjs','src/lib/server/presenter-notes.ts','src/lib/games/engine.ts','src/lib/games/GameShell.svelte','src/lib/games/Quiz.svelte','src/lib/games/ErrorHunt.svelte','src/lib/games/TwoTruths.svelte','src/lib/games/GraphMatch.svelte','src/lib/games/NumberLine.svelte','src/lib/games/SpeedDrill.svelte'];
 export const PRE_CONTROLS_SOURCE_FILES=[...PRE_GRAPH_SOURCE_FILES,'src/lib/games/graph-match-plot.ts'];
-export const SOURCE_FILES=[...PRE_CONTROLS_SOURCE_FILES,'src/lib/learning/controls.ts'];
+export const PRE_REPAIR_SOURCE_FILES=[...PRE_CONTROLS_SOURCE_FILES,'src/lib/learning/controls.ts'];
+export const SOURCE_FILES=[...PRE_REPAIR_SOURCE_FILES,'src/lib/server/lesson/artifact-repair.ts'];
 export async function sourceFingerprint() {
   const hash=createHash('sha256');
   for (const path of SOURCE_FILES) hash.update(path).update(await readFile(path));

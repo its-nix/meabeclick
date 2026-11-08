@@ -435,7 +435,7 @@ const LESSON_SCHEMA = {
               properties: {
                 prompt:    { type: 'string' },
                 mainLabel: { type: 'string' },
-                main:      { type: 'array', items: { type: 'number' }, description: 'y-samples of the always-visible reference function, evenly spaced in x' },
+                main:      { type: 'array', items: { type: 'number' }, description: 'y-samples of the always-visible reference function at x_i=i-(N-1)/2 for i=0..N-1: unit spacing centered at zero. State the x-range and units in prompt or mainLabel.' },
                 options:   { type: 'array', items: { type: 'array', items: { type: 'number' } },
                              description: 'Each option is a y-sample array of the SAME length as main.' },
                 answer:    { type: 'integer' },

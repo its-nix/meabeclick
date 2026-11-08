@@ -74,7 +74,7 @@ test('shared failure stops scheduling, and a live batch lock prevents all genera
 });
 test('a first critique timeout stops the batch with nine cases pending and preserves its failed report',()=>{
   const s=setup();try{
-    const failed=s.run(['--concurrency','1'],{REVIEW_CRITIQUE_TIMEOUT:'1',LESSON_TIMEOUT_MINUTES:'0.02'});
+    const failed=s.run(['--concurrency','1'],{REVIEW_CRITIQUE_TIMEOUT:'1',LESSON_TIMEOUT_MINUTES:'0.05'});
     assert.notEqual(failed.status,0,failed.stdout+failed.stderr);
     assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,2,'one lesson and one timed-out critique, then no further engine calls');
     const manifest=JSON.parse(readFileSync(join(s.out,'manifest.json'),'utf8'));

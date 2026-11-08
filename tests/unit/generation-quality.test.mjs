@@ -103,7 +103,9 @@ test('fresh library preparation privately persists passing and exhausted reports
 });
 
 test('a critique timeout is not retried or published',async()=>{
- const saved=process.env.LESSON_TIMEOUT_MINUTES;process.env.LESSON_TIMEOUT_MINUTES='0.02';
+ const saved=process.env.LESSON_TIMEOUT_MINUTES;
+ // Allow stub startup under parallel CI; only the five-second critic hang exceeds this budget.
+ process.env.LESSON_TIMEOUT_MINUTES='0.05';
  try {
   const plan=generationPlan();
   await engine([plan,{hang:true}],async calls=>{

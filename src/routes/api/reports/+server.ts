@@ -10,6 +10,7 @@ import { apiAuthDenied } from '$server/auth.ts';
 import { readJson } from '$server/http.ts';
 import { STATUSES, type SkillStatus } from '$lib/plan-status.ts';
 import { fileReport, reportForBooking, bookingForReport } from '$server/reports/store.ts';
+import { ReportRevisionConflict, type TopicCoverageInput } from '$server/reports/topics.ts';
 import { planForEnrollment, planData, nodeInPlan, lastLessonAt } from '$server/plans/store.ts';
 import { buildTree } from '$server/plans/view.ts';
 import { afterReport } from '$server/reports/after.ts';
@@ -77,16 +78,17 @@ export const POST: RequestHandler = async (event) => {
   // booking and plan ids for the log, which must never reach the tutor's
   // browser as a raw 500; map every failure to a 400 with a fixed message.
   try {
-    fileReport({ bookingId: booking.id, note, entries });
+    fileReport({ bookingId: booking.id, note, entries, expectedRevision: body.expectedRevision as number | undefined, coverage: body.coverage as TopicCoverageInput | undefined });
   } catch (err) {
+    if (err instanceof ReportRevisionConflict) return json({ error: 'הדיווח השתנה בחלון אחר. יש לרענן לפני שמירת התיקון.' }, {status:409});
     console.error('[reports] file failed:', (err as Error).message);
     return json({ error: 'אי אפשר לשמור את הדיווח הזה' }, { status: 400 });
   }
 
   /* Homework from what was actually taught (spec 2026-09-25). Not awaited:
-     it may run an agent for minutes, and the lesson's held homework goes
-     out on its own a day after the lesson if this never finishes. */
-  afterReport({ bookingId: booking.id, note, nodeIds: entries.map(e => e.nodeId) }, { notify: sendWhatsApp })
+     it may run an agent for minutes. Explicit topic reports remain withheld
+     on expiry/failure; the day-after fallback is retained only for legacy unknown coverage. */
+  afterReport({ bookingId: booking.id, note, nodeIds: entries.map(e => e.nodeId), reportRevision: reportForBooking(booking.id)?.filing_revision }, { notify: sendWhatsApp })
     .catch(err => console.error('[reports] after-report failed:', (err as Error).message))
     /* Then the family's "lesson reported" email — after, so the homework it
        lists is the homework they can now see. Once per lesson. */

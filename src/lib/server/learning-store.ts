@@ -15,7 +15,7 @@ export function assignLearning(slug: string, studentId: number, hold: {
   // A lesson's ownership never changes when regenerated.
   handle().prepare(`INSERT INTO learning_assignments (lesson_slug,student_id,booking_id,node_id,held_until,practice_state)
     VALUES (?,?,?,?,?,?) ON CONFLICT(lesson_slug) DO NOTHING`)
-    .run(slug,studentId,hold.bookingId,hold.nodeId,hold.heldUntil,hold.bookingId && hold.heldUntil ? 'held' : 'assigned');
+    .run(slug,studentId,hold.bookingId,hold.nodeId,hold.heldUntil,hold.bookingId && hold.heldUntil ? (handle().prepare(`SELECT 1 FROM lesson_reports r JOIN lesson_report_revisions v ON v.report_id=r.id WHERE r.booking_id=?`).get(hold.bookingId)?'withdrawn':'held') : 'assigned');
 }
 
 /** A report replaces only unreleased practice. Late filings never retract a child's work. */
@@ -24,7 +24,7 @@ export function releaseLearningForReport(bookingId: number, nodeIds: number[], r
 }>, now = new Date().toISOString()): void {
   inTransaction(() => {
     const rows = handle().prepare(`SELECT lesson_slug,node_id FROM learning_assignments
-      WHERE booking_id=? AND practice_state='held' AND held_until>?`).all(bookingId,now) as Array<{lesson_slug:string;node_id:number|null}>;
+      WHERE booking_id=? AND practice_state='held' AND held_until>? AND NOT EXISTS (SELECT 1 FROM lesson_reports r JOIN lesson_report_revisions v ON v.report_id=r.id WHERE r.booking_id=learning_assignments.booking_id)`).all(bookingId,now) as Array<{lesson_slug:string;node_id:number|null}>;
     for (const row of rows) {
       const matches = !nodeIds.length || (row.node_id !== null && nodeIds.includes(row.node_id));
       const replacement = !matches ? replacements.find(r => !experienceProblems(r.experience).length) : undefined;
@@ -43,7 +43,7 @@ export function releaseLearningForReport(bookingId: number, nodeIds: number[], r
 
 function releaseDueLearning(now: string): void {
   handle().prepare(`UPDATE learning_assignments SET practice_state='assigned',held_until=NULL
-    WHERE practice_state='held' AND held_until<=? AND NOT EXISTS (
+    WHERE practice_state='held' AND held_until<=? AND NOT EXISTS (SELECT 1 FROM lesson_reports r JOIN lesson_report_revisions v ON v.report_id=r.id WHERE r.booking_id=learning_assignments.booking_id) AND NOT EXISTS (
       SELECT 1 FROM bookings_v2 b WHERE b.id=learning_assignments.booking_id AND b.status='cancelled'
     )`).run(now);
 }
@@ -116,9 +116,9 @@ export function recordLearning(input: {
 
 export function learningForStudent(studentId: number, mode: 'practice'|'preparation' = 'practice', now = new Date().toISOString()): Array<{ slug: string; title: string; url: string; solved: number; total: number }> {
   releaseDueLearning(now);
-  const assignments = handle().prepare(`SELECT lesson_slug FROM learning_assignments a WHERE student_id=? AND practice_state=?
+  const assignments = handle().prepare(`SELECT lesson_slug FROM learning_assignments a WHERE student_id=? AND (practice_state=? OR (?='held' AND practice_state='withdrawn'))
     AND NOT EXISTS (SELECT 1 FROM bookings_v2 b WHERE b.id=a.booking_id AND b.status='cancelled')
-    ORDER BY rowid DESC LIMIT 20`).all(studentId,mode==='practice'?'assigned':'held') as { lesson_slug: string }[];
+    ORDER BY rowid DESC LIMIT 20`).all(studentId,mode==='practice'?'assigned':'held',mode==='practice'?'assigned':'held') as { lesson_slug: string }[];
   return assignments.flatMap(a => {
     const lesson = mode==='practice' ? assignedExperience(a.lesson_slug) : publishedExperience(a.lesson_slug);
     if (!lesson) return [];

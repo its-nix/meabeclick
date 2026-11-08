@@ -39,6 +39,7 @@ export interface LearningScene {
   /** Teacher-only. Optional for stored lessons from before notes were generated. */
   presenterNotes?: PresenterNotes;
 }
+export interface LearningTopic { id: string; title: string; sceneIds: string[]; skillKeys: string[] }
 export interface LearningExperience {
   version: 1;
   title: string;
@@ -46,6 +47,8 @@ export interface LearningExperience {
   objective: string;
   minutes: number;
   scenes: LearningScene[];
+  /** Material-local teachable topics; missing on legacy material. Never canonical mastery IDs. */
+  topics?: LearningTopic[] | null;
 }
 
 export const PHASE_LABELS = {
@@ -88,6 +91,7 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
   const errors: string[] = [];
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ['חוויית הלמידה אינה אובייקט'];
   const e = raw as LearningExperience;
+  errors.push(...learningTopicProblems(e));
   const text = (v: unknown, max = 400) => typeof v === 'string' && !!v.trim() && v.length <= max;
   const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 1000;
   if (e.version !== 1) errors.push('גרסת חוויית למידה לא נתמכת');
@@ -153,7 +157,8 @@ export type PublicExperience = Omit<LearningExperience, 'scenes'> & {
 };
 
 export function publicExperience(e: LearningExperience): PublicExperience {
-  return { ...e, scenes: e.scenes.map(s => {
+  const {topics:_reportTopics,...studentExperience}=e;
+  return { ...studentExperience, scenes: e.scenes.map(s => {
     const { presenterNotes: _notes, ...publicScene } = s;
     if (!s.check) return { ...publicScene, check: null };
     const { answer, success: _success, ...check } = s.check;
@@ -163,4 +168,21 @@ export function publicExperience(e: LearningExperience): PublicExperience {
     const frames = s.questionVisual ? s.frames.map(frame => ({ ...frame, tex: s.questionVisual!.tex, caption: s.questionVisual!.caption })) : s.frames;
     return { ...publicScene, frames, check: { ...check, success: '', ...(s.check.kind === 'graph-target' && Array.isArray(answer) ? { target: answer } : {}) } };
   }) };
+}
+
+
+/** Semantic IDs are accepted only against caller-supplied curriculum keys, never guessed. */
+export function learningTopicProblems(raw:unknown,knownSkillKeys?:readonly string[]):string[]{
+ const e=raw as Partial<LearningExperience>|null;
+ if(e?.topics==null)return [];
+ if(!Array.isArray(e.topics)||e.topics.length>40)return ['invalid topic manifest'];
+ const scenes=new Set(Array.isArray(e.scenes)?e.scenes.map(s=>s.id):[]),ids=new Set<string>();
+ const text=(v:unknown,max:number):v is string=>typeof v==='string'&&!!v.trim()&&v.length<=max;
+ const strings=(v:unknown,max:number):v is string[]=>Array.isArray(v)&&v.length<=max&&v.every(x=>text(x,120))&&new Set(v).size===v.length;
+ const errors:string[]=[];
+ for(const t of e.topics){
+  if(!t||!text(t.id,120)||ids.has(t.id)||!text(t.title,200)||!strings(t.sceneIds,12)||!t.sceneIds.length||t.sceneIds.some(id=>!scenes.has(id))||!strings(t.skillKeys,20)||knownSkillKeys&&t.skillKeys.some(key=>!knownSkillKeys.includes(key)))errors.push('invalid topic manifest membership');
+  if(t)ids.add(t.id);
+ }
+ return errors;
 }

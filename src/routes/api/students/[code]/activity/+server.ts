@@ -43,6 +43,7 @@ function view(code: string) {
          report replaces or releases it, or at this time by itself. */
       heldUntil: h.held_until && h.held_until > new Date().toISOString() ? h.held_until : null,
       answer: h.answer ?? null,
+      withheld: h.withheld_report_revision !== null,
     })),
     /* lessonsForStudent, not the old readLessons: that one read lessons_v2,
        which nothing writes, so this list was empty for every student while

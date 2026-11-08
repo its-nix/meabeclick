@@ -28,6 +28,8 @@ export type EventRow = {
   evidence: Evidence | null;
   source: string;
   report_id: number | null;
+  /** Historical legacy coverage superseded by explicit material coverage. */
+  coverage_superseded?: number;
   /** The event this one replaces, or null for an original observation.
    *  See effectiveStatusEvents() for what that does to the timeline. */
   corrects: number | null;
@@ -151,7 +153,7 @@ export function currentStatus(events: EventRow[], nodeId: number): SkillStatus {
 export function lastCoveredAt(events: EventRow[], nodeId: number): string | null {
   let best: EventRow | null = null;
   for (const e of events) {
-    if (e.type !== 'covered' || e.node_id !== nodeId) continue;
+    if (e.type !== 'covered' || e.node_id !== nodeId || e.coverage_superseded) continue;
     if (!best || e.id > best.id) best = e;
   }
   return best?.at ?? null;

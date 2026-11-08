@@ -140,7 +140,8 @@ export function planData(planId: number): {
       /* `corrects` is not optional here: effectiveStatusEvents() resolves
          corrections from it, and omitting the column would silently make
          every correction look like a fresh opinion appended at the end. */
-      `SELECT id, node_id, type, status, visibility, note, evidence, source, report_id, corrects, at
+      `SELECT id, node_id, type, status, visibility, note, evidence, source, report_id, corrects, at,
+        CASE WHEN type='covered' AND EXISTS (SELECT 1 FROM lesson_report_revisions v WHERE v.report_id=plan_events.report_id) THEN 1 ELSE 0 END AS coverage_superseded
        FROM plan_events WHERE plan_id = ? ORDER BY id`
     ).all(planId) as EventRow[],
   };

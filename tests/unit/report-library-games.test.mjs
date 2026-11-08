@@ -108,3 +108,12 @@ test('a second filing does not add the same games again', async () => {
   await afterReport({ bookingId, note: null, nodeIds: [skills[2].id] }, fail);
   assert.equal(gamesOf(slug).length, 2);
 });
+
+test('a correction during async game preparation prevents stale publication and evidence links',async()=>{
+ const {attachTaughtGames}=await import('../../src/lib/server/library/report-games.ts');
+ const {student,skills,slug}=await lesson();master('t.b.b',{twoTruths:twoTruths('stale')});
+ let checks=0;const added=await attachTaughtGames({lessonSlug:slug,studentId:student.id,templateId:'demo',skills:[{key:'t.b.b',nodeId:skills[1].id}],canPublish:()=>++checks===1});
+ assert.equal(added,0);assert.equal(gamesOf(slug).length,1);
+ assert.equal(handle().prepare('SELECT count(*) n FROM game_skills WHERE student_id=?').get(student.id).n,0);
+ const portal=JSON.parse(await readFile(join(process.env.PORTAL_DIR,`${student.code}.json`),'utf8'));assert.equal(portal.games.length,1);
+});

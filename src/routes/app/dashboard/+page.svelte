@@ -1421,7 +1421,9 @@
                         {:else if hw.graded && hw.grade}
                           <div class="hw-graded">{GRADE_LABEL[hw.grade]} · <button class="link-btn" onclick={() => gradeHw(s.code, hw.id, null)}>ביטול</button></div>
                         {/if}
-                        {#if hw.heldUntil}
+                        {#if hw.withheld}
+                          <div class="hw-held">הכנה בלבד · מחוץ לנושאים שדווחו</div>
+                        {:else if hw.heldUntil}
                           <!-- Held, not missing: the lesson report replaces it with
                                homework from what was taught, or it goes out by itself. -->
                           <div class="hw-held">ממתין לדיווח על השיעור · יישלח לבד ב-{formatDate(israelDay(hw.heldUntil))}</div>

@@ -1,9 +1,6 @@
-# Material-bound lesson reporting — proposed design
+# Material-bound lesson reporting — approved design
 
-Status: proposal, not implemented. Lior has requested implementation and approved
-separating teaching coverage from understanding. The checkbox granularity question
-is pending: the recommended design below uses teachable subtopics, rather than
-whole plan skills. It must be adjusted if he chooses whole skills.
+Status: approved for implementation on 2026-11-08. Lior approved smaller teachable-topic reporting and continuing implementation. Coverage and optional whole-skill understanding remain separate.
 
 ## Purpose
 
@@ -105,5 +102,5 @@ reuse and one optional understanding judgment per whole plan skill are implement
 recommendations, not decisions attributed to Lior. Explicit material reselection
 on correction, manual explicit reports without material, and independent homework
 scope/key assessment resolve builder-review edge cases as implementation calls.
-The implementation plan follows
-once the important reporting granularity decision is settled.
+Implementation plan: `docs/superpowers/plans/2026-11-08-material-bound-report.md`.
+The smaller teachable-topic granularity is approved.

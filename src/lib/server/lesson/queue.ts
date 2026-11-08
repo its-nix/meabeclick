@@ -1,3 +1,6 @@
+import { preparationCoverageFor } from '../reports/preparation.ts';
+import { learningTopicProblems } from '../../learning/model.ts';
+import type { TopicReportRevision } from '../reports/topics.ts';
 /**
  * Fires lesson generation the moment a lesson is booked.
  *
@@ -126,7 +129,8 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
      cap applies to it — its lessons keep coming even when the engine
      cannot. See library/use.ts. */
   const target: TargetSkill | null = targetSkillFor(opts.enrolledCode ?? null, booking.subject);
-  const fromLibrary = target ? libraryPlanFor(target.templateId, target.key) : null;
+  const priorCoverage = preparationCoverageFor(opts.enrolledCode ?? null,booking.subject);
+  const fromLibrary = target && !priorCoverage ? libraryPlanFor(target.templateId, target.key) : null;
 
   if (!fromLibrary) {
     // Structural pre-flight only — "has anyone configured credentials", not
@@ -161,7 +165,7 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
   });
 
   // Intentionally not awaited.
-  run(slug, booking, opts, target, fromLibrary).catch(err => {
+  run(slug, booking, opts, target, fromLibrary, priorCoverage).catch(err => {
     // The engine's own words go to the log and ONLY to the log — see the
     // warning on LessonGenerationError.detail.
     const kind = err instanceof LessonGenerationError ? err.kind : 'unclassified';
@@ -251,6 +255,7 @@ async function run(
   /* The master's published plan when the target skill is prepared: then
      this lesson is a copy of it, and no engine runs. */
   fromLibrary: { masterSlug: string; plan: LessonPlan } | null,
+  priorCoverage: TopicReportRevision | null = null,
 ): Promise<void> {
 
   const meta: RunMeta = {
@@ -262,7 +267,8 @@ async function run(
     durationMin: booking.durationMin,
   };
 
-  const plan = fromLibrary ? fromLibrary.plan : await generateLesson(meta, {onQualityReport: report => saveGenerationQualityReport(slug, report)});
+  const knownSkillKeys=target?[target.key]:[];
+  const plan = fromLibrary ? fromLibrary.plan : await generateLesson({...meta,priorCoverage,knownSkillKeys}, {onQualityReport: report => saveGenerationQualityReport(slug, report)});
   /* Recorded the moment the library is chosen, before validation: a copy
      is not an engine run whatever becomes of it, and the gate
      (scripts/vision-metrics.mjs) must count neither a held nor a failed
@@ -273,7 +279,7 @@ async function run(
 
   // Structurally broken material is held rather than published — a game with
   // badStep out of range would break in a child's hands.
-  const problems = validateLesson(plan);
+  const problems = [...validateLesson(plan),...learningTopicProblems(plan.learning,knownSkillKeys)];
   if (problems.length) {
     await publishDraftOnly(slug, plan, meta);
     finishLesson(slug, {

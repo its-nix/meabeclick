@@ -12,9 +12,10 @@
  * was itself copied from is skipped: its games are already here.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { portalDir } from '../paths.ts';
-import { handle, readLessons } from '../db.ts';
+import { handle, readLessons, inTransaction } from '../db.ts';
 import { contentPath } from '../content.ts';
 import { TEMPLATE_FILES, toTemplateShape } from '../lesson/prep.ts';
 import { linkGameToSkill } from '../lesson/targeting.ts';
@@ -26,13 +27,17 @@ const segment = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').repla
 
 export async function attachTaughtGames(input: {
   lessonSlug: string; studentId: number; templateId: string; skills: { key: string; nodeId: number }[];
+  /** Rechecked after async preparation and inside final publication. */
+  canPublish?: () => boolean;
 }): Promise<number> {
+  if(input.canPublish && !input.canPublish())return 0;
   const lesson = readLessons().find(l => l.slug === input.lessonSlug);
   if (!lesson) return 0;
   const games = [...lesson.games] as { title: string; template: string; dataId: string }[];
   const have = new Set(games.map(g => g?.dataId));
   const source = librarySourceOf(input.lessonSlug);
   let added = 0;
+  const links:{dataId:string;nodeId:number}[]=[];
 
   for (const skill of input.skills.slice(0, MAX_SKILLS)) {
     const master = libraryPlanFor(input.templateId, skill.key);
@@ -53,25 +58,31 @@ export async function attachTaughtGames(input: {
       }
       games.push({ title: (data as { title?: string }).title ?? template, template, dataId });
       have.add(dataId);
-      linkGameToSkill(input.studentId, dataId, skill.nodeId);
+      links.push({dataId,nodeId:skill.nodeId});
       added += 1;
     }
   }
   if (!added) return 0;
-  handle().prepare(`UPDATE lessons SET games = ? WHERE slug = ?`).run(JSON.stringify(games), input.lessonSlug);
-  await addToPortal(input.studentId, games.slice(-added));
-  return added;
+  const portal=await preparedPortal(input.studentId,games.slice(-added));
+  return inTransaction(()=>{
+    if(input.canPublish && !input.canPublish())return 0;
+    for(const link of links)linkGameToSkill(input.studentId,link.dataId,link.nodeId);
+    handle().prepare(`UPDATE lessons SET games = ? WHERE slug = ?`).run(JSON.stringify(games), input.lessonSlug);
+    // No await after the revision check: a correction cannot interleave before publication.
+    if(portal)writeFileSync(portal.path,portal.body);
+    return added;
+  });
 }
 
 /** The child's page reads its games from the portal file — newest first,
  *  twenty at most, as queue.ts appendToPortal keeps it. A child without
  *  a portal file has no page to show them on. */
-async function addToPortal(studentId: number, added: { title: string; template: string; dataId: string }[]): Promise<void> {
+async function preparedPortal(studentId: number, added: { title: string; template: string; dataId: string }[]): Promise<{path:string;body:string}|null> {
   const row = handle().prepare(`SELECT code FROM students_v2 WHERE id = ?`).get(studentId) as { code: string } | undefined;
-  if (!row) return;
+  if (!row) return null;
   const path = join(portalDir(), `${row.code}.json`);
   let data: { games?: unknown[] };
-  try { data = JSON.parse(await readFile(path, 'utf8')); } catch { return; }
+  try { data = JSON.parse(await readFile(path, 'utf8')); } catch { return null; }
   data.games = [...added, ...(data.games ?? [])].slice(0, 20);
-  await writeFile(path, JSON.stringify(data, null, 2));
+  return {path,body:JSON.stringify(data,null,2)};
 }

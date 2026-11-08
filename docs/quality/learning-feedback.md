@@ -38,7 +38,7 @@ Fresh generation checks every artifact's structure and obtains a separate struct
 
 New question banks carry stable identifiers and three difficulty levels within the assigned skills. Finite sessions use ten unseen questions; timed speed drill keeps its timer. Hint use and results influence only current-session selection, and signed results retain per-question difficulty evidence. Initial adaptive options use deterministic ordering to prevent server/client hydration from attaching the wrong answer handler. Historical banks retain their existing playback behavior.
 
-Synthetic regressions and browser checks cover privacy, numeric precision, matching diagrams and formulas, adaptive evidence, timed completion and preview isolation. The [execution record](../superpowers/reports/2026-11-08-generation-machinery.md) records accepted and rejected real-model cases; a complete replacement corpus has not passed validation. Model critique is evidence for tutor review, not teaching approval; no customer assignments or existing pilot artifacts are replaced by this iteration.
+Synthetic regressions and browser checks cover privacy, numeric precision, matching diagrams and formulas, adaptive evidence, timed completion and preview isolation. The [execution record](../superpowers/reports/2026-11-08-generation-machinery.md) records accepted and rejected real-model cases; the later targeted-repair continuation below records the complete candidate validation. Model critique is evidence for tutor review, not teaching approval; no customer assignments or existing pilot artifacts are replaced by this iteration.
 
 ### Findings from real generated candidates
 
@@ -69,7 +69,31 @@ as an invalid question stimulus. Tests reproduce both failures red→green and c
 exact bounds, Unicode whitespace, valid alternatives and invalid unions. Full Linux
 Node 22 verification passes 1,807 tests, build and the 22-warning baseline.
 
-This fixes a mechanical source of wasted repairs; it does not establish that the
-four rejected real cases now pass. No new model trial or candidate replacement was
-performed. The proposed targeted-repair strategy is separate and awaits the owner's
-product choice; the one whole-bundle repair and strict gate remain in force.
+At this text-contract checkpoint, no new model trial had been performed and the
+four rejected cases remained rejected. The continuation below supersedes the
+pending repair-design status; the strict gate remains in force.
+
+
+### Targeted repair and complete review candidate — 2026-11-09
+
+Lior approved repairing located artifacts within the existing single repair round.
+Trusted schema-bound replacement units now preserve passing slides, examples,
+homework, scenes, game questions and metadata. Unknown/global failures use the one
+full-bundle fallback. Every repaired candidate receives full structural validation
+and independent critique; newly exposed defects reject it without another retry.
+Malformed replacements cannot address arbitrary paths or modify unrelated data.
+
+The new sealed four-case trial produced READY linear graphs, quadratic
+transformations, combined graphs and derivatives. Independent content reviewers
+recomputed all answers and accepted all four exact candidates. Targeted repairs
+changed one linear slide; the quadratic matching game and summary scene; and the
+combined lesson objective plus four slides. Derivatives passed the first attempt.
+Together with six previously accepted cases, explicit packaging produced a ten-case
+candidate outside Git. Browser checks covered128 scene viewports,24 games and ten
+assessment pages without runtime/math errors or score writes. This mixed-source
+candidate preserves per-case provenance and is awaiting human teaching review;
+it is not a controlled quality benchmark or a production reliability streak.
+
+Source0e8bbd7 passed1,826 Linux Node22 tests, build and warning gate (22 existing
+warnings), independent code review and GitHub CI. Existing pilot/customer material
+is preserved; no generated answer key was hand-edited, imported or deployed.

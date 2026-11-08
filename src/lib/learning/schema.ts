@@ -15,7 +15,7 @@ export const LEARNING_SCHEMA = {
     version: { type: 'integer', enum: [1] }, title: text, subtitle: text, objective: text, minutes: { type: 'number' },
     topics: { anyOf: [{type:'null'}, {type:'array',maxItems:40,items:{type:'object',required:['id','title','sceneIds','skillKeys'],properties:{
       id:{type:'string',minLength:1,maxLength:120,pattern:'\\S'},title:{type:'string',minLength:1,maxLength:200,pattern:'\\S'},
-      sceneIds:{type:'array',minItems:1,maxItems:12,uniqueItems:true,items:{type:'string'}},skillKeys:{type:'array',maxItems:20,uniqueItems:true,items:{type:'string'}},
+      sceneIds:{type:'array',minItems:1,maxItems:12,items:{type:'string'}},skillKeys:{type:'array',maxItems:20,items:{type:'string'}},
     }}}] },
     scenes: { type: 'array', items: {
       type: 'object', required: ['id', 'phase', 'title', 'prompt', 'takeaway', 'visual', 'xDomain', 'yDomain', 'frames', 'check', 'presenterNotes'],

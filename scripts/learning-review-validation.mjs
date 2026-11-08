@@ -8,7 +8,8 @@ export const PRE_QUALITY_SOURCE_FILES=[...LEGACY_SOURCE_FILES,'src/lib/server/le
 export const PRE_GRAPH_SOURCE_FILES=[...PRE_QUALITY_SOURCE_FILES,'src/lib/server/lesson/quality.ts','src/lib/server/learning-store.ts','src/lib/server/lesson/structured-validation.ts','src/lib/server/lesson/game-generation.ts','src/lib/games/adaptive.ts','scripts/render-learning-video.mjs','src/lib/server/presenter-notes.ts','src/lib/games/engine.ts','src/lib/games/GameShell.svelte','src/lib/games/Quiz.svelte','src/lib/games/ErrorHunt.svelte','src/lib/games/TwoTruths.svelte','src/lib/games/GraphMatch.svelte','src/lib/games/NumberLine.svelte','src/lib/games/SpeedDrill.svelte'];
 export const PRE_CONTROLS_SOURCE_FILES=[...PRE_GRAPH_SOURCE_FILES,'src/lib/games/graph-match-plot.ts'];
 export const PRE_REPAIR_SOURCE_FILES=[...PRE_CONTROLS_SOURCE_FILES,'src/lib/learning/controls.ts'];
-export const SOURCE_FILES=[...PRE_REPAIR_SOURCE_FILES,'src/lib/server/lesson/artifact-repair.ts'];
+export const PRE_REPORT_SOURCE_FILES=[...PRE_REPAIR_SOURCE_FILES,'src/lib/server/lesson/artifact-repair.ts'];
+export const SOURCE_FILES=[...PRE_REPORT_SOURCE_FILES,'src/lib/server/reports/preparation.ts','src/lib/server/reports/topic-homework.ts','src/lib/server/reports/topics.ts','src/lib/report-coverage.ts','src/lib/server/lesson/queue.ts','src/lib/server/reports/after.ts','src/lib/server/library/prepare.ts'];
 export async function sourceFingerprint() {
   const hash=createHash('sha256');
   for (const path of SOURCE_FILES) hash.update(path).update(await readFile(path));

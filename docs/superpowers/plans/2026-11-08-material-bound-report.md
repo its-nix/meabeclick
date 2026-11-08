@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-No new runtime dependency. No real customer data, migration deployment, push, merge or rollout. No homework-photo feature. Material topic IDs do not imply universal mastery. Existing brand and RTL conventions. Never add node_modules symlink.
+No new runtime dependency. No real customer data, migration deployment, merge or rollout. Parent owns draft PR publication after final verification. No homework-photo feature. Material topic IDs do not imply universal mastery. Existing brand and RTL conventions. Never add node_modules symlink.
 
 ## Review Focus
 
@@ -70,3 +70,7 @@ Execution uses domain ownership: UI and scoped homework helper are independent d
 - Normal merge of frozen root repair commit0e8bbd7 completed as02fd9d3 after the release fixes were committed/clean; root worktree remains untouched.209 focused repair/report tests, build and baseline type check passed after merge.
 - Parent visibility review: reproduced RED four-check assessment acceptance without student visibility, false/missing visibility at release, and missing priorCoverage privacy criterion in whole-lesson critique. Added required explicit `studentVisibility` assessment result and fail-closed acceptance, with criteria against private tutor-comment/source disclosures and answer-revealing task text. Honest pass fixtures now include visibility. Added exactly one whole-lesson critique privacy criterion; repair internals and four-call budget unchanged.
 - Visibility-fix verification:213 focused repair/report tests pass, production build passes, check:ci0 errors/22 baseline warnings; diff check clean. No real model calls, root changes, push or deployment. Parent owns follow-up independent review and full Linux integration.
+
+- Parent final integration: topic metadata receives individual assessment/repair; structural membership errors use a manifest-only replacement. Server-provided library keys propagate into generation and both preparation/import publication boundaries. Known-skill import bypass reproduced RED→GREEN and independently re-reviewed; existing ready imports preserved on422.
+- Final Linux Node22.20.0:1,877/1,877 tests, build/check pass,22 baseline warnings. Live report tables declared in storage inventory after its full-suite guard caught the omission. Source fingerprint1c4277852068f9bbdfc78409d1185ffd15a351f0be7c7e050630adce66d71ca9 matches tested snapshot (48 files).
+- Final synthetic Chrome checks: report1440/390/320 pixels,8 filings, no runtime errors; complete ten-case outside-Git review candidate128 scene viewports/24games/10quality pages, no writes. Original pilot corpus restored. Copied historical sealed-batch audit passes against0e8bbd7 without changing originals. No human teaching approval or deployment implied.

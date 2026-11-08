@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, familySession } from './harness.mjs';
+import {generationPlan} from '../helpers/generation-plan.mjs';
 
 const KEY = 'test-cron-key';
 const PLAN = {
@@ -28,6 +29,26 @@ const PLAN = {
 
 const post = (baseUrl, body, headers = { 'x-cron-key': KEY }) => fetch(`${baseUrl}/api/library/import`, {
   method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body),
+});
+
+test('foreign topic skill links are rejected before replacing an existing library master',async()=>{
+  const {baseUrl,dbPath,stop}=await startServer({env:{CRON_KEY:KEY}});
+  try {
+    const body={template:'math-4u',skill:'func.basics.linquad',plan:PLAN,engine:'claude'};
+    assert.equal((await post(baseUrl,body)).status,200);
+    const db=new DatabaseSync(dbPath,{readOnly:true});
+    try {
+      const before=db.prepare('SELECT * FROM library_items').all();
+      const lessons=db.prepare('SELECT COUNT(*) AS n FROM lessons').get().n;
+      const plan=generationPlan();
+      plan.learning.topics=[{id:'topic',title:'נושא',sceneIds:[plan.learning.scenes[0].id],skillKeys:['foreign']}];
+      const response=await post(baseUrl,{...body,plan});
+      assert.equal(response.status,422);
+      assert.ok((await response.json()).problems.includes('invalid topic manifest membership'));
+      assert.deepEqual(db.prepare('SELECT * FROM library_items').all(),before);
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM lessons').get().n,lessons);
+    } finally {db.close();}
+  } finally {await stop();}
 });
 
 test('a lesson made elsewhere enters the library ready, and is recorded as not a Codex run', async () => {

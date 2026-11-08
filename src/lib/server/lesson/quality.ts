@@ -41,7 +41,8 @@ export function qualityPaths(plan: LessonPlan): string[] {
   return ['title','gradeContext',...(plan.learning ? ['learning.title','learning.subtitle','learning.objective','learning.minutes'] : []),
     ...plan.slides.map((_,i)=>`slides[${i}]`), ...plan.examples.map((_,i)=>`examples[${i}]`),
     ...plan.homework.map((_,i)=>`homework[${i}]`), ...games,
-    ...(plan.learning?.scenes ?? []).map((_,i)=>`learning.scenes[${i}]`)];
+    ...(plan.learning?.scenes ?? []).map((_,i)=>`learning.scenes[${i}]`),
+    ...(plan.learning?.topics ?? []).map((_,i)=>`learning.topics[${i}]`)];
 }
 const DIMENSIONS = ['math','answerKey','context','teaching'] as const;
 export const CRITIQUE_SCHEMA = {
@@ -78,6 +79,7 @@ export function critiquePrompt(req: LessonRequest, plan: LessonPlan): string {
     'Check EVERY listed artifact path exactly once. Recompute the mathematics and all answer keys; compare question/options/answer/explanation/hints and presenter notes. Check scene numeric visuals and frames against their formulas, explanations, and questions.',
     'For a cross-artifact defect, identify every artifact that actually requires a coordinated correction. Do not fail a correct reference artifact merely because a different artifact is wrong. A repair can replace only the failed artifact paths; other content stays unchanged.',
     'Metadata paths assess the named public title, subject, objective, duration or grade context; item paths assess the individual content. Do not fail metadata merely because a question is wrong, and do not attribute a metadata error to a correct question. Keep paths separate so a repair need not rewrite passing questions.',
+    'learning.topics entries are tutor-only report metadata. Assess each topic title against its linked scenes and assigned skills; require a coherent teachable scope rather than a semantic guess from a title. Do not treat these private labels/links as student question stimuli or as universal mastery IDs.',
     'Use the following shared learning contract to assess renderer capabilities, numeric values, formulas, interactions and visibility. Any proposed correction must also satisfy this contract; do not invent unsupported values or controls. These are assessment criteria; return the critique schema, not a lesson.',
     ...LEARNING_INSTRUCTIONS,
     'Distinguish mathematical validity from efficiency or a preferred method. A valid reversible operation applied to both sides of an equation preserves equivalence even when it is unnecessary or does not isolate the variable immediately. In twoTruths, independently verify all three statements: exactly two must be true and exactly one unambiguously false; lieIndex and why must identify that falsehood, never merely an inefficient or nonpreferred valid method. In errorHunt, verify each transition from the problem onward and identify the first actually invalid step; earlier valid but inefficient steps are not errors, and consequences of an earlier error are not its location.',

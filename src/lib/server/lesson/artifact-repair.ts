@@ -1,6 +1,6 @@
 import type {LessonPlan} from './prep.ts';
 import type {QualityIssue} from './quality.ts';
-import type {LearningScene} from '../../learning/model.ts';
+import type {LearningScene,LearningTopic} from '../../learning/model.ts';
 import {strictOutputSchema,omitOptionalNulls,type OutputSchema} from './structured-output.ts';
 import {structuredProblems} from './structured-validation.ts';
 import {QUESTION_BANK_KEYS} from './game-generation.ts';
@@ -30,6 +30,17 @@ export function artifactRepair(candidate:unknown,issues:QualityIssue[],schema:Ou
     })); }
   }
   const learning=candidate.learning;
+  const topicsSchema=schema.properties?.learning?.properties?.topics;
+  const topicSchema=topicsSchema?.anyOf?.find(branch=>branch.type==='array')?.items;
+  if (object(learning) && topicsSchema) {
+    units.set('learning.topics',{schema:topicsSchema,set:(plan,value)=>{plan.learning!.topics=value as LearningTopic[]|null;}});
+    if (Array.isArray(learning.topics) && topicSchema) {
+      lengths.set('learning.topics',learning.topics.length);
+      learning.topics.forEach((_,i)=>units.set(`learning.topics[${i}]`,{
+        schema:topicSchema,set:(plan,value)=>{plan.learning!.topics![i]=value as LearningTopic;},
+      }));
+    }
+  }
   if (object(learning)) for (const key of ['title','subtitle','objective','minutes'] as const) {
     const valueSchema=schema.properties?.learning?.properties?.[key];
     if (valueSchema) units.set(`learning.${key}`,{schema:valueSchema,set:(plan,value)=>{(plan.learning as unknown as Record<string,unknown>)[key]=value;}});

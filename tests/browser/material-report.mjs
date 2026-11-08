@@ -1,0 +1,192 @@
+// Synthetic data only; run after npm run build. No model credentials or customer content.
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {DatabaseSync} from 'node:sqlite';
+import {chromium} from 'playwright-core';
+import {generationPlan} from '../helpers/generation-plan.mjs';
+import {startServer,login} from '../characterization/harness.mjs';
+
+const evidence=process.env.EVIDENCE_DIR??join(tmpdir(),'meabeclick-material-report');
+await mkdir(evidence,{recursive:true});
+const server=await startServer();
+const chrome=process.env.CHROME_BIN??(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':chromium.executablePath());
+const browser=await chromium.launch({executablePath:chrome,headless:true});
+const errors=[],consoleErrors=[],submissions=[];
+let db;
+try {
+  const cookie=await login(server.baseUrl);
+  const post=async(path,body)=>{const r=await fetch(server.baseUrl+path,{method:'POST',headers:{Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal(r.status,200,await r.text());};
+  await post('/api/students',{code:'synthetic-report',name:'תלמידת בדיקת דיווח',subject:'מתמטיקה',level:'כיתה יא',phone:'0500000123',email:'report@example.test'});
+  await post('/api/plans',{code:'synthetic-report',subject:'מתמטיקה',templateId:'math-5u',goal:'בדיקה סינתטית'});
+  db=new DatabaseSync(server.dbPath);
+  const pupil=db.prepare('SELECT s.id,e.id AS enrollment FROM students_v2 s JOIN enrollments e ON e.student_id=s.id').get();
+  const skill=db.prepare("SELECT id,key,title FROM plan_nodes WHERE kind='skill' ORDER BY id LIMIT 1").get();
+  const now=new Date().toISOString(),start=new Date(Date.now()-86400000).toISOString();
+  const booking=()=>Number(db.prepare('INSERT INTO bookings_v2(student_id,enrollment_id,start,"end",duration,at,status) VALUES(?,?,?,?,45,?,\'confirmed\')').run(pupil.id,pupil.enrollment,start,start,now).lastInsertRowid);
+  const topics=[{id:'horizontal',title:'הזזה אופקית של הפרבולה',sceneIds:['horizontal-scene'],skillKeys:[skill.key]},{id:'vertical',title:'הזזה אנכית של הפרבולה',sceneIds:['vertical-scene'],skillKeys:[skill.key]}];
+  function material(slug,bookingId,manifest=topics,version=1){
+    db.prepare("INSERT OR IGNORE INTO lessons(slug,student,at,status) VALUES(?,'synthetic',?,'ready')").run(slug,now);
+    db.prepare('INSERT OR IGNORE INTO learning_assignments(lesson_slug,student_id,booking_id,node_id) VALUES(?,?,?,?)').run(slug,pupil.id,bookingId,skill.id);
+    const plan=generationPlan();
+    plan.title=version===1?'מצגת פרבולות לבדיקה':'מצגת ששונתה אחרי הדיווח';
+    plan.learning.title=plan.title;
+    plan.learning.scenes[0].id='horizontal-scene';plan.learning.scenes[1].id='vertical-scene';
+    plan.learning.scenes[0].presenterNotes.explanation='PRIVATE REPORT SOURCE NOTE';
+    if(manifest===null)delete plan.learning.topics;else plan.learning.topics=manifest;
+    db.prepare("INSERT INTO lesson_materials(lesson_slug,kind,version,content,origin,published_at,created_at) VALUES(?,'plan',?,?,'generated',?,?)").run(slug,version,JSON.stringify(plan),now,now);
+  }
+  const main=booking(),manual=booking(),missingManifest=booking(),multiple=booking(),legacy=booking(),spaced=booking();
+  material('synthetic-report-deck',main);
+  material('synthetic-spaced-deck',spaced,[{...topics[0],title:' נושא עם רווחים '}]);
+  material('synthetic-manual-deck',missingManifest,null);
+  material('synthetic-choice-a',multiple);material('synthetic-choice-b',multiple);
+  const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+  await context.route('https://fonts.googleapis.com/**',route=>route.fulfill({contentType:'text/css',body:`@font-face{font-family:Heebo;src:url('${server.baseUrl}/learning-assets/heebo-hebrew.woff2') format('woff2');font-weight:100 900;font-display:swap;}`}));
+  const [name,...value]=cookie.split('=');
+  await context.addCookies([{name,value:value.join('='),url:server.baseUrl,httpOnly:true,sameSite:'Lax'}]);
+  context.on('page',page=>{
+    page.on('pageerror',e=>errors.push(e.message));
+    page.on('console',message=>{if(message.type()==='error')consoleErrors.push(message.text());});
+  });
+  const page=await context.newPage();
+  page.on('request',request=>{if(request.method()==='POST'&&request.url().endsWith('/api/reports'))submissions.push(request.postDataJSON());});
+  const open=async id=>{await page.goto(`${server.baseUrl}/app/report/${id}`);await page.getByRole('heading',{name:'מה עברתם?',exact:true}).waitFor();await page.evaluate(()=>document.fonts.ready);};
+  const confirm=()=>page.locator('.confirm-coverage input');
+  const send=()=>page.locator('.submit-btn');
+  const filed=id=>db.prepare('SELECT v.* FROM lesson_report_revisions v JOIN lesson_reports r ON r.id=v.report_id WHERE r.booking_id=? ORDER BY v.revision DESC LIMIT 1').get(id);
+  const submit=async()=>{await confirm().check();await send().click();await page.waitForURL(/\/app\/plan\//);};
+
+  await open(main);
+  assert.equal(await page.getByLabel('מקור הדיווח',{exact:true}).inputValue(),'material:synthetic-report-deck');
+  assert.equal(await page.locator('#workspace-content').count(),1,'shared skip link reaches the report content');
+  assert.equal(await page.locator('.topic-card').count(),2);
+  assert.equal(await page.locator('.topic-card input:checked').count(),0);
+  assert.equal(await send().isDisabled(),true,'complete checklist requires explicit confirmation');
+  await page.getByRole('checkbox',{name:'נלמד: '+topics[0].title,exact:true}).check();
+  await page.getByRole('textbox',{name:'הערה בנושא '+topics[0].title,exact:true}).fill('למדנו רק הזזה ימינה. x + 2');
+  await page.getByRole('button',{name:/חפשו יכולת אחרת/}).click();
+  await page.getByPlaceholder('חיפוש יכולת…').fill(skill.title);
+  const understanding=page.locator('.skill-row').filter({has:page.getByText(skill.title,{exact:true})});
+  await understanding.getByRole('checkbox').check();
+  await understanding.getByRole('combobox').selectOption('guided');
+  assert.equal(await page.getByRole('checkbox',{name:'נלמד: '+topics[1].title,exact:true}).isChecked(),false,'understanding does not cover another topic');
+  await confirm().check();
+  await page.getByRole('textbox',{name:'הערה בנושא '+topics[0].title,exact:true}).fill('למדנו רק הזזה ימינה. x + 2; נדרש תרגול');
+  assert.equal(await confirm().isChecked(),false,'editing the checklist requires confirmation again');
+  for(const width of [1440,390,320]){
+    await page.setViewportSize({width,height:width===1440?1000:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`report overflows at ${width}`);
+    const targets=await page.locator('.coverage-check,.coverage-section select,.add-topic,.submit-btn').evaluateAll(elements=>elements.map(e=>({tag:e.tagName,height:e.getBoundingClientRect().height})));
+    assert.ok(targets.every(target=>target.height>=44),'coverage controls have 44px tap targets');
+    await page.evaluate(async()=>{document.activeElement?.blur();scrollTo(0,0);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));});
+    await page.screenshot({path:join(evidence,`material-report-${width}.png`),fullPage:true});
+  }
+  await submit();
+  assert.equal(submissions.at(-1).expectedRevision,0);
+  assert.deepEqual(submissions.at(-1).entries,[{nodeId:skill.id,status:'guided'}]);
+  assert.equal(JSON.parse(filed(main).topics_json)[0].covered,true);
+  assert.equal(db.prepare("SELECT count(*) AS n FROM plan_events WHERE type='covered'").get().n,0,'explicit topic coverage writes no whole-skill coverage');
+
+  material('synthetic-report-deck',main,[{...topics[0],id:'replacement',title:'נושא חדש שאינו חלק מהדיווח'}],2);
+  await open(main);
+  assert.equal(await page.getByLabel('מקור הדיווח',{exact:true}).inputValue(),'filed');
+  assert.equal(await page.locator('.topic-card').count(),2,'correction uses the pinned manifest');
+  const snapshot=JSON.parse(filed(main).snapshot_json);
+  assert.equal(await page.locator('.scene-links a').first().getAttribute('href'),`/app/report/${main}/material?materialId=${snapshot.materialId}#scene=horizontal-scene`,'scene links bind the filed material ID after replacement');
+  const sourceURL=server.baseUrl+await page.locator('.scene-links a').first().getAttribute('href');
+  const anonymous=await fetch(sourceURL,{redirect:'manual'});assert.equal(anonymous.status,302);
+  const foreignId=Number(db.prepare("SELECT id FROM lesson_materials WHERE lesson_slug='synthetic-choice-a'").get().id);
+  const foreign=await fetch(`${server.baseUrl}/app/report/${main}/material?materialId=${foreignId}`,{headers:{Cookie:cookie}});assert.equal(foreign.status,404);
+  const [sourcePage]=await Promise.all([context.waitForEvent('page'),page.locator('.scene-links a').first().click()]);
+  await sourcePage.waitForLoadState('domcontentloaded');
+  assert.match(await sourcePage.title(),/^מצגת פרבולות לבדיקה/,'the preview serves the old saved title');
+  await sourcePage.getByRole('heading',{level:1,name:'ימינה ולמעלה',exact:true}).waitFor();
+  assert.doesNotMatch(await sourcePage.content(),/PRIVATE REPORT SOURCE NOTE|presenterNotes/,'source preview strips private presenter JSON');
+  await sourcePage.setViewportSize({width:390,height:844});
+  await sourcePage.evaluate(()=>{document.activeElement?.blur();scrollTo(0,0);});
+  await sourcePage.screenshot({path:join(evidence,'report-source-pinned-390.png')});
+  await sourcePage.close();
+  assert.match(await page.getByRole('textbox',{name:'הערה בנושא '+topics[0].title,exact:true}).inputValue(),/נדרש תרגול/);
+  assert.equal(await page.getByRole('checkbox',{name:'נלמד: '+topics[0].title,exact:true}).isChecked(),true);
+  assert.equal(await page.locator('option[value="legacy"]').evaluate(option=>option.disabled),true);
+  const stale=await context.newPage();await stale.goto(`${server.baseUrl}/app/report/${main}`);await stale.getByRole('heading',{name:'מה עברתם?',exact:true}).waitFor();
+  await page.getByRole('checkbox',{name:'נלמד: '+topics[0].title,exact:true}).uncheck();
+  await submit();
+  assert.equal(filed(main).revision,2);
+  assert.equal(JSON.parse(filed(main).snapshot_json).version,1);
+  assert.equal(JSON.parse(filed(main).topics_json).filter(t=>t.covered).length,0);
+  await stale.locator('.confirm-coverage input').check();await stale.locator('.submit-btn').click();
+  await stale.getByRole('alert').waitFor();
+  assert.match(await stale.getByRole('alert').innerText(),/חדש|עודכן|רענ|אחר/);
+  assert.match(await stale.getByRole('textbox',{name:'הערה בנושא '+topics[0].title,exact:true}).inputValue(),/נדרש תרגול/,'conflict keeps draft');
+  assert.equal(filed(main).revision,2);
+  await stale.close();
+  await open(main);await page.getByLabel('מקור הדיווח',{exact:true}).selectOption('material:synthetic-report-deck');
+  await page.getByRole('heading',{name:'נושא חדש שאינו חלק מהדיווח',exact:true}).waitFor();await submit();
+  assert.equal(JSON.parse(filed(main).snapshot_json).version,2,'explicit source reselection binds the newer eligible material');
+
+  await open(main);
+  await page.locator('.report-history summary').click();
+  assert.equal(await page.locator('.history-revision').count(),3);
+  const first=page.getByRole('article',{name:'דיווח גרסה 1',exact:true});
+  const second=page.getByRole('article',{name:'דיווח גרסה 2',exact:true});
+  assert.match(await first.innerText(),/נלמד.*הזזה אופקית/);
+  assert.match(await first.innerText(),/נדרש תרגול/);
+  assert.match(await second.innerText(),/לא נלמד.*הזזה אופקית/);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'history fits mobile');
+  await page.evaluate(()=>scrollTo(0,0));
+  await page.screenshot({path:join(evidence,'report-history-320.png'),fullPage:true});
+
+  await open(manual);
+  assert.equal(await page.getByLabel('מקור הדיווח',{exact:true}).inputValue(),'manual');
+  await submit();
+  assert.equal(filed(manual).source,'manual');assert.deepEqual(JSON.parse(filed(manual).topics_json),[]);
+  await open(missingManifest);
+  await page.getByRole('button',{name:'+ הוספת נושא',exact:true}).click();
+  await page.getByLabel('שם הנושא 1',{exact:true}).fill('השוואת שברים במכנה משותף');
+  await page.getByLabel('שלב עבור נושא 1',{exact:true}).selectOption('horizontal-scene');
+  await page.getByLabel('יכולות עבור נושא 1',{exact:true}).selectOption([skill.key]);
+  await page.getByRole('checkbox',{name:/נלמד: השוואת שברים/}).check();
+  await page.screenshot({path:join(evidence,'material-manual-topic-320.png'),fullPage:true});
+  await submit();
+  assert.deepEqual(JSON.parse(filed(missingManifest).topics_json)[0].skillKeys,[skill.key]);
+  assert.deepEqual(JSON.parse(filed(missingManifest).topics_json)[0].sceneIds,['horizontal-scene']);
+  await open(multiple);
+  assert.equal(await page.getByLabel('מקור הדיווח',{exact:true}).inputValue(),'');
+  assert.equal(await confirm().isDisabled(),true);
+  await page.getByLabel('מקור הדיווח',{exact:true}).selectOption('material:synthetic-choice-b');
+  assert.equal(await page.locator('.topic-card').count(),2);
+  await open(legacy);await page.getByLabel('מקור הדיווח',{exact:true}).selectOption('legacy');
+  await submit();
+  assert.equal(filed(legacy),undefined,'legacy remains unknown, distinct from explicit empty');
+  assert.equal('coverage' in submissions.at(-1),false);
+  await open(legacy);await page.getByLabel('מקור הדיווח',{exact:true}).selectOption('legacy');
+  await submit();assert.equal(submissions.at(-1).expectedRevision,1,'legacy corrections use the filing revision');
+  await open(spaced);await submit();
+  assert.equal(JSON.parse(filed(spaced).topics_json)[0].title,' נושא עם רווחים ','manifest titles remain exact');
+  // Expected 409 responses are visible only as the app's conflict alert.
+  assert.deepEqual(errors,[]);
+  assert.deepEqual(consoleErrors.filter(message=>!message.includes('409 (Conflict)')),[]);
+  if(process.env.AGENT_BROWSER_REVIEW==='1') {
+    const {execFile}=await import('node:child_process');
+    const {promisify}=await import('node:util');
+    const run=promisify(execFile);
+    const session=(await run('npx',['--yes','agent-browser','session','id','--scope','worktree','--prefix','material-report-review'])).stdout.trim();
+    const agent=async(...args)=>(await run('npx',['--yes','agent-browser','--session',session,'--executable-path',chrome,...args],{maxBuffer:1024*1024})).stdout;
+    try {
+      await agent('open',server.baseUrl+'/login');
+      await agent('cookies','set',name,value.join('='),'--http-only','--same-site','Lax');
+      await agent('open',`${server.baseUrl}/app/report/${main}`);
+      await agent('wait','--text','מה עברתם?');
+      await writeFile(join(evidence,'agent-browser-snapshot.txt'),await agent('snapshot','-i'));
+      await agent('set','viewport','390','844');
+      await agent('screenshot','--full',join(evidence,'agent-browser-report-390.png'));
+      await writeFile(join(evidence,'agent-browser-errors.txt'),await agent('errors'));
+    } finally { await agent('close'); }
+  }
+  const report={syntheticOnly:true,browser:'Mac Google Chrome',widths:[1440,390,320],errors,consoleErrors:consoleErrors.filter(message=>!message.includes('409 (Conflict)')),expectedConflictConsoleResponses:consoleErrors.filter(message=>message.includes('409 (Conflict)')).length,submissions:submissions.length};
+  await writeFile(join(evidence,'report.json'),JSON.stringify(report,null,2));
+  console.log(JSON.stringify({evidence,...report}));
+}finally{db?.close();await browser.close();await server.stop();}

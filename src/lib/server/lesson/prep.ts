@@ -255,7 +255,7 @@ const LESSON_SCHEMA = {
         properties: {
           heading: { type: 'string' },
           bullets: { type: 'array', items: { type: 'string' } },
-          note:    { type: 'string' },
+          note:    { type: 'string', description: 'Optional student-facing tip, shown in the published slide. Never teacher instructions, private notes or directions to create missing visual aids.' },
         },
       },
     },

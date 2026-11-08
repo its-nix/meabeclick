@@ -3,11 +3,20 @@ import type { OutputSchema } from './structured-output.ts';
 import type { QualityIssue } from './quality.ts';
 export function structuredProblems(value: unknown, schema: OutputSchema, path = ''): QualityIssue[] {
   const fail = (message:string): QualityIssue[] => [{path:path || 'lesson',code:'structure',message}];
-  if (schema.anyOf) return schema.anyOf.some(branch=>!structuredProblems(value,branch,path).length) ? [] : fail('Value does not match an allowed schema shape');
   const actual = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+  if (schema.anyOf) {
+    const failures=schema.anyOf.map(branch=>structuredProblems(value,branch,path));
+    if (failures.some(issues=>!issues.length)) return [];
+    const sameType=schema.anyOf.flatMap((branch,i)=>!branch.type || branch.type===actual || (branch.type==='integer' && actual==='number') ? [failures[i]] : []);
+    return sameType.length===1 ? sameType[0] : fail('Value does not match an allowed schema shape');
+  }
   if (schema.type && (schema.type === 'integer' ? typeof value !== 'number' || !Number.isInteger(value) : actual !== schema.type)) return fail(`Expected ${schema.type}`);
   if (Array.isArray(schema.enum) && !schema.enum.includes(value)) return fail('Value must be one of the allowed values');
-  if (typeof value === 'string' && ((typeof schema.minLength === 'number' && value.length < schema.minLength) || (typeof schema.maxLength === 'number' && value.length > schema.maxLength))) return fail('Text length is outside the allowed range');
+  if (typeof value === 'string') {
+    if (typeof schema.minLength==='number' && value.length<schema.minLength) return fail(`Text has ${value.length} characters; minimum is ${schema.minLength}`);
+    if (typeof schema.maxLength==='number' && value.length>schema.maxLength) return fail(`Text has ${value.length} characters; maximum is ${schema.maxLength}`);
+    if (typeof schema.pattern==='string' && !new RegExp(schema.pattern).test(value)) return fail(`Text must match the required pattern ${schema.pattern}`);
+  }
   if (typeof value === 'number' && ((typeof schema.minimum === 'number' && value < schema.minimum) || (typeof schema.maximum === 'number' && value > schema.maximum))) return fail('Number is outside the allowed range');
   const issues: QualityIssue[] = [];
   if (Array.isArray(value)) {

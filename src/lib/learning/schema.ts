@@ -1,8 +1,13 @@
 import { learningControlGuidance } from './controls.ts';
+import { LEARNING_FRAME_TEXT_LIMITS } from './model.ts';
 
 /** Bounded schema the lesson generator can actually render and grade. */
 const text = { type: 'string' };
 const numbers = { type: 'array', items: { type: 'number' } };
+const frameText = {
+  tex: {type:'string',minLength:1,maxLength:LEARNING_FRAME_TEXT_LIMITS.tex,pattern:'\\S'},
+  caption: {type:'string',minLength:1,maxLength:LEARNING_FRAME_TEXT_LIMITS.caption,pattern:'\\S'},
+};
 export const LEARNING_SCHEMA = {
   type: 'object',
   required: ['version', 'title', 'subtitle', 'objective', 'minutes', 'scenes'],
@@ -19,8 +24,8 @@ export const LEARNING_SCHEMA = {
         },
         visual: { type: 'string', enum: ['quadratic', 'linear', 'number-line', 'balance', 'fraction-bar', 'right-triangle', 'function-tangent', 'steps'] },
         xDomain: numbers, yDomain: numbers,
-        questionVisual: { description: 'Question-only stimulus for a single-frame check. Must be null whenever frames has more than one item. Required for fraction-bar, right-triangle and function-tangent checks; optional for other single-frame checks.', anyOf: [{type: 'null'}, { type: 'object', required: ['tex', 'caption'], properties: { tex: text, caption: text } }] },
-        frames: { type: 'array', items: { type: 'object', required: ['caption', 'tex', 'values'], properties: { caption: text, tex: text, values: numbers } } },
+        questionVisual: { description: 'Question-only stimulus for a single-frame check. Must be null whenever frames has more than one item. Required for fraction-bar, right-triangle and function-tangent checks; optional for other single-frame checks.', anyOf: [{type: 'null'}, { type: 'object', required: ['tex', 'caption'], properties: frameText }] },
+        frames: { type: 'array', items: { type: 'object', required: ['caption', 'tex', 'values'], properties: { ...frameText, values: numbers } } },
         check: { anyOf: [{ type: 'null' }, {
           type: 'object', required: ['kind', 'question', 'options', 'answer', 'hints', 'success', 'retry'],
           properties: {

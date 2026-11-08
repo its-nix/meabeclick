@@ -53,3 +53,23 @@ Fifteen-question banks exposed a rotation bug that could drop options after the 
 A real critique exceeded its former two-minute deadline. Critique now honors a lower configured budget up to the existing five-minute ceiling, uses concise passing explanations and stops new batch scheduling on an engine timeout. Timeout regressions use a long-enough fixture budget to distinguish a hung critic from slow test-process startup. Engine faults still do not consume semantic repair attempts.
 
 The execution record tracks accepted and rejected candidates, exact source/model configurations, checksums and outstanding teaching review. New model trials use separate sealed directories; changing the evaluation model does not change the production model configuration.
+
+### Generation text contract correction — 2026-11-08 continuation
+
+Reproduced a trust-boundary mismatch: the generated learning schema accepted empty,
+blank or overlong question-stimulus text, while the renderer rejected it. Frame and
+question-stimulus formula/caption limits now share the renderer's existing 600/180
+character bounds and require non-whitespace content. Historical runtime acceptance
+is unchanged. The application enforces these constraints even when an engine returns
+unconstrained JSON; provider schema enforcement is not the only check.
+
+Nullable-union failures now retain the unique matching type branch's precise field
+path and actual/allowed length. This prevents a bad caption from being reported only
+as an invalid question stimulus. Tests reproduce both failures red→green and cover
+exact bounds, Unicode whitespace, valid alternatives and invalid unions. Full Linux
+Node 22 verification passes 1,807 tests, build and the 22-warning baseline.
+
+This fixes a mechanical source of wasted repairs; it does not establish that the
+four rejected real cases now pass. No new model trial or candidate replacement was
+performed. The proposed targeted-repair strategy is separate and awaits the owner's
+product choice; the one whole-bundle repair and strict gate remain in force.

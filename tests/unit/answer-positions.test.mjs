@@ -53,3 +53,54 @@ test('fresh generation balances answer positions without changing answers on ini
     assert.deepEqual(P.validateLesson(result),[]);
   }
 });
+
+const longPlan = (count, optionCount) => ({
+  ...generationPlan(),
+  games: {
+    quiz: {title:'חידון ארוך',subject:'מתמטיקה',questions:Array.from({length:count},(_,i)=>({
+      id:`long-quiz-${i}`,difficulty:i%3+1,q:`שאלה ${i}`,hint:`רמז ${i}`,why:`הסבר ${i}`,
+      options:Array.from({length:optionCount},(_,j)=>`אפשרות ${i}/${j}`),answer:optionCount-1,
+    }))},
+    twoTruths: {title:'משפטים',subject:'מתמטיקה',rounds:Array.from({length:count},(_,i)=>({
+      id:`long-truth-${i}`,difficulty:i%3+1,hint:`בדיקה ${i}`,why:`נימוק ${i}`,
+      statements:[`אמת ראשונה ${i}`,`אמת שנייה ${i}`,`שקר ${i}`],lieIndex:2,
+    }))},
+  },
+});
+
+for (const count of [15,40]) {
+  for (const optionCount of [2,3,4]) {
+    test(`balancing ${count} questions with ${optionCount} options preserves every option, key and metadata`,()=>{
+      const input=longPlan(count,optionCount);
+      const before=structuredClone(input);
+      const after=P.balancePositions(input);
+      assert.ok(new Set(after.games.quiz.questions.map(q=>q.answer)).size>1);
+      assert.ok(new Set(after.games.twoTruths.rounds.map(r=>r.lieIndex)).size>1);
+      after.games.quiz.questions.forEach((question,i)=>{
+        const original=before.games.quiz.questions[i];
+        assert.ok(question.options.every(option=>typeof option==='string'),`question ${i} must not contain undefined`);
+        assert.deepEqual([...question.options].sort(),[...original.options].sort());
+        assert.equal(question.options[question.answer],original.options[original.answer]);
+        const {options:_options,answer:_answer,...metadata}=question;
+        const {options:_originalOptions,answer:_originalAnswer,...originalMetadata}=original;
+        assert.deepEqual(metadata,originalMetadata);
+      });
+      after.games.twoTruths.rounds.forEach((round,i)=>{
+        const original=before.games.twoTruths.rounds[i];
+        assert.ok(round.statements.every(statement=>typeof statement==='string'),`round ${i} must not contain undefined`);
+        assert.deepEqual([...round.statements].sort(),[...original.statements].sort());
+        assert.equal(round.statements[round.lieIndex],original.statements[original.lieIndex]);
+        const {statements:_statements,lieIndex:_lieIndex,...metadata}=round;
+        const {statements:_originalStatements,lieIndex:_originalLieIndex,...originalMetadata}=original;
+        assert.deepEqual(metadata,originalMetadata);
+      });
+    });
+  }
+  test(`already varied keys in ${count}-question banks remain unchanged`,()=>{
+    const input=longPlan(count,3);
+    input.games.quiz.questions.forEach((question,i)=>{question.answer=i%3;});
+    input.games.twoTruths.rounds.forEach((round,i)=>{round.lieIndex=i%3;});
+    const before=structuredClone(input);
+    assert.deepEqual(P.balancePositions(input),before);
+  });
+}

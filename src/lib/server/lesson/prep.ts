@@ -659,7 +659,7 @@ export function dropAmbiguousPairs(plan: LessonPlan): LessonPlan {
 }
 
 export function balancePositions(plan: LessonPlan): LessonPlan {
-  const rotate = <T>(xs: T[], by: number): T[] => xs.map((_, j) => xs[(j - by + xs.length * 4) % xs.length]);
+  const rotate = <T>(xs: T[], by: number): T[] => xs.map((_, j) => xs[(j - (by % xs.length) + xs.length) % xs.length]);
   const stuck = (keys: number[]) => keys.length >= 3 && new Set(keys).size === 1;
 
   const quiz = plan.games?.quiz;

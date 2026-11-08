@@ -14,7 +14,7 @@ await mkdir(evidence,{recursive:true});
 assert.equal(corpus.cases.length,10);
 const server=await startServer();
 const browser=await chromium.launch({executablePath:process.env.CHROME_BIN??(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':chromium.executablePath()),headless:true});
-const report={syntheticOnly:true,errors:[],badRequests:[],scenes:0,games:0,viewports:[390,1440]};
+const report={syntheticOnly:true,errors:[],badRequests:[],scenes:0,games:0,qualities:0,viewports:[390,1440]};
 function counts(){const db=new DatabaseSync(server.dbPath);try{return ['lessons','library_items','lesson_materials','learning_assignments','learning_progress','learning_events','results_v2'].map(t=>db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n);}finally{db.close();}}
 try{
   const cookie=await login(server.baseUrl);
@@ -68,6 +68,16 @@ try{
     await page.goto(base+'&view=homework');
     assert.equal(await page.locator('article').count(),item.plan.homework.length);
     assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0);
+    await page.setViewportSize({width:390,height:1000});
+    await page.goto(base+'&view=quality');
+    if(item.qualityReport){
+      assert.match(await page.locator('[role=status]').innerText(),/הבדיקות עברו עבור הגרסה הזו/);
+      await page.getByText('בדיקות לפי רכיב',{exact:true}).last().click();
+      assert.ok(await page.locator('details[open] li').count()>0,'artifact assessments are inspectable');
+    }else assert.match(await page.locator('main').innerText(),/לא תועד דוח איכות/);
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'quality report fits mobile');
+    if(item.brief.id===corpus.cases[0].brief.id)await page.screenshot({path:join(evidence,'quality-mobile.png')});
+    report.qualities++;
     for(const [key,body]of Object.entries(item.plan.games))if(body){
       await page.goto(`${server.baseUrl}/app/review-game/${item.brief.id}/${TEMPLATE_FILES[key]}`);
       await page.locator('.preview-banner').waitFor();
@@ -88,7 +98,7 @@ try{
   }
   assert.deepEqual(counts(),before,'no customer records or scores from review');
   assert.deepEqual(report.errors,[]);assert.deepEqual(report.badRequests,[]);
-  console.log(`Reviewed ${report.scenes} scene viewports and ${report.games} games. Evidence: ${evidence}`);
+  console.log(`Reviewed ${report.scenes} scene viewports, ${report.games} games and ${report.qualities} quality reports. Evidence: ${evidence}`);
 }finally{
   await writeFile(join(evidence,'report.json'),JSON.stringify(report,null,2));
   await browser.close();await server.stop();

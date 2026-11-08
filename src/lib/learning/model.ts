@@ -1,11 +1,12 @@
 /** A versioned lesson scene contract. Mathematics is data, never generated code. */
-export type VisualKind = 'quadratic' | 'linear' | 'number-line' | 'balance' | 'steps';
+export type VisualKind = 'quadratic' | 'linear' | 'number-line' | 'balance' | 'fraction-bar' | 'right-triangle' | 'function-tangent' | 'steps';
 export interface LearningFrame {
   caption: string;
   tex: string;
-  /** quadratic: [a,h,k]; linear: [m,b]; number-line: [value]; balance: [coefficient,constant,total]. */
+  /** quadratic: [a,h,k]; linear: [m,b]; number-line: [value]; balance: [coefficient,constant,total]; fraction-bar: [part,whole]; right-triangle: [legA,legB]; function-tangent: [a,b,c,t] for ax²+bx+c at x=t. */
   values: number[];
 }
+export const LEARNING_FRAME_TEXT_LIMITS = {tex:600, caption:180} as const;
 export interface LearningCheck {
   kind: 'choice' | 'number' | 'graph-target';
   question: string;
@@ -33,6 +34,8 @@ export interface LearningScene {
   yDomain: number[];
   frames: LearningFrame[];
   check?: LearningCheck | null;
+  /** Question-only formula/caption. Numeric diagrams omit computed answers in this mode. */
+  questionVisual?: { tex: string; caption: string } | null;
   /** Teacher-only. Optional for stored lessons from before notes were generated. */
   presenterNotes?: PresenterNotes;
 }
@@ -51,6 +54,7 @@ export const PHASE_LABELS = {
 
 export function visualValue(kind: VisualKind, values: number[], x: number): number {
   if (kind === 'quadratic') return values[0] * (x - values[1]) ** 2 + values[2];
+  if (kind === 'function-tangent') return values[0] * x ** 2 + values[1] * x + values[2];
   if (kind === 'linear') return values[0] * x + values[1];
   return values[0];
 }
@@ -67,14 +71,16 @@ export function numericAnswer(raw: unknown): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-export function gradeLearningCheck(check: LearningCheck, input: unknown): boolean {
+export function gradeLearningCheck(check: LearningCheck, input: unknown, options: { relativeTolerance?: boolean } = {}): boolean {
   if (check.kind === 'graph-target') {
     return Array.isArray(check.answer) && Array.isArray(input) && input.length === check.answer.length
       && check.answer.every((n, i) => typeof input[i] === 'number' && Number.isFinite(input[i]) && Math.abs(input[i] - n) < 0.025);
   }
   const value = numericAnswer(input);
-  return typeof check.answer === 'number' && value !== null
-    && (check.kind === 'choice' ? Number.isInteger(value) && value === check.answer : Math.abs(value - check.answer) < 1e-7);
+  if (typeof check.answer !== 'number' || value === null) return false;
+  if (check.kind === 'choice') return Number.isInteger(value) && value === check.answer;
+  const tolerance = options.relativeTolerance ? Math.min(1e-7, Math.abs(check.answer) * 1e-7) : 1e-7;
+  return value === check.answer || Math.abs(value - check.answer) < tolerance;
 }
 
 /** Shape and engine semantics. Formula compilation is checked separately by the renderer. */
@@ -91,7 +97,7 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
   if (e.scenes[0]?.phase !== 'discover' || e.scenes.at(-1)?.phase !== 'reflect') errors.push('השיעור צריך להתחיל בגילוי ולהסתיים בסיכום');
   const ids = new Set<string>();
   let checks = 0;
-  const dimensions: Record<VisualKind, number> = { quadratic: 3, linear: 2, 'number-line': 1, balance: 3, steps: 0 };
+  const dimensions: Record<VisualKind, number> = { quadratic: 3, linear: 2, 'number-line': 1, balance: 3, 'fraction-bar': 2, 'right-triangle': 2, 'function-tangent': 4, steps: 0 };
   for (const s of e.scenes) {
     if (!s || typeof s !== 'object') { errors.push('סצנה לא תקינה'); continue; }
     if (!text(s.id, 60) || !/^[a-z0-9-]+$/.test(s.id) || ids.has(s.id)) errors.push('מזהי הסצנות חייבים להיות ייחודיים');
@@ -104,13 +110,21 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
     }
     if (!Object.hasOwn(PHASE_LABELS, s.phase) || !text(s.title, 100) || !text(s.prompt, 280) || !text(s.takeaway, 280)) errors.push(`טקסט או שלב לא תקין: ${s.id}`);
     if (!Object.hasOwn(dimensions, s.visual)) { errors.push(`סוג המחשה לא נתמך: ${s.id}`); continue; }
+    if (s.questionVisual != null && (!s.check || !s.questionVisual || !text(s.questionVisual.tex, LEARNING_FRAME_TEXT_LIMITS.tex) || !text(s.questionVisual.caption, LEARNING_FRAME_TEXT_LIMITS.caption))) errors.push(`המחשת שאלה לא תקינה: ${s.id}`);
+    if (s.check && ['fraction-bar', 'right-triangle', 'function-tangent'].includes(s.visual) && !s.questionVisual) errors.push(`נדרשים נוסחה וכיתוב נפרדים לשאלה: ${s.id}`);
     for (const domain of [s.xDomain, s.yDomain]) {
       if (!Array.isArray(domain) || domain.length !== 2 || !domain.every(finite) || domain[0] >= domain[1] || domain[1] - domain[0] > 100) errors.push(`טווח צירים לא תקין: ${s.id}`);
     }
     if (!Array.isArray(s.frames) || s.frames.length < 1 || s.frames.length > 6) { errors.push(`חסרים שלבי המחשה: ${s.id}`); continue; }
     for (const f of s.frames) {
-      if (!f || !text(f.caption, 180) || !text(f.tex, 600) || !Array.isArray(f.values) || f.values.length !== dimensions[s.visual] || !f.values.every(finite)) {
+      if (!f || !text(f.caption, LEARNING_FRAME_TEXT_LIMITS.caption) || !text(f.tex, LEARNING_FRAME_TEXT_LIMITS.tex) || !Array.isArray(f.values) || f.values.length !== dimensions[s.visual] || !f.values.every(finite)) {
         errors.push(`שלב המחשה לא תקין: ${s.id}`); continue;
+      }
+      if (s.visual === 'fraction-bar' && (!f.values.every(Number.isInteger) || f.values[1] < 1 || f.values[1] > 24 || f.values[0] < 0 || f.values[0] > f.values[1])) errors.push(`חלוקת שלם לא תקינה: ${s.id}`);
+      if (s.visual === 'right-triangle' && f.values.some(v => v <= 0 || v > 100)) errors.push(`ניצבי משולש מחוץ לטווח: ${s.id}`);
+      if (s.visual === 'function-tangent') {
+        const [a,b,c,t] = f.values, height = a*t*t+b*t+c;
+        if (Math.abs(a) < .1 || Math.abs(a) > 10 || Math.abs(b) > 100 || Math.abs(c) > 100 || t < s.xDomain?.[0] || t > s.xDomain?.[1] || height < s.yDomain?.[0] || height > s.yDomain?.[1]) errors.push(`פונקציה או נקודת השקה מחוץ לטווח: ${s.id}`);
       }
       if (s.visual === 'quadratic' && Math.abs(f.values[0]) < 0.1) errors.push(`פרבולה חייבת מקדם שונה מאפס: ${s.id}`);
       if (s.visual === 'balance' && (!Number.isInteger(f.values[0]) || f.values[0] < 1 || f.values[0] > 6 || f.values[1] < 0 || f.values[2] < 0 || f.values[1] > 12 || f.values[2] > 40)) errors.push(`המאזניים מחוץ לטווח הנתמך: ${s.id}`);
@@ -119,7 +133,7 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
     const c = s.check;
     if (!c) continue;
     checks++;
-    if ((s.phase === 'challenge' || c.kind === 'graph-target') && s.frames.length !== 1) errors.push(`בתרגול עצמאי נדרש שלב שאלה יחיד, בלי שלבי פתרון: ${s.id}`);
+    if ((s.phase === 'challenge' || c.kind === 'graph-target' || s.questionVisual) && s.frames.length !== 1) errors.push(`בתרגול עצמאי נדרש שלב שאלה יחיד, בלי שלבי פתרון: ${s.id}`);
     if (!['choice', 'number', 'graph-target'].includes(c.kind) || !text(c.question, 280) || !text(c.success, 280) || !text(c.retry, 280)
       || !Array.isArray(c.hints) || c.hints.length < 1 || c.hints.length > 3 || !c.hints.every(h => text(h, 250))) errors.push(`שאלה ללא משוב ורמזים: ${s.id}`);
     if (c.kind === 'choice' && (!Array.isArray(c.options) || c.options.length < 2 || c.options.length > 4 || !c.options.every(o => text(o, 200))
@@ -144,6 +158,9 @@ export function publicExperience(e: LearningExperience): PublicExperience {
     if (!s.check) return { ...publicScene, check: null };
     const { answer, success: _success, ...check } = s.check;
     // A target curve is intentionally visible; grading keys for other questions stay server-side.
-    return { ...publicScene, check: { ...check, success: '', ...(s.check.kind === 'graph-target' && Array.isArray(answer) ? { target: answer } : {}) } };
+    // Question scenes ship only their givens. Worked text stays in the teacher source;
+    // a correct server-graded response releases the success explanation separately.
+    const frames = s.questionVisual ? s.frames.map(frame => ({ ...frame, tex: s.questionVisual!.tex, caption: s.questionVisual!.caption })) : s.frames;
+    return { ...publicScene, frames, check: { ...check, success: '', ...(s.check.kind === 'graph-target' && Array.isArray(answer) ? { target: answer } : {}) } };
   }) };
 }

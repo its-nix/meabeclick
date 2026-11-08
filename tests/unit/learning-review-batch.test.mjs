@@ -5,34 +5,34 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { PARABOLAS } from '../../src/lib/learning/parabolas.ts';
+import { generationPlan, passingCritique } from '../helpers/generation-plan.mjs';
 
 // Inert CLI: exercises real runner/validation without network, credentials or model calls.
 function setup() {
   const dir=mkdtempSync(join(tmpdir(),'review-batch-test-'));
-  const plan={title:'בדיקה',gradeContext:'כיתה ט',learning:PARABOLAS,
-    slides:Array.from({length:4},()=>({heading:'שלב',bullets:['הסבר']})),examples:[{problem:'1+1',steps:['חיבור'],answer:'2'}],
-    homework:[{task:'1+1',why:'תרגול',answer:'2'},{task:'2+2',why:'תרגול',answer:'4'}],
-    games:{memory:{title:'זיכרון',subject:'מתמטיקה',pairs:Array.from({length:6},(_,i)=>({a:`${i}+1`,b:String(i+1)}))},quiz:{title:'חידון',subject:'מתמטיקה',questions:[{q:'1+1',options:['2','3'],answer:0,why:'חיבור',hint:'ספרו'},{q:'2+2',options:['3','4'],answer:1,why:'חיבור',hint:'ספרו'},{q:'3+3',options:['6','7'],answer:0,why:'חיבור',hint:'ספרו'},{q:'4+4',options:['7','8'],answer:1,why:'חיבור',hint:'ספרו'}]}}};
+  const plan=generationPlan();
   const fixture=join(dir,'plan.json');writeFileSync(fixture,JSON.stringify(plan));
+  const critique=join(dir,'critique.json');writeFileSync(critique,JSON.stringify(passingCritique(plan)));
   const cli=join(dir,'codex-stub');
   writeFileSync(cli,`#!/usr/bin/env node
 const fs=require('node:fs');const args=process.argv.slice(2);
 if(args.includes('--version')){console.log('codex-stub 1');process.exit(0);}
 fs.appendFileSync(process.env.REVIEW_CALLS,'call\\n');
 if(process.env.REVIEW_FAIL){console.error('test engine failure');process.exit(1);}
-fs.copyFileSync(process.env.REVIEW_FIXTURE,args[args.indexOf('-o')+1]);
+const schema=JSON.parse(fs.readFileSync(args[args.indexOf('--output-schema')+1],'utf8'));
+if(schema.properties.checks&&process.env.REVIEW_CRITIQUE_TIMEOUT){process.stdin.resume();setTimeout(()=>process.exit(0),5000);}
+else fs.copyFileSync(schema.properties.checks?process.env.REVIEW_CRITIQUE:process.env.REVIEW_FIXTURE,args[args.indexOf('-o')+1]);
 `,{mode:0o755});
   const out=join(dir,'output'),calls=join(dir,'calls');
-  const run=(extra=[],env={})=>spawnSync(process.execPath,['scripts/generate-learning-review.mjs','--out',out,'--model','test-model',...extra],{encoding:'utf8',timeout:60000,env:{...process.env,CODEX_BIN:cli,REVIEW_FIXTURE:fixture,REVIEW_CALLS:calls,...env}});
-  return {dir,out,calls,run,cli,fixture,cleanup:()=>rmSync(dir,{recursive:true,force:true})};
+  const run=(extra=[],env={})=>spawnSync(process.execPath,['scripts/generate-learning-review.mjs','--out',out,'--model','test-model',...extra],{encoding:'utf8',timeout:60000,env:{...process.env,CODEX_BIN:cli,REVIEW_FIXTURE:fixture,REVIEW_CRITIQUE:critique,REVIEW_CALLS:calls,...env}});
+  return {dir,out,calls,run,cli,fixture,critique,cleanup:()=>rmSync(dir,{recursive:true,force:true})};
 }
 test('real runner resumes without regenerating, verifies artifacts and rejects mixed configuration',()=>{
   const s=setup();try{
     const first=s.run();assert.equal(first.status,0,first.stdout+first.stderr);
-    assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,10);
+    assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,20);
     assert.equal(s.run().status,0);
-    assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,10,'resume must not make calls');
+    assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,20,'resume must not make calls');
     assert.notEqual(s.run(['--effort','medium']).status,0,'configuration change rejected');
     const replacement=join(s.dir,'replacement');mkdirSync(replacement);
     const replacementManifest=JSON.parse(readFileSync(join(s.out,'manifest.json'),'utf8'));
@@ -41,12 +41,17 @@ test('real runner resumes without regenerating, verifies artifacts and rejects m
     const content=JSON.parse(readFileSync(join(s.out,'06-linear.json'),'utf8'));content.title='Replacement';
     const bytes=JSON.stringify(content);writeFileSync(join(replacement,'06-linear.json'),bytes);
     replacementManifest.cases[5].planSha256=createHash('sha256').update(bytes).digest('hex');
+    const report=JSON.parse(readFileSync(join(s.out,'06-linear.quality.json'),'utf8'));
+    report.attempts.at(-1).candidateHash=createHash('sha256').update(JSON.stringify(content)).digest('hex');
+    const reportBytes=JSON.stringify(report);writeFileSync(join(replacement,'06-linear.quality.json'),reportBytes);
+    replacementManifest.cases[5].qualitySha256=createHash('sha256').update(reportBytes).digest('hex');
     writeFileSync(join(replacement,'manifest.json'),JSON.stringify(replacementManifest));
     const packaged=join(s.dir,'corpus.json');
     const assembled=spawnSync(process.execPath,['scripts/package-learning-review.mjs','--replace',replacement,'--from',s.out,'--out',packaged],{encoding:'utf8',timeout:30000});
     assert.equal(assembled.status,0,assembled.stdout+assembled.stderr);
     const corpus=JSON.parse(readFileSync(packaged,'utf8'));
     assert.equal(corpus.cases.length,10);assert.equal(corpus.cases[5].plan.title,'Replacement');
+    assert.equal(corpus.cases[5].qualityReport.status,'passed');
     assert.equal(corpus.manifest.cases[5].generationConfig.model,'replacement-model');
     assert.equal(corpus.manifest.cases[0].generationConfig.model,'test-model');
     const duplicate=spawnSync(process.execPath,['scripts/package-learning-review.mjs','--from',s.out,'--from',replacement,'--out',packaged],{encoding:'utf8'});
@@ -67,6 +72,22 @@ test('shared failure stops scheduling, and a live batch lock prevents all genera
     assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,1);
   }finally{s.cleanup();}
 });
+test('a first critique timeout stops the batch with nine cases pending and preserves its failed report',()=>{
+  const s=setup();try{
+    const failed=s.run(['--concurrency','1'],{REVIEW_CRITIQUE_TIMEOUT:'1',LESSON_TIMEOUT_MINUTES:'0.05'});
+    assert.notEqual(failed.status,0,failed.stdout+failed.stderr);
+    assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,2,'one lesson and one timed-out critique, then no further engine calls');
+    const manifest=JSON.parse(readFileSync(join(s.out,'manifest.json'),'utf8'));
+    assert.equal(manifest.cases[0].status,'failed');
+    assert.equal(manifest.cases[0].error.kind,'engine-timeout');
+    assert.equal(manifest.cases.filter(c=>c.status==='pending').length,9);
+    const report=JSON.parse(readFileSync(join(s.out,manifest.cases[0].brief.id+'.quality.json'),'utf8'));
+    assert.equal(report.status,'failed');assert.equal(report.attempts.length,1);
+    assert.equal(report.attempts[0].critique,'engine-failed');
+    assert.ok(manifest.cases[0].qualitySha256);
+    assert.equal(existsSync(join(s.out,'.generation-lock')),false);
+  }finally{s.cleanup();}
+});
 test('a targeted new batch succeeds for its selected case without claiming a full corpus',()=>{
   const s=setup();try{
     const result=s.run(['--case','06-linear']);assert.equal(result.status,0,result.stdout+result.stderr);
@@ -82,7 +103,7 @@ test('source drift persists a failed seal that assembly, audit and resume cannot
     const loader=join(s.dir,'fingerprint-loader.mjs');
     const loaderSource=`export async function load(url,context,next){const r=await next(url,context);if(url.endsWith('/scripts/learning-review-validation.mjs')){const source=String(r.source),a=source.indexOf('export async function sourceFingerprint() {'),b=source.indexOf('\\nexport function validateManifest',a);r.source=source.slice(0,a)+"let calls=0;export async function sourceFingerprint(){return (++calls===1?'a':'b').repeat(64);}"+source.slice(b);}return r;}`;
     writeFileSync(loader,loaderSource);
-    const env={...process.env,CODEX_BIN:s.cli,REVIEW_FIXTURE:s.fixture,REVIEW_CALLS:s.calls};
+    const env={...process.env,CODEX_BIN:s.cli,REVIEW_FIXTURE:s.fixture,REVIEW_CRITIQUE:s.critique,REVIEW_CALLS:s.calls};
     const run=()=>spawnSync(process.execPath,['--loader',loader,'scripts/generate-learning-review.mjs','--out',s.out,'--model','test-model'],{env,encoding:'utf8',timeout:60000});
     const drift=run();assert.notEqual(drift.status,0);assert.match(drift.stderr,/Generator changed during batch/);
     const manifest=JSON.parse(readFileSync(join(s.out,'manifest.json'),'utf8'));

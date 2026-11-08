@@ -16,13 +16,25 @@
    */
   import { getContext } from 'svelte';
   import { GAME_CONTEXT_KEY, nudge, offersHints, type GameEngineContext, type GameData } from './engine.ts';
+  import { QUESTION_SESSION_LENGTH, isAdaptiveBank, selectQuestion, questionEvidence, type QuestionMetadata, type QuestionEvidence } from './adaptive.ts';
   import RoundHint from './RoundHint.svelte';
 
-  type Round = { target: number; label?: string; tolerance?: number; why?: string; hint?: string };
+  type Round = QuestionMetadata & { target: number; label?: string; tolerance?: number; why?: string; hint?: string };
 
   let { data }: { data: GameData } = $props();
   const engine = getContext<GameEngineContext>(GAME_CONTEXT_KEY);
-  const rounds = (data.rounds as Round[] | undefined) ?? [];
+  const bank = (data.rounds as Round[] | undefined) ?? [];
+  const adaptive = isAdaptiveBank(bank);
+  let rounds = $state(adaptive ? bank.slice(0, QUESTION_SESSION_LENGTH) : bank);
+  const evidence: QuestionEvidence[] = [];
+  let roundHintsStart = 0;
+  function selectRound() {
+    if (adaptive) rounds[idx] = selectQuestion(bank, evidence)!;
+    roundHintsStart = hintsUsed;
+  }
+  function recordAnswer(correct: boolean) {
+    if (adaptive) evidence.push(questionEvidence(rounds[idx], correct, hintsUsed - roundHintsStart));
+  }
   const lo = (data.min as number | undefined) ?? 0;
   const hi = (data.max as number | undefined) ?? 10;
 
@@ -128,10 +140,11 @@
   }
 
   function check() {
-    if (guess === null) return;
+    if (guess === null || answered) return;
     answered = true;
     const r = rounds[idx];
     const ok = isOk();
+    recordAnswer(ok);
     if (ok) score++;
     else missed.push(r.label ?? String(r.target));
     redraw(true);
@@ -142,17 +155,19 @@
   function next() {
     idx++;
     if (idx < rounds.length) {
+      selectRound();
       guess = null;
       answered = false;
       whyText = '';
       redraw();
     } else {
-      engine.finish({ template: 'number-line', score, total: rounds.length, missed, ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
+      engine.finish({ template: 'number-line', score, total: rounds.length, missed, ...(adaptive ? { questionEvidence: evidence } : {}), ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
     }
   }
 
   if (rounds.length) {
     engine.startTimer();
+    selectRound();
     redraw();
   }
 </script>

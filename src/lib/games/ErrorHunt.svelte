@@ -3,14 +3,26 @@
   /** Port of games/error-hunt.html. */
   import { getContext } from 'svelte';
   import { GAME_CONTEXT_KEY, offersHints, verdict, type GameEngineContext, type GameData } from './engine.ts';
+  import { QUESTION_SESSION_LENGTH, isAdaptiveBank, selectQuestion, questionEvidence, type QuestionMetadata, type QuestionEvidence } from './adaptive.ts';
   import RoundHint from './RoundHint.svelte';
 
-  type Round = { problem: string; steps: string[]; badStep: number; why: string; hint?: string };
+  type Round = QuestionMetadata & { problem: string; steps: string[]; badStep: number; why: string; hint?: string };
   type StepBtn = { text: string; state: 'idle' | 'found' | 'missed' };
 
   let { data }: { data: GameData } = $props();
   const engine = getContext<GameEngineContext>(GAME_CONTEXT_KEY);
-  const rounds = (data.rounds as Round[] | undefined) ?? [];
+  const bank = (data.rounds as Round[] | undefined) ?? [];
+  const adaptive = isAdaptiveBank(bank);
+  let rounds = $state(adaptive ? bank.slice(0, QUESTION_SESSION_LENGTH) : bank);
+  const evidence: QuestionEvidence[] = [];
+  let roundHintsStart = 0;
+  function selectRound() {
+    if (adaptive) rounds[idx] = selectQuestion(bank, evidence)!;
+    roundHintsStart = hintsUsed;
+  }
+  function recordAnswer(correct: boolean) {
+    if (adaptive) evidence.push(questionEvidence(rounds[idx], correct, hintsUsed - roundHintsStart));
+  }
 
   let idx = $state(0);
   let score = $state(0);
@@ -23,6 +35,7 @@
   const elapsed = $derived(engine.secs());
 
   function renderRound() {
+    selectRound();
     answered = false;
     whyText = '';
     steps = rounds[idx].steps.map((text) => ({ text, state: 'idle' as const }));
@@ -32,6 +45,7 @@
     if (answered) return;
     answered = true;
     const r = rounds[idx];
+    recordAnswer(i === r.badStep);
     if (i === r.badStep) {
       steps[i].state = 'found';
       score++;
@@ -47,7 +61,7 @@
   function next() {
     idx++;
     if (idx < rounds.length) renderRound();
-    else engine.finish({ template: 'error-hunt', score, total: rounds.length, missed, ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
+    else engine.finish({ template: 'error-hunt', score, total: rounds.length, missed, ...(adaptive ? { questionEvidence: evidence } : {}), ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
   }
 
   if (rounds.length) {
@@ -100,7 +114,7 @@
     border: 2px solid var(--border); border-radius: 12px;
     padding: 0.7rem 0.9rem; min-height: 48px; margin-bottom: 0.5rem;
     font-family: inherit; font-size: 1rem; color: var(--text-primary);
-    text-align: right; cursor: pointer; direction: rtl;
+    text-align: start; cursor: pointer; direction: rtl;
     transition: border-color 0.18s, background 0.18s;
   }
   .step:hover:not(:disabled) { border-color: var(--accent2-strong); background: var(--accent2-dim); }

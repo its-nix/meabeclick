@@ -231,7 +231,7 @@
       "bestFor": "בדיקת הבנה כללית בסוף שיעור",
       "itemRange": [
         4,
-        15
+        40
       ],
       "ageRange": [
         8,
@@ -247,12 +247,18 @@
               "string"
             ],
             "answer": "number — index into options",
-            "why": "string — one-line explanation shown after answering"
+            "why": "string — one-line explanation shown after answering",
+            "id": "string, optional — unique question identity for adaptive banks",
+            "difficulty": "number, optional — 1, 2 or 3, within the assigned lesson skills"
           }
         ]
       },
       "example": "example-integrals-quiz",
-      "name": "חידון"
+      "name": "חידון",
+      "generationBankRange": [
+        10,
+        40
+      ]
     },
     "error-hunt": {
       "title": "ציד טעויות",
@@ -260,7 +266,7 @@
       "bestFor": "פתרון מלא עם שגיאה אחת — התלמיד מאתר את השורה השגויה",
       "itemRange": [
         2,
-        8
+        40
       ],
       "ageRange": [
         11,
@@ -276,11 +282,17 @@
               "string — one line of working"
             ],
             "badStep": "number — index of the faulty step",
-            "why": "string — what went wrong"
+            "why": "string — what went wrong",
+            "id": "string, optional — unique question identity for adaptive banks",
+            "difficulty": "number, optional — 1, 2 or 3, within the assigned lesson skills"
           }
         ]
       },
-      "example": "example-derivatives-errorhunt"
+      "example": "example-derivatives-errorhunt",
+      "generationBankRange": [
+        10,
+        40
+      ]
     },
     "two-truths": {
       "title": "שתי אמיתות ושקר",
@@ -288,7 +300,7 @@
       "bestFor": "איתור תפיסות שגויות — כתבו את השקר כטעות שתלמידים באמת עושים",
       "itemRange": [
         3,
-        10
+        40
       ],
       "ageRange": [
         10,
@@ -303,11 +315,17 @@
               "string — exactly 3"
             ],
             "lieIndex": "number — index of the false one",
-            "why": "string"
+            "why": "string",
+            "id": "string, optional — unique question identity for adaptive banks",
+            "difficulty": "number, optional — 1, 2 or 3, within the assigned lesson skills"
           }
         ]
       },
-      "example": "example-integrals-twotruths"
+      "example": "example-integrals-twotruths",
+      "generationBankRange": [
+        10,
+        40
+      ]
     },
     "speed-drill": {
       "title": "קרב מהירות",
@@ -331,12 +349,18 @@
             "a": "string — must appear in options",
             "options": [
               "string — 3 to 4 choices"
-            ]
+            ],
+            "id": "string, optional — unique question identity for adaptive banks",
+            "difficulty": "number, optional — 1, 2 or 3, within the assigned lesson skills"
           }
         ]
       },
-      "notes": "Bank loops if the student outpaces it. Personal best is kept in the browser's localStorage per data file.",
-      "example": "nikol-derivrules-speed"
+      "notes": "Timed drill. Adaptive banks select unseen questions by current-session practice difficulty and loop only after bank exhaustion. Legacy banks retain their shuffled loop. Personal best is stored on the server.",
+      "example": "nikol-derivrules-speed",
+      "generationBankRange": [
+        10,
+        40
+      ]
     },
     "graph-match": {
       "title": "התאמת גרפים",
@@ -344,7 +368,7 @@
       "bestFor": "אינטואיציה ויזואלית — פונקציה מול הנגזרת שלה",
       "itemRange": [
         2,
-        8
+        40
       ],
       "ageRange": [
         14,
@@ -366,12 +390,18 @@
               ]
             ],
             "answer": "number — index of the correct option",
-            "why": "string"
+            "why": "string",
+            "id": "string, optional — unique question identity for adaptive banks",
+            "difficulty": "number, optional — 1, 2 or 3, within the assigned lesson skills"
           }
         ]
       },
       "notes": "Curves are plain arrays of y values, auto-scaled by the template. Generate them with a script rather than by hand.",
-      "example": "example-derivgraphs-match"
+      "example": "example-derivgraphs-match",
+      "generationBankRange": [
+        10,
+        40
+      ]
     },
     "number-line": {
       "title": "ציר המספרים",
@@ -379,7 +409,7 @@
       "bestFor": "גודל ומיקום — שברים, עשרוניים, מספרים שליליים",
       "itemRange": [
         3,
-        12
+        40
       ],
       "ageRange": [
         7,
@@ -395,11 +425,17 @@
             "target": "number",
             "label": "string — how it is written, e.g. 2½",
             "tolerance": "number — allowed error",
-            "why": "string"
+            "why": "string",
+            "id": "string, optional — unique question identity for adaptive banks",
+            "difficulty": "number, optional — 1, 2 or 3, within the assigned lesson skills"
           }
         ]
       },
-      "example": "example-fractions-numberline"
+      "example": "example-fractions-numberline",
+      "generationBankRange": [
+        10,
+        40
+      ]
     }
   },
   "conventions": {

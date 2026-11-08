@@ -5,13 +5,14 @@
  * query parameter, which meant two children sharing a first name shared a
  * results history, and renaming a child orphaned theirs.
  */
+import { serializeQuestionEvidence } from '../games/adaptive.ts';
 import { handle } from './db.ts';
 
 export type ResultRow = {
   id: number; student_id: number; at: string; data_id: string | null;
   template: string | null; score: number | null; total: number | null;
   tries: number | null; stars: number | null; seconds: number | null;
-  missed: string | null; hints: number | null;
+  missed: string | null; hints: number | null; question_evidence: string | null;
 };
 
 const int = (v: unknown): number | null => (Number.isFinite(Number(v)) ? Number(v) : null);
@@ -25,16 +26,18 @@ export function writeResult(r: {
    *  offers none — stored as NULL, which means "not measured", not
    *  "needed no help". See migration 015. */
   hints?: unknown;
+  questionEvidence?: unknown;
 }): void {
   handle().prepare(`
-    INSERT INTO results_v2 (student_id, at, data_id, template, score, total, tries, stars, seconds, missed, hints)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO results_v2 (student_id, at, data_id, template, score, total, tries, stars, seconds, missed, hints, question_evidence)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     r.studentId, new Date().toISOString(),
     str(r.dataId, 120), str(r.template, 40),
     int(r.score), int(r.total), int(r.tries), int(r.stars), int(r.durationSec),
     JSON.stringify((Array.isArray(r.missed) ? r.missed : []).slice(0, 40).map(m => String(m).slice(0, 200))),
-    int(r.hints),
+    r.hints == null ? null : int(r.hints),
+    serializeQuestionEvidence(r.questionEvidence),
   );
 }
 

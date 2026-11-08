@@ -7,8 +7,9 @@
  * booking's lesson, so everything downstream — the editor, the preview,
  * versions — treats it as the ordinary lesson it is.
  */
+import { saveGenerationQualityReport } from '../lesson/quality-store.ts';
 import { createLesson, finishLesson, handle } from '../db.ts';
-import { generateLesson, validateLesson, type LessonPlan, type LessonRequest } from '../lesson/prep.ts';
+import { generateLesson, validateLesson, type GenerationOptions, type LessonPlan, type LessonRequest } from '../lesson/prep.ts';
 import { publish, publishDraftOnly, messageForFailure } from '../lesson/queue.ts';
 import { templateById, type PlanTemplate, type TemplateSkill } from '../plans/templates.ts';
 import { singleton } from '../singleton.ts';
@@ -22,7 +23,7 @@ export const LIBRARY_STUDENT = 'ספרייה';
 export { masterSlug, isLibrarySlug } from './slug.ts';
 
 export interface PrepareDeps {
-  generate?: (req: LessonRequest) => Promise<LessonPlan>;
+  generate?: (req: LessonRequest, options?: GenerationOptions) => Promise<LessonPlan>;
   /** Who made the plan, when it is not this server's Codex: an import from
    *  the tutor's machine (/api/library/import). Recorded in lesson_engines
    *  so the gate does not count it as a Codex run. */
@@ -75,7 +76,7 @@ export async function prepareSkill(templateId: string, skillKey: string, deps: P
   setItem({ templateId, skillKey, slug, status: 'preparing' });
 
   try {
-    const plan = await generate(meta);
+    const plan = await generate(meta, {onQualityReport: report => saveGenerationQualityReport(slug, report)});
     const problems = validateLesson(plan);
     if (problems.length) {
       await publishDraftOnly(slug, plan, meta);

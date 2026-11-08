@@ -107,6 +107,7 @@ export const STORAGE: Record<string, TableFact> = {
   drive_items:        { status: 'live', note: 'Which Drive file is which, and what it last held — ids and sync bookkeeping only (migration 019).' },
 
   // ── Generation ────────────────────────────────────────────────────
+  lesson_generation_quality: { status: 'live', note: 'Private, append-only generation assessments tied to exact candidate hashes; later tutor edits never inherit a pass.' },
   lessons: {
     status: 'live',
     note: 'The generated lesson. Keyed on student NAME, which is why two '

@@ -63,6 +63,8 @@ export type FinishInput = {
    * evidence of understanding.
    */
   hints?: number;
+  /** Bounded, current-session practice evidence, never certified mastery. */
+  questionEvidence?: import('./adaptive.ts').QuestionEvidence[];
 };
 
 /** Svelte context key shared between GameShell (provider) and every game

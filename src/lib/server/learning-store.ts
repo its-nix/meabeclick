@@ -97,7 +97,7 @@ export function recordLearning(input: {
       student_id: number; lesson_slug: string; fingerprint: string; scene_id: string; action: string; correct: number | null;
     } | undefined;
     if (previous && (previous.student_id !== studentId || previous.lesson_slug !== slug || previous.fingerprint !== fingerprint || previous.scene_id !== sceneId || previous.action !== action)) throw new Error('event conflict');
-    const correct = previous ? previous.correct === null ? null : !!previous.correct : action === 'answer' ? gradeLearningCheck(scene.check!, input.value) : null;
+    const correct = previous ? previous.correct === null ? null : !!previous.correct : action === 'answer' ? gradeLearningCheck(scene.check!, input.value, { relativeTolerance: ['fraction-bar', 'right-triangle', 'function-tangent'].includes(scene.visual) }) : null;
     if (!previous) {
       const now = new Date().toISOString();
       handle().prepare('INSERT INTO learning_events (id,student_id,lesson_slug,fingerprint,scene_id,action,correct,created_at) VALUES (?,?,?,?,?,?,?,?)')

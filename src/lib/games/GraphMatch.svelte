@@ -22,14 +22,27 @@
    */
   import { getContext } from 'svelte';
   import { GAME_CONTEXT_KEY, offersHints, verdict, type GameEngineContext, type GameData } from './engine.ts';
+  import { QUESTION_SESSION_LENGTH, isAdaptiveBank, selectQuestion, questionEvidence, type QuestionMetadata, type QuestionEvidence } from './adaptive.ts';
   import RoundHint from './RoundHint.svelte';
+  import { GRAPH_PLOT, graphRoundScale, graphPlotPoints, graphY, type GraphScale } from './graph-match-plot.ts';
 
-  type Round = { prompt: string; mainLabel?: string; main: number[]; options: number[][]; answer: number; why?: string; hint?: string };
+  type Round = QuestionMetadata & { prompt: string; mainLabel?: string; main: number[]; options: number[][]; answer: number; why?: string; hint?: string };
   type OptBtn = { svg: string; label: string; correct: boolean; state: 'idle' | 'correct' | 'wrong' };
 
   let { data }: { data: GameData } = $props();
   const engine = getContext<GameEngineContext>(GAME_CONTEXT_KEY);
-  const rounds = (data.rounds as Round[] | undefined) ?? [];
+  const bank = (data.rounds as Round[] | undefined) ?? [];
+  const adaptive = isAdaptiveBank(bank);
+  let rounds = $state(adaptive ? bank.slice(0, QUESTION_SESSION_LENGTH) : bank);
+  const evidence: QuestionEvidence[] = [];
+  let roundHintsStart = 0;
+  function selectRound() {
+    if (adaptive) rounds[idx] = selectQuestion(bank, evidence)!;
+    roundHintsStart = hintsUsed;
+  }
+  function recordAnswer(correct: boolean) {
+    if (adaptive) evidence.push(questionEvidence(rounds[idx], correct, hintsUsed - roundHintsStart));
+  }
 
   let idx = $state(0);
   let score = $state(0);
@@ -42,19 +55,20 @@
   const missed: string[] = [];
   const elapsed = $derived(engine.secs());
 
-  function plot(ys: number[], color: string): string {
-    const W = 200, H = 120, PAD = 8;
-    const lo = Math.min(...ys), hi = Math.max(...ys);
-    const span = hi - lo || 1;
-    const px = (i: number) => PAD + (i * (W - 2 * PAD)) / (ys.length - 1);
-    const py = (v: number) => H - PAD - ((v - lo) * (H - 2 * PAD)) / span;
-    const pts = ys.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
-    const zero = lo <= 0 && hi >= 0 ? py(0) : null;
-    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img">
+  function plot(ys: number[], color: string, scale: GraphScale): string {
+    const { width: W, height: H, left, right, top, bottom } = GRAPH_PLOT;
+    const zero = graphY(0, scale).toFixed(1);
+    const ticks = [...new Set([scale.hi, 0, scale.lo])].map(value => {
+      const y = graphY(value, scale).toFixed(1);
+      const label = Number(value.toPrecision(4)).toString();
+      return `<text x="${left - 5}" y="${y}" dy="0.35em" font-size="10" text-anchor="end" direction="ltr" fill="#64748B">${label}</text>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="y: ${scale.lo} … ${scale.hi}">
       <rect width="${W}" height="${H}" fill="none"/>
-      ${zero !== null ? `<line x1="${PAD}" y1="${zero.toFixed(1)}" x2="${W - PAD}" y2="${zero.toFixed(1)}" stroke="#CBD5E1" stroke-width="1"/>` : ''}
-      <line x1="${(W / 2).toFixed(1)}" y1="${PAD}" x2="${(W / 2).toFixed(1)}" y2="${H - PAD}" stroke="#CBD5E1" stroke-width="1"/>
-      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="${left}" y1="${zero}" x2="${W - right}" y2="${zero}" stroke="#CBD5E1" stroke-width="1"/>
+      <line x1="${(left + W - right) / 2}" y1="${top}" x2="${(left + W - right) / 2}" y2="${H - bottom}" stroke="#CBD5E1" stroke-width="1"/>
+      ${ticks}
+      <polyline points="${graphPlotPoints(ys, scale)}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
   }
 
@@ -79,21 +93,24 @@
   }
 
   function renderRound() {
+    selectRound();
     answered = false;
     whyText = '';
     const r = rounds[idx];
-    mainSvg = plot(r.main, '#2563EB');
+    const scale = graphRoundScale([r.main, ...r.options]);
+    mainSvg = plot(r.main, '#2563EB', scale);
     const order = seededShuffle(
       r.options.map((ys, i) => ({ ys, correct: i === r.answer })),
       hashSeed(r.prompt + idx),
     );
-    opts = order.map((o) => ({ svg: plot(o.ys, '#1E293B'), label: '', correct: o.correct, state: 'idle' as const }));
+    opts = order.map((o) => ({ svg: plot(o.ys, '#1E293B', scale), label: '', correct: o.correct, state: 'idle' as const }));
     opts.forEach((o, i) => (o.label = 'אבגד'[i] ?? String(i + 1)));
   }
 
   function choose(o: OptBtn) {
     if (answered) return;
     answered = true;
+    recordAnswer(o.correct);
     opts.forEach((x) => { if (x.correct) x.state = 'correct'; });
     if (o.correct) score++;
     else { o.state = 'wrong'; missed.push(rounds[idx].prompt); }
@@ -105,7 +122,7 @@
   function next() {
     idx++;
     if (idx < rounds.length) renderRound();
-    else engine.finish({ template: 'graph-match', score, total: rounds.length, missed, ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
+    else engine.finish({ template: 'graph-match', score, total: rounds.length, missed, ...(adaptive ? { questionEvidence: evidence } : {}), ...(offersHints(rounds) ? { hints: hintsUsed } : {}) });
   }
 
   if (rounds.length) {

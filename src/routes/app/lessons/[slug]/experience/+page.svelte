@@ -6,7 +6,7 @@
   const parameterLabels = {
     quadratic: ['a · מקדם הפתיחה', 'h · מיקום אופקי', 'k · גובה הקודקוד'],
     linear: ['m · שיפוע', 'b · חיתוך עם הציר'],
-    'number-line': ['מיקום על הציר'], balance: ['מקדם x', 'המספר שמוסיפים', 'אגף ימין'], steps: [],
+    'number-line': ['מיקום על הציר'], balance: ['מקדם x', 'המספר שמוסיפים', 'אגף ימין'], 'fraction-bar': ['מספר חלקים צבועים', 'מספר חלקים בשלם'], 'right-triangle': ['אורך ניצב ראשון', 'אורך ניצב שני'], 'function-tangent': ['a · מקדם ריבועי', 'b · מקדם לינארי', 'c · איבר קבוע', 't · מיקום ההשקה'], steps: [],
   };
   let { data } = $props();
   let lesson = $state(untrack(() => structuredClone(data.learning)));
@@ -65,11 +65,14 @@
         <h3>שלבי ההסבר</h3>
         {#each scene.frames as frame,frameIndex}
           <fieldset><legend>שלב {frameIndex+1}</legend><label>הסבר קצר<textarea bind:value={frame.caption} rows="2" maxlength="180"></textarea></label>
-            {#if scene.visual==='steps'}<label>נוסחה<input bind:value={frame.tex} dir="ltr" /></label>{/if}
-            <div class="math-preview"><FormulaText text={'\\('+(scene.visual==='steps'?frame.tex:formulaForVisual(scene.visual,frame.values))+'\\)'} /></div>
-            <div class="values">{#each frame.values as _,valueIndex}<label>{parameterLabels[scene.visual][valueIndex]}<input type="number" step="any" bind:value={frame.values[valueIndex]} /></label>{/each}</div></fieldset>
+            {#if ['steps','fraction-bar','right-triangle','function-tangent'].includes(scene.visual)}<label>נוסחה<input bind:value={frame.tex} dir="ltr" /></label>{/if}
+            <div class="math-preview"><FormulaText text={'\\('+(['steps','fraction-bar','right-triangle','function-tangent'].includes(scene.visual)?frame.tex:formulaForVisual(scene.visual,frame.values))+'\\)'} /></div>
+            <div class="values">{#each frame.values as _,valueIndex}<label>{parameterLabels[scene.visual][valueIndex]}<input type="number" step={scene.visual==='fraction-bar'?1:'any'} bind:value={frame.values[valueIndex]} /></label>{/each}</div></fieldset>
         {/each}
         {#if scene.check}
+          {#if scene.questionVisual}
+            <fieldset><legend>נתוני השאלה לפני פתרון</legend><label>נוסחה ללא פתרון<input bind:value={scene.questionVisual.tex} dir="ltr" /></label><label>כיתוב ללא פתרון<textarea bind:value={scene.questionVisual.caption} rows="2" maxlength="180"></textarea></label></fieldset>
+          {/if}
           <h3>שאלת התרגול</h3><label>השאלה<textarea bind:value={scene.check.question} rows="2" maxlength="280"></textarea></label>
           {#if scene.check.kind==='choice'}
             <fieldset><legend>אפשרויות — סמנו את התשובה הנכונה</legend>{#each scene.check.options as _,i}<label class="option"><input type="radio" name={'answer-'+scene.id} value={i} bind:group={scene.check.answer} /><input bind:value={scene.check.options[i]} dir="auto" aria-label={'אפשרות '+(i+1)} /></label>{/each}</fieldset>

@@ -26,6 +26,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { passingCritique } from '../helpers/generation-plan.mjs';
 
 const dataDir = await mkdtemp(join(tmpdir(), 'lesson-e2e-'));
 process.env.DATA_DIR = dataDir;
@@ -76,11 +77,11 @@ const A_PLAN = {
   "homework": [
     {
       "task": "צמצמו 18/24",
-      "why": "גורמים משותפים"
+      "why": "גורמים משותפים", "answer":"3/4"
     },
     {
       "task": "חשבו 2/3 + 1/6",
-      "why": "מכנה משותף"
+      "why": "מכנה משותף", "answer":"5/6"
     }
   ],
   "games": {
@@ -135,6 +136,15 @@ const A_PLAN = {
   }
 };
 
+
+// Preserve the original four questions and keys while meeting the fresh-bank contract.
+A_PLAN.games.quiz.questions.push(...Array.from({length:6},(_,i)=>({
+  q:`צמצמו ${i+4}/${2*(i+4)}`,options:['1/2','1/3'],answer:0,why:'מחלקים את המונה והמכנה באותו גורם',
+})));
+A_PLAN.games.quiz.questions.forEach((question,i)=>Object.assign(question,{
+  id:`fraction-${i}`,difficulty:i%3+1,hint:'מצאו מכנה משותף או גורם משותף, לפי הפעולה',
+}));
+
 /** Same stub shape lesson-engine.test.mjs uses: honours `-o`, drains stdin. */
 const stubDir = await mkdtemp(join(tmpdir(), 'stub-agent-'));
 const stub = join(stubDir, 'agent');
@@ -144,9 +154,15 @@ out=""
 while [ $# -gt 0 ]; do
   case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac
 done
+if grep -q '^GENERATION_QUALITY_CRITIQUE' "${stubDir}/prompt.txt"; then
+cat > "$out" <<'CRITIQUE'
+${JSON.stringify(passingCritique(A_PLAN))}
+CRITIQUE
+else
 cat > "$out" <<'JSON'
 ${JSON.stringify(A_PLAN)}
 JSON
+fi
 exit 0
 `, { mode: 0o755 });
 process.env.CODEX_BIN = stub;

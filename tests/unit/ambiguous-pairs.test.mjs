@@ -11,15 +11,12 @@ import '../isolate-lesson-data.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generatedPlanStub } from '../generated-plan-stub.mjs';
-import { PARABOLAS } from '../../src/lib/learning/parabolas.ts';
+import { generationPlan } from '../helpers/generation-plan.mjs';
 
 const P = await import('../../src/lib/server/lesson/prep.ts');
 
 const plan = (pairs) => ({
-  learning:PARABOLAS, title: 'x', gradeContext: 'כיתה ח',
-  slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['נקודה'] })),
-  examples: [{ problem: '1', steps: ['1'], answer: '1' }],
-  homework: [{ task: 'א', why: '', answer: '' }, { task: 'ב', why: '', answer: '' }],
+  ...generationPlan(),
   games: {
     matching: { title: 'התאמה', subject: 'מתמטיקה', pairs },
     sequence: { title: 'סדר', subject: 'מתמטיקה', steps: ['א', 'ב', 'ג'] },
@@ -53,8 +50,9 @@ test('when dropping would leave fewer than three pairs, the game is left for val
 test('fresh generation removes ambiguous matching pairs before game validation on initial and retry paths',async()=>{
   for(const invalidFirst of [false,true]){
     const input=plan([pair('א','1'),pair('ב','2'),pair('ג','3'),pair('ד','3'),pair('ה','4')]);
-    const {result,runs}=await generatedPlanStub(input,{invalidFirst});
+    const {result,runs,critiques}=await generatedPlanStub(input,{invalidFirst});
     assert.equal(runs,invalidFirst?2:1);
+    assert.equal(critiques,1,'only the normalized valid candidate reaches critique');
     assert.deepEqual(result.games.matching.pairs.map(pair=>pair.left),['א','ב','ג','ה']);
     assert.deepEqual(P.validateLesson(result),[]);
   }

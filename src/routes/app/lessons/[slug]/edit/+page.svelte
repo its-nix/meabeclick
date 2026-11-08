@@ -23,10 +23,12 @@
 
   type SlideForm = { heading: string; bullets: string; note: string };
   type ExampleForm = { problem: string; steps: string; answer: string };
-  type QuestionForm = { q: string; options: string[]; answer: number; why: string; hint: string };
+  type QuestionMetadata = { id?: string; difficulty?: 1 | 2 | 3 };
+  const newQuestionMetadata = (rows: QuestionMetadata[]): QuestionMetadata => rows.some(q => q.id !== undefined) ? { id: `question-${crypto.randomUUID()}`, difficulty: 2 } : {};
+  type QuestionForm = QuestionMetadata & { q: string; options: string[]; answer: number; why: string; hint: string };
   type HomeworkForm = { task: string; why: string; answer: string };
-  type TruthsForm = { statements: string[]; lieIndex: number; why: string; hint: string };
-  type HuntForm = { problem: string; steps: string[]; badStep: number; why: string; hint: string };
+  type TruthsForm = QuestionMetadata & { statements: string[]; lieIndex: number; why: string; hint: string };
+  type HuntForm = QuestionMetadata & { problem: string; steps: string[]; badStep: number; why: string; hint: string };
   type PairForm = { left: string; right: string; hint: string };
 
   const ORIGIN: Record<string, string> = { generated: 'נוצר', edited: 'נערך', restored: 'שוחזר' };
@@ -486,7 +488,7 @@
             </div>
           </fieldset>
         {/each}
-        <button type="button" class="add" onclick={() => (quiz = [...quiz!, { q: '', options: ['', ''], answer: -1, why: '', hint: '' }])}>+ שאלה</button>
+        <button type="button" class="add" onclick={() => (quiz = [...quiz!, { ...newQuestionMetadata(quiz!), q: '', options: ['', ''], answer: -1, why: '', hint: '' }])}>+ שאלה</button>
             </details>
       {/if}
 
@@ -514,7 +516,7 @@
             </div>
           </fieldset>
         {/each}
-        <button type="button" class="add" onclick={() => (twoTruths = [...twoTruths!, { statements: ['', '', ''], lieIndex: -1, why: '', hint: '' }])}>+ סבב</button>
+        <button type="button" class="add" onclick={() => (twoTruths = [...twoTruths!, { ...newQuestionMetadata(twoTruths!), statements: ['', '', ''], lieIndex: -1, why: '', hint: '' }])}>+ סבב</button>
             </details>
       {/if}
 
@@ -545,7 +547,7 @@
             </div>
           </fieldset>
         {/each}
-        <button type="button" class="add" onclick={() => (errorHunt = [...errorHunt!, { problem: '', steps: ['', ''], badStep: -1, why: '', hint: '' }])}>+ סבב</button>
+        <button type="button" class="add" onclick={() => (errorHunt = [...errorHunt!, { ...newQuestionMetadata(errorHunt!), problem: '', steps: ['', ''], badStep: -1, why: '', hint: '' }])}>+ סבב</button>
             </details>
       {/if}
 

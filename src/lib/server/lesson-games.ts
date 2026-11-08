@@ -1,4 +1,6 @@
 /** Server-backed, lesson-scoped game assignments. */
+import { QUESTION_BANK_KEYS } from './lesson/game-generation.ts';
+import { isAdaptiveBank, type QuestionMetadata } from '../games/adaptive.ts';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -168,6 +170,10 @@ function validateSemantics(template: string, body: Record<string, unknown>): voi
     if (count < minimum || count > maximum) {
       invalid(key, `יש להזין בין ${minimum} ל־${maximum} פריטים.`);
     }
+  }
+  const bankKey = QUESTION_BANK_KEYS[template];
+  if (bankKey && Array.isArray(body[bankKey]) && (body[bankKey] as Record<string, unknown>[]).some(q => q.id !== undefined || q.difficulty !== undefined)) {
+    if (!isAdaptiveBank(body[bankKey] as QuestionMetadata[])) invalid(bankKey, 'בנק תרגול כולל לפחות 10 שאלות, עם מזהים ייחודיים ורמת קושי 1–3 לכל שאלה.');
   }
   switch (template) {
     case 'memory': {

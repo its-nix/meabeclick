@@ -1,7 +1,8 @@
 # Targeted artifact repair — proposed design
 
-Status: proposal pending Lior's answer to the repair-strategy question. The current
-whole-bundle repair remains implemented until that decision is settled.
+Status: approved for implementation by Lior's subsequent “go on”, following the
+recommendation for targeted repairs. The existing whole-bundle behavior remains
+until the implementation is verified.
 
 ## Problem and intended behavior
 
@@ -30,8 +31,8 @@ boundary. Parent units subsume children. De-duplicate identical aggregate valida
 messages when an existing specific issue already identifies the same failure.
 
 The repair response is one object whose required properties are exactly the chosen
-unit paths; each value uses that unit's strict existing schema. Reject omitted,
-duplicate or additional units and invalid types. Apply values only through the
+unit paths; each value uses that unit's strict existing schema. Reject omitted or additional units and invalid types. Parsed object keys define
+unique replacement slots; no new raw-JSON duplicate-key parser is introduced. Apply values only through the
 trusted catalog to a clone. No executable patch, arbitrary JSON-pointer traversal,
 external writes, new dependency or generated code is introduced.
 
@@ -63,7 +64,7 @@ remains unchanged here. This work does not change the production model selection
 ## Validation and review evidence
 
 Tests must prove unchanged passing artifacts, exact handling of indices such as
-2 versus 20, subsumed parent/child failures, rejection of foreign or duplicate
+2 versus 20, subsumed parent/child failures, rejection of foreign or missing
 replacements, malformed initial candidates, scoped normalization, final coherence
 rejection, private reports and engine-fault stop behavior. Keep real failed reports
 for comparison. Re-run the four affected synthetic cases in a new sealed directory

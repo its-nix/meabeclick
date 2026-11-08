@@ -236,7 +236,7 @@ export interface LessonRequest {
 /* The three "ready" game types that cover the most ground: recall,
    misconception, and diagnosis. Schemas match games/registry.json exactly, so
    generated data drops straight into the existing templates. */
-const LESSON_SCHEMA = {
+export const LESSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['title', 'gradeContext', 'slides', 'examples', 'homework', 'games', 'learning'],

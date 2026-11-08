@@ -77,6 +77,15 @@ export function gameUrl({ template, dataId, student }: GameRef & { student: stri
   return `/app/play/${template}?${q}`;
 }
 
+/** Tutor previews require a session and never grant student result-write access. */
+export function tutorGameUrl({ template, dataId, returnTo }: GameRef & { returnTo?: string }): string {
+  assertPathSegment('template', template);
+  assertPathSegment('dataId', dataId);
+  const q = new URLSearchParams({ d: dataId, teacher: '1' });
+  if (returnTo) q.set('returnTo', returnTo);
+  return `/app/play/${template}?${q}`;
+}
+
 export function verifyGameSignature({
   dataId,
   student,

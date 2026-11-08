@@ -24,8 +24,9 @@
  * this for parent/student; this route did not, which is exactly the bug
  * named in the ruling (the old pages/app/dashboard.html:725 rendered
  * `href="/${g.url}"` unguarded against a new-shape entry, producing
- * `href="/undefined"`). Normalized here the same way, except a malformed
- * entry is kept and flagged `broken: true` rather than dropped — this feed
+ * `href="/undefined"`). Both shapes now become tutor-only preview links,
+ * never student-signed play links. A malformed entry is kept and flagged
+ * `broken: true` rather than dropped — this feed
  * is the tutor's own admin view, so a bad link should be visible and
  * actionable, not silently missing the way a family's read of their own
  * portal is allowed to quietly omit it.
@@ -41,21 +42,28 @@ import { readLessons, readLessonsForSlugs } from '$server/db.ts';
 import { getStudentByCode } from '$server/entities.ts';
 import { unambiguousLessonsForStudent } from '$server/lessons.ts';
 import { isLibrarySlug } from '$server/library/slug.ts';
-import { resolveStudent, studentRefById } from '$server/results.ts';
-import { gameUrl, lessonUrl } from '$server/urls.ts';
+import { lessonGamesForLesson } from '$server/lesson-games.ts';
+import { tutorGameUrl, lessonUrl } from '$server/urls.ts';
 import type { RequestHandler } from './$types';
 
-function normalizeLessonGame(entry: unknown, student: string): { title: string; url: string | null; broken: boolean } {
+function normalizeLessonGame(entry: unknown, returnTo: string): { title: string; url: string | null; broken: boolean } {
   const e = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {};
   const title = typeof e.title === 'string' && e.title ? e.title : '(ללא שם)';
 
-  if (typeof e.url === 'string') return { title, url: e.url, broken: false }; // old shape: already has a url
-  if (typeof e.template === 'string' && typeof e.dataId === 'string') {
-    try {
-      return { title, url: gameUrl({ template: e.template, dataId: e.dataId, student }), broken: false };
-    } catch {
-      return { title, url: null, broken: true }; // invalid template — visible, not vanished
+  try {
+    if (typeof e.template === 'string' && typeof e.dataId === 'string') {
+      return { title, url: tutorGameUrl({ template: e.template, dataId: e.dataId, returnTo }), broken: false };
     }
+    if (typeof e.url === 'string') {
+      const [path, query] = e.url.split('?');
+      const match = path.match(/^\/?(?:games\/([a-z0-9-]+)\.html|app\/play\/([a-z0-9-]+))$/);
+      const dataId = new URLSearchParams(query).get('d');
+      if (match && dataId) {
+        return { title, url: tutorGameUrl({ template: match[1] ?? match[2], dataId, returnTo }), broken: false };
+      }
+    }
+  } catch {
+    // Invalid stored links stay visible and actionable in the tutor feed.
   }
   return { title, url: null, broken: true }; // neither shape
 }
@@ -75,15 +83,15 @@ export const GET: RequestHandler = async (event) => {
       : readLessons(raw || undefined);
     /* Library masters are nobody's lesson: they live on /app/library. */
     const lessons = selected.filter(l => !isLibrarySlug(l.slug)).map(l => {
-      /* Prefer the stable code: the legacy lessons table stores a display
-         name, which is ambiguous between two children sharing one and
-         changes when a child is renamed. An unresolvable name passes through
-         unchanged, producing exactly the link it produces today. */
-      const id = student?.id ?? resolveStudent(l.student);
-      const ref = id === null ? l.student : (studentRefById(id)?.code ?? l.student);
+      const returnTo = student ? `/app/students/${encodeURIComponent(student.code)}` : '/app/dashboard';
       return {
         ...l,
-        games: l.games.map(g => normalizeLessonGame(g, ref)),
+        games: [
+          ...l.games,
+          ...lessonGamesForLesson(l.slug)
+            .filter(game => game.status === 'published' && game.publishedDataId)
+            .map(game => ({ title: game.title, template: game.template, dataId: game.publishedDataId })),
+        ].map(g => normalizeLessonGame(g, returnTo)),
         slidesUrl: l.slides ? lessonUrl(l.slug) : null,
       };
     });

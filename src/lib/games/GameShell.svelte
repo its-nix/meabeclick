@@ -169,7 +169,7 @@
        homepage; /app/student sends a signed-in child to their own board and
        anyone else to the sign-in page. -->
   {#if preview}
-    <a class="back" href={backUrl}>→ חזרה לעריכה</a>
+    <a class="back" href={backUrl}>→ חזרה לסביבת המורה</a>
   {:else}
     <a class="back" href="/app/student" data-sveltekit-reload>→ חזרה לדף שלי</a>
   {/if}
@@ -201,7 +201,7 @@
       <!-- Waits for the save: a reload mid-request could cancel it. -->
       <button class="btn" onclick={() => location.reload()} disabled={saving}>שחקו שוב 🔄</button>
       {#if preview}
-        <a class="back" href={backUrl}>→ חזרה לעריכה</a>
+        <a class="back" href={backUrl}>→ חזרה לסביבת המורה</a>
       {:else}
         <a class="back" href="/app/student" data-sveltekit-reload>→ חזרה לדף שלי</a>
       {/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from '$lib/icons/Icon.svelte';
   import BrandMark from '$lib/components/BrandMark.svelte';
+  import { safeTutorReturn } from '$lib/tutor-return.ts';
   /**
    * The app-wide error page. Before this file existed, ANY `error(...)`
    * thrown anywhere in the app — not just /app/play/[template] — fell
@@ -29,8 +30,11 @@
   const status = $derived(page.status);
   const detail = $derived(page.error?.message ?? '');
   const isGame = $derived(page.url.pathname.startsWith('/app/play/'));
-  const isFamily = $derived(isGame || /^\/app\/(parent|student)(\/|$)/.test(page.url.pathname));
-  const recovery = $derived(isFamily
+  const isTutorGame = $derived(isGame && (page.url.searchParams.get('teacher') === '1' || page.url.searchParams.has('preview')));
+  const isFamily = $derived((isGame && !isTutorGame) || /^\/app\/(parent|student)(\/|$)/.test(page.url.pathname));
+  const recovery = $derived(isTutorGame
+    ? { href: safeTutorReturn(page.url.searchParams.get('returnTo'), page.url.origin), label: 'חזרה לסביבת המורה' }
+    : isFamily
     ? { href: '/portal', label: 'חזרה לכניסה האישית' }
     : page.url.pathname.startsWith('/app/')
       ? { href: '/app/dashboard', label: 'חזרה לסקירה התפעולית' }
@@ -44,11 +48,11 @@
 <main class="error-wrap">
   <div class="error-card">
     <div class="page-brand"><BrandMark height={28} /></div>
-    {#if status === 403 && isGame}
+    {#if status === 403 && isGame && !isTutorGame}
       <div class="error-emoji" aria-hidden="true"><Icon name="key" size={40} /></div>
       <h1>הקישור הזה כבר לא בתוקף</h1>
       <p>ייתכן שזה קישור ישן מהודעה קודמת. בקשו מהמורה או מההורה קישור מעודכן למשחק.</p>
-    {:else if status === 404 && isGame}
+    {:else if status === 404 && isGame && !isTutorGame}
       <div class="error-emoji" aria-hidden="true"><Icon name="faq" size={40} /></div>
       <h1>לא מצאנו את המשחק הזה</h1>
       <p>ייתכן שהקישור שגוי, או שהמשחק כבר לא קיים. בקשו קישור מעודכן.</p>

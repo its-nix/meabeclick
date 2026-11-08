@@ -22,7 +22,8 @@ final assessment; a newly discovered failure still rejects the bundle.
 ## Repair units and trust boundary
 
 Units are slides, worked examples, homework items, learning scenes, individual bank
-questions/rounds, and whole non-bank games. A container failure, such as an invalid
+questions/rounds, typed primitive metadata fields and whole non-bank games. Public
+metadata has its own assessment path so a title or bound repair preserves the bank. A container failure, such as an invalid
 bank size, may require replacing that game as a whole. Build the unit catalog from
 the candidate and the existing lesson schema; generated paths never define setters.
 

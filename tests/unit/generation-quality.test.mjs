@@ -8,7 +8,7 @@ import {getGenerationQualityReport,candidateHash} from '../../src/lib/server/les
 process.env.DATA_DIR = await mkdtemp(join(tmpdir(),'quality-db-'));
 process.env.DB_PATH = join(process.env.DATA_DIR,'results.db');
 process.env.SESSION_SECRET='synthetic-quality-test-secret';
-const {generateLesson}=await import('../../src/lib/server/lesson/prep.ts');
+const {generateLesson,balancePositions}=await import('../../src/lib/server/lesson/prep.ts');
 const {messageForFailure}=await import('../../src/lib/server/lesson/queue.ts');
 
 async function engine(replies,fn) {
@@ -37,7 +37,7 @@ test('semantic failure repairs only the rejected artifact and retains private re
 });
 
 test('exhausted semantic repair fails with both reports and no public diagnostics',async()=>{
- const plan=generationPlan(),bad=passingCritique(plan);bad.checks[0].teaching='fail';bad.checks[0].explanation='PRIVATE_MODEL_EXPLANATION';
+ const plan=generationPlan(),bad=passingCritique(plan),check=bad.checks.find(c=>c.path==='slides[0]');check.teaching='fail';check.explanation='PRIVATE_MODEL_EXPLANATION';
  await engine([plan,bad,{'slides[0]':{...plan.slides[0],note:null}},bad],async calls=>{
   await assert.rejects(generateLesson(req),error=>{
    assert.equal(getGenerationQualityReport(error).status,'failed');assert.equal(getGenerationQualityReport(error).attempts.length,2);
@@ -112,7 +112,7 @@ test('fresh library preparation privately persists passing and exhausted reports
   addMaterial({slug:item.slug,kind:'plan',content:JSON.stringify(edited),origin:'edited',publish:true});
   assert.notEqual(report.attempts.at(-1).candidateHash,candidateHash(edited));assert.deepEqual(latestGenerationQualityReport(item.slug),report,'an edit never rewrites the generation assessment');
  });
- const bad=passingCritique(plan);bad.checks[0].math='fail';bad.checks[0].explanation='PRIVATE_FAILURE_EXPLANATION';
+ const bad=passingCritique(plan),check=bad.checks.find(c=>c.path==='slides[0]');check.math='fail';check.explanation='PRIVATE_FAILURE_EXPLANATION';
  await engine([plan,bad,{'slides[0]':{...plan.slides[0],note:null}},bad],async()=>{
   const item=await prepareSkill('math-8','alg.eq.ineq');assert.equal(item.status,'failed');assert.ok(!JSON.stringify(item).includes('PRIVATE_FAILURE_EXPLANATION'));assert.equal(latestPublished(item.slug,'plan'),null);
   const report=latestGenerationQualityReport(item.slug);assert.equal(report.status,'failed');assert.equal(report.attempts.length,2);assert.equal(report.attempts[1].issues[0].message,'PRIVATE_FAILURE_EXPLANATION');
@@ -207,5 +207,53 @@ test('an explicitly replaced whole game is normalized without changing other gam
   plan.games.quiz.questions.forEach((q,i)=>assert.equal(q.options[q.answer],`נכון ${i}`));
   assert.deepEqual(getGenerationQualityReport(plan).attempts[1].repair.paths,['games.quiz']);
   assert.equal((await calls()).length,3);
+ });
+});
+
+test('a located game-validator field failure repairs only that bank question',async()=>{
+ const broken=questionPlan();broken.games.quiz.questions[2].why='';
+ const expected=balancePositions(structuredClone(broken));expected.games.quiz.questions[2].why='הסבר מתוקן';
+ await engine([broken,{'games.quiz.questions[2]':expected.games.quiz.questions[2]},passingCritique(expected)],async calls=>{
+  const plan=await generateLesson(req);assert.deepEqual(plan,expected);
+  assert.deepEqual(getGenerationQualityReport(plan).attempts[1].repair.paths,['games.quiz.questions[2]']);
+  assert.equal((await calls()).length,3);
+ });
+});
+
+test('incorrect bank metadata is corrected without replacing its question bank',async()=>{
+ const broken=questionPlan();broken.games.quiz.title='2 + 2 = 5';
+ const expected=balancePositions(structuredClone(broken));expected.games.quiz.title='חיבור מספרים';
+ const bad=passingCritique(broken);bad.checks.find(c=>c.path==='games.quiz.title').math='fail';
+ await engine([broken,bad,{'games.quiz.title':expected.games.quiz.title},passingCritique(expected)],async()=>{
+  const plan=await generateLesson(req);assert.deepEqual(plan,expected);
+  assert.deepEqual(getGenerationQualityReport(plan).attempts[1].repair.paths,['games.quiz.title']);
+ });
+});
+
+const graphQuestionPlan=()=>{
+ const fixed=generationPlan();
+ fixed.games.graphMatch={title:'התאמת גרפים',subject:'מתמטיקה',rounds:Array.from({length:10},(_,i)=>({
+  id:`graph-${i}`,difficulty:i%3+1,prompt:'בחרו את הגרף לאחר הזזה למעלה',mainLabel:'גרף ייחוס',main:[i,i+1,i+2],
+  options:[[i+2,i+3,i+4],[i-2,i-1,i],[i,i+2,i+4]],answer:0,why:'הגובה גדל בשתי יחידות.',hint:'השוו גבהים.',
+ }))};return fixed;
+};
+test('a fresh graph-reference failure repairs the exact round rather than the whole bank',async()=>{
+ const fixed=graphQuestionPlan();
+ const broken=structuredClone(fixed);broken.games.graphMatch.rounds[2].options[0]=[...broken.games.graphMatch.rounds[2].main];
+ await engine([broken,{'games.graphMatch.rounds[2]':fixed.games.graphMatch.rounds[2]},passingCritique(fixed)],async calls=>{
+  const plan=await generateLesson(req);assert.deepEqual(plan,fixed);
+  assert.deepEqual(getGenerationQualityReport(plan).attempts[1].repair.paths,['games.graphMatch.rounds[2]']);
+  assert.equal((await calls()).length,3);
+ });
+});
+
+test('independent bank checks still collect round failures after a game validator fails',async()=>{
+ const fixed=graphQuestionPlan(),broken=structuredClone(fixed);
+ broken.games.graphMatch.rounds[2].why='';
+ broken.games.graphMatch.rounds[3].options[0]=[...broken.games.graphMatch.rounds[3].main];
+ const reply={'games.graphMatch.rounds[2]':fixed.games.graphMatch.rounds[2],'games.graphMatch.rounds[3]':fixed.games.graphMatch.rounds[3]};
+ await engine([broken,reply,passingCritique(fixed)],async()=>{
+  const plan=await generateLesson(req);assert.deepEqual(plan,fixed);
+  assert.deepEqual(getGenerationQualityReport(plan).attempts[1].repair.paths,Object.keys(reply));
  });
 });

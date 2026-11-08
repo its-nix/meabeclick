@@ -57,3 +57,5 @@ Ruling: JSON object replacement keys are unique application slots; validation ch
 Ruling: Repair normalization applies only to explicitly replaced whole games. Individual question replacements retain their authored valid option/key bindings.
 
 Progress: Task1 8a6b831. Task2 integration:43 focused tests pass; full fallback, scoped normalization, final rejection and engine-fault regressions included. Historical44-file batch audit passes against ef5c1d0 without changing original evidence.
+
+Review rulings: retain item locations from both game validators; collect independent bank findings even after game validation fails. Add explicit primitive metadata assessment/repair units (including number-line bounds) so metadata does not force rewriting passing questions. Regressions were RED→GREEN. Fresh reviewer has no outstanding findings; final Linux rerun includes1826 tests.

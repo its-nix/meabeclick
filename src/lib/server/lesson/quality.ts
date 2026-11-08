@@ -33,9 +33,13 @@ export function qualityPaths(plan: LessonPlan): string[] {
   const games = Object.entries(plan.games).filter(([,body])=>body != null).flatMap(([key,body])=> {
     const bankKey = QUESTION_BANK_KEYS[key];
     const bank = bankKey ? (body as unknown as Record<string,unknown>)[bankKey] : null;
-    return Array.isArray(bank) ? bank.map((_,i)=>`games.${key}.${bankKey}[${i}]`) : [`games.${key}`];
+    return Array.isArray(bank) ? [
+      ...Object.entries(body).filter(([,value])=>['string','number','boolean'].includes(typeof value)).map(([field])=>`games.${key}.${field}`),
+      ...bank.map((_,i)=>`games.${key}.${bankKey}[${i}]`),
+    ] : [`games.${key}`];
   });
-  return [...plan.slides.map((_,i)=>`slides[${i}]`), ...plan.examples.map((_,i)=>`examples[${i}]`),
+  return ['title','gradeContext',...(plan.learning ? ['learning.title','learning.subtitle','learning.objective','learning.minutes'] : []),
+    ...plan.slides.map((_,i)=>`slides[${i}]`), ...plan.examples.map((_,i)=>`examples[${i}]`),
     ...plan.homework.map((_,i)=>`homework[${i}]`), ...games,
     ...(plan.learning?.scenes ?? []).map((_,i)=>`learning.scenes[${i}]`)];
 }
@@ -73,6 +77,7 @@ export function critiquePrompt(req: LessonRequest, plan: LessonPlan): string {
     'GENERATION_QUALITY_CRITIQUE. Review a candidate lesson independently. Do not write or change any file and do not run commands. Return JSON only, matching the schema.',
     'Check EVERY listed artifact path exactly once. Recompute the mathematics and all answer keys; compare question/options/answer/explanation/hints and presenter notes. Check scene numeric visuals and frames against their formulas, explanations, and questions.',
     'For a cross-artifact defect, identify every artifact that actually requires a coordinated correction. Do not fail a correct reference artifact merely because a different artifact is wrong. A repair can replace only the failed artifact paths; other content stays unchanged.',
+    'Metadata paths assess the named public title, subject, objective, duration or grade context; item paths assess the individual content. Do not fail metadata merely because a question is wrong, and do not attribute a metadata error to a correct question. Keep paths separate so a repair need not rewrite passing questions.',
     'Use the following shared learning contract to assess renderer capabilities, numeric values, formulas, interactions and visibility. Any proposed correction must also satisfy this contract; do not invent unsupported values or controls. These are assessment criteria; return the critique schema, not a lesson.',
     ...LEARNING_INSTRUCTIONS,
     'Distinguish mathematical validity from efficiency or a preferred method. A valid reversible operation applied to both sides of an equation preserves equivalence even when it is unnecessary or does not isolate the variable immediately. In twoTruths, independently verify all three statements: exactly two must be true and exactly one unambiguously false; lieIndex and why must identify that falsehood, never merely an inefficient or nonpreferred valid method. In errorHunt, verify each transition from the problem onward and identify the first actually invalid step; earlier valid but inefficient steps are not errors, and consequences of an earlier error are not its location.',

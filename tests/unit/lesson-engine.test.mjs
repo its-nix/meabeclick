@@ -260,9 +260,17 @@ JSON`);
 test('new generation without scene notes fails and retries instead of silently publishing', async () => {
   const plan = structuredClone(A_PLAN);
   plan.learning.scenes.forEach(scene => delete scene.presenterNotes);
-  const { script } = await stubAgent(`cat > "$out" <<'JSON'
+  const replacements=Object.fromEntries(plan.learning.scenes.map((scene,i)=>[`learning.scenes[${i}]`,{...scene,questionVisual:null}]));
+  const { script } = await stubAgent(`if [ -f "$0.once" ]; then
+cat > "$out" <<'REPAIR'
+${JSON.stringify(replacements)}
+REPAIR
+else
+touch "$0.once"
+cat > "$out" <<'JSON'
 ${JSON.stringify(plan)}
-JSON`);
+JSON
+fi`);
   await withEnv({ CODEX_BIN: script }, async () => {
     await assert.rejects(generateLesson(REQUEST), error => error.kind === 'bad-output' && /learning\.scenes\[0\]\.presenterNotes/.test(error.message));
   });
@@ -419,7 +427,18 @@ test('the prompt a 135-minute booking sends asks for its plan\'s deck and the re
 
 test('fresh games obey template limits with one bounded retry while historical lessons remain readable',async()=>{
   const short={...structuredClone(A_PLAN),games:{twoTruths:{title:'בדיקה',subject:'מתמטיקה',rounds:[{statements:['א','ב','ג'],lieIndex:1,why:'הסבר',hint:'חשבו'}]}}};
-  const {script}=await stubAgent(`printf 'x\\n' >> "$0.calls"\ncat > "$out" <<'JSON'\n${JSON.stringify(short)}\nJSON\nexit 0`);
+  const {script}=await stubAgent(`printf 'x\\n' >> "$0.calls"
+if [ -f "$0.once" ]; then
+cat > "$out" <<'REPAIR'
+${JSON.stringify({'games.twoTruths':short.games.twoTruths})}
+REPAIR
+else
+touch "$0.once"
+cat > "$out" <<'JSON'
+${JSON.stringify(short)}
+JSON
+fi
+exit 0`);
   await withEnv({CODEX_BIN:script},()=>assert.rejects(generateLesson(REQUEST),error=>error.kind==='bad-output'&&/twoTruths.*rounds/.test(error.message)));
   assert.equal((await readFile(script+'.calls','utf8')).trim().split('\n').length,2);
   const {renderSlides}=await import('../../src/lib/server/lesson/prep.ts');

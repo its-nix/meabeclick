@@ -19,6 +19,10 @@ export function artifactRepair(candidate:unknown,issues:QualityIssue[],schema:Ou
   if (!object(candidate) || !issues.length) return null;
   const units=new Map<string,Unit>();
   const lengths=new Map<string,number>();
+  for (const key of ['title','gradeContext'] as const) {
+    const valueSchema=schema.properties?.[key];
+    if (valueSchema) units.set(key,{schema:valueSchema,set:(plan,value)=>{plan[key]=value as string;}});
+  }
   for (const key of ['slides','examples','homework'] as const) {
     const list=candidate[key],itemSchema=schema.properties?.[key]?.items;
     if (Array.isArray(list) && itemSchema) { lengths.set(key,list.length);list.forEach((_,i)=>units.set(`${key}[${i}]`,{
@@ -26,6 +30,10 @@ export function artifactRepair(candidate:unknown,issues:QualityIssue[],schema:Ou
     })); }
   }
   const learning=candidate.learning;
+  if (object(learning)) for (const key of ['title','subtitle','objective','minutes'] as const) {
+    const valueSchema=schema.properties?.learning?.properties?.[key];
+    if (valueSchema) units.set(`learning.${key}`,{schema:valueSchema,set:(plan,value)=>{(plan.learning as unknown as Record<string,unknown>)[key]=value;}});
+  }
   const sceneSchema=schema.properties?.learning?.properties?.scenes?.items;
   if (object(learning) && Array.isArray(learning.scenes) && sceneSchema) {
     lengths.set('learning.scenes',learning.scenes.length);
@@ -37,6 +45,12 @@ export function artifactRepair(candidate:unknown,issues:QualityIssue[],schema:Ou
     const game=candidate.games[key];
     if (game==null) continue;
     units.set(`games.${key}`,{schema:gameSchema,set:(plan,value)=>{(plan.games as Record<string,unknown>)[key]=value;}});
+    if (object(game)) for (const [field,fieldSchema] of Object.entries(gameSchema.properties ?? {})) {
+      if (!['string','number','integer','boolean'].includes(fieldSchema.type ?? '')) continue;
+      units.set(`games.${key}.${field}`,{schema:fieldSchema,set:(plan,value)=>{
+        ((plan.games as Record<string,unknown>)[key] as Record<string,unknown>)[field]=value;
+      }});
+    }
     const bankKey=QUESTION_BANK_KEYS[key],bank=object(game) ? game[bankKey] : null;
     const itemSchema=gameSchema.properties?.[bankKey]?.items;
     if (Array.isArray(bank) && itemSchema) { lengths.set(`games.${key}.${bankKey}`,bank.length);bank.forEach((_,i)=>units.set(`games.${key}.${bankKey}[${i}]`,{

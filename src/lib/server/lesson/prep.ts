@@ -723,11 +723,18 @@ function freshQualityIssues(plan: LessonPlan): QualityIssue[] {
     if (body == null) continue;
     try {
       validateLessonGame(TEMPLATE_FILES[key],toTemplateShape(key,body));
-      for (const message of validateGeneratedGameBank(key,body)) add(`games.${key}`,'question-bank',message);
     }
     catch (error) {
-      if (error instanceof GameValidationError) for (const issue of error.issues) add(`games.${key}.${issue.path}`,'structure',issue.message);
+      if (error instanceof GameValidationError) for (const issue of error.issues) {
+        const location=issue.path==='game' ? '' : issue.path.replace(/^game\./,'');
+        add(`games.${key}`+(location ? '.'+location : ''),'structure',issue.message);
+      }
       else add(`games.${key}`,'structure','Invalid game artifact');
+    }
+    for (const message of validateGeneratedGameBank(key,body)) {
+      const location=message.slice(0,message.indexOf(':'));
+      const path=location.startsWith(key+'.') ? `games.${key}.${location.slice(key.length+1)}` : `games.${key}`;
+      add(path,'question-bank',message);
     }
   }
   plan.examples?.forEach((example,i)=> {

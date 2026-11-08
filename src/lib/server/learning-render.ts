@@ -4,6 +4,7 @@ import { escapeHtml as esc, mathText, mathFormula } from '../learning/math.ts';
 import { learningProblems, publicExperience, PHASE_LABELS, type LearningExperience, type LearningScene } from '../learning/model.ts';
 import { mountLearning, writeLearningText, type LearningClientConfig } from '../learning/runtime.ts';
 import { drawLearningVisual, learningFrameAt, formulaForVisual } from '../learning/visual.ts';
+import { learningControls } from '../learning/controls.ts';
 import { learningStyles } from '../learning/styles.ts';
 
 export const learningFingerprint = (e: LearningExperience): string => createHash('sha256').update(JSON.stringify({
@@ -36,15 +37,9 @@ export function learningFormula(scene: LearningScene, frame = scene.frames[0]): 
 }
 
 function controls(scene: LearningScene): string {
-  if (scene.phase !== 'explore' && scene.check?.kind !== 'graph-target') return '';
-  if (scene.phase === 'explore' && scene.frames.length > 1) return '';
-  const definitions = scene.visual === 'quadratic'
-    ? [{ index: 1, name: 'h', label: 'ימינה ושמאלה' }, { index: 2, name: 'k', label: 'למעלה ולמטה' },
-      ...(scene.check?.kind === 'graph-target' ? [{ index: 0, name: 'a', label: 'פתיחה וכיוון' }] : [])]
-    : scene.visual === 'linear' ? [{ index: 0, name: 'm', label: 'שיפוע' }, { index: 1, name: 'b', label: 'חיתוך עם הציר' }]
-    : scene.visual === 'number-line' ? [{ index: 0, name: 'x', label: 'מיקום על הציר' }] : [];
+  const definitions = learningControls(scene);
   if (!definitions.length) return '';
-  return `<div class="scene-controls">${definitions.map(p => `<label class="parameter"><span class="parameter-header"><span><b dir="ltr">${p.name}</b> · ${p.label}</span><output data-output="${p.index}">${scene.frames[0].values[p.index]}</output></span><input aria-label="${p.name} — ${p.label}" data-param="${p.index}" type="range" min="${scene.visual === 'number-line' ? scene.xDomain[0] : -5}" max="${scene.visual === 'number-line' ? scene.xDomain[1] : 5}" step="${scene.visual === 'number-line' ? .25 : 1}" value="${scene.frames[0].values[p.index]}"></label>`).join('')}</div>`;
+  return `<div class="scene-controls">${definitions.map(p => `<label class="parameter"><span class="parameter-header"><span><b dir="ltr">${p.name}</b> · ${p.label}</span><output data-output="${p.index}">${scene.frames[0].values[p.index]}</output></span><input aria-label="${p.name} — ${p.label}" data-param="${p.index}" type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${scene.frames[0].values[p.index]}"></label>`).join('')}</div>`;
 }
 
 export function renderLearningDocument(e: LearningExperience, options: {

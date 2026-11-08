@@ -435,7 +435,7 @@ const LESSON_SCHEMA = {
               properties: {
                 prompt:    { type: 'string' },
                 mainLabel: { type: 'string' },
-                main:      { type: 'array', items: { type: 'number' }, description: 'y-samples of the function, evenly spaced in x' },
+                main:      { type: 'array', items: { type: 'number' }, description: 'y-samples of the always-visible reference function, evenly spaced in x' },
                 options:   { type: 'array', items: { type: 'array', items: { type: 'number' } },
                              description: 'Each option is a y-sample array of the SAME length as main.' },
                 answer:    { type: 'integer' },
@@ -546,7 +546,7 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
     '- speedDrill: שליפה מהירה של כלל שכבר הובן. a חייב להופיע גם ב-options.',
     '- labelling: תיוג חלקים בתרשים או בגרף. svg הוא SVG קטן ופשוט (קווים/עיגולים/טקסט בלבד, viewBox סביר),',
     '  עם id="..." על כל אלמנט שמתויג. targets מכיל את אותם id-ים בדיוק, עם התווית הנכונה לכל אחד. עד 6 תוויות.',
-    '- graphMatch: התאמת פונקציה לגרף שלה (או לנגזרת שלה) — רק לרמות שכבר למדו את הנושא. main וכל איבר ב-options',
+    '- graphMatch: קשר בין גרף הייחוס הגלוי לגרף אחר, לפי מיומנות שנלמדה — רק ברמה המתאימה. main וכל איבר ב-options',
     '  הם מערכי y באותו האורך בדיוק, נדגמים במרווחים שווים לאורך x. answer הוא האינדקס (מ-0) של האפשרות הנכונה.',
     '- numberLine: מיקום וגודל על ציר מספרים — שברים, עשרוניים, מספרים שליליים; לרמות יסוד/חטיבה. target',
     '  חייב להיות בתוך הטווח [min, max]. tolerance הוא טווח הטעות המותר סביב התשובה.',

@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
+import { PARABOLAS } from '../../src/lib/learning/parabolas.ts';
 import { numericLesson } from '../fixtures/learning-numeric-visuals.mjs';
 import { renderLearningDocument } from '../../src/lib/server/learning-render.ts';
 import { drawLearningVisual, learningFrameAt } from '../../src/lib/learning/visual.ts';
@@ -85,6 +86,20 @@ try {
       await page.evaluate(()=>localStorage.clear());
     }
   }
+  await context.route('**/control-capabilities',route=>route.fulfill({contentType:'text/html; charset=utf-8',body:renderLearningDocument(PARABOLAS,{demo:true})}));
+  await page.goto(`${base}/control-capabilities`);
+  const exploreIndex=PARABOLAS.scenes.findIndex(s=>s.id==='explore'),targetIndex=PARABOLAS.scenes.findIndex(s=>s.id==='target');
+  await page.locator('[data-scene-link]').nth(exploreIndex).click();
+  const explore=page.locator('[data-scene="explore"]');
+  assert.deepEqual(await explore.locator('[data-param]').evaluateAll(inputs=>inputs.map(e=>Number(e.dataset.param))),[1,2]);
+  assert.equal(await explore.locator('[data-param="0"]').count(),0,'exploration cannot change opening/direction');
+  const before=await explore.locator('.plot-curve').getAttribute('d');
+  await explore.locator('[data-param="1"]').evaluate(input=>{input.value='3';input.dispatchEvent(new Event('input',{bubbles:true}));});
+  assert.notEqual(await explore.locator('.plot-curve').getAttribute('d'),before,'supported h control changes the curve');
+  await page.locator('[data-scene-link]').nth(targetIndex).click();
+  const target=page.locator('[data-scene="target"]');
+  assert.deepEqual(await target.locator('[data-param]').evaluateAll(inputs=>inputs.map(e=>Number(e.dataset.param))),[1,2,0]);
+  assert.equal(await target.locator('[data-param="0"]').isVisible(),true,'graph construction retains its opening control');
   const guided=numericLesson('fraction-bar');
   guided.scenes.splice(1,0,{...structuredClone(guided.scenes[0]),id:'guided-fraction',phase:'explore',frames:[
     {values:[1,2],tex:'\\frac{1}{2}',caption:'השלם מחולק לשני חלקים שווים.'},

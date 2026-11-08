@@ -44,11 +44,11 @@ Files: `prep.ts`, `quality.ts`, generation quality tests.
 
 Files: provenance scripts/tests and sanitized execution/feedback docs.
 
-- [ ] Add new source file and retain the old44-file scope for historical audits.
-- [ ] Run Linux Node22 suite, build/warning gate and independent review; fix findings with regressions.
-- [ ] Freeze source and run only06/07/08/10 in a new sealed synthetic directory; no source edits during the run.
-- [ ] Independently review READY outputs. Package only if all required replacements pass; preserve rejected outputs and exact provenance.
-- [ ] Update PR/Todoist/evidence records; no merge/deployment/customer replacement.
+- [x] Add new source file and retain the previous fingerprint scope for historical audits.
+- [x] Run Linux Node22 suite, build/warning gate and independent review; fix findings with regressions.
+- [x] Freeze source and run only06/07/08/10 in a new sealed synthetic directory; no source edits during the run.
+- [x] Independently review READY outputs. Package only if all required replacements pass; preserve rejected outputs and exact provenance.
+- [x] Update PR/Todoist/evidence records; no merge/deployment/customer replacement.
 
 ## Ledger
 
@@ -56,6 +56,8 @@ Start: f8bdffc. Existing baseline:1,807 Linux tests, build/check and CI pass.
 Ruling: JSON object replacement keys are unique application slots; validation checks the exact parsed key set. No new raw-JSON duplicate-key parser is introduced; full schema/content assessment remains authoritative.
 Ruling: Repair normalization applies only to explicitly replaced whole games. Individual question replacements retain their authored valid option/key bindings.
 
-Progress: Task1 8a6b831. Task2 integration:43 focused tests pass; full fallback, scoped normalization, final rejection and engine-fault regressions included. Historical44-file batch audit passes against ef5c1d0 without changing original evidence.
+Progress: Task1 8a6b831. Task2 integration:43 focused tests pass; full fallback, scoped normalization, final rejection and engine-fault regressions included. Historical pre-repair batch audit passes against ef5c1d0 without changing original evidence.
 
 Review rulings: retain item locations from both game validators; collect independent bank findings even after game validation fails. Add explicit primitive metadata assessment/repair units (including number-line bounds) so metadata does not force rewriting passing questions. Regressions were RED→GREEN. Fresh reviewer has no outstanding findings; final Linux rerun includes1826 tests.
+
+Completion: source0e8bbd7 (fingerprintdb1c7797d12e899dde85aaa1c6a8e6b648dab886d5198d38031a719ad7e338f0;41 files) passed1,826 Linux Node22 tests, build/check and GitHub CI run42525648000. The sealed gpt-6.1-sol/medium trial completed all four required cases READY; separate content reviewers passed each exact plan. Three cases used targeted replacements and derivatives passed without repair. Explicit three-batch packaging assembled all ten independently accepted candidates outside Git. Browser verification:128 scene viewports,24 games,10 assessment pages, no runtime errors or result/customer writes. Original pilot and rejected candidates preserved. No deployment, customer replacement or human teaching approval.

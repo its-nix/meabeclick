@@ -1,7 +1,7 @@
 # Artifact generation execution record
 
-Implementation: `codex/generation-machinery`, initial commit `98fdb48`, refined
-source commit `ef5c1d0`. [Draft PR 104](https://github.com/its-nix/meabeclick/pull/104)
+Implementation: `codex/generation-machinery`, initial commit `98fdb48`, latest
+verified source commit `0e8bbd7`. [Draft PR 104](https://github.com/its-nix/meabeclick/pull/104)
 contains the machinery changes. The earlier tutor-workflow fixes are isolated
 in [draft PR 105](https://github.com/its-nix/meabeclick/pull/105).
 Neither branch is merged or deployed. No reusable library import or customer
@@ -36,7 +36,7 @@ The legacy slide-note field is intentionally public; generation and critique
 now state its learner-facing role explicitly. Fresh valid learning experiences
 use the interactive renderer, which already keeps presenter notes separate.
 
-## Verification
+## Earlier verification checkpoint
 
 - Linux, Node 22.20.0: **1,804 tests passed**, no failures; production build passed.
 - Type/warning gate passed with 22 existing baseline warnings.
@@ -136,7 +136,7 @@ and zero independent content acceptances. The run-completion source seal was
 verified at 09:11:30 UTC; failed-report checksums match the manifest. No model
 process remains active.
 
-A complete ten-case candidate cannot be assembled from these results.
+At that checkpoint, a complete ten-case candidate could not be assembled from those results.
 Packaging must not fall back to older automated passes that independent review
 rejected. The original pilot remains unchanged; no generated key or candidate
 is hand-edited to obtain a pass. Original runs and rejected reports remain
@@ -160,8 +160,9 @@ independent model review does not replace the tutor's teaching judgment.
 
 ## Subsequent task boundaries
 
-The lesson-report coverage checklist and contextual editor additions remain
-pending. Coverage must stay separate from understanding: untaught does not mean
+At the earlier checkpoint, the lesson-report coverage checklist and contextual
+editor additions remained pending. Reporting is now implemented separately; the
+contextual editor addition remains pending. Coverage must stay separate from understanding: untaught does not mean
 struggled. Explicit empty coverage must also differ from historical unknown
 coverage, so teaching no topics cannot release all planned homework through a
 legacy empty-list fallback. Expired holds and fallback releases also require
@@ -202,4 +203,59 @@ plan-skill granularity. The strict formatting policy remains unchanged. Proposed
 repair design: `docs/superpowers/specs/2026-11-08-targeted-artifact-repair-design.md`.
 Reporting is isolated on `codex/presentation-report`; its design accounts for partial
 skill practice, immutable sources, explicit zero coverage, report corrections and
-stale async completion. Neither proposed feature has been implemented yet.
+stale async completion. At that checkpoint neither proposed feature had been implemented. Both were
+subsequently approved and implemented; see the continuation below.
+
+
+## Targeted repair completion — 2026-11-09
+
+Lior's go-on approved the recommended targeted artifact repair and smaller
+teachable-topic reporting. Targeted repair is implemented here; reporting is
+isolated on `codex/presentation-report`, stacked on this generation branch.
+The strict formatting gate is unchanged. Contextual editor additions remain a
+separate pending task.
+
+The trusted catalog accepts only exact, schema-bound replacement units. Located
+failures replace their containing artifact; passing content is retained. Related
+failures can replace multiple explicit units. Unknown/global failures use the one
+full-bundle fallback. Full validation and independent critique follow repair;
+there is no third attempt. Private assessment evidence records repair mode/paths.
+
+Latest source `0e8bbd7f0b99c17ed4d442eaad5ba27b5171e7d0`, fingerprint
+`db1c7797d12e899dde85aaa1c6a8e6b648dab886d5198d38031a719ad7e338f0`
+(41 files), passed **1,826/1,826 Linux Node22 tests**, production build and warning
+gate with22 baseline warnings. Independent code review has no open findings.
+GitHub CI run42525648000 passed; deployment was skipped. Historical fingerprint
+scopes remain supported. Documentation counts in the preliminary ledger described
+45 files in error; the actual sealed manifest and fingerprint scope contain41.
+
+Sealed batch `meabeclick-generation-targeted-20261108-ckIGQ0` uses Codex CLI0.167.0,
+`gpt-6.1-sol`, medium effort and five-minute call limits. Source verification passed
+at2026-11-08T21:48:24.332Z. All calls have finished.
+
+| Case | Automated result | Repair units | Exact plan SHA256 | Independent content review |
+| --- | --- | --- | --- | --- |
+|06-linear|READY,2 attempts|slides[7]|344de9cb81b563fc133ea672f22799c2f1ad001fc6390eb856b334a535a274c0|PASS|
+|07-quadratics|READY,2 attempts|games.matching; learning.scenes[5]|03e5f59b0ae3a3bee3ceea2aa4962fa55ba3516969124558e87258d2083a8088|PASS|
+|08-linear-quadratic|READY,2 attempts|learning.objective; slides[0/3/4/6]|426669f470e05f231ff65c745963ff083240049116c7e2dfa6171bda9d191c5b|PASS|
+|10-derivatives|READY,1 attempt|none|28d40d1a873a9bc160277d31413f48f08c8788fda46a8d8a7344c55651e952a9|PASS|
+
+Separate reviewers checked every slide, worked example, homework key, scene and
+game key against the actual renderer and assigned scope. Reviews are bound to
+plan/quality checksums. Nonblocking observations: supported practice sometimes
+reuses worked numbers; a GraphMatch caption could describe y tick marks more
+precisely. Independent challenges are new; no content/math blockers remain.
+
+Explicit packaging from the original baseline, accepted replacement batch and
+new targeted batch produced ten accepted candidates outside Git. It asserted all
+four new cases READY and independently passed before packaging, then validated
+all artifacts and assessment hashes. No old rejected automated pass was used as
+fallback. Candidate browser checks passed128 mobile/desktop scene viewports,
+24 games and ten assessment pages, with no runtime/math errors, horizontal
+overflow, preview result writes or customer records changed. Source-specific
+numeric scenes, notes, homework and assessments were also rendered separately.
+
+The original tracked pilot remains `pilot-2026-11-06`. This candidate has mixed
+source/model provenance and is **awaiting human teaching review**. Independent
+model passes are not human approval, production bookings or a controlled latency/
+quality comparison. No customer material replacement, import, merge or deployment.

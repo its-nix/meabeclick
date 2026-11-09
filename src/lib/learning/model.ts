@@ -15,12 +15,18 @@ export interface LearningCheck {
   hints: string[];
   success: string;
   retry: string;
+  /** Private until an authorised solution request after an attempt. */
+  solution?: string;
 }
 export interface PresenterNotes {
   explanation: string;
   ask: string;
   expectedAnswer: string;
   ifStuck: string;
+  minutes?: number;
+  misconception?: string;
+  transition?: string;
+  sources?: string[];
 }
 export interface LearningScene {
   id: string;
@@ -101,6 +107,11 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
       if (!notes || typeof notes !== 'object' || Array.isArray(notes)
         || !text(notes.explanation, 700) || !text(notes.ask, 350)
         || !text(notes.expectedAnswer, 500) || !text(notes.ifStuck, 500)) errors.push(`חסרות הערות למורה או שהן ארוכות מדי: ${s.id}`);
+      if(notes&&typeof notes==='object'){
+        if(notes.minutes!==undefined&&(!finite(notes.minutes)||notes.minutes<=0||notes.minutes>135))errors.push(`זמן הערות לא תקין: ${s.id}`);
+        if((notes.misconception!==undefined&&!text(notes.misconception,500))||(notes.transition!==undefined&&!text(notes.transition,400))||(notes.sources!==undefined&&(!Array.isArray(notes.sources)||notes.sources.length>4||!notes.sources.every(v=>text(v,100)))))errors.push(`הערות מורחבות לא תקינות: ${s.id}`);
+      }
+
     }
     if (!Object.hasOwn(PHASE_LABELS, s.phase) || !text(s.title, 100) || !text(s.prompt, 280) || !text(s.takeaway, 280)) errors.push(`טקסט או שלב לא תקין: ${s.id}`);
     if (!Object.hasOwn(dimensions, s.visual)) { errors.push(`סוג המחשה לא נתמך: ${s.id}`); continue; }
@@ -135,14 +146,14 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
 }
 
 export type PublicExperience = Omit<LearningExperience, 'scenes'> & {
-  scenes: Array<Omit<LearningScene, 'check' | 'presenterNotes'> & { check?: Omit<LearningCheck, 'answer'> & { target?: number[] } | null }>;
+  scenes: Array<Omit<LearningScene, 'check' | 'presenterNotes'> & { check?: Omit<LearningCheck, 'answer' | 'solution'> & { target?: number[] } | null }>;
 };
 
 export function publicExperience(e: LearningExperience): PublicExperience {
   return { ...e, scenes: e.scenes.map(s => {
     const { presenterNotes: _notes, ...publicScene } = s;
     if (!s.check) return { ...publicScene, check: null };
-    const { answer, success: _success, ...check } = s.check;
+    const { answer, success: _success, solution: _solution, ...check } = s.check;
     // A target curve is intentionally visible; grading keys for other questions stay server-side.
     return { ...publicScene, check: { ...check, success: '', ...(s.check.kind === 'graph-target' && Array.isArray(answer) ? { target: answer } : {}) } };
   }) };

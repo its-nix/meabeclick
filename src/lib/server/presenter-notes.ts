@@ -13,9 +13,9 @@ export function renderPresenterNotes(lesson: LearningExperience, slug: string, l
     const notes = scene.presenterNotes;
     return `<section id="notes-${scene.id}" class="notes-section"><header><div><span class="step">שלב ${index + 1} מתוך ${lesson.scenes.length}</span><h2>${esc(scene.title)}</h2></div><a class="button" href="${presentation}#scene=${scene.id}" target="lesson-presentation">פתיחת השלב במצגת ↗</a></header>
       ${notes ? `<dl>${[
-        ['מה לומר', notes.explanation], ['מה לשאול', notes.ask],
-        ['תשובה והבנה רצויות', notes.expectedAnswer], ['אם נתקעים', notes.ifStuck],
-      ].map(([label, text]) => `<div><dt>${label}</dt><dd>${mathText(text)}</dd></div>`).join('')}</dl>`
+        ['זמן משוער', notes.minutes ? `${notes.minutes} דקות` : ''], ['מה לומר', notes.explanation], ['מה לשאול', notes.ask],
+        ['תשובה והבנה רצויות', notes.expectedAnswer], ['אם נתקעים', notes.ifStuck], ['טעות סבירה', notes.misconception ?? ''], ['מעבר לשלב הבא', notes.transition ?? ''], ['מקורות', notes.sources?.join(', ') ?? ''],
+      ].filter(([,text])=>text).map(([label, text]) => `<div><dt>${label}</dt><dd>${mathText(text)}</dd></div>`).join('')}</dl>`
       : '<p class="missing">לשלב הזה עדיין אין הערות למורה. שיעורים שנוצרו לפני הוספת ההערות נשמרים כפי שהם; אפשר להוסיף הערות בעורך מרחב הלמידה.</p>'}</section>`;
   }).join('');
   return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>הערות למורה · ${esc(lesson.title)}</title><link rel="stylesheet" href="/learning-assets/katex.min.css"><style>

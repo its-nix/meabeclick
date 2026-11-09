@@ -19,7 +19,7 @@ export function experienceProblems(raw: unknown, options: { requirePresenterNote
       try { mathFormula(frame.tex); } catch { problems.push(`נוסחה לא תקינה בסצנה ${scene.id}`); }
     }
     const notes = scene.presenterNotes;
-    for (const text of [scene.prompt, scene.takeaway, ...scene.frames.map(f => f.caption), scene.check?.question, scene.check?.success, scene.check?.retry, ...(scene.check?.hints ?? []), ...(scene.check?.options ?? []), ...(notes ? [notes.explanation, notes.ask, notes.expectedAnswer, notes.ifStuck] : [])]) {
+    for (const text of [scene.prompt, scene.takeaway, ...scene.frames.map(f => f.caption), scene.check?.question, scene.check?.success, scene.check?.retry, ...(scene.check?.hints ?? []), ...(scene.check?.options ?? []), ...(notes ? [notes.explanation, notes.ask, notes.expectedAnswer, notes.ifStuck, notes.misconception, notes.transition] : [])]) {
       if (text && mathText(text).includes('data-math-error')) problems.push(`נוסחה לא תקינה בטקסט הסצנה ${scene.id}`);
     }
   }
@@ -47,7 +47,7 @@ export function renderLearningDocument(e: LearningExperience, options: {
   const config: LearningClientConfig = {
     experience: publicExperience(e), fingerprint: learningFingerprint(e), lessonSlug: options.slug ?? null,
     demo: !!options.demo || !!options.preview, storageScope: options.storageScope,
-    ...(options.demo || options.preview ? { demoChecks: Object.fromEntries(e.scenes.filter(s => s.check).map(s => [s.id, s.check!])) } : {}),
+    ...(options.demo || options.preview ? { demoChecks: Object.fromEntries(e.scenes.filter(s => s.check).map(s => {const {solution:_private,...check}=s.check!;return [s.id,check];})) } : {}),
   };
   const data = JSON.stringify(config).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   const sections = e.scenes.map((s, i) => {

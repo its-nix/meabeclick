@@ -39,3 +39,7 @@ Run the affected unit/characterization checks; build and typecheck. For changes 
 Use the project's normal PR and deployment checks. Existing user authorization persists; this skill adds no new approval step. Preserve a rollback point and state what deployed. Production reliability requires the actual generation streak specified in `PRODUCT.md`; synthetic review examples do not count as production bookings or prove student learning quality.
 
 Finish with the changed behavior, evidence, review links and remaining uncertainty. Invite feedback on the specific new examples without treating silence as approval to replace customer materials.
+
+## Authoring quality
+
+For generation changes, use the common production policy in `src/lib/learning/teaching-rules.ts` and the relevant guide: [presentations](references/presentation.md), [games](references/games.md), [homework](references/homework.md), [mathematics and sources](references/mathematics.md). These are one teaching contract. Keep runtime instructions aligned with the guides; a local skill install alone does not change production. Preserve v1 compatibility and require owner review of candidate examples before promoting v2.

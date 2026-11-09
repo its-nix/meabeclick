@@ -11,6 +11,8 @@ import { createLesson, finishLesson, handle } from '../db.ts';
 import { generateLesson, validateLesson, type LessonPlan, type LessonRequest } from '../lesson/prep.ts';
 import { publish, publishDraftOnly, messageForFailure } from '../lesson/queue.ts';
 import { templateById, type PlanTemplate, type TemplateSkill } from '../plans/templates.ts';
+import {generationVersion} from '../../learning/teaching-rules.ts';
+import {teachingContextFor} from '../lesson/teaching-context.ts';
 import { singleton } from '../singleton.ts';
 import { setItem, itemFor, type LibraryItem } from './store.ts';
 import { masterSlug } from './slug.ts';
@@ -40,7 +42,7 @@ function findSkill(template: PlanTemplate, skillKey: string): { skill: TemplateS
 }
 
 /** The grade a template teaches, as the generator should hear it. */
-const levelOf = (t: PlanTemplate): string => t.grades?.[0] ?? t.track;
+const levelOf = (t: PlanTemplate): string => generationVersion()===2?[...(t.grades??[]),t.track].join(' · '):t.grades?.[0]??t.track;
 
 /** Prepares one skill's master. Resolves with where it stands; never
  *  rejects for an engine failure — that is a recorded status. */
@@ -53,6 +55,7 @@ export function libraryRequest(templateId: string, skillKey: string) {
   const found = findSkill(template, skillKey);
   if (!found) throw new Error(`no skill ${skillKey} in ${templateId}`);
   return {
+    ...(generationVersion()===2?{teachingContext:teachingContextFor({name:'',subject:template.subject,level:'',durationMin:90,request:`${found.skill.title} (${found.context})`},null,{templateId,key:skillKey,title:found.skill.title})}:{}),
     subject: template.subject,
     level: levelOf(template),
     student: '',

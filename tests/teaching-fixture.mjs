@@ -2,7 +2,7 @@ import {PARABOLAS} from '../src/lib/learning/parabolas.ts';
 export function teachingFixture(durationMin=45){
  const learning=structuredClone(PARABOLAS);
  for(const scene of learning.scenes){Object.assign(scene.presenterNotes,{minutes:4,misconception:'בלבול בין הזזה לפתיחה',transition:'נעבור לבדוק דוגמה חדשה',sources:[]});if(scene.check)scene.check.solution='PrivateSolution: מציבים ובודקים את התוצאה.';}
- const games={quiz:{title:'חידון',subject:'מתמטיקה',questions:[0,1,2,3].map((n)=>({q:`${n}+1`,options:[String(n+1),String(n+2)],answer:0,why:'מחברים אחת',hint:'ספרו צעד אחד'}))},memory:{title:'זיכרון',subject:'מתמטיקה',pairs:[0,1,2,3,4,5].map(n=>({a:`${n}+1`,b:String(n+1)}))}};
+ const games={quiz:{title:'חידון',subject:'מתמטיקה',questions:[0,1,2,3].map((n)=>({q:`${n}+1`,options:n%2?[String(n+2),String(n+1)]:[String(n+1),String(n+2)],answer:n%2,why:'מחברים אחת',hint:'ספרו צעד אחד'}))},memory:{title:'זיכרון',subject:'מתמטיקה',pairs:[0,1,2,3,4,5].map(n=>({a:`${n}+1`,b:String(n+1)}))}};
  const check={kind:'number',question:'כמה הם שניים ועוד שניים?',options:[],answer:4,hints:['חברו זוג לזוג'],success:'ארבעה איברים',retry:'ספרו שוב',solution:'2+2=4'};
  const plan={title:'פרבולות',gradeContext:'כיתה י',learning,slides:[1,2,3,4].map(n=>({heading:`שלב ${n}`,bullets:['לומדים']})),examples:[{problem:'1+1',steps:['מחברים'],answer:'2'}],homework:[{task:'כמה הם שניים ועוד שניים?',why:'תרגול',answer:'4',check},{task:'הסבירו את ההזזה',why:'הבנה',answer:'ימינה',check:null}],games};
  const context={grade:'כיתה י',track:'5 יח״ל',notation:'standard',request:'פרבולות',skill:'הזזת פרבולה',curriculum:'',questionnaire:'',durationMin,history:[]};

@@ -9,7 +9,7 @@ export const GET: RequestHandler = event => {
   requireAuth(event);
   const lesson = assignedExperience(event.params.slug);
   if (!lesson) error(404, 'השיעור עדיין לא מוכן');
-  return new Response(renderPresenterNotes(lesson.experience, event.params.slug), {
+  return new Response(renderPresenterNotes(lesson.experience, event.params.slug,{plan:lesson.plan}), {
     headers: { ...documentHeaders(), 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' },
   });
 };

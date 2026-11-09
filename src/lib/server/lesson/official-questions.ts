@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import type {TeachingContext} from '../../learning/teaching.ts';
 export interface OfficialQuestion {
  id:string;authority:'moe'|'rama';url:string;year:number;session:string;questionnaire:string;
- programme:string;track:string;topics:string[];page:number;question:string;subparts:string;
+ programme:string;track:string;grades:string[];topics:string[];page:number;question:string;subparts:string;
  pageSize:[number,number];crop:[number,number,number,number];documentSha256:string;
  transcript:string;accessibleText:string;kind:'official'|'adapted';
  use:'excerpt'|'link-only';verification:{source:string;math:string;verifiedBy:string;date:string};
@@ -14,7 +14,7 @@ export interface OfficialQuestion {
 // Checked against rendered page 3, not its scrambled PDF text layer.
 const CATALOGUE:ReadonlyArray<OfficialQuestion>=[{
  id:'moe-2025b-35571-1c2',authority:'moe',url:'https://meyda.education.gov.il/sheeloney_bagrut/2025/8/HEB/35571.pdf',
- year:2025,session:'קיץ, מועד ב',questionnaire:'35571',programme:'math-5u',track:'5',topics:['אינטגרל','אינטגרלים','שטח פולינום'],
+ year:2025,session:'קיץ, מועד ב',questionnaire:'35571',programme:'math-5u',track:'5',grades:['כיתה יא','כיתה יב'],topics:['אינטגרל','אינטגרלים','שטח פולינום'],
  page:3,question:'1',subparts:'ג(2)',pageSize:[595.276,841.89],crop:[60,82,495,283],
  documentSha256:'e517aa2e2fa17fcc73306e6706c85f5b3196bdf2a5a5b810e0a738bb42a5b784',
  transcript:'נתונה הפונקצייה \\(g(x)=x^4(x+1)\\). חשבו את השטח המוגבל על ידי גרף הפונקצייה ועל ידי ציר ה־\\(x\\).',
@@ -39,7 +39,7 @@ export function officialQuestion(id:string):OfficialQuestion|null{
 }
 export function resolveOfficialQuestions(context:TeachingContext,options:{requiredQuestionId?:string;usedQuestionIds?:string[]}={}):{questions:OfficialQuestion[];status:'verified'|'authored-fallback'|'unresolved';reason?:string}{
  const required=options.requiredQuestionId??context.requiredQuestionId;
- const fit=(q:OfficialQuestion)=>/5/.test(context.track??'')&&(!context.questionnaire||context.questionnaire.split(/[, ·]+/).includes(q.questionnaire))&&(!context.curriculum||context.curriculum.startsWith(q.programme))&&q.topics.some(t=>(context.skill+' '+context.request).includes(t));
+ const fit=(q:OfficialQuestion)=>q.grades.includes((context.grade??'').replace(/["״׳']/g,''))&&/5/.test(context.track??'')&&(!context.questionnaire||context.questionnaire.split(/[, ·]+/).includes(q.questionnaire))&&(!context.curriculum||context.curriculum.startsWith(q.programme))&&q.topics.some(t=>(context.skill+' '+context.request).includes(t));
  const found=CATALOGUE.filter(q=>(required?q.id===required:!options.usedQuestionIds?.includes(q.id))&&fit(q));
  return found.length?{questions:structuredClone(found.slice(0,1)),status:'verified'}:{questions:[],status:required?'unresolved':'authored-fallback',reason:required?'השאלה המבוקשת אינה מאומתת או אינה מתאימה לפרופיל':'אין במאגר שאלה רשמית מתאימה; יש ליצור תרגול מקורי ולסמן זאת'};
 }

@@ -377,7 +377,7 @@ export async function publish(slug: string, plan: LessonPlan, meta: RunMeta): Pr
     games.push({ title: data.title, template, dataId });
   }
 
-  const slidesHtml = renderSlides(plan, meta);
+  const slidesHtml = renderSlides(plan, {...meta,slug});
   const slidesPath = contentPath('lessons', slug);
   await mkdir(dirname(slidesPath), { recursive: true });
   await writeFile(slidesPath, slidesHtml, 'utf8');
@@ -401,7 +401,7 @@ export async function publishDraftOnly(slug: string, plan: LessonPlan, meta: Run
   const slidesPath = contentPath('drafts', slug, 'slides.html');
   const planPath   = contentPath('drafts', slug, 'lesson.json');
   await mkdir(dirname(slidesPath), { recursive: true });
-  await writeFile(slidesPath, renderSlides(plan, meta), 'utf8');
+  await writeFile(slidesPath, renderSlides(plan, {...meta,slug}), 'utf8');
   await writeFile(planPath, JSON.stringify(plan, null, 2), 'utf8');
 }
 

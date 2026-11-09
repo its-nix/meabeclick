@@ -1,10 +1,11 @@
 import type { PublicExperience, LearningCheck, LearningExperience } from './model.ts';
 import type { drawLearningVisual, learningFrameAt, formulaForVisual } from './visual.ts';
 
-export interface LearningProgress { attempts: number; hints: number; solved: boolean; visited: boolean }
+export interface LearningProgress { attempts: number; hints: number; solved: boolean; visited: boolean;revealed?:boolean }
 export interface LearningClientConfig {
   experience: PublicExperience; fingerprint: string; lessonSlug: string | null;
   demo: boolean; demoChecks?: Record<string, LearningCheck>; storageScope?: string;
+  variant?:'homework';
 }
 
 /** Only TeX renderer output becomes markup; every piece of prose is a text node. */
@@ -54,11 +55,11 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   const mergeProgress = (incoming: Record<string, LearningProgress>) => {
     for (const [id, next] of Object.entries(incoming)) {
       const old = progress(id);
-      states[id] = { attempts: Math.max(old.attempts, next.attempts), hints: Math.max(old.hints, next.hints), solved: old.solved || next.solved, visited: old.visited || next.visited };
+      states[id] = { attempts: Math.max(old.attempts, next.attempts), hints: Math.max(old.hints, next.hints), solved: old.solved || next.solved, visited: old.visited || next.visited,revealed:!!(old.revealed||next.revealed) };
     }
   };
   const slug = config.lessonSlug ?? decodeURIComponent(location.pathname.match(/^\/(?:app\/learn|lessons)\/([^/]+)/)?.[1] ?? '');
-  const endpoint = slug ? `/api/learning/${encodeURIComponent(slug)}` : null;
+  const endpoint = slug ? `/api/learning/${encodeURIComponent(slug)}${config.variant==='homework'?'?view=homework':''}` : null;
   const key = () => `meabeclick:learning:${scope}:${slug || 'demo'}:${config.fingerprint}`;
   const progress = (id: string) => states[id] ??= { attempts: 0, hints: 0, solved: false, visited: false };
   const feedback = (text: string, kind = 'success') => {
@@ -95,10 +96,11 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     query('[data-course-progress]').setAttribute('aria-valuenow', String(completed));
     const checked = scenes.filter(s => !!s.check);
     const solved = checked.filter(s => progress(s.id).solved).length;
-    const independent = checked.filter(s => progress(s.id).solved && progress(s.id).hints === 0 && progress(s.id).attempts === 1).length;
+    const independent = checked.filter(s => progress(s.id).solved && progress(s.id).hints === 0 && !progress(s.id).revealed && progress(s.id).attempts === 1).length;
+    sections.forEach((section,i)=>{const b=section.querySelector<HTMLButtonElement>('[data-solution]');if(b)b.disabled=progress(scenes[i].id).attempts===0;});
     const summary = query('[data-completion]');
     if (summary) summary.textContent = solved
-      ? `פתרתם ${solved} מתוך ${checked.length} אתגרים. ${independent} נפתרו בניסיון הראשון וללא רמז. אפשר לחזור ולתרגל בכל שלב.`
+      ? `פתרתם ${solved} מתוך ${checked.length} אתגרים. ${independent} נפתרו בניסיון הראשון וללא עזרה. אפשר לחזור ולתרגל בכל שלב.`
       : 'אפשר לחזור להסבר, לנסות שוב או לבקש רמז. כל צעד קטן מצטרף להבנה.';
   }
 
@@ -166,6 +168,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     }
     sections.forEach((s, i) => s.hidden = i !== active);
     const section = sections[active], scene = scenes[active], state = progress(scene.id);
+    const reasoning=section.querySelector<HTMLTextAreaElement>('[data-reasoning]');if(reasoning&&scope!=='pending')try{reasoning.value=localStorage.getItem(key()+':reason:'+scene.id)??'';}catch{}
     query('[data-current-step]').textContent = `${String(active + 1).padStart(2, '0')} / ${String(scenes.length).padStart(2, '0')}`;
     query('[data-phase-label]').textContent = ({ discover: 'מגלים', explore: 'מנסים', practice: 'מתרגלים', challenge: 'אתגר', reflect: 'מה לקחנו' })[scene.phase];
     query<HTMLButtonElement>('[data-prev]').disabled = active === 0;
@@ -203,6 +206,10 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     if (event.sceneId === scenes[active].id && event.action === 'answer') {
       feedback(data.feedback, data.correct ? 'success' : 'retry');
       if (data.correct) { render(); query('[data-next-label]').textContent = 'ממשיכים'; }
+    }
+    if(event.sceneId===scenes[active].id&&event.action==='solution'&&typeof data.solution==='string'){
+      const box=query('[data-worked-solution]',sections[active]);rich(box,'פתרון בשלבים: '+data.solution);box.hidden=false;
+      feedback('עברנו על פתרון עם עזרה. כדי לבדוק הבנה עצמאית, נסו שאלה חדשה.','retry');
     }
     updateProgress(); remember();
     return true;
@@ -317,6 +324,15 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       rich(hint, scene.check.hints[index]); hint.hidden = false;
       await record('hint');
     });
+    section.querySelector<HTMLButtonElement>('[data-solution]')?.addEventListener('click',async()=>{
+      if(!progress(scene.id).attempts)return;
+      const b=query<HTMLButtonElement>('[data-solution]',section);b.disabled=true;
+      try{await record('solution');}finally{b.disabled=false;}
+    });
+    section.querySelector<HTMLTextAreaElement>('[data-reasoning]')?.addEventListener('input',event=>{
+      if(scope==='pending')return;
+      try{localStorage.setItem(key()+':reason:'+scene.id,(event.target as HTMLTextAreaElement).value);}catch{status.textContent='לא ניתן לשמור את הטיוטה במכשיר הזה.';}
+    });
     section.querySelector<HTMLInputElement>('[data-number-answer]')?.addEventListener('keydown', event => {
       if (event.key === 'Enter') query<HTMLButtonElement>('[data-submit]', section).click();
     });
@@ -343,6 +359,8 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   window.addEventListener('online', () => void flush());
   window.addEventListener('beforeprint', () => {
     pause();
+    all<SVGSVGElement>('[data-print-visual]').forEach(svg=>{const [id,index]=svg.dataset.printVisual!.split(':');const s=scenes.find(s=>s.id===id)!;draw(svg,s.visual,s.frames[Number(index)].values,s.xDomain,s.yDomain);});
+    all<HTMLElement>('[data-reasoning-print]').forEach(p=>{p.textContent=document.querySelector<HTMLTextAreaElement>(`[data-scene="${p.dataset.reasoningPrint}"] [data-reasoning]`)?.value??'';});
     all<SVGSVGElement>('[data-print-plot]').forEach(svg => {
       const scene = scenes.find(s => s.id === svg.dataset.printPlot)!;
       draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: true });

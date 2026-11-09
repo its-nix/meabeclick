@@ -24,6 +24,7 @@
 
 import { formulaRuns } from '../../bidi.ts';
 import {resolveOfficialQuestions,officialQuestion,type OfficialQuestion} from './official-questions.ts';
+import {teachingDisplay,homeworkExperience} from '../teaching-display.ts';
 import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -39,6 +40,7 @@ import { newFence, sanitizeField } from './prompt.ts';
    $lib/brand.ts for why a hand-copy that agrees today is still a copy. */
 import { deckRootCss, DECK_FONT, BRAND_LOGO_SRC } from '../../brand.ts';
 import type { LearningExperience } from '../../learning/model.ts';
+import {numericAnswer}from'../../learning/model.ts';
 import {TEACHING_SCHEMA} from '../../learning/teaching-schema.ts';
 import {teachingProblems,type TeachingPlan,type TeachingContext} from '../../learning/teaching.ts';
 import { generationVersion, teachingRules } from '../../learning/teaching-rules.ts';
@@ -721,7 +723,15 @@ async function generateOnce(req: LessonRequest): Promise<LessonPlan> {
       const context=req.teachingContext??{request:req.request??'',skill:req.skill??'',grade:req.level,track:'',curriculum:'',questionnaire:'',notation:'standard',durationMin:req.durationMin??45,history:[]};
       if(plan.teaching&&typeof plan.teaching==='object')Object.assign(plan.teaching,{context});
       const problems=teachingProblems(plan.teaching,plan as unknown as LessonPlan,context as TeachingContext);
-      for(const source of (plan.teaching as TeachingPlan)?.sources??[]){if(officialQuestion(source.questionId)?.kind!==source.kind)problems.push('סוג המקור אינו תואם למאגר המאומת');}
+      for(const source of Array.isArray((plan.teaching as TeachingPlan)?.sources)?(plan.teaching as TeachingPlan).sources:[]){
+        if(!source)continue;
+        const q=officialQuestion(source.questionId);
+        const check=source.asset==='scene'?(plan.learning as LearningExperience).scenes.find(s=>s.id===source.ref)?.check:(plan.homework as HomeworkItem[])?.[Number(source.ref?.slice(9))-1]?.check;
+        const expected=q?numericAnswer(q.answer):null;
+        if(!q||q.kind!==source.kind||expected===null||check?.kind!=='number'||typeof check.answer!=='number'||Math.abs(check.answer-expected)>1e-8)problems.push('המקור אינו תואם לשאלה הנבדקת במאגר');
+        else check.question=q.transcript; // The actual trusted stimulus, not a citation-only claim.
+      }
+      if(Array.isArray(plan.homework))problems.push(...experienceProblems(homeworkExperience(plan as unknown as LessonPlan),{mode:'homework'}));
       if(problems.length)throw new LessonGenerationError('bad-output',problems.join('; '));
     }
     // validateLesson() is the real gate on shape; this cast only asserts
@@ -931,8 +941,8 @@ async function runAgent(prompt: string, cwd: string, planPath: string): Promise<
 }
 
 /** Self-contained RTL deck, site palette, arrow-key navigation. */
-export function renderSlides(plan: LessonPlan, { subject, level, student }: { subject: string; level: string; student?: string }): string {
-  if (plan.learning && !experienceProblems(plan.learning).length) return renderLearningDocument(plan.learning);
+export function renderSlides(plan: LessonPlan, { subject, level, student,slug }: { subject: string; level: string; student?: string;slug?:string }): string {
+  if (plan.learning && !experienceProblems(plan.learning).length) return renderLearningDocument(plan.learning,{teaching:teachingDisplay(plan,slug??'')});
   /* Text with formulas in it: each formula isolated left to right (bidi.ts),
      everything escaped. In this right-to-left document "8-(x+3)" was laid
      out as ")x+3(-8". */

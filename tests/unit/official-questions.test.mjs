@@ -6,6 +6,7 @@ test('only the verified catalogue can grant an official source identity',async()
  const found=m.resolveOfficialQuestions(context);assert.equal(found.status,'verified');assert.equal(found.questions.length,1);
  const q=found.questions[0];assert.match(q.transcript,/x\^4/);assert.equal(q.kind,'adapted');assert.equal(q.answer,'1/30');
  assert.equal(m.resolveOfficialQuestions({...context,track:'4 יח״ל',questionnaire:'35471'}).status,'authored-fallback');
+ assert.equal(m.resolveOfficialQuestions({...context,grade:'כיתה ז'}).status,'authored-fallback');
  assert.equal(m.resolveOfficialQuestions(context,{requiredQuestionId:'forged'}).status,'unresolved');
  assert.equal(m.resolveOfficialQuestions(context,{usedQuestionIds:[q.id]}).status,'authored-fallback');
  assert.equal(m.officialQuestion('../x'),null);assert.equal(m.officialQuestion('https://evil.test'),null);

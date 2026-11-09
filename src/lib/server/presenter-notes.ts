@@ -3,9 +3,11 @@ import type { LearningExperience } from '../learning/model.ts';
 import { escapeHtml as esc, mathText } from '../learning/math.ts';
 import { learningStyles } from '../learning/styles.ts';
 import { experienceProblems } from './learning-render.ts';
+import type {LessonPlan}from'./lesson/prep.ts';
+import {teachingDisplay,renderTeachingAgenda,renderHomeworkAnswers}from'./teaching-display.ts';
 
 /** Private teaching guide. Never embedded in a student document or its JSON. */
-export function renderPresenterNotes(lesson: LearningExperience, slug: string, links: { presentationUrl?: string; editUrl?: string } = {}): string {
+export function renderPresenterNotes(lesson: LearningExperience, slug: string, links: { presentationUrl?: string; editUrl?: string;plan?:LessonPlan } = {}): string {
   if (experienceProblems(lesson).length) throw new Error('Invalid presenter lesson');
   const presentation = esc(links.presentationUrl ?? `/app/learn/${encodeURIComponent(slug)}`);
   const edit = esc(links.editUrl ?? `/app/lessons/${encodeURIComponent(slug)}/experience`);
@@ -13,7 +15,7 @@ export function renderPresenterNotes(lesson: LearningExperience, slug: string, l
     const notes = scene.presenterNotes;
     return `<section id="notes-${scene.id}" class="notes-section"><header><div><span class="step">שלב ${index + 1} מתוך ${lesson.scenes.length}</span><h2>${esc(scene.title)}</h2></div><a class="button" href="${presentation}#scene=${scene.id}" target="lesson-presentation">פתיחת השלב במצגת ↗</a></header>
       ${notes ? `<dl>${[
-        ['זמן משוער', notes.minutes ? `${notes.minutes} דקות` : ''], ['מה לומר', notes.explanation], ['מה לשאול', notes.ask],
+        ['זמן משוער', notes.minutes ? `${notes.minutes} דקות` : ''], ['מה לומר', notes.explanation], ['מה לשאול', notes.ask], ['פתרון בשלבים',scene.check?.solution??''],
         ['תשובה והבנה רצויות', notes.expectedAnswer], ['אם נתקעים', notes.ifStuck], ['טעות סבירה', notes.misconception ?? ''], ['מעבר לשלב הבא', notes.transition ?? ''], ['מקורות', notes.sources?.join(', ') ?? ''],
       ].filter(([,text])=>text).map(([label, text]) => `<div><dt>${label}</dt><dd>${mathText(text)}</dd></div>`).join('')}</dl>`
       : '<p class="missing">לשלב הזה עדיין אין הערות למורה. שיעורים שנוצרו לפני הוספת ההערות נשמרים כפי שהם; אפשר להוסיף הערות בעורך מרחב הלמידה.</p>'}</section>`;
@@ -24,6 +26,6 @@ export function renderPresenterNotes(lesson: LearningExperience, slug: string, l
   </style></head><body><header class="notes-top"><div class="notes-brand"><img src="${BRAND_LOGO_SRC}" alt="" height="32"><span>מאה בקליק</span></div><span class="private-label">הערות למורה בלבד</span><a href="${edit}">${links.editUrl ? 'חזרה לדוגמאות' : 'עריכת ההסבר וההערות'}</a></header><main>
     <h1>${esc(lesson.title)}</h1><p class="intro">המצגת נפתחת בחלון נפרד. שתפו את החלון שלה עם התלמיד/ה, והשאירו את ההערות אצלכם. ${links.presentationUrl ? 'ההערות כאן תואמות לדוגמה הזו לבדיקה.' : 'ההערות כאן תואמות לגרסה שפורסמה.'}</p>
     <div class="actions"><a class="button primary" href="${presentation}#scene=${lesson.scenes[0].id}" target="lesson-presentation">פתיחת המצגת לשיתוף מסך ↗</a><button class="button" id="print-notes">הדפסת הערות למורה</button></div>
-    <nav class="scene-index" aria-label="מעבר להערות לפי שלב">${lesson.scenes.map((scene,index)=>`<a class="button" href="#notes-${scene.id}">${index+1}. ${esc(scene.title)}</a>`).join('')}</nav>${sections}
+    ${links.plan?renderTeachingAgenda(teachingDisplay(links.plan,slug)): ''}<nav class="scene-index" aria-label="מעבר להערות לפי שלב">${lesson.scenes.map((scene,index)=>`<a class="button" href="#notes-${scene.id}">${index+1}. ${esc(scene.title)}</a>`).join('')}</nav>${sections}${links.plan?.teaching?`<section class="notes-section"><h2>יעדים וראיות להבנה</h2>${links.plan.teaching.objectives.map(o=>`<p><strong>${esc(o.title)}</strong> · ${mathText(o.evidence)}</p>`).join('')}<h2>מסלולי התאמה</h2>${links.plan.teaching.branches.map(b=>`<p>${esc(b.title)} · במקום ${esc(b.replaces)}: ${esc(b.refs.join(', '))}</p>`).join('')}<h2>פתרונות לתרגול בבית</h2>${renderHomeworkAnswers(links.plan)}</section>`:''}
   </main><script>document.getElementById('print-notes').addEventListener('click',()=>window.print());</script></body></html>`;
 }

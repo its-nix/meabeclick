@@ -9,11 +9,12 @@ export function learningFrameAt(scene: LearningScene, seconds: number): { values
   const next = Math.min(scene.frames.length - 1, index + 1);
   const p = Math.max(0, Math.min(1, (t - index * beat - 1.2) / 1.6));
   const smooth = p * p * (3 - 2 * p);
+  const discrete=['balance','fraction','geometry','data-bars','normal-school'].includes(scene.visual);
   return {
-    values: scene.frames[index].values.map((v, i) => ['balance','fraction','geometry','data-bars','normal-school'].includes(scene.visual)
+    values: scene.frames[index].values.map((v, i) => discrete
       ? (smooth < .5 ? v : scene.frames[next].values[i])
       : v + (scene.frames[next].values[i] - v) * smooth),
-    frame: p > 0 ? next : index,
+    frame: discrete?(smooth<.5?index:next):p>0?next:index,
     progress: t / duration,
   };
 }

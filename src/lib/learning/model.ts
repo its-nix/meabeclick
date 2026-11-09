@@ -29,6 +29,8 @@ export interface PresenterNotes {
   sources?: string[];
 }
 export interface LearningScene {
+  /** Open reasoning is saved locally for tutor review, never marked auto-correct. */
+  tutorReview?: boolean;
   id: string;
   phase: 'discover' | 'explore' | 'practice' | 'challenge' | 'reflect';
   title: string;
@@ -84,7 +86,7 @@ export function gradeLearningCheck(check: LearningCheck, input: unknown): boolea
 }
 
 /** Shape and engine semantics. Formula compilation is checked separately by the renderer. */
-export function learningProblems(raw: unknown, options: { requirePresenterNotes?: boolean } = {}): string[] {
+export function learningProblems(raw: unknown, options: { requirePresenterNotes?: boolean;mode?:'homework' } = {}): string[] {
   const errors: string[] = [];
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ['חוויית הלמידה אינה אובייקט'];
   const e = raw as LearningExperience;
@@ -93,8 +95,8 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
   if (e.version !== 1) errors.push('גרסת חוויית למידה לא נתמכת');
   if (!text(e.title, 120) || !text(e.subtitle, 220) || !text(e.objective, 220)) errors.push('חסרים כותרת או יעד למידה');
   if (!finite(e.minutes) || e.minutes < 1 || e.minutes > 90) errors.push('משך למידה לא תקין');
-  if (!Array.isArray(e.scenes) || e.scenes.length < 4 || e.scenes.length > 12) return [...errors, 'נדרשות 4–12 סצנות'];
-  if (e.scenes[0]?.phase !== 'discover' || e.scenes.at(-1)?.phase !== 'reflect') errors.push('השיעור צריך להתחיל בגילוי ולהסתיים בסיכום');
+  if (!Array.isArray(e.scenes) || e.scenes.length < (options.mode==='homework'?1:4) || e.scenes.length > 12) return [...errors, 'מספר סצנות לא תקין'];
+  if (options.mode!=='homework'&&(e.scenes[0]?.phase !== 'discover' || e.scenes.at(-1)?.phase !== 'reflect')) errors.push('השיעור צריך להתחיל בגילוי ולהסתיים בסיכום');
   const ids = new Set<string>();
   let checks = 0;
   const dimensions: Record<VisualKind, number> = { quadratic: 3, linear: 2, 'number-line': 1, balance: 3, steps: 0, fraction:3,geometry:4,'data-bars':4,normal:4,'normal-school':4 };
@@ -152,20 +154,21 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
     if (c.kind === 'graph-target' && s.visual === 'quadratic' && Array.isArray(c.answer)
       && (c.answer[1] < s.xDomain?.[0] || c.answer[1] > s.xDomain?.[1] || c.answer[2] < s.yDomain?.[0] || c.answer[2] > s.yDomain?.[1])) errors.push(`קודקוד המטרה מחוץ לגרף: ${s.id}`);
   }
-  if (checks < 2 || !e.scenes.some(s => s?.phase === 'challenge' && s.check)) errors.push('נדרשים שני תרגולים, כולל אתגר עצמאי');
+  if (options.mode!=='homework'&&(checks < 2 || !e.scenes.some(s => s?.phase === 'challenge' && s.check))) errors.push('נדרשים שני תרגולים, כולל אתגר עצמאי');
   return [...new Set(errors)];
 }
 
 export type PublicExperience = Omit<LearningExperience, 'scenes'> & {
-  scenes: Array<Omit<LearningScene, 'check' | 'presenterNotes'> & { check?: Omit<LearningCheck, 'answer' | 'solution'> & { target?: number[] } | null }>;
+  scenes: Array<Omit<LearningScene, 'check' | 'presenterNotes'> & { check?: Omit<LearningCheck, 'answer' | 'solution'> & { hasSolution?:boolean;target?: number[] } | null }>;
 };
 
 export function publicExperience(e: LearningExperience): PublicExperience {
-  return { ...e, scenes: e.scenes.map(s => {
-    const { presenterNotes: _notes, ...publicScene } = s;
+  return {version:e.version,title:e.title,subtitle:e.subtitle,objective:e.objective,minutes:e.minutes, scenes: e.scenes.map(s => {
+    const publicScene={id:s.id,phase:s.phase,title:s.title,prompt:s.prompt,takeaway:s.takeaway,visual:s.visual,xDomain:s.xDomain,yDomain:s.yDomain,frames:s.frames.map(f=>({caption:f.caption,tex:f.tex,values:f.values})),...(s.tutorReview?{tutorReview:true}:{})};
     if (!s.check) return { ...publicScene, check: null };
-    const { answer, success: _success, solution: _solution, ...check } = s.check;
+    const {answer}=s.check;
+    const check={kind:s.check.kind,question:s.check.question,options:s.check.options,hints:s.check.hints,retry:s.check.retry};
     // A target curve is intentionally visible; grading keys for other questions stay server-side.
-    return { ...publicScene, check: { ...check, success: '', ...(s.check.kind === 'graph-target' && Array.isArray(answer) ? { target: answer } : {}) } };
+    return { ...publicScene, check: { ...check,hasSolution:!!s.check.solution, success: '', ...(s.check.kind === 'graph-target' && Array.isArray(answer) ? { target: answer } : {}) } };
   }) };
 }

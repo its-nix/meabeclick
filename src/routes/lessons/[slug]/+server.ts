@@ -8,7 +8,8 @@ import { error, redirect } from '@sveltejs/kit';
 import { readContent } from '$server/content.ts';
 import { documentHeaders } from '$server/document-policy.ts';
 import { publishableSlides } from '$server/materials.ts';
-import { learningAccess, assignedExperience } from '$server/learning-store.ts';
+import { learningAccess, assignedExperience,learningMaterialSlug } from '$server/learning-store.ts';
+import {assignedTeachingDisplay}from'$server/teaching-display.ts';
 import { renderLearningDocument } from '$server/learning-render.ts';
 import type { RequestHandler } from './$types';
 
@@ -16,6 +17,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   if (locals.authenticated) {
     const lesson = assignedExperience(params.slug);
     if (lesson) return new Response(renderLearningDocument(lesson.experience, {
+      teaching:assignedTeachingDisplay(lesson.plan,params.slug,learningMaterialSlug(params.slug),{preview:true}),
       slug: params.slug, preview: true, storageScope: `teacher:${params.slug}`, backUrl: '/app/dashboard',
       presenterUrl: `/app/lessons/${encodeURIComponent(params.slug)}/presenter`,
     }), { headers: { ...documentHeaders(), 'Cache-Control': 'no-store' } });

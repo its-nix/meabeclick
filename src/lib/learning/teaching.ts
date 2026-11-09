@@ -13,7 +13,7 @@ export interface TeachingPlan {
  agenda:Array<{id:string;title:string;minutes:number;objectiveId:string;kind:ActivityKind;ref:string}>;
  practice:Array<{asset:'scene'|'game'|'homework';ref:string;objectiveId:string;problemId:string;misconception:string;support:'guided'|'independent';grading:'checked'|'tutor-review'}>;
  branches:Array<{id:string;title:string;replaces:string;refs:string[]}>;
- sources:Array<{questionId:string;kind:'official'|'adapted'}>;
+ sources:Array<{questionId:string;kind:'official'|'adapted';asset:'scene'|'homework';ref:string}>;
 }
 const text=(v:unknown,max=400):v is string=>typeof v==='string'&&!!v.trim()&&v.length<=max;
 const id=(v:unknown):v is string=>typeof v==='string'&&/^[a-z0-9][a-z0-9_-]{0,79}$/.test(v);
@@ -67,7 +67,7 @@ export function teachingProblems(raw:unknown,plan:LessonPlan,context?:TeachingCo
  need(Array.isArray(t.branches)&&t.branches.length<=6,'הסתעפויות לא תקינות');
  for(const b of Array.isArray(t.branches)?t.branches:[]){if(!b||typeof b!=='object'){errors.push('הסתעפות לא תקינה');continue;}need(b&&id(b.id)&&text(b.title,160)&&agendaIds.has(b.replaces)&&Array.isArray(b.refs)&&b.refs.length>0,'הסתעפות לא תקינה');for(const ref of Array.isArray(b.refs)?b.refs:[]){if(typeof ref!=='string'){errors.push('הפניה לא תקינה');continue;}const [kind,key]=ref.split(':');validateRef(kind,key);}}
  need(Array.isArray(t.sources)&&t.sources.length<=4,'מקורות לא תקינים');
- for(const s of Array.isArray(t.sources)?t.sources:[])need(s&&id(s.questionId)&&['official','adapted'].includes(s.kind)&&t.context?.sourceQuestionIds?.includes(s.questionId),'מקור רשמי אינו מאומת בהקשר');
+ for(const s of Array.isArray(t.sources)?t.sources:[])need(s&&id(s.questionId)&&['official','adapted'].includes(s.kind)&&['scene','homework'].includes(s.asset)&&exists(s.asset,s.ref)&&t.context?.sourceQuestionIds?.includes(s.questionId),'מקור רשמי אינו מאומת בהקשר או בפעילות');
  if(t.context?.requiredQuestionId)need(t.sources?.some(s=>s.questionId===t.context!.requiredQuestionId),'השאלה המבוקשת לא נפתרה');
  return [...new Set(errors)];
 }

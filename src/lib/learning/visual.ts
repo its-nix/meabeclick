@@ -9,7 +9,7 @@ export function learningFrameAt(scene: LearningScene, seconds: number): { values
   const next = Math.min(scene.frames.length - 1, index + 1);
   const p = Math.max(0, Math.min(1, (t - index * beat - 1.2) / 1.6));
   const smooth = p * p * (3 - 2 * p);
-  const discrete=['balance','fraction','geometry','data-bars','normal-school'].includes(scene.visual);
+  const discrete=['balance','fraction','geometry','data-bars','normal','normal-school'].includes(scene.visual);
   return {
     values: scene.frames[index].values.map((v, i) => discrete
       ? (smooth < .5 ? v : scene.frames[next].values[i])
@@ -61,7 +61,7 @@ export function formulaForVisual(kind: VisualKind, values: number[]): string {
 /** No captured dependencies: this function is also embedded in standalone HTML/video. */
 export function drawLearningVisual(
   targetSvg: SVGSVGElement, kind: VisualKind, values: number[], xDomain: number[], yDomain: number[],
-  options: { target?: number[]; hide?: boolean; reference?: number[] } = {},
+  options: { target?: number[]; hide?: boolean; reference?: number[];questionOnly?:boolean } = {},
 ): void {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
@@ -105,7 +105,7 @@ export function drawLearningVisual(
     const [a,b,k]=values;
     for(const [row,parts,filled]of [[0,b,a],[1,b*k,a*k]]){
       for(let i=0;i<parts;i++)svg.append(make('rect',{x:100+i*600/parts,y:100+row*150,width:600/parts,height:90,fill:i<filled?'var(--brand)':'var(--card)',stroke:'var(--text)','stroke-width':2}));
-      svg.append(make('text',{x:400,y:row?392:80,'text-anchor':'middle',class:'plot-coordinate'},`${filled} / ${parts}`));
+      svg.append(make('text',{x:400,y:row?392:80,'text-anchor':'middle',class:'plot-coordinate'},row&&options.questionOnly?'? / ?':`${filled} / ${parts}`));
     }
     commit();return;
   }

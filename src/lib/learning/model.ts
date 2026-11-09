@@ -137,7 +137,8 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
       if(s.visual==='data-bars'&&(!v.every(n=>Number.isInteger(n)&&n>=0&&n<=20)||v.every(n=>n===0)))errors.push(`שכיחויות לא תקינות: ${s.id}`);
       if(s.visual==='normal'||s.visual==='normal-school'){
         const [mu,sd,lo,hi]=v;
-        if(sd<=0||sd>30||lo>=hi||lo<mu-3*sd||hi>mu+3*sd||(s.visual==='normal-school'&&[lo,hi].some(n=>Math.abs((n-mu)/sd*2-Math.round((n-mu)/sd*2))>1e-7)))errors.push(`התפלגות מחוץ לטווח הנתמך: ${s.id}`);
+        const grid=s.visual==='normal-school'?2:10;
+        if(sd<.1||sd>30||Math.abs(sd*10-Math.round(sd*10))>1e-7||v.some(n=>Math.abs(n*100-Math.round(n*100))>1e-7)||lo>=hi||lo<mu-3*sd||hi>mu+3*sd||[lo,hi].some(n=>Math.abs((n-mu)/sd*grid-Math.round((n-mu)/sd*grid))>1e-7))errors.push(`התפלגות מחוץ לטווח או לדיוק הנתמך: ${s.id}`);
       }
     }
     const c = s.check;

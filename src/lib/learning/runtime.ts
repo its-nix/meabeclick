@@ -6,6 +6,7 @@ export interface LearningClientConfig {
   experience: PublicExperience; fingerprint: string; lessonSlug: string | null;
   demo: boolean; demoChecks?: Record<string, LearningCheck>; storageScope?: string;
   variant?:'homework';
+  independentSceneIds?:string[];
 }
 
 /** Only TeX renderer output becomes markup; every piece of prose is a text node. */
@@ -42,6 +43,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   const status = query('[data-save-status]');
   const root = document.documentElement;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const independentIds=new Set(config.independentSceneIds??scenes.filter(s=>s.phase==='challenge').map(s=>s.id));
   let active = 0, elapsed = 0, playing = false, speed = 1, animation = 0, previousTime = 0;
   let params = scenes[0].frames[0].values.slice();
   let selected: number | null = null;
@@ -96,22 +98,23 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     query('[data-course-progress]').setAttribute('aria-valuenow', String(completed));
     const checked = scenes.filter(s => !!s.check);
     const solved = checked.filter(s => progress(s.id).solved).length;
-    const independent = checked.filter(s => progress(s.id).solved && progress(s.id).hints === 0 && !progress(s.id).revealed && progress(s.id).attempts === 1).length;
+    const independent = checked.filter(s => independentIds.has(s.id)&&progress(s.id).solved && progress(s.id).hints === 0 && !progress(s.id).revealed && progress(s.id).attempts === 1).length;
     sections.forEach((section,i)=>{const b=section.querySelector<HTMLButtonElement>('[data-solution]');if(b)b.disabled=progress(scenes[i].id).attempts===0;});
     const summary = query('[data-completion]');
     if (summary) summary.textContent = solved
-      ? `פתרתם ${solved} מתוך ${checked.length} אתגרים. ${independent} נפתרו בניסיון הראשון וללא עזרה. אפשר לחזור ולתרגל בכל שלב.`
+      ? `פתרתם ${solved} מתוך ${checked.length} אתגרים. בשאלות העצמאיות, ${independent} נפתרו בניסיון הראשון בלי פתיחת רמז או פתרון. אפשר לחזור ולתרגל בכל שלב.`
       : 'אפשר לחזור להסבר, לנסות שוב או לבקש רמז. כל צעד קטן מצטרף להבנה.';
   }
 
   function render(values = params, time = elapsed): void {
     const scene = scenes[active], section = sections[active];
     const state = progress(scene.id);
-    const hidden = scene.phase === 'challenge' && !!scene.check && !state.solved;
+    const hidden = independentIds.has(scene.id) && !!scene.check && !state.solved&&!state.revealed;
+    const questionVisual=['fraction','geometry','data-bars','normal','normal-school'].includes(scene.visual);
     const svg = query<SVGSVGElement>('[data-plot]', section);
     draw(svg, scene.visual, values, scene.xDomain, scene.yDomain, {
       target: scene.check?.kind === 'graph-target' ? scene.check.target : undefined,
-      hide: hidden,
+      hide: hidden&&!questionVisual,questionOnly:hidden&&questionVisual,
       reference: scene.visual === 'quadratic' && !hidden && scene.phase !== 'challenge' ? [1, 0, 0] : undefined,
     });
     const f = at(scene as unknown as LearningExperience['scenes'][number], time);
@@ -363,7 +366,8 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     all<HTMLElement>('[data-reasoning-print]').forEach(p=>{p.textContent=document.querySelector<HTMLTextAreaElement>(`[data-scene="${p.dataset.reasoningPrint}"] [data-reasoning]`)?.value??'';});
     all<SVGSVGElement>('[data-print-plot]').forEach(svg => {
       const scene = scenes.find(s => s.id === svg.dataset.printPlot)!;
-      draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: true });
+      const questionVisual=['fraction','geometry','data-bars','normal','normal-school'].includes(scene.visual);
+      draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: !questionVisual,questionOnly:questionVisual });
     });
   });
   document.addEventListener('keydown', event => {

@@ -5,17 +5,19 @@ import {teachingProblems,type TeachingContext} from '../../learning/teaching.ts'
 import type {Booking} from './queue.ts';
 import type {TargetSkill} from './targeting.ts';
 import type {LessonPlan,LessonRequest} from './prep.ts';
-import{suppliedQuestionId}from'./official-questions.ts';
+import{suppliedQuestionId,suppliedSourceIntent}from'./official-questions.ts';
 const clipped=(s:unknown,max=500)=>typeof s==='string'?s.trim().slice(0,max):'';
 export function teachingContextFor(booking:Booking,studentCode:string|null,target:Pick<TargetSkill,'templateId'|'title'|'key'>|null):TeachingContext{
  const student=studentCode?getStudentByCode(studentCode):null;
  const enrollment=student?enrollmentsForStudent(student.id).find(e=>e.subject===booking.subject):null;
  const template=target?templateById(target.templateId):null;
  const level=clipped(booking.level||enrollment?.level,160);
- const grade=level.match(/כיתה\s+[א-ת׳״"']+/u)?.[0]??(!/יח/.test(level)?level:'');
+ const grade=level.match(/כיתה\s+[א-ת׳״"']+/u)?.[0]??((!/יח/.test(level)?level:'')||(template?.grades?.length===1?template.grades[0]:''));
  const track=level.match(/[345]\s*יח(?:ידות|["״']?ל)?/u)?.[0]??template?.track??'';
  const context:TeachingContext={grade,track,notation:'standard',request:clipped(booking.request,1500),skill:clipped(target?.title,160),curriculum:template?`${template.id}@${template.version}`:'',questionnaire:template?.questionnaires?.join(',')??'',durationMin:booking.durationMin===90||booking.durationMin===135?booking.durationMin:45,history:[]};
- const supplied=suppliedQuestionId(context.request);if(supplied)context.requiredQuestionId=supplied;
+ context.purpose='booking';if(target)context.skillKey=target.key;if(template?.grades?.length)context.applicableGrades=template.grades;
+ const intent=suppliedSourceIntent(context.request);if(intent)context.sourceIntent=intent;
+ const supplied=suppliedQuestionId(context.request,intent);if(supplied)context.requiredQuestionId=supplied;
  if(/^3(?:\D|$)/.test(track)&&/נורמל/.test(context.skill+' '+context.request))context.notation='school-normal-s';
  if(!student)return context;
  context.preferences={goals:clipped(student.goals),style:clipped(student.style),notes:clipped(student.notes)};
@@ -30,8 +32,11 @@ export function teachingContextFor(booking:Booking,studentCode:string|null,targe
 }
 export function canReuseTeachingPlan(plan:LessonPlan,request:LessonRequest):boolean{
  const actual=plan.teaching?.context,expected=request.teachingContext;
- if(!plan.teaching||!actual||!expected||teachingProblems(plan.teaching,plan).length)return false;
+ if(!plan.teaching||!actual||!expected||actual.purpose==='review'||teachingProblems(plan.teaching,plan).length)return false;
  if(plan.teaching.sources.some(s=>expected.usedQuestionIds?.includes(s.questionId)&&s.questionId!==expected.requiredQuestionId))return false;
- const keys=['grade','track','notation','request','skill','curriculum','questionnaire','durationMin','requiredQuestionId'] as const;
- return keys.every(k=>(actual[k]??'')===(expected[k]??''))&&JSON.stringify(actual.preferences??{})===JSON.stringify(expected.preferences??{})&&JSON.stringify(actual.history)===JSON.stringify(expected.history)&&JSON.stringify(actual.sourceQuestionIds??[])===JSON.stringify(expected.sourceQuestionIds??[]);
+ const gradeFits=actual.grade===expected.grade||actual.purpose==='library'&&!actual.grade&&actual.applicableGrades?.includes(expected.grade??'');
+ const requestFits=actual.request===expected.request||actual.purpose==='library'&&!expected.request.trim()&&!!actual.skillKey&&actual.skillKey===expected.skillKey;
+ const keys=['track','notation','skill','skillKey','curriculum','questionnaire','durationMin','requiredQuestionId','sourceIntent'] as const;
+ const preferences=(p:TeachingContext['preferences'])=>JSON.stringify(Object.entries(p??{}).filter(([,v])=>v.trim()).sort(([a],[b])=>a.localeCompare(b)));
+ return !!gradeFits&&requestFits&&keys.every(k=>(actual[k]??'')===(expected[k]??''))&&preferences(actual.preferences)===preferences(expected.preferences)&&JSON.stringify(actual.history)===JSON.stringify(expected.history)&&JSON.stringify(actual.sourceQuestionIds??[])===JSON.stringify(expected.sourceQuestionIds??[]);
 }

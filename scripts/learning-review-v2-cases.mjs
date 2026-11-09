@@ -12,5 +12,5 @@ const rows=[
  ['10-official-integral','שטח מוגבל על ידי פולינום','כיתה יב · 5 יח״ל','אינטגרלים: לחשב שטח מוגבל בין פולינום לציר, לבדוק סימן ונקודות אפס. להשתמש בשאלה המאומתת moe-2025b-35571-1c2 בסצנת תרגול מספרי עם check, להסביר למה האינטגרל חיובי במקרה זה ואז לתת תרגול עצמאי חדש.',135],
 ];
 export const REVIEW_V2_CASES=rows.map(([id,title,level,request,durationMin])=>({id,title,subject:'מתמטיקה',level,request,durationMin,teachingContext:{
- request,skill:title,grade:level.split(' · ')[0],track:level.split(' · ')[1]??'',curriculum:id==='10-official-integral'?'math-5u':'',questionnaire:id==='10-official-integral'?'35571':'',notation:id==='08-normal-school'?'school-normal-s':'standard',durationMin,history:[],...(id==='10-official-integral'?{requiredQuestionId:'moe-2025b-35571-1c2'}:{})
+ purpose:'review',request,skill:title,grade:level.split(' · ')[0],track:level.split(' · ')[1]??'',curriculum:id==='10-official-integral'?'math-5u':'',questionnaire:id==='10-official-integral'?'35571':'',notation:id==='08-normal-school'?'school-normal-s':'standard',durationMin,history:[],...(id==='10-official-integral'?{requiredQuestionId:'moe-2025b-35571-1c2'}:{})
 }}));

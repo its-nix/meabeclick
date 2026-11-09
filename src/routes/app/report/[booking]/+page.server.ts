@@ -6,6 +6,7 @@
  * flags as recommended or in progress, because those are what a lesson
  * usually covers.
  */
+import {teachingForBooking,savedTeachingCoverage} from '$server/reports/teaching-coverage.ts';
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
 import { bookingForReport, reportForBooking } from '$server/reports/store.ts';
@@ -105,6 +106,8 @@ export const load: PageServerLoad = async (event) => {
     planId: plan?.id ?? null,
     report,
     filedEntries,
+    teaching:teachingForBooking(booking.id),
+    savedCoverage:savedTeachingCoverage(booking.id),
     // Offered first, then everything else behind the search line.
     suggested: skills.filter(s => s.recommended || IN_PROGRESS.includes(s.status)),
     rest: skills.filter(s => !(s.recommended || IN_PROGRESS.includes(s.status))),

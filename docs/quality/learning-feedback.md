@@ -27,3 +27,7 @@ Runner regressions cover resume without repeated generation, checksum verificati
 ## Review observation to discuss — example 01, stage 4 notes
 
 The independent reviewer found correct arithmetic throughout the refined fractions bundle. The oral phrase for \(3/12\) and \(4/12\) should use fractional units (“שלוש שתים־עשריות”, “ארבע שתים־עשריות”), rather than sounding like integer counts. This is recorded for the teaching-language iteration; the numbered pilot remains an authentic generated candidate awaiting owner feedback.
+
+### V2 candidate review: publication and evidence seams (2026-11-10)
+
+The independent critic found computed answers in derived-family questions, captured-time homework replacement, missing automatic-game navigation, missing live report goal coverage, lost original presentation access after homework replacement, optional source links treated as mandatory, unsupported normal precision, and discarded known library grades. Reproducing unit and live API tests now cover these cases. The fixes preserve givens and private keys across screen/print/video, use a fresh release-time guard, restore immutable game links with tutor-only score-free previews, append explicit goal coverage, retain original presentation/editor/API access, distinguish source intent, bound precision and compare authoritative reuse context. Ten fresh synthetic bundles are generated separately; owner teaching approval and production-v2 activation remain pending.

@@ -18,7 +18,7 @@
   async function save(action:'draft'|'publish') {
     busy=true;message='';failed=false;
     try {
-      const response=await fetch(`/api/lessons/${encodeURIComponent(data.slug)}/experience`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,expectedVersion:version,expectedTarget:data.materialSlug,learning:lesson})});
+      const response=await fetch(`/api/lessons/${encodeURIComponent(data.slug)}/experience${data.variant==='homework'?'?view=homework':''}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,expectedVersion:version,expectedTarget:data.materialSlug,learning:lesson})});
       const result=await response.json();
       if(!response.ok)throw new Error(result.error??'השמירה לא הצליחה');
       version=result.version;saved=JSON.stringify(lesson);

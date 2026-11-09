@@ -4,7 +4,7 @@ import { documentHeaders } from '$server/document-policy.ts';
 import { reviewCase, reviewCorpusFor, reviewGames, reviewUrl, renderReviewIndex, renderReviewHomework } from '$server/learning-review.ts';
 import { renderLearningDocument } from '$server/learning-render.ts';
 import { renderPresenterNotes } from '$server/presenter-notes.ts';
-import{teachingDisplay,homeworkExperience,homeworkSourceIds}from'$server/teaching-display.ts';
+import{teachingDisplay,homeworkExperience,homeworkSourceIds,homeworkIndependentIds}from'$server/teaching-display.ts';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = event => {
@@ -22,7 +22,7 @@ export const GET: RequestHandler = event => {
     switch(event.url.searchParams.get('view') ?? 'lesson') {
       case 'lesson': html = renderLearningDocument(item.plan.learning, { demo: true, preview: true, storageScope: `review:${reviewCorpus.manifest.batch}:${id}`,teaching, backUrl, presenterUrl: reviewUrl(id,'presenter',version) }); break;
       case 'presenter': html = renderPresenterNotes(item.plan.learning,id,{presentationUrl:reviewUrl(id,'lesson',version),editUrl:backUrl,plan:item.plan}); break;
-      case 'homework': html = version==='v2'?renderLearningDocument(homeworkExperience(item.plan),{demo:true,preview:true,variant:'homework',sourceIds:homeworkSourceIds(item.plan),storageScope:`review:${reviewCorpus.manifest.batch}:${id}:homework`,backUrl}):renderReviewHomework(item); break;
+      case 'homework': html = version==='v2'?renderLearningDocument(homeworkExperience(item.plan),{demo:true,preview:true,variant:'homework',sourceIds:homeworkSourceIds(item.plan),independentSceneIds:homeworkIndependentIds(item.plan),storageScope:`review:${reviewCorpus.manifest.batch}:${id}:homework`,backUrl}):renderReviewHomework(item); break;
       default: error(404,'התצוגה לא נמצאה');
     }
   }

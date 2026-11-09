@@ -22,3 +22,14 @@ test('stored learning preferences enter private context rather than a manual set
  const context=teachingContextFor({name:'דוגמה',subject:'מתמטיקה',level:'כיתה ז',durationMin:45},s.code,null);
  assert.equal(context.preferences.goals,'להבין שברים');assert.equal(context.preferences.notes,'PrivatePreference');
 });
+test('a known-grade library plan fits a matching generic booking without erasing specific requests',async()=>{
+ const {templateById}=await import('../../src/lib/server/plans/templates.ts'),{libraryRequest}=await import('../../src/lib/server/library/prepare.ts'),{teachingContextFor,canReuseTeachingPlan}=await import('../../src/lib/server/lesson/teaching-context.ts');
+ const saved=process.env.LESSON_GENERATION_VERSION;try{
+ process.env.LESSON_GENERATION_VERSION='2';const template=templateById('math-8'),skill=template.topics[0].branches[0].skills[0],meta=libraryRequest(template.id,skill.key);
+ assert.equal(meta.teachingContext.grade,'כיתה ח');
+ const target={templateId:template.id,key:skill.key,title:skill.title},context=teachingContextFor({name:'דוגמה',subject:'מתמטיקה',level:'כיתה ח',durationMin:90},null,target);
+ const p=teachingFixture(90);p.teaching.context=meta.teachingContext;
+ assert.equal(canReuseTeachingPlan(p,{subject:'מתמטיקה',level:'כיתה ח',teachingContext:{...context,preferences:{goals:'',style:'',notes:''}}}),true);
+ assert.equal(canReuseTeachingPlan(p,{subject:'מתמטיקה',level:'כיתה ח',teachingContext:{...context,request:'תרגיל מסוים חדש'}}),false);
+ }finally{if(saved===undefined)delete process.env.LESSON_GENERATION_VERSION;else process.env.LESSON_GENERATION_VERSION=saved;}
+});

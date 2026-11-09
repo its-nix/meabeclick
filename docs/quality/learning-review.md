@@ -10,10 +10,10 @@ From the repository root, with a Codex account that can use the selected model:
 
 ```sh
 CODEX_BIN=/path/to/verified/codex node scripts/generate-learning-review.mjs \
-  --model <available-model> --out /path/to/new-review-directory
+  --version 2 --model <available-model> --out /path/to/new-review-directory
 ```
 
-The ten briefs live in `scripts/learning-review-cases.mjs`. The runner uses the actual `generateLesson` path and an isolated temporary database. It records inputs, model, effort, CLI, timeout, source files/fingerprint, timestamps and output hashes. New batches default to high effort and concurrency two. A first case checks the configuration before scheduling the rest. Shared auth/quota/model failures stop new work; malformed output has the generator's existing single retry.
+The v2 briefs live in `scripts/learning-review-v2-cases.mjs`; explicit `--version 1` retains the earlier briefs in `scripts/learning-review-cases.mjs`. The runner uses the actual `generateLesson` path and an isolated temporary database. It records inputs, model, effort, CLI, timeout, source files/fingerprint, timestamps and output hashes. New batches default to high effort and concurrency two. A first case checks the configuration before scheduling the rest. Shared auth/quota/model failures stop new work; malformed output has the generator's existing single retry.
 
 Resume with the same arguments. Ready artifacts are checksum-checked and validated before they are skipped. Failed cases require an explicit `--retry-failed`; do this only after diagnosing the failure. One invocation owns a batch through `.generation-lock`. After a crash, verify the recorded PID has ended before removing a stale lock. An interrupted `generating` case will be rerun on resume. Never remove a live process's lock.
 
@@ -22,11 +22,11 @@ A clean completion persists a source-verification seal. Assembly refuses an unve
 Source/model changes require a new directory. For a focused iteration:
 
 ```sh
-node scripts/generate-learning-review.mjs --model <available-model> \
+node scripts/generate-learning-review.mjs --version 2 --model <available-model> \
   --out /path/to/new-candidate --case 04-percentages
 ```
 
-`--case` also accepts comma-separated IDs. Local `.diagnostic.log` and `.rejected.json` files can contain echoed inputs; they are not packaged. Keep generation directories outside the repository. This pilot used the locally available `gpt-5.6-sol`, high effort and CLI 0.149.0; that does not establish availability or the billing tier of a different production account.
+`--case` also accepts comma-separated IDs. Local `.diagnostic.log` and `.rejected.json` files can contain echoed inputs; they are not packaged. Keep generation directories outside tracked source (an ignored evidence directory is also suitable). This pilot used the locally available `gpt-5.6-sol`, high effort and CLI 0.149.0; that does not establish availability or the billing tier of a different production account.
 
 ## Assemble and review
 
@@ -35,7 +35,7 @@ node scripts/package-learning-review.mjs --from /path/to/baseline \
   --replace /path/to/new-candidate
 ```
 
-Exactly one baseline is required. Optional explicit replacements take priority only for their ready cases, in the order supplied. All ten selected artifacts must pass hashes, lesson/TeX/private-notes validation, rendering and game contracts before the corpus changes. Each case retains its own generation configuration; assembly records the current validation fingerprint separately. The bundled source is `src/lib/server/learning-review-corpus.json`, containing only synthetic material. Prior released corpora remain recoverable through Git history; retain local baselines too when comparing new candidates.
+Exactly one baseline is required. Optional explicit replacements take priority only for their ready cases, in the order supplied. All ten selected artifacts must pass hashes, lesson/TeX/private-notes validation, rendering and game contracts before the corpus changes. Each case retains its own generation configuration; assembly records the current validation fingerprint separately. V2 assembly writes `src/lib/server/learning-review-v2-corpus.json` and refuses to overwrite the baseline `learning-review-corpus.json`. Both contain only synthetic material. The candidate review URL is `/app/learning-review?version=v2`; the baseline remains the default index. Prior released corpora remain recoverable through Git history; retain local baselines too when comparing new candidates.
 
 Run the affected regression tests, build/typecheck, and the browser checks:
 
@@ -45,8 +45,15 @@ npm run check:ci
 node --test tests/unit/learning-review-batch.test.mjs tests/characterization/learning-review.test.mjs
 npm run test:learning:browser
 npm run test:review:browser
+npm run test:teaching:browser
 ```
 
 The review browser check visits every stage at desktop/mobile sizes, checks math and overflow, opens projection separately from notes, visits all games, completes supported choice games and verifies no customer score/progress writes. CI runs this alongside the full suite and image build. Screenshots are included in the synthetic workspace artifact.
 
 Record a concrete teaching comment, fix its reusable layer, regenerate affected cases in a new candidate and compare. Keep a rollback commit when releasing through the normal PR/deploy pipeline. Existing customer publications, tutor edits, links and progress are not replaced by corpus assembly or generation changes. Retirement of old reusable library masters is a separate operation after teaching review and the real production reliability gate in `PRODUCT.md`; ten synthetic examples alone do not meet that gate.
+
+## V2 promotion gate
+
+`LESSON_GENERATION_VERSION` defaults to1. The v2 review corpus does not turn it on. Owner teaching review of all ten examples precedes a deliberate production switch. Keep the prior code/config for rollback. Review-purpose bundles cannot become reusable masters, and v2 masters cannot bypass the v1 gate. Do not purge customer materials as part of promotion.
+
+For feedback, name the example, stage and observed problem in ordinary chat. Fix the common rule, validator, renderer or template, preserve a regression, and regenerate only affected cases in a new sealed directory. Never hand-edit a real candidate while retaining its original checksum/provenance. The initial official catalogue supports one byte-verified adapted Ministry of Education subpart; optional unavailable sources fall back honestly, while an explicitly required unreadable question stays unresolved.

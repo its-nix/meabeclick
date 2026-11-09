@@ -5,6 +5,8 @@ export interface TeachingContext extends TeachingProfile {
  history:Array<{kind:'taught'|'practice';topic:string;summary:string;independent:boolean;at:string}>;
  preferences?:{goals:string;style:string;notes:string};
  sourceQuestionIds?:string[]; requiredQuestionId?:string;usedQuestionIds?:string[];
+ sourceIntent?:'required'|'optional';
+ purpose?:'booking'|'library'|'review';skillKey?:string;applicableGrades?:string[];
 }
 export type ActivityKind='scene'|'game'|'homework'|'discussion';
 export interface TeachingPlan {
@@ -47,6 +49,9 @@ export function teachingProblems(raw:unknown,plan:LessonPlan,context?:TeachingCo
   validateRef(p.asset,p.ref);const key=p.asset+':'+p.ref;
   need(!links.has(key)&&objectives.has(p.objectiveId)&&id(p.problemId)&&!problems.has(p.problemId)&&text(p.misconception,350),'יעד או מזהה תרגול לא תקין');links.add(key);problems.add(p.problemId);
   need(['guided','independent'].includes(p.support)&&['checked','tutor-review'].includes(p.grading),'סוג תמיכה או בדיקה לא תקינים');
+  if(p.asset==='scene'&&p.support==='independent'){
+   const scene=scenes.get(p.ref);need(scene&&Array.isArray(scene.frames)&&scene.frames.length===1&&scene.phase!=='explore','תרגול עצמאי דורש נתוני שאלה יחידים ללא שלבי פתרון או מחוונים חופשיים');
+  }
   if(p.grading==='checked'){
    if(p.asset==='scene')need(!!scenes.get(p.ref)?.check,'תרגול ללא בדיקה נתמכת');
    if(p.asset==='homework'){

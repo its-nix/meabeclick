@@ -1,14 +1,14 @@
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
 import { editBase } from '$server/lesson/editing.ts';
-import { learningMaterialSlug, learningAccess, assignedExperience, learningProgress } from '$server/learning-store.ts';
+import { learningMaterialSlug,presentationMaterialSlug, learningAccess, assignedExperience, learningProgress } from '$server/learning-store.ts';
 import type { LearningExperience } from '$lib/learning/model.ts';
 import type { PageServerLoad } from './$types';
 import{homeworkExperience}from'$server/teaching-display.ts';
 
 export const load: PageServerLoad = event => {
   requireAuth(event);
-  const materialSlug=learningMaterialSlug(event.params.slug);
+  const materialSlug=event.url.searchParams.get('view')==='homework'?learningMaterialSlug(event.params.slug):presentationMaterialSlug(event.params.slug);
   const row=editBase(materialSlug);
   if (!row) error(404,'השיעור לא נמצא');
   const plan=row.plan;

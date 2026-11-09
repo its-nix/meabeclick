@@ -59,6 +59,12 @@ export function learningMaterialSlug(slug: string): string {
   const row = handle().prepare('SELECT practice_material_slug FROM learning_assignments WHERE lesson_slug=?').get(slug) as {practice_material_slug:string|null}|undefined;
   return row?.practice_material_slug ?? slug;
 }
+/** V2 keeps its original presentation distinct from report-assigned homework. */
+export function presentationMaterialSlug(slug:string):string{
+ try{if(JSON.parse(latestPublished(slug,'plan')?.content??'{}').teaching?.version===2)return slug;}catch{}
+ return learningMaterialSlug(slug);
+}
+export function presentationExperience(slug:string):ReturnType<typeof publishedExperience>{return publishedExperience(presentationMaterialSlug(slug));}
 
 export function assignedExperience(slug: string,mode?:'homework'): ReturnType<typeof publishedExperience> {
   return publishedExperience(learningMaterialSlug(slug),mode);

@@ -23,7 +23,7 @@
  */
 
 import { formulaRuns } from '../../bidi.ts';
-import {resolveOfficialQuestions,officialQuestion,suppliedQuestionId,type OfficialQuestion} from './official-questions.ts';
+import {resolveOfficialQuestions,officialQuestion,suppliedQuestionId,suppliedSourceIntent,type OfficialQuestion} from './official-questions.ts';
 import {teachingDisplay,homeworkExperience} from '../teaching-display.ts';
 import{teachingContextFor}from'./teaching-context.ts';
 import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
@@ -583,7 +583,8 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
 export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
   if(generationVersion()===2){
     const context:TeachingContext=structuredClone(req.teachingContext??{...teachingContextFor({name:req.student??'',subject:req.subject,level:req.level,request:req.request,durationMin:req.durationMin},null,null),skill:req.skill??''});
-    context.requiredQuestionId??=suppliedQuestionId(context.request);
+    const intent=context.sourceIntent??suppliedSourceIntent(context.request);if(intent)context.sourceIntent=intent;
+    context.requiredQuestionId??=suppliedQuestionId(context.request,intent);
     if(context.requiredQuestionId===undefined)delete context.requiredQuestionId;
     const sources=resolveOfficialQuestions(context,{usedQuestionIds:context.usedQuestionIds});
     if(sources.status==='unresolved')throw new LessonGenerationError('source-unresolved',sources.reason??'unresolved source');

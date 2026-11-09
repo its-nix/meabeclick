@@ -8,13 +8,18 @@ export function teachingDisplay(plan:LessonPlan,slug:string,options:{gameUrls?:R
  const gameLinks:Record<string,string>={};for(const key of Object.keys(plan.games??{})){
   if(options.gameUrls?.[key])gameLinks[key]=options.gameUrls[key];
  }
- return {...publicTeaching(plan.teaching),homeworkMinutes:plan.teaching.homeworkMinutes,gameTitles:Object.fromEntries(Object.entries(plan.games??{}).filter(([,g])=>g).map(([k,g])=>[k,String(g?.title??'משחק נוסף')])),gameLinks,homeworkUrl:options.homeworkUrl??(slug?`/app/learn/${encodeURIComponent(slug)}/homework`:''),sources:plan.teaching.sources.map(s=>sourceCaption(s.questionId)).filter(s=>s!==null)};
+ return {...publicTeaching(plan.teaching),independentSceneIds:plan.teaching.practice.filter(p=>p.asset==='scene'&&p.support==='independent').map(p=>p.ref),guidedSceneIds:plan.teaching.practice.filter(p=>p.asset==='scene'&&p.support==='guided').map(p=>p.ref),homeworkMinutes:plan.teaching.homeworkMinutes,gameTitles:Object.fromEntries(Object.entries(plan.games??{}).filter(([,g])=>g).map(([k,g])=>[k,String(g?.title??'משחק נוסף')])),gameLinks,homeworkUrl:options.homeworkUrl??(slug?`/app/learn/${encodeURIComponent(slug)}/homework`:''),sources:plan.teaching.sources.map(s=>sourceCaption(s.questionId)).filter(s=>s!==null)};
 }
 export type TeachingDisplay=NonNullable<ReturnType<typeof teachingDisplay>>;
 export function homeworkSourceIds(plan:LessonPlan):string[]{
  const material=plan as unknown as {kind?:string;sourceQuestionIds?:unknown};
  if(material.kind==='taught-homework-v2')return Array.isArray(material.sourceQuestionIds)?material.sourceQuestionIds.filter((id):id is string=>typeof id==='string'&&!!sourceCaption(id)):[];
  return plan.teaching?.sources.filter(s=>s.asset==='homework').map(s=>s.questionId)??[];
+}
+export function homeworkIndependentIds(plan:LessonPlan):string[]{
+ const material=plan as unknown as {kind?:string;independentRefs?:string[]};
+ if(material.kind==='taught-homework-v2')return material.independentRefs??plan.homework.flatMap((h,i)=>h.check?[`homework-${i+1}`]:[]);
+ return plan.teaching?.practice.filter(p=>p.asset==='homework'&&p.support==='independent').map(p=>p.ref)??[];
 }
 export function renderSourceCredits(ids:string[]):string{
  const sources=ids.map(sourceCaption).filter(s=>s!==null);
@@ -27,7 +32,7 @@ export function renderTeachingAgenda(t:TeachingDisplay|undefined):string{
 }
 /** Homework is rendered by the same trusted scene engine and server grader. */
 export function homeworkExperience(plan:Pick<LessonPlan,'title'|'homework'>&{minutes?:number;teaching?:Pick<NonNullable<LessonPlan['teaching']>,'homeworkMinutes'>}):LearningExperience{
- return {version:1,title:`תרגול בבית · ${plan.title}`,subtitle:'מנסים, מקבלים רמז, ומסבירים את הדרך',objective:'חוזרים על מה שתרגלנו בשיעור',minutes:plan.teaching?.homeworkMinutes??plan.minutes??12,scenes:plan.homework.map((h,i)=>({
+ return {version:1,title:`תרגול בבית · ${plan.title}`,subtitle:'מנסים, מקבלים רמז, ומסבירים את הדרך',objective:'מיישמים את הרעיונות בתרגול חדש',minutes:plan.teaching?.homeworkMinutes??plan.minutes??12,scenes:plan.homework.map((h,i)=>({
   id:`homework-${i+1}`,phase:'practice',title:`משימה ${i+1}`,prompt:h.check?'נסו בעצמכם. אפשר לבקש רמז כשצריך.':'כתבו את הדרך שלכם; המורה תעבור על הנימוק.',takeaway:h.why,
   visual:'steps',xDomain:[-5,5],yDomain:[-5,5],frames:[{values:[],tex:'\\square',caption:h.task}],check:h.check??null,tutorReview:!h.check
  }))};

@@ -21,3 +21,9 @@ test('a mandatory unresolved source stops before consuming any model call',async
  try{process.env.LESSON_GENERATION_VERSION='2';await assert.rejects(generateLesson({subject:'מתמטיקה',level:'כיתה יב',teachingContext:{request:'שאלה נתונה',skill:'אינטגרלים',durationMin:45,history:[],requiredQuestionId:'unknown'}}),e=>e.kind==='source-unresolved');}
  finally{if(saved===undefined)delete process.env.LESSON_GENERATION_VERSION;else process.env.LESSON_GENERATION_VERSION=saved;}
 });
+test('optional source links fall back while an explicit supplied question stays required',async()=>{
+ const {suppliedQuestionId}=await import('../../src/lib/server/lesson/official-questions.ts');
+ assert.equal(suppliedQuestionId('תרגול שברים. אפשר להשתמש בקישור להשראה אם זמין: https://example.test/source.pdf'),undefined);
+ assert.equal(suppliedQuestionId('Use this source if available: https://example.test/source.pdf'),undefined);
+ assert.equal(suppliedQuestionId('פתרו את השאלה בקישור https://example.test/question.pdf'),'unresolved-supplied-question');
+});

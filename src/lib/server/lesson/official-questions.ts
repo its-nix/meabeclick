@@ -38,7 +38,12 @@ export function officialQuestion(id:string):OfficialQuestion|null{
  const q=CATALOGUE.find(c=>c.id===id);return q?structuredClone(q):null;
 }
 /** A supplied link is not readable evidence. Never let the engine guess its contents. */
-export function suppliedQuestionId(request:string):string|undefined{
+export function suppliedSourceIntent(request:string):'required'|'optional'|undefined{
+ if(!/https?:\/\/\S+/i.test(request)&&!CATALOGUE.some(q=>request.includes(q.id)))return undefined;
+ return /if\s+(?:available|possible)|when\s+available|optional|במידת האפשר|להעשרה|להשראה|לא חובה|אופציונלי|אם[\s\S]{0,30}(?:זמין|אפשר)/iu.test(request)?'optional':'required';
+}
+export function suppliedQuestionId(request:string,intent=suppliedSourceIntent(request)):string|undefined{
+ if(intent==='optional')return undefined;
  return CATALOGUE.find(q=>request.includes(q.id))?.id??(/https?:\/\/\S+/i.test(request)?'unresolved-supplied-question':undefined);
 }
 export function resolveOfficialQuestions(context:TeachingContext,options:{requiredQuestionId?:string;usedQuestionIds?:string[]}={}):{questions:OfficialQuestion[];status:'verified'|'authored-fallback'|'unresolved';reason?:string}{

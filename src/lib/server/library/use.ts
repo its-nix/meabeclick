@@ -28,6 +28,7 @@ export function libraryPlanFor(templateId: string, skillKey: string, request?:Le
   if (!row) return null;
   try {
     const plan=JSON.parse(row.content) as LessonPlan;
+    if(plan.teaching?.context?.purpose==='review'||generationVersion()===1&&plan.teaching?.version===2)return null;
     if(generationVersion()===2&&(!plan.teaching||teachingProblems(plan.teaching,plan).length))return null;
     if(request&&generationVersion()===2&&!canReuseTeachingPlan(plan,request))return null;
     return {masterSlug:master.slug,plan};

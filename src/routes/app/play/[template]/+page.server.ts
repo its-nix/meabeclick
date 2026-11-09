@@ -27,6 +27,7 @@ import { isKnownTemplate } from '$server/lesson/registry.ts';
 import { practiceGoal } from '$server/lesson/targeting.ts';
 import { getLessonGame, readPublishedLessonGame } from '$server/lesson-games.ts';
 import { requireAuth } from '$server/auth.ts';
+import{generatedGamesForLesson}from'$server/assigned-teaching.ts';
 import type { GameData } from '$lib/games/engine.ts';
 import type { PageServerLoad } from './$types';
 
@@ -53,6 +54,13 @@ export const load: PageServerLoad = async (event) => {
   }
 
   const previewId = url.searchParams.get('preview');
+  const generatedLesson=url.searchParams.get('lesson');
+  if(generatedLesson){
+    requireAuth(event);
+    const game=generatedGamesForLesson(generatedLesson).find(g=>g.template===params.template);if(!game)error(404,'המשחק לא נמצא');
+    let gameData:GameData;try{gameData=JSON.parse((await readContent('games-data',game.dataId)).toString('utf8'));}catch{error(404,'המשחק לא נמצא');}
+    return {template:game.template,dataId:`preview-generated-${game.dataId}`,student:'תלמיד/ה לדוגמה',t:null,title:game.title,subject:'תצוגה מקדימה למורה · ללא רישום תוצאות',best:null,skill:null,gameData,preview:true,backUrl:`/app/learn/${encodeURIComponent(generatedLesson)}`};
+  }
   if (previewId) {
     requireAuth(event);
     const assignment = getLessonGame(previewId);

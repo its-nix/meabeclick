@@ -72,15 +72,17 @@ async function gamesForWhatWasTaught(bookingId: number, nodeIds: number[]): Prom
 }
 
 export async function afterReport(
-  input: { bookingId: number; note: string | null; nodeIds: number[];coveredObjectiveIds?:string[] },
+  input: { bookingId: number; note: string | null; nodeIds: number[];coveredObjectiveIds?:string[];teachingTarget?:{slug:string;version:number} },
   deps: {
     generate?: typeof generateTaughtHomework;
     notify?: (text: string) => Promise<void> | void;
     now?: string;
+    clock?:()=>string;
   } = {},
 ): Promise<AfterReportOutcome> {
-  const { generate = generateTaughtHomework, notify, now = new Date().toISOString() } = deps;
-  const v2=await afterV2Report(input,generate,now,notify);if(v2!==undefined)return v2;
+  const { generate = generateTaughtHomework, notify } = deps;
+  const clock=deps.clock??(()=>deps.now??new Date().toISOString()),now=clock();
+  const v2=await afterV2Report(input,generate,clock,notify);if(v2!==undefined)return v2;
 
   await gamesForWhatWasTaught(input.bookingId, input.nodeIds);
 

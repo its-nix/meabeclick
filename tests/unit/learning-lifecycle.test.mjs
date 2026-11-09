@@ -13,7 +13,7 @@ const {handle,createLesson}=await import('../../src/lib/server/db.ts');
 const {recordGenerated,latestPublished}=await import('../../src/lib/server/materials.ts');
 const {assignLearning,learningForStudent,assignedExperience,learningMaterialSlug}=await import('../../src/lib/server/learning-store.ts');
 const {afterReport}=await import('../../src/lib/server/reports/after.ts');
-const{addHomework}=await import('../../src/lib/server/lessons.ts');
+const{addHomework,homeworkForStudent}=await import('../../src/lib/server/lessons.ts');
 const template={id:'learning-test',version:1,subject:'מתמטיקה',track:'',reviewed:null,topics:[{key:'t',title:'נושא',branches:[{key:'t.b',title:'ענף',skills:[
   {key:'t.b.a',title:'הזזת פרבולה',requires:[]},{key:'t.b.b',title:'פרבולה נוספת',requires:[]},
 ]}]}]};
@@ -42,6 +42,7 @@ test('v2 reports reuse only covered activities and keep preparation history and 
  let calls=0;const result=await afterReport({bookingId,nodeIds:[skills[0].id],note:null,coveredObjectiveIds:['o1']},{generate:async()=>{calls++;throw Error('should reuse');}});
  assert.equal(result,'replaced');assert.equal(calls,0);
  assert.equal(assignedExperience(slug),null);assert.equal(assignedExperience(slug,'homework').experience.scenes.length,1);
+ const {presentationExperience}=await import('../../src/lib/server/learning-store.ts');assert.equal(typeof presentationExperience,'function');assert.equal(presentationExperience(slug).experience.title,p.learning.title);
  assert.match(learningForStudent(student.id)[0].url,/\/homework$/);
  assert.equal(JSON.parse(latestPublished(slug,'plan').content).homework.length,2,'original preparation is retained');
  const target=learningMaterialSlug(slug);assert.notEqual(target,slug);
@@ -54,6 +55,19 @@ test('a slow v2 report cannot replace a tutor revision made while homework was g
  const running=afterReport({bookingId,nodeIds:[skills[0].id],note:'צריך לתרגל לאט',coveredObjectiveIds:['o1']},{generate:async ctx=>{assert.deepEqual(ctx.coveredObjectiveIds,['o1']);await wait;return[{task:'נמקו את הדרך',why:'הבנה',answer:'תשובה פרטית',nodeId:skills[0].id,objectiveId:'o1',check:null}];}});
  p.homework[0].task='גרסה חדשה של המורה';recordGenerated(slug,{plan:JSON.stringify(p)});finish();
  assert.equal(await running,'obsolete');assert.equal(learningMaterialSlug(slug),slug);assert.equal(JSON.parse(latestPublished(slug,'plan').content).homework[0].task,'גרסה חדשה של המורה');
+});
+test('a report crossing the release deadline cannot delete visible submitted homework',async()=>{
+ const {student,bookingId,skills,slug}=setup(),p=teachingFixture();recordGenerated(slug,{plan:JSON.stringify(p)});
+ const deadline='2098-01-01T11:01:00.000Z';let current='2098-01-01T11:00:00.000Z';
+ handle().prepare('UPDATE learning_assignments SET held_until=? WHERE lesson_slug=?').run(deadline,slug);
+ addHomework({studentId:student.id,task:'המקור שכבר נשלח',bookingId,nodeId:skills[0].id,assignedAt:current,heldUntil:deadline});
+ const original=handle().prepare('SELECT id FROM homework WHERE booking_id=?').get(bookingId);
+ const result=await afterReport({bookingId,nodeIds:[skills[0].id],note:'תרגול נוסף',coveredObjectiveIds:['o1']},{clock:()=>current,generate:async()=>{
+  current='2098-01-01T11:02:00.000Z';assert.ok(homeworkForStudent(student.id,{now:current}).some(h=>h.id===original.id));
+  handle().prepare("UPDATE homework SET submitted_at=?,submitted_by='student' WHERE id=?").run(current,original.id);
+  return[{task:'תרגול חדש',nodeId:skills[0].id,objectiveId:'o1',check:null,answer:'נימוק'}];
+ }});
+ assert.equal(result,'none');assert.ok(handle().prepare('SELECT submitted_at FROM homework WHERE id=?').get(original.id)?.submitted_at);assert.equal(learningMaterialSlug(slug),slug);
 });
 test('booking preparation is available before class without appearing as released homework',async()=>{
   const {student,bookingId,skills}=setup();
@@ -94,4 +108,11 @@ test('booking and skill identity cannot be borrowed from another student',()=>{
   const one=setup(),two=setup();
   assert.throws(()=>assignLearning(one.slug,one.student.id,{bookingId:two.bookingId,nodeId:null,heldUntil:null}),/booking does not belong/);
   assert.throws(()=>assignLearning(one.slug,one.student.id,{bookingId:one.bookingId,nodeId:two.skills[0].id,heldUntil:null}),/skill does not belong/);
+});
+test('no-coverage fallback retains prepared practice without claiming every objective was taught',async()=>{
+ const {student,bookingId,skills,slug}=setup(),p=teachingFixture();recordGenerated(slug,{plan:JSON.stringify(p)});
+ addHomework({studentId:student.id,task:'הכנה מוחזקת',bookingId,nodeId:skills[0].id,assignedAt:new Date().toISOString(),heldUntil:'2099-01-01T00:00:00.000Z'});
+ assert.equal(await afterReport({bookingId,nodeIds:[],note:'הערה ללא קביעת כיסוי'}),'replaced');
+ const material=JSON.parse(latestPublished(learningMaterialSlug(slug),'plan').content);
+ assert.equal(material.homework.length,p.homework.length);assert.deepEqual(material.coveredObjectiveIds,[]);
 });

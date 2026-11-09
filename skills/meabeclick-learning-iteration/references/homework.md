@@ -5,3 +5,5 @@ Plan a realistic10–15-minute session adjusted to the learner and covered objec
 Prefer reliable numeric/fraction, graph-construction and structured reasoning checks. Open written reasoning/proofs are explicitly tutor-reviewed. Do not call unsupported AI grading certain. The help ladder is attempt → hints → guided step → explicitly requested worked solution; after a reveal, only a fresh independent task can supply independent evidence. Avoid endless failure loops.
 
 Use the shared lesson/objective/problem IDs and notation. Keep answer keys private; solutions are disclosed only under the appropriate support policy. Print provides static truthful diagrams and writing space; it does not pretend to retain interaction. Completion, submission, supported success and mastery are different facts.
+
+V2 reports persist the selected objective IDs against the exact published lesson version. Reject stale or forged selection through the real API. Prepared no-selection fallback is not evidence that every goal was taught. Recheck the clock after asynchronous generation, preserve released/submitted work, and keep the original lesson/editor reachable beside replacement homework.

@@ -7,3 +7,5 @@ Teach meaning, why and then method. Use one new idea and mathematical action per
 Every instructional stage has private notes: time, natural explanation, question, expected understanding, plausible misconception, concrete help, transition and source where relevant. Notes must refer to actual numbers and support teaching rather than repeat the slide. Projection/learner JSON never includes notes or answer keys.
 
 Official-question flow: read/mark givens → choose a method → attempt → staged solution → check units/domain/context. Preserve the source original; keep annotations/solutions separate. Show required target stimuli during independent tasks while withholding solutions. Render and inspect mobile, RTL, maths, print and reduced-motion output.
+
+For derived numeric visuals, author question-only TeX for independent practice; preserve the given diagram and withhold computed formulas in screen, print and video. A one-frame independent question cannot double as a worked explanation. Check exported pages visually for orphaned titles, clipped mathematics and paper-wasting page breaks.

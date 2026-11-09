@@ -21,9 +21,11 @@ const raw = input ? JSON.parse(await readFile(resolve(input), 'utf8')) : PARABOL
 const experience = raw.learning ?? raw;
 const problems = experienceProblems(experience);
 if (problems.length) throw new Error(problems.join('; '));
-const sourceScene = experience.scenes.find(s => s.id === (option('--scene') ?? experience.scenes[0].id));
+const sourceScene = publicExperience(experience).scenes.find(s => s.id === (option('--scene') ?? experience.scenes[0].id));
 if (!sourceScene) throw new Error('Unknown scene');
-const { presenterNotes: _notes, ...scene } = sourceScene;
+const scene=sourceScene;
+const independent=scene.phase==='challenge'||raw.teaching?.practice?.some(p=>p.asset==='scene'&&p.ref===scene.id&&p.support==='independent');
+const questionVisual=['fraction','geometry','data-bars','normal','normal-school'].includes(scene.visual);
 const name = input ? `lesson-${createHash('sha256').update(JSON.stringify(publicExperience(experience))).digest('hex').slice(0,12)}-${scene.id}` : 'parabola-shift';
 const dir = resolve('learning-video', name);
 const assets = resolve(dir, 'assets');
@@ -48,18 +50,20 @@ html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:var(--bg
 <div class="film-canvas"><div class="film-copy"><small id="stage" dir="ltr">01 / ${scene.frames.length}</small><div id="caption"></div></div><div class="film-visual"><div id="equation" class="film-equation"></div><svg id="film-plot" class="plot" role="img" aria-label="${escapeHtml(scene.title)}"></svg></div></div>
 <footer class="film-footer">${escapeHtml(experience.objective)}</footer></div></div>
 <script>
-const scene=${JSON.stringify(scene).replaceAll('<', '\\u003c')};
+const scene=${JSON.stringify(scene).replaceAll('<', '\\u003c')};const independent=${!!independent},questionVisual=${questionVisual};
 const draw=${drawLearningVisual.toString()};const frameAt=${learningFrameAt.toString()};const formula=${formulaForVisual.toString()};const rich=${writeLearningText.toString()};
-function renderAt(t){const state=frameAt(scene,t);draw(document.getElementById('film-plot'),scene.visual,state.values,scene.xDomain,scene.yDomain,{reference:scene.visual==='quadratic'?[1,0,0]:undefined});document.getElementById('equation').innerHTML=katex.renderToString(scene.visual==='steps'?scene.frames[state.frame].tex:formula(scene.visual,state.values),{throwOnError:true,trust:false});rich(document.getElementById('caption'),scene.frames[state.frame].caption);document.getElementById('stage').textContent=String(state.frame+1).padStart(2,'0')+' / '+scene.frames.length;}
+function renderAt(t){const state=frameAt(scene,t);draw(document.getElementById('film-plot'),scene.visual,state.values,scene.xDomain,scene.yDomain,{reference:scene.visual==='quadratic'&&!independent?[1,0,0]:undefined,target:scene.check?.target,hide:independent&&!questionVisual,questionOnly:independent&&questionVisual});document.getElementById('equation').innerHTML=katex.renderToString(independent&&scene.check?.kind==='graph-target'?(scene.visual==='quadratic'?'y=a(x-h)^2+k':'y=mx+b'):scene.visual==='steps'||independent&&questionVisual?scene.frames[state.frame].tex:formula(scene.visual,state.values),{throwOnError:true,trust:false});rich(document.getElementById('caption'),scene.frames[state.frame].caption);document.getElementById('stage').textContent=String(state.frame+1).padStart(2,'0')+' / '+scene.frames.length;}
 window.addEventListener('hf-seek',e=>renderAt(e.detail.time));
 const clock={t:0};const tl=gsap.timeline({paused:true});tl.fromTo(clock,{t:0},{t:${duration},duration:${duration},ease:'none',onUpdate:()=>renderAt(clock.t)},0);window.__timelines=window.__timelines||{};window.__timelines['${name}']=tl;renderAt(0);
 </script></body></html>`;
 await writeFile(resolve(dir, 'index.html'), html);
 await writeFile(resolve(dir, 'hyperframes.json'), JSON.stringify({ name, width:1280, height:720, fps:30 }, null, 2));
 console.log(`Composition: ${dir}`);
+const renderDirectory=input?resolve(dir,'render'):resolve('static/learning-media');
+const output=resolve(renderDirectory,`${name}.mp4`);
+console.log(`Render target: ${output}`);
 if (!args.includes('--prepare-only')) {
-  await mkdir('static/learning-media', { recursive: true });
-  const output = resolve('static/learning-media', `${name}.mp4`);
+  await mkdir(renderDirectory, { recursive: true });
   const result = spawnSync(resolve('node_modules/.bin/hyperframes'), ['render', dir, '--quality', 'delivery', '--workers', '1', '-o', output], {
     stdio: 'inherit', env: { ...process.env, DO_NOT_TRACK:'1', HYPERFRAMES_NO_TELEMETRY:'1' },
   });

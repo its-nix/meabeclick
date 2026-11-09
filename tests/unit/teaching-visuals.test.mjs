@@ -26,3 +26,9 @@ test('distributions distinguish normal CDF and school bands, with bounded values
  assert.match(formulaForVisual('normal-school',[70,10,70,75]),/19/);
  for(const [kind,v]of [['data-bars',[0,0,0,0]],['data-bars',[1.5,2,3,4]],['normal',[70,0,60,80]],['normal-school',[70,10,71,80]],['normal',[70,10,80,60]]])assert.ok(learningProblems(fixture(kind,v)).length);
 });
+test('normal visuals reject unsupported precision rather than displaying zero spread',()=>{
+ assert.ok(learningProblems(fixture('normal',[0,.001,-.001,.001])).length);
+ assert.deepEqual(learningProblems(fixture('normal',[0,.1,-.1,.1])),[]);
+ const s=fixture('normal',[0,.1,-.1,.1]).scenes[0];s.frames.push({...s.frames[0],values:[0,.2,-.2,.2]});
+ for(const t of [1.31,2.15,2.63,3.42])assert.ok(learningFrameAt(s,t).values.every(n=>Math.abs(n*100-Math.round(n*100))<1e-7));
+});

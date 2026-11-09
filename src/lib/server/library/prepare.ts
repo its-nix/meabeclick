@@ -55,7 +55,7 @@ export function libraryRequest(templateId: string, skillKey: string) {
   const found = findSkill(template, skillKey);
   if (!found) throw new Error(`no skill ${skillKey} in ${templateId}`);
   return {
-    ...(generationVersion()===2?{teachingContext:teachingContextFor({name:'',subject:template.subject,level:'',durationMin:90,request:`${found.skill.title} (${found.context})`},null,{templateId,key:skillKey,title:found.skill.title})}:{}),
+    ...(generationVersion()===2?{teachingContext:{...teachingContextFor({name:'',subject:template.subject,level:'',durationMin:90,request:`${found.skill.title} (${found.context})`},null,{templateId,key:skillKey,title:found.skill.title}),purpose:'library' as const}}:{}),
     subject: template.subject,
     level: levelOf(template),
     student: '',

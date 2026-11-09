@@ -29,13 +29,18 @@ export function experienceProblems(raw: unknown, options: { requirePresenterNote
 function controls(scene: LearningScene): string {
   if (scene.phase !== 'explore' && scene.check?.kind !== 'graph-target') return '';
   if (scene.phase === 'explore' && scene.frames.length > 1) return '';
-  const definitions = scene.visual === 'quadratic'
+  const v=scene.frames[0].values;
+  const definitions:Array<{index:number;name:string;label:string;min?:number;max?:number;step?:number}> = scene.visual === 'quadratic'
     ? [{ index: 1, name: 'h', label: 'ימינה ושמאלה' }, { index: 2, name: 'k', label: 'למעלה ולמטה' },
       ...(scene.check?.kind === 'graph-target' ? [{ index: 0, name: 'a', label: 'פתיחה וכיוון' }] : [])]
     : scene.visual === 'linear' ? [{ index: 0, name: 'm', label: 'שיפוע' }, { index: 1, name: 'b', label: 'חיתוך עם הציר' }]
-    : scene.visual === 'number-line' ? [{ index: 0, name: 'x', label: 'מיקום על הציר' }] : [];
+    : scene.visual === 'number-line' ? [{ index: 0, name: 'x', label: 'מיקום על הציר' }]
+    : scene.visual==='fraction'?[{index:0,name:'n',label:'חלקים צבועים',min:0,max:v[1],step:1},{index:2,name:'k',label:'חלוקת כל חלק',min:1,max:4,step:1}]
+    : scene.visual==='geometry'?(v[0]===3?[1]:[5,6].includes(v[0])?[1,3]:[4,7].includes(v[0])?[1,2,3]:[1,2]).map(index=>({index,name:v[0]===1?(index===1?'b':'h'):v[0]===3||[5,6].includes(v[0])?(index===1?'r':'h'):['','a','b','h'][index],label:index===3||v[0]===1&&index===2?'גובה מאונך':'מידה',min:1,max:20,step:1}))
+    : scene.visual==='data-bars'?v.map((_,index)=>({index,name:`f_${index+1}`,label:`שכיחות הערך ${index+1}`,min:0,max:20,step:1}))
+    : scene.visual==='normal'||scene.visual==='normal-school'?[2,3].map(index=>({index,name:index===2?'L':'U',label:index===2?'גבול תחתון':'גבול עליון',min:v[0]-3*v[1],max:v[0]+3*v[1],step:v[1]/(scene.visual==='normal-school'?2:10)})):[];
   if (!definitions.length) return '';
-  return `<div class="scene-controls">${definitions.map(p => `<label class="parameter"><span class="parameter-header"><span><b dir="ltr">${p.name}</b> · ${p.label}</span><output data-output="${p.index}">${scene.frames[0].values[p.index]}</output></span><input aria-label="${p.name} — ${p.label}" data-param="${p.index}" type="range" min="${scene.visual === 'number-line' ? scene.xDomain[0] : -5}" max="${scene.visual === 'number-line' ? scene.xDomain[1] : 5}" step="${scene.visual === 'number-line' ? .25 : 1}" value="${scene.frames[0].values[p.index]}"></label>`).join('')}</div>`;
+  return `<div class="scene-controls">${definitions.map(p => `<label class="parameter"><span class="parameter-header"><span><b dir="ltr">${p.name}</b> · ${p.label}</span><output data-output="${p.index}">${v[p.index]}</output></span><input aria-label="${p.name} — ${p.label}" data-param="${p.index}" type="range" min="${p.min??(scene.visual === 'number-line' ? scene.xDomain[0] : -5)}" max="${p.max??(scene.visual === 'number-line' ? scene.xDomain[1] : 5)}" step="${p.step??(scene.visual === 'number-line' ? .25 : 1)}" value="${v[p.index]}"></label>`).join('')}</div>`;
 }
 
 export function renderLearningDocument(e: LearningExperience, options: {

@@ -4,6 +4,7 @@
   import { PHASE_LABELS } from '$lib/learning/model.ts';
   import { formulaForVisual } from '$lib/learning/visual.ts';
   const parameterLabels = {
+    fraction:['מונה n','מכנה d','חלוקה k'],geometry:['סוג צורה','a או רדיוס','b או גובה משולש','גובה גוף'], 'data-bars':['שכיחות 1','שכיחות 2','שכיחות 3','שכיחות 4'], normal:['ממוצע','סטיית תקן sigma','גבול תחתון','גבול עליון'], 'normal-school':['ממוצע','סטיית תקן s','גבול תחתון','גבול עליון'],
     quadratic: ['a · מקדם הפתיחה', 'h · מיקום אופקי', 'k · גובה הקודקוד'],
     linear: ['m · שיפוע', 'b · חיתוך עם הציר'],
     'number-line': ['מיקום על הציר'], balance: ['מקדם x', 'המספר שמוסיפים', 'אגף ימין'], steps: [],

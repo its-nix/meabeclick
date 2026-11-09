@@ -130,6 +130,10 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       else if (scene.visual === 'quadratic') caption = `עכשיו הקודקוד ב־\\((${numbers[1]},${numbers[2]})\\), והפרבולה נפתחת ${values[0] > 0 ? 'כלפי מעלה' : 'כלפי מטה'}.`;
       else if (scene.visual === 'linear') caption = `השיפוע עכשיו \\(m=${numbers[0]}\\), והישר חותך את ציר \\(y\\) ב־\\((0,${numbers[1]})\\).`;
       else if (scene.visual === 'number-line') caption = `הנקודה עכשיו ב־\\(${numbers[0]}\\).`;
+      else if(scene.visual==='fraction')caption=`צובעים ${values[0]} מתוך ${values[1]} חלקים. מחלקים כל חלק ל־${values[2]} חלקים שווים. כשמשנים רק את החלוקה, הכמות הצבועה נשמרת.`;
+      else if(scene.visual==='geometry')caption='המידות החדשות מסומנות בתרשים. הנוסחה מתעדכנת לפי אותן מידות; הגובה מאונך לבסיס.';
+      else if(scene.visual==='data-bars')caption=`שינינו שכיחויות. עכשיו יש ${values.reduce((a,b)=>a+b,0)} תצפיות; גובה כל עמודה מציג את השכיחות.`;
+      else if(scene.visual==='normal'||scene.visual==='normal-school')caption=`השטח הצבוע נמצא בין ${numbers[2]} ל־${numbers[3]}. ${scene.visual==='normal-school'?'האחוזים הם קירוב בית ספרי ברצועות של חצי s.':'ההסתברות מתעדכנת לפי המודל הנורמלי.'}`;
     }
     rich(query('[data-caption]', section), caption);
     if (scene.visual === 'steps') {
@@ -282,6 +286,8 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       const index = Number(input.dataset.param), previous = params[index];
       params[index] = Number(input.value);
       if (scene.visual === 'quadratic' && index === 0 && params[0] === 0) params[0] = previous > 0 ? -1 : 1;
+      if((scene.visual==='normal'||scene.visual==='normal-school')&&params[2]>=params[3])params[index]=previous;
+      if(scene.visual==='data-bars'&&params.reduce((a,b)=>a+b,0)===0)params[index]=previous;
       render();
     }));
     all<HTMLButtonElement>('[data-option]', section).forEach(option => option.addEventListener('click', () => {

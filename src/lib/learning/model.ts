@@ -1,5 +1,5 @@
 /** A versioned lesson scene contract. Mathematics is data, never generated code. */
-export type VisualKind = 'quadratic' | 'linear' | 'number-line' | 'balance' | 'steps';
+export type VisualKind = 'quadratic' | 'linear' | 'number-line' | 'balance' | 'steps' | 'fraction' | 'geometry' | 'data-bars' | 'normal' | 'normal-school';
 export interface LearningFrame {
   caption: string;
   tex: string;
@@ -97,7 +97,7 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
   if (e.scenes[0]?.phase !== 'discover' || e.scenes.at(-1)?.phase !== 'reflect') errors.push('השיעור צריך להתחיל בגילוי ולהסתיים בסיכום');
   const ids = new Set<string>();
   let checks = 0;
-  const dimensions: Record<VisualKind, number> = { quadratic: 3, linear: 2, 'number-line': 1, balance: 3, steps: 0 };
+  const dimensions: Record<VisualKind, number> = { quadratic: 3, linear: 2, 'number-line': 1, balance: 3, steps: 0, fraction:3,geometry:4,'data-bars':4,normal:4,'normal-school':4 };
   for (const s of e.scenes) {
     if (!s || typeof s !== 'object') { errors.push('סצנה לא תקינה'); continue; }
     if (!text(s.id, 60) || !/^[a-z0-9-]+$/.test(s.id) || ids.has(s.id)) errors.push('מזהי הסצנות חייבים להיות ייחודיים');
@@ -126,6 +126,17 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
       if (s.visual === 'quadratic' && Math.abs(f.values[0]) < 0.1) errors.push(`פרבולה חייבת מקדם שונה מאפס: ${s.id}`);
       if (s.visual === 'balance' && (!Number.isInteger(f.values[0]) || f.values[0] < 1 || f.values[0] > 6 || f.values[1] < 0 || f.values[2] < 0 || f.values[1] > 12 || f.values[2] > 40)) errors.push(`המאזניים מחוץ לטווח הנתמך: ${s.id}`);
       if (s.visual === 'number-line' && (f.values[0] < s.xDomain?.[0] || f.values[0] > s.xDomain?.[1])) errors.push(`ערך מחוץ לציר: ${s.id}`);
+      const v=f.values;
+      if(s.visual==='fraction'&&(!v.every(Number.isInteger)||v[0]<0||v[0]>v[1]||v[1]<1||v[1]>12||v[2]<1||v[2]>4||v[1]*v[2]>48))errors.push(`חלוקת שבר לא תקינה: ${s.id}`);
+      if(s.visual==='geometry'){
+        const [shape,a,b,h]=v,positive=(n:number)=>n>0&&n<=20;
+        if(!Number.isInteger(shape)||shape<1||shape>7||shape!==s.frames[0].values[0]||!positive(a)||([1,2,4,7].includes(shape)?!positive(b):b!==0)||([4,5,6,7].includes(shape)?!positive(h):h!==0))errors.push(`ממדי צורה לא תקינים: ${s.id}`);
+      }
+      if(s.visual==='data-bars'&&(!v.every(n=>Number.isInteger(n)&&n>=0&&n<=20)||v.every(n=>n===0)))errors.push(`שכיחויות לא תקינות: ${s.id}`);
+      if(s.visual==='normal'||s.visual==='normal-school'){
+        const [mu,sd,lo,hi]=v;
+        if(sd<=0||sd>30||lo>=hi||lo<mu-3*sd||hi>mu+3*sd||(s.visual==='normal-school'&&[lo,hi].some(n=>Math.abs((n-mu)/sd*2-Math.round((n-mu)/sd*2))>1e-7)))errors.push(`התפלגות מחוץ לטווח הנתמך: ${s.id}`);
+      }
     }
     const c = s.check;
     if (!c) continue;

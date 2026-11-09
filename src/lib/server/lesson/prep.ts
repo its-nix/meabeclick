@@ -474,6 +474,7 @@ export function lessonOutputSchema(){
  if(generationVersion()!==2)return LESSON_SCHEMA;
  const schema=structuredClone(LESSON_SCHEMA) as Record<string,any>;
  schema.required.push('teaching');schema.properties.teaching=TEACHING_SCHEMA;
+ schema.properties.learning.properties.scenes.items.properties.visual.enum.push('fraction','geometry','data-bars','normal','normal-school');
  const notes=schema.properties.learning.properties.scenes.items.properties.presenterNotes;
  Object.assign(notes.properties,{minutes:{type:'number'},misconception:{type:'string'},transition:{type:'string'},sources:{type:'array',items:{type:'string'}}});
  notes.required.push('minutes','misconception','transition','sources');

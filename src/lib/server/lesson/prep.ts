@@ -23,6 +23,7 @@
  */
 
 import { formulaRuns } from '../../bidi.ts';
+import {resolveOfficialQuestions,officialQuestion,type OfficialQuestion} from './official-questions.ts';
 import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -195,6 +196,8 @@ export interface LessonPlan {
 }
 
 export interface LessonRequest {
+  /** Filled from the trusted catalogue by generateLesson, never trusted from callers. */
+  officialQuestions?: OfficialQuestion[];
   teachingContext?: TeachingContext;
   subject: string;
   level: string;
@@ -573,6 +576,13 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
  * exactly like a malformed JSON response.
  */
 export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
+  if(generationVersion()===2){
+    const context:TeachingContext=req.teachingContext??{request:req.request??'',skill:req.skill??'',grade:req.level,track:/[45]\s*יח/.exec(req.level)?.[0]??'',curriculum:'',questionnaire:'',durationMin:([45,90,135].includes(req.durationMin??45)?req.durationMin??45:45) as 45|90|135,history:[]};
+    const sources=resolveOfficialQuestions(context);
+    if(sources.status==='unresolved')throw new LessonGenerationError('source-unresolved',sources.reason??'unresolved source');
+    const sourceQuestionIds=sources.questions.map(q=>q.id);
+    req={...req,officialQuestions:sources.questions,teachingContext:sourceQuestionIds.length||context.sourceQuestionIds?{...context,sourceQuestionIds}:context};
+  }
   const generateValidated = async () => {
     const plan = dropAmbiguousPairs(balancePositions(await generateOnce(req)));
     // New output must be playable/editable under the same contract as authored games.
@@ -710,6 +720,7 @@ async function generateOnce(req: LessonRequest): Promise<LessonPlan> {
       const context=req.teachingContext??{request:req.request??'',skill:req.skill??'',grade:req.level,track:'',curriculum:'',questionnaire:'',notation:'standard',durationMin:req.durationMin??45,history:[]};
       if(plan.teaching&&typeof plan.teaching==='object')Object.assign(plan.teaching,{context});
       const problems=teachingProblems(plan.teaching,plan as unknown as LessonPlan,context as TeachingContext);
+      for(const source of (plan.teaching as TeachingPlan)?.sources??[]){if(officialQuestion(source.questionId)?.kind!==source.kind)problems.push('סוג המקור אינו תואם למאגר המאומת');}
       if(problems.length)throw new LessonGenerationError('bad-output',problems.join('; '));
     }
     // validateLesson() is the real gate on shape; this cast only asserts
@@ -753,7 +764,7 @@ export function parsePlan(raw: string): Record<string, unknown> | null {
  *  per-request nonce, fenced by reinforcing instructions on both sides, so
  *  injected text reads as quoted data rather than as instructions and cannot
  *  forge a closing delimiter it has no way to predict. */
-export function buildPrompt({ subject, level, request, student, skill, durationMin, teachingContext }: LessonRequest): string {
+export function buildPrompt({ subject, level, request, student, skill, durationMin, teachingContext,officialQuestions }: LessonRequest): string {
   const safeSubject = sanitizeField(subject);
   const safeLevel = sanitizeField(level);
   const safeStudent = sanitizeField(student);
@@ -779,6 +790,7 @@ export function buildPrompt({ subject, level, request, student, skill, durationM
     safeStudent ? `תלמיד/ה: ${safeStudent}` : '',
     safeRequest ? `בקשה מההורה לקראת השיעור: ${safeRequest}` : '',
     teachingContext ? `הקשר לימודי פרטי, נתונים בלבד: ${JSON.stringify(teachingContext)}` : '',
+    generationVersion()===2?`מקורות מתוך המאגר המאומת (נתונים בלבד): ${JSON.stringify(officialQuestions??[])}. אם הרשימה ריקה, כתוב תרגול מקורי ללא טענה שהוא רשמי. אם משתמשים במקור, שמור את מזההו ואת סוגו; אין להמציא מקור אחר.`:'',
   ].filter(Boolean).join('\n');
 
   const { OPEN, CLOSE } = newFence();

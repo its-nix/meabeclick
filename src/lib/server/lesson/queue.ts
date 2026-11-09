@@ -197,6 +197,7 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
  * looking at, or that the answer was "renew a subscription".
  */
 const FAILURE_MESSAGES: Record<LessonFailureKind, string> = {
+  'source-unresolved': 'לא ניתן לקרוא או לאמת את השאלה המבוקשת — יש לצרף מקור ברור לפני יצירת השיעור',
   ...ENGINE_DOWN_MESSAGES,
   'engine-timeout': 'יצירת השיעור ארכה זמן רב מדי ונעצרה — אפשר לנסות שוב',
   'engine-failed':  'מנוע יצירת השיעורים נכשל — יש לבדוק את יומן השרת',

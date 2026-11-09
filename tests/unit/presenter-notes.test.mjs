@@ -77,6 +77,16 @@ test('video compositions use original logo artwork and exclude private teaching 
     if (composition) rmSync(composition, { recursive: true, force: true });
   }
 });
+test('independent video compositions contain question data and keep custom output private',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'learning-video-question-'));let composition;
+ try{
+  const lesson=structuredClone(PARABOLAS),scene=lesson.scenes.find(s=>s.id==='independent');scene.visual='geometry';scene.frames=[{caption:'חשבו לפי הנתונים',tex:'V=?',values:[4,3,4,5]}];scene.check.answer=60;scene.check.solution='PrivateVideoSolution';
+  const input=join(dir,'lesson.json');writeFileSync(input,JSON.stringify(lesson));
+  const output=execFileSync(process.execPath,['scripts/render-learning-video.mjs','--input',input,'--scene','independent','--prepare-only'],{encoding:'utf8'});composition=output.match(/^Composition: (.+)$/m)[1];
+  const html=readFileSync(join(composition,'index.html'),'utf8');assert.ok(!html.includes('PrivateVideoSolution'));assert.ok(!html.includes('"answer":60'));
+  const target=output.match(/^Render target: (.+)$/m)?.[1];assert.ok(target?.startsWith(composition+'/'),'custom lessons must not be written into public static assets');
+ }finally{rmSync(dir,{recursive:true,force:true});if(composition)rmSync(composition,{recursive:true,force:true});}
+});
 
 // Preserve an actual engine output, in addition to the authored reference.
 test('a fresh generated linear/quadratic lesson has private notes for every scene', () => {
@@ -86,4 +96,11 @@ test('a fresh generated linear/quadratic lesson has private notes for every scen
   assert.ok(!JSON.stringify(publicExperience(lesson)).includes('presenterNotes'));
   assert.ok(lesson.scenes.some(scene => scene.visual === 'linear'));
   assert.ok(lesson.scenes.some(scene => scene.visual === 'quadratic'));
+});
+
+test('synthetic presenter navigation uses its supplied review destinations',async()=>{
+ const{teachingFixture}=await import('../teaching-fixture.mjs'),{teachingDisplay}=await import('../../src/lib/server/teaching-display.ts'),p=teachingFixture();
+ const homeworkUrl='/app/learning-review?case=synthetic&view=homework&version=v2';
+ const html=renderPresenterNotes(p.learning,'synthetic',{plan:p,presentationUrl:'/app/learning-review?case=synthetic&version=v2',homeworkUrl:homeworkUrl+'&solutions=1',teaching:teachingDisplay(p,'synthetic',{homeworkUrl,gameUrls:{quiz:'/app/review-game/synthetic/quiz?version=v2'}})});
+ assert.ok(!html.includes('/app/learn/synthetic'));assert.match(html,/review-game\/synthetic\/quiz/);assert.match(html,/solutions=1/);
 });

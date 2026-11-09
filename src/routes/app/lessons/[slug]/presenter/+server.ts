@@ -1,5 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
+import {assignedTeachingDisplay} from '$server/assigned-teaching.ts';
+import {presentationMaterialSlug} from '$server/learning-store.ts';
 import { presentationExperience } from '$server/learning-store.ts';
 import { renderPresenterNotes } from '$server/presenter-notes.ts';
 import { documentHeaders } from '$server/document-policy.ts';
@@ -9,7 +11,7 @@ export const GET: RequestHandler = event => {
   requireAuth(event);
   const lesson = presentationExperience(event.params.slug);
   if (!lesson) error(404, 'השיעור עדיין לא מוכן');
-  return new Response(renderPresenterNotes(lesson.experience, event.params.slug,{plan:lesson.plan}), {
+  return new Response(renderPresenterNotes(lesson.experience, event.params.slug,{plan:lesson.plan,teaching:assignedTeachingDisplay(lesson.plan,event.params.slug,presentationMaterialSlug(event.params.slug),{preview:true})}), {
     headers: { ...documentHeaders(), 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' },
   });
 };

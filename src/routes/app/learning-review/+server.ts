@@ -21,8 +21,8 @@ export const GET: RequestHandler = event => {
     const teaching=teachingDisplay(item.plan,id,{gameUrls,homeworkUrl:reviewUrl(id,'homework',version)});
     switch(event.url.searchParams.get('view') ?? 'lesson') {
       case 'lesson': html = renderLearningDocument(item.plan.learning, { demo: true, preview: true, storageScope: `review:${reviewCorpus.manifest.batch}:${id}`,teaching, backUrl, presenterUrl: reviewUrl(id,'presenter',version) }); break;
-      case 'presenter': html = renderPresenterNotes(item.plan.learning,id,{presentationUrl:reviewUrl(id,'lesson',version),editUrl:backUrl,plan:item.plan}); break;
-      case 'homework': html = version==='v2'?renderLearningDocument(homeworkExperience(item.plan),{demo:true,preview:true,variant:'homework',sourceIds:homeworkSourceIds(item.plan),independentSceneIds:homeworkIndependentIds(item.plan),storageScope:`review:${reviewCorpus.manifest.batch}:${id}:homework`,backUrl}):renderReviewHomework(item); break;
+      case 'presenter': html = renderPresenterNotes(item.plan.learning,id,{presentationUrl:reviewUrl(id,'lesson',version),editUrl:backUrl,plan:item.plan,teaching,homeworkUrl:reviewUrl(id,'homework',version)+'&solutions=1'}); break;
+      case 'homework': html = version==='v2'?renderLearningDocument(homeworkExperience(item.plan),{demo:true,preview:true,variant:'homework',solutions:event.url.searchParams.get('solutions')==='1',sourceIds:homeworkSourceIds(item.plan),independentSceneIds:homeworkIndependentIds(item.plan),storageScope:`review:${reviewCorpus.manifest.batch}:${id}:homework`,backUrl}):renderReviewHomework(item); break;
       default: error(404,'התצוגה לא נמצאה');
     }
   }

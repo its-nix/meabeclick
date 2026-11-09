@@ -10,6 +10,8 @@ try{
   await page.locator('[data-scene-link]').nth(fixture.scenes.findIndex(s=>s.id===kind)).click();const section=page.locator(`[data-scene="${kind}"]`);
   const before=await section.locator('[data-formula]').innerText();await section.locator('[data-param]').first().evaluate(e=>{e.value=String(Number(e.value)+Number(e.step));e.dispatchEvent(new Event('input',{bubbles:true}));});
   assert.notEqual(await section.locator('[data-formula]').innerText(),before);assert.ok(await section.locator('svg>*').count()>2);assert.equal(await section.locator('[data-math-error]').count(),0);report.visuals.push(kind);
+  if(kind==='data-bars')assert.equal(await section.locator('[data-plot] path.plot-axis').evaluate(e=>getComputedStyle(e).fill),'none','open chart axes must not turn into a filled triangle');
+  for(const width of [390,1440]){await page.setViewportSize({width,height:1050});await page.screenshot({path:join(evidence,`${kind}-${width}.png`),fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${kind} overflow at ${width}`);}
  }
  for(const width of [320,390,768,1440]){
   await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`overflow at ${width}`);
@@ -17,6 +19,12 @@ try{
  }
  await page.evaluate(()=>dispatchEvent(new Event('beforeprint')));assert.ok(await page.locator('[data-print-visual] svg,[data-print-visual]>path,[data-print-visual]>rect').count()>5);
  await page.emulateMedia({media:'print'});await page.pdf({path:join(evidence,'lesson-print.pdf'),format:'A4',printBackground:true});await page.emulateMedia({media:'screen'});
+ const challenge=visualFixture();const declared=[];
+ for(const scene of challenge.scenes.filter(s=>report.visuals.includes(s.id))){scene.phase='practice';scene.frames[0].tex='Q=?';scene.frames[0].caption='הנתונים לפניכם. נסו לחשב את הערך המבוקש.';scene.check={kind:'number',question:'שאלת בדיקה סינתטית',answer:99,hints:['בחרו דרך'],success:'הבדיקה הצליחה',retry:'נסו שוב',solution:'PRIVATE_VIDEO_SOLUTION',options:[]};declared.push(scene.id);}
+ await page.route('**/synthetic-independent',r=>r.fulfill({contentType:'text/html',body:renderLearningDocument(challenge,{demo:true,independentSceneIds:declared})}));
+ await page.goto(server.baseUrl+'/synthetic-independent');
+ for(const kind of declared){await page.locator('[data-scene-link]').nth(challenge.scenes.findIndex(s=>s.id===kind)).click();const section=page.locator(`[data-scene="${kind}"]`);assert.match(await section.locator('[data-formula]').innerText(),/Q=\?/);assert.ok(await section.locator('[data-plot]>*').count()>2,`${kind} keeps its given diagram`);assert.equal(await section.locator('[data-param]').count(),0);await section.locator('[data-number-answer]').fill('99');await section.locator('[data-submit]').click();await section.locator('[data-feedback][data-kind="success"]').waitFor();assert.doesNotMatch(await section.locator('[data-formula]').innerText(),/Q=\?/);}
+ assert.ok(!(await page.content()).includes('PRIVATE_VIDEO_SOLUTION'));
  const pupil=await seedLearning(server),db=new DatabaseSync(server.dbPath),plan=teachingFixture();db.prepare("UPDATE lesson_materials SET content=? WHERE lesson_slug=? AND kind='plan'").run(JSON.stringify(plan),pupil.slug);
  const family=await browser.newContext({viewport:{width:390,height:1000}});const[name,value]=pupil.cookie.split('=');await family.addCookies([{name,value,url:server.baseUrl,httpOnly:true,sameSite:'Lax'}]);
  const assigned=await family.newPage();assigned.on('pageerror',e=>report.errors.push(e.message));await assigned.goto(`${server.baseUrl}/app/learn/${pupil.slug}#scene=independent`);await assigned.locator('[data-save-status]').filter({hasText:'נשמרת בדף האישי'}).waitFor();

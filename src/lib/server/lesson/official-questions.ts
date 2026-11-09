@@ -40,7 +40,9 @@ export function officialQuestion(id:string):OfficialQuestion|null{
 /** A supplied link is not readable evidence. Never let the engine guess its contents. */
 export function suppliedSourceIntent(request:string):'required'|'optional'|undefined{
  if(!/https?:\/\/\S+/i.test(request)&&!CATALOGUE.some(q=>request.includes(q.id)))return undefined;
- return /if\s+(?:available|possible)|when\s+available|optional|במידת האפשר|להעשרה|להשראה|לא חובה|אופציונלי|אם[\s\S]{0,30}(?:זמין|אפשר)/iu.test(request)?'optional':'required';
+ const clauses=request.split(/\.(?=\s|$)|[;!\n]|(?=\s+ו(?:אם|אפשר|כדאי|הוסיפו|פתרו|השתמשו))|\s+and\s+(?=(?:if|optionally|add|solve|use)\b)/iu);
+ const sourceClauses=clauses.filter(c=>/https?:\/\/\S+/i.test(c)||CATALOGUE.some(q=>c.includes(q.id)));
+ return sourceClauses.every(c=>/if\s+(?:available|possible)|when\s+available|optional|במידת האפשר|להעשרה|להשראה|לא חובה|אופציונלי|אם[\s\S]{0,30}(?:זמין|אפשר)/iu.test(c))?'optional':'required';
 }
 export function suppliedQuestionId(request:string,intent=suppliedSourceIntent(request)):string|undefined{
  if(intent==='optional')return undefined;

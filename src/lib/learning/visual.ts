@@ -127,7 +127,7 @@ export function drawLearningVisual(
   }
   if(kind==='data-bars'){
     const scale=290/Math.max(...values,1);
-    svg.append(make('path',{d:'M90 50 V370 H730',class:'plot-axis'}));
+    svg.append(make('path',{d:'M90 50 V370 H730',class:'plot-axis',fill:'none'}));
     values.forEach((v,i)=>{const bx=135+i*150;svg.append(make('rect',{x:bx,y:370-v*scale,width:90,height:v*scale,rx:8,fill:'var(--brand)'}));svg.append(make('text',{x:bx+45,y:350-v*scale,'text-anchor':'middle',class:'plot-coordinate'},label(v)));svg.append(make('text',{x:bx+45,y:410,'text-anchor':'middle',class:'plot-label'},String(i+1)));});
     svg.append(make('text',{x:90,y:30,class:'plot-note'},'שכיחות'));svg.append(make('text',{x:730,y:410,class:'plot-note'},'ערך'));commit();return;
   }

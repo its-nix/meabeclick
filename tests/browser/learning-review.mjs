@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { chromium } from 'playwright-core';
 import { DatabaseSync } from 'node:sqlite';
-import corpus from '../../src/lib/server/learning-review-corpus.json' with { type:'json' };
+import baselineCorpus from '../../src/lib/server/learning-review-corpus.json' with { type:'json' };
+import candidateCorpus from '../../src/lib/server/learning-review-v2-corpus.json' with { type:'json' };
+const version=process.env.REVIEW_VERSION==='v2'?'v2':'baseline',corpus=version==='v2'?candidateCorpus:baselineCorpus;
 import { startServer, login } from '../characterization/harness.mjs';
 import { TEMPLATE_FILES } from '../../src/lib/server/lesson/prep.ts';
 
@@ -13,7 +15,7 @@ await mkdir(evidence,{recursive:true});
 assert.equal(corpus.cases.length,10);
 const server=await startServer();
 const browser=await chromium.launch({executablePath:process.env.CHROME_BIN??(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':chromium.executablePath()),headless:true});
-const report={syntheticOnly:true,errors:[],badRequests:[],scenes:0,games:0,viewports:[390,1440]};
+const report={syntheticOnly:true,version,errors:[],badRequests:[],scenes:0,games:0,viewports:[390,1440]};
 function counts(){const db=new DatabaseSync(server.dbPath);try{return ['lessons','library_items','lesson_materials','learning_assignments','learning_progress','learning_events','results_v2'].map(t=>db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n);}finally{db.close();}}
 try{
   const cookie=await login(server.baseUrl);
@@ -24,11 +26,11 @@ try{
   page.on('pageerror',error=>report.errors.push(error.message));
   page.on('request',request=>{if(request.method()==='POST'&&/\/api\/(learning|game-result)/.test(request.url()))report.badRequests.push(request.url());});
   const before=counts();
-  await page.goto(server.baseUrl+'/app/learning-review');
+  await page.goto(server.baseUrl+'/app/learning-review'+(version==='v2'?'?version=v2':''));
   assert.equal(await page.locator('article').count(),10);
   await page.screenshot({path:join(evidence,'index-desktop.png'),fullPage:true});
   for(const item of corpus.cases){
-    const base=`${server.baseUrl}/app/learning-review?case=${item.brief.id}`;
+    const base=`${server.baseUrl}/app/learning-review?case=${item.brief.id}${version==='v2'?'&version=v2':''}`;
     for(const width of report.viewports){
       await page.setViewportSize({width,height:1000});
       await page.goto(base+'&view=lesson');
@@ -52,23 +54,26 @@ try{
           await page.locator(`[data-scene="${scene.id}"] [data-submit]`).click();
           await page.locator(`[data-scene="${scene.id}"] [data-feedback][data-kind]`).waitFor();
         }
+        if(version==='v2'){const section=page.locator(`[data-scene="${scene.id}"]`);for(let n=0;n<scene.frames.length;n++){await section.locator('[data-frame-dot]').nth(n).evaluate(e=>e.click());assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${item.brief.id}/${scene.id} frame ${n+1}`);}}
         report.scenes++;
       }
       await page.locator('[data-scene-link]').first().click();
       await page.screenshot({path:join(evidence,`${item.brief.id}-${width}.png`),fullPage:true});
     }
     await page.goto(base+'&view=presenter');
-    assert.equal(await page.locator('.notes-section').count(),item.plan.learning.scenes.length);
+    assert.equal(await page.locator('.notes-section').count(),item.plan.learning.scenes.length+(item.plan.teaching?1:0));
+    if(version==='v2')assert.equal(await page.locator('a[href^="/app/learn/"]').count(),0,'synthetic notes must not link to unassigned customer lessons');
     const projection=context.waitForEvent('page');
     await page.locator('.notes-section header a').first().click();
     // target=lesson-presentation creates a private projection window, with no notes in its DOM.
     const projected=await projection;
     if(projected){await projected.waitForLoadState();assert.equal(await projected.locator('.notes-section').count(),0);await projected.close();}
     await page.goto(base+'&view=homework');
-    assert.equal(await page.locator('article').count(),item.plan.homework.length);
+    if(version==='v2'){assert.equal(await page.locator('[data-scene]').count(),item.plan.homework.length);for(let i=0;i<item.plan.homework.length;i++){await page.locator('[data-scene-link]').nth(i).click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${item.brief.id} homework ${i+1}`);}}
+    else assert.equal(await page.locator('article').count(),item.plan.homework.length);
     assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0);
     for(const [key,body]of Object.entries(item.plan.games))if(body){
-      await page.goto(`${server.baseUrl}/app/review-game/${item.brief.id}/${TEMPLATE_FILES[key]}`);
+      await page.goto(`${server.baseUrl}/app/review-game/${item.brief.id}/${TEMPLATE_FILES[key]}${version==='v2'?'?version=v2':''}`);
       await page.locator('.preview-banner').waitFor();
       assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0,'valid game math');
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${item.brief.id}/${key} overflow`);

@@ -49,6 +49,7 @@ export function teachingProblems(raw:unknown,plan:LessonPlan,context?:TeachingCo
   validateRef(p.asset,p.ref);const key=p.asset+':'+p.ref;
   need(!links.has(key)&&objectives.has(p.objectiveId)&&id(p.problemId)&&!problems.has(p.problemId)&&text(p.misconception,350),'יעד או מזהה תרגול לא תקין');links.add(key);problems.add(p.problemId);
   need(['guided','independent'].includes(p.support)&&['checked','tutor-review'].includes(p.grading),'סוג תמיכה או בדיקה לא תקינים');
+  if(p.asset==='scene'&&scenes.get(p.ref)?.phase==='challenge')need(p.support==='independent','אתגר דורש סימון של תרגול עצמאי');
   if(p.asset==='scene'&&p.support==='independent'){
    const scene=scenes.get(p.ref);need(scene&&Array.isArray(scene.frames)&&scene.frames.length===1&&scene.phase!=='explore','תרגול עצמאי דורש נתוני שאלה יחידים ללא שלבי פתרון או מחוונים חופשיים');
   }
@@ -61,11 +62,23 @@ export function teachingProblems(raw:unknown,plan:LessonPlan,context?:TeachingCo
    }
   }
  }
+ for(const round of plan.games?.graphMatch?.rounds??[]){
+  const xs=round.xValues;
+  need(Array.isArray(xs)&&xs.length===round.main.length&&xs.length>=2&&xs.every((x,i)=>Number.isFinite(x)&&Math.abs(x)<=1000&&Math.abs(x*100-Math.round(x*100))<1e-7&&(!i||x>xs[i-1]))&&xs.every((x,i)=>i<2||Math.abs((x-xs[i-1])-(xs[1]-xs[0]))<1e-8),'משחק גרפים דורש קואורדינטות דגימה מפורשות ואחידות');
+ }
  for(const scene of scenes.values())if(scene.check)need(links.has('scene:'+scene.id),'תרגול במצגת ללא יעד');
  for(const key of Object.keys(plan.games??{}))if(plan.games[key as keyof typeof plan.games])need(links.has('game:'+key),'משחק ללא יעד');
  homework.forEach((_,i)=>need(links.has('homework:homework-'+(i+1)),'משימת בית ללא יעד'));
  for(const o of objectives)need(t.practice.some(p=>p?.objectiveId===o&&p.support==='independent'),'יעד ללא בדיקה עצמאית');
  for(const scene of scenes.values()){
+  for(const f of Array.isArray(scene.frames)?scene.frames:[]){
+   const eq=f.tex.match(/^\s*(-?\d+(?:\.\d+)?)\s*(\\?%)?\s*=\s*(-?\d+(?:\.\d+)?)\s*(\\?%)?\s*$/);
+   if(eq&&(eq[2]||eq[4]))need(Math.abs(Number(eq[1])/(eq[2]?100:1)-Number(eq[3])/(eq[4]?100:1))<1e-9,'שוויון מספרי שגוי עם אחוז: יש לתאר את השלם במילים');
+   if(['normal','normal-school'].includes(scene.visual)){
+    const upper=f.tex.match(/P\(\s*X\s*(?:<|\\leq?)\s*(-?\d+(?:\.\d+)?)/);
+    if(upper)need(Math.abs(Number(upper[1])-f.values[3])<1e-8,'גבול ההסתברות אינו תואם לתחום המוצג');
+   }
+  }
   const n=scene.presenterNotes;need(n&&Number.isFinite(n.minutes)&&Number(n.minutes)>0&&text(n.misconception,500)&&text(n.transition,400)&&Array.isArray(n.sources)&&n.sources.every(id),'חסרות הערות מורה מורחבות');
   if(scene.check)need(text(scene.check.solution,1400),'חסר פתרון מודרך פרטי');
  }

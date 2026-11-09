@@ -56,7 +56,12 @@
   // below, so the server rendered a blank textarea and only client-side
   // hydration ever wrote the real value into it.
   let note = $state(untrack(() => (data.reportable ? data.report?.note : null) ?? ''));
-  let objectives = $state<string[]>(untrack(()=>data.reportable ? data.savedCoverage?.objectiveIds??[] : []));
+  // Restore recorded goals only for the same published material, never infer coverage for revised goals.
+  function savedObjectives():string[]{
+    const saved=data.reportable?data.savedCoverage:null,target=data.reportable?data.teaching:null;
+    return saved&&target&&saved.lessonSlug===target.lessonSlug&&saved.materialVersion===target.materialVersion?saved.objectiveIds:[];
+  }
+  let objectives = $state<string[]>(untrack(savedObjectives));
   let saving = $state(false);
   let formError = $state<string | null>(null);
   let searchOpen = $state(false);
@@ -73,7 +78,7 @@
     ticked = Object.fromEntries(all.map(s => [s.id, false]));
     statusChoice = Object.fromEntries(all.map(s => [s.id, '']));
     note = data.report?.note ?? '';
-    objectives = data.savedCoverage?.lessonSlug===data.teaching?.lessonSlug ? data.savedCoverage?.objectiveIds??[] : [];
+    objectives = savedObjectives();
     saving = false;
     formError = null;
     searchOpen = false;

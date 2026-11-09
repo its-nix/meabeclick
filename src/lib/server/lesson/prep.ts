@@ -156,6 +156,7 @@ export interface GraphMatchGame {
     prompt: string;
     mainLabel: string;
     main: number[];
+    xValues?:number[];
     options: number[][];
     answer: number;
     why: string;
@@ -477,6 +478,8 @@ export function lessonOutputSchema(){
  if(generationVersion()!==2)return LESSON_SCHEMA;
  const schema=structuredClone(LESSON_SCHEMA) as Record<string,any>;
  for(const legacy of ['slides','examples']){delete schema.properties[legacy];schema.required=schema.required.filter((key:string)=>key!==legacy);}
+ const graph=schema.properties.games.properties.graphMatch.properties.rounds.items;
+ graph.required.push('xValues');graph.properties.xValues={type:'array',items:{type:'number'},description:'Explicit equally spaced x coordinates shared by main and every option; same length as y samples.'};
  schema.required.push('teaching');schema.properties.teaching=TEACHING_SCHEMA;
  schema.properties.learning.properties.scenes.items.properties.visual.enum.push('fraction','geometry','data-bars','normal','normal-school');
  const notes=schema.properties.learning.properties.scenes.items.properties.presenterNotes;
@@ -739,8 +742,8 @@ async function generateOnce(req: LessonRequest,repair?:LessonGenerationError): P
         const q=officialQuestion(source.questionId);
         const check=source.asset==='scene'?(plan.learning as LearningExperience).scenes.find(s=>s.id===source.ref)?.check:(plan.homework as HomeworkItem[])?.[Number(source.ref?.slice(9))-1]?.check;
         const expected=q?numericAnswer(q.answer):null;
-        if(!q||q.kind!==source.kind||expected===null||check?.kind!=='number'||typeof check.answer!=='number'||Math.abs(check.answer-expected)>1e-8)problems.push('המקור אינו תואם לשאלה הנבדקת במאגר');
-        else check.question=q.transcript; // The actual trusted stimulus, not a citation-only claim.
+        if(!q||q.kind!==source.kind||expected===null||check?.kind!=='number'||typeof check.answer!=='number'||Math.abs(check.answer-expected)>1e-8)problems.push('המקור מחייב check.kind=number ותשובה מספרית התואמת למאגר, לא אינדקס של אפשרות choice');
+        else {check.question=q.transcript;if(source.asset==='homework')(plan.homework as HomeworkItem[])[Number(source.ref.slice(9))-1].task=q.transcript;} // The actual trusted stimulus, not a citation-only claim.
       }
       if(Array.isArray(plan.homework))problems.push(...experienceProblems(homeworkExperience(plan as unknown as LessonPlan),{mode:'homework'}));
       if(problems.length)throw new LessonGenerationError('bad-output',problems.join('; '),raw);

@@ -27,3 +27,8 @@ test('optional source links fall back while an explicit supplied question stays 
  assert.equal(suppliedQuestionId('Use this source if available: https://example.test/source.pdf'),undefined);
  assert.equal(suppliedQuestionId('פתרו את השאלה בקישור https://example.test/question.pdf'),'unresolved-supplied-question');
 });
+test('optional enrichment cannot downgrade a mandatory supplied question',async()=>{
+ const {suppliedQuestionId}=await import('../../src/lib/server/lesson/official-questions.ts');
+ assert.equal(suppliedQuestionId('פתרו את השאלה בקישור https://example.test/question.pdf ואם אפשר הוסיפו משחק קצר'),'unresolved-supplied-question');
+ assert.equal(suppliedQuestionId('Solve this question https://example.test/question.pdf and if possible add a game'),'unresolved-supplied-question');
+});

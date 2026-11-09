@@ -17,6 +17,10 @@ test('the live report records objective coverage and releases only the selected 
   const form=await fetch(`${server.baseUrl}/app/report/${booking.id}`,{headers:{Cookie:teacher}});assert.match(await form.text(),/יעד נוסף שלא נלמד/);
   assert.equal((await post({coverage:{...coverage,objectiveIds:['forged']}})).status,400);
   assert.equal((await post({coverage:{...coverage,materialVersion:99}})).status,409);
-  assert.equal((await post({})).status,409);db.close();
+  assert.equal((await post({})).status,409);
+  p.teaching.objectives[0].title='יעד חדש באותו מזהה';
+  db.prepare("INSERT INTO lesson_materials(lesson_slug,kind,version,content,origin,published_at,created_at) VALUES(?,'plan',2,?,'edited',?,?)").run(pupil.slug,JSON.stringify(p),end,end);
+  const revised=await(await fetch(`${server.baseUrl}/app/report/${booking.id}`,{headers:{Cookie:teacher}})).text();
+  const checkbox=revised.match(/<label[^>]*>[^<]*<input[^>]*>[^<]*<span>יעד חדש באותו מזהה<\/span>/)?.[0];assert.ok(checkbox,'the new objective is offered');assert.doesNotMatch(checkbox,/checked/,'coverage must not transfer across published material versions');db.close();
  }finally{await server.stop();}
 });

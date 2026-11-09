@@ -37,6 +37,10 @@ export function officialQuestion(id:string):OfficialQuestion|null{
  if(!/^[a-z0-9-]{1,80}$/.test(id))return null;
  const q=CATALOGUE.find(c=>c.id===id);return q?structuredClone(q):null;
 }
+/** A supplied link is not readable evidence. Never let the engine guess its contents. */
+export function suppliedQuestionId(request:string):string|undefined{
+ return CATALOGUE.find(q=>request.includes(q.id))?.id??(/https?:\/\/\S+/i.test(request)?'unresolved-supplied-question':undefined);
+}
 export function resolveOfficialQuestions(context:TeachingContext,options:{requiredQuestionId?:string;usedQuestionIds?:string[]}={}):{questions:OfficialQuestion[];status:'verified'|'authored-fallback'|'unresolved';reason?:string}{
  const required=options.requiredQuestionId??context.requiredQuestionId;
  const fit=(q:OfficialQuestion)=>q.grades.includes((context.grade??'').replace(/["״׳']/g,''))&&/5/.test(context.track??'')&&(!context.questionnaire||context.questionnaire.split(/[, ·]+/).includes(q.questionnaire))&&(!context.curriculum||context.curriculum.startsWith(q.programme))&&q.topics.some(t=>(context.skill+' '+context.request).includes(t));

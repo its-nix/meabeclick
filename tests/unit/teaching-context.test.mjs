@@ -4,6 +4,8 @@ test('grade and unit track remain separate and unknown history stays empty',asyn
  const a=m.teachingContextFor({name:'דוגמה',subject:'מתמטיקה',level:'כיתה י',durationMin:90},null,{templateId:'math-4u',title:'פונקציות',key:'x'});
  const b=m.teachingContextFor({name:'דוגמה',subject:'מתמטיקה',level:'כיתה י',durationMin:90},null,{templateId:'math-5u',title:'פונקציות',key:'x'});
  assert.equal(a.grade,'כיתה י');assert.match(a.track,/4/);assert.match(b.track,/5/);assert.deepEqual(a.history,[]);assert.equal(a.durationMin,90);
+ const normal=m.teachingContextFor({name:'בדיקה',subject:'מתמטיקה',level:'כיתה יא · 3 יח״ל',request:'התפלגות נורמלית',durationMin:90},null,null);
+ assert.equal(normal.notation,'school-normal-s');
 });
 test('only context-compatible candidate bundles can bypass generation',async()=>{
  const {canReuseTeachingPlan}=await import('../../src/lib/server/lesson/teaching-context.ts');const p=teachingFixture();

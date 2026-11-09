@@ -13,6 +13,9 @@ test('candidate generation supplies shared teaching rules while the default gene
     assert.ok(!old.includes('mea-teaching-v2'));
     process.env.LESSON_GENERATION_VERSION='2';
     const candidate=prep.buildPrompt(request);
+    assert.equal(prep.lessonOutputSchema().properties.slides,undefined,'v2 does not ask the model to duplicate the lesson as bullet slides');
+    assert.equal(prep.lessonOutputSchema().properties.examples,undefined);
+    assert.doesNotMatch(candidate,/כל אחד 3-5 נקודות/);
     assert.match(candidate,/mea-teaching-v2/);
     assert.match(candidate,/5 יח״ל/);
     assert.match(candidate,/45|90|135/);

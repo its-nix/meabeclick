@@ -1,0 +1,12 @@
+{
+  "manifest": {
+    "batch": "lesson-v2-pending",
+    "syntheticOnly": true,
+    "approval": "needs-human-review",
+    "config": {
+      "generationVersion": 2
+    },
+    "generationVersions": []
+  },
+  "cases": []
+}

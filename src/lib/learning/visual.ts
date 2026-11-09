@@ -31,13 +31,15 @@ export function formulaForVisual(kind: VisualKind, values: number[]): string {
   if(kind==='fraction'){const [a,b,k]=values;return `\\frac{${a}}{${b}}=\\frac{${a*k}}{${b*k}}`;}
   if(kind==='geometry'){
     const [shape,a,b,h]=values;
-    if(shape===1)return `A=\\frac{b h}{2}=\\frac{${n(a)}\\cdot ${n(b)}}{2}=${n(a*b/2)}`;
-    if(shape===2)return `A=a b=${n(a)}\\cdot ${n(b)}=${n(a*b)}`;
-    if(shape===3)return `A=\\pi r^2=${n(a*a)}\\pi`;
-    if(shape===4)return `V=a b h=${n(a*b*h)}`;
-    if(shape===5)return `V=\\pi r^2 h=${n(a*a*h)}\\pi`;
-    if(shape===6)return `V=\\frac{\\pi r^2 h}{3}=${n(a*a*h/3)}\\pi`;
-    return `V=\\frac{a b h}{3}=${n(a*b*h/3)}`;
+    const exact=(v:number)=>String(Number(v.toFixed(8))),third=(v:number)=>Number.isInteger(v/3)?exact(v/3):`\\frac{${exact(v)}}{3}`;
+    if(shape===8)return `c^2=a^2+b^2=${exact(a*a+b*b)},\\quad c=\\sqrt{${exact(a*a+b*b)}}${Number.isInteger(Math.sqrt(a*a+b*b))?'='+exact(Math.sqrt(a*a+b*b)):''}`;
+    if(shape===1)return `A=\\frac{b h}{2}=\\frac{${n(a)}\\cdot ${n(b)}}{2}=${exact(a*b/2)}`;
+    if(shape===2)return `A=a b=${n(a)}\\cdot ${n(b)}=${exact(a*b)}`;
+    if(shape===3)return `A=\\pi r^2=${exact(a*a)}\\pi`;
+    if(shape===4)return `V=a b h=${exact(a*b*h)}`;
+    if(shape===5)return `V=\\pi r^2 h=${exact(a*a*h)}\\pi`;
+    if(shape===6)return `V=\\frac{\\pi r^2 h}{3}=${third(a*a*h)}\\pi`;
+    return `V=\\frac{a b h}{3}=${third(a*b*h)}`;
   }
   if(kind==='data-bars'){const count=values.reduce((a,b)=>a+b,0);return `N=${count},\\quad\\bar{x}=\\frac{${values.reduce((a,b,i)=>a+b*(i+1),0)}}{${count}}`;}
   if(kind==='normal'||kind==='normal-school'){
@@ -45,7 +47,7 @@ export function formulaForVisual(kind: VisualKind, values: number[]): string {
     const cdf=(z:number)=>{const t=1/(1+.2316419*Math.abs(z));const tail=Math.exp(-z*z/2)/Math.sqrt(2*Math.PI)*t*(.319381530+t*(-.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));return z<0?tail:1-tail;};
     const school=(z:number)=>{const bands=[19,15,9,5,1.5,.5];return 50+Math.sign(z)*bands.slice(0,Math.min(6,Math.round(Math.abs(z)*2))).reduce((a,b)=>a+b,0);};
     const area=kind==='normal-school'?school((hi-mu)/sd)-school((lo-mu)/sd):100*(cdf((hi-mu)/sd)-cdf((lo-mu)/sd));
-    return `P(${n(lo)}\\le X\\le ${n(hi)})\\approx ${n(area)}\\%,\\quad ${kind==='normal-school'?'s':'\\sigma'}=${n(sd)}`;
+    return `\\begin{gathered}P(${n(lo)}\\le X\\le ${n(hi)})\\approx ${n(area)}\\%\\\\\\mu=${n(mu)},\\quad ${kind==='normal-school'?'s':'\\sigma'}=${n(sd)}\\end{gathered}`;
   }
   if (kind === 'number-line') {
     for (let denominator = 2; denominator <= 12; denominator++) {
@@ -108,17 +110,17 @@ export function drawLearningVisual(
     commit();return;
   }
   if(kind==='geometry'){
-    const [shape,a,b,h]=values,scale=240/Math.max(a,b,h,1),w=a*scale,hh=(shape<3?b:h)*scale;
+    const [shape,a,b,h]=values,scale=240/Math.max(a,b,h,1),w=a*scale,hh=(shape<3||shape===8?b:h)*scale;
     const outline={fill:'var(--surface)',stroke:'var(--brand)','stroke-width':4};
     const text=(tx:number,ty:number,t:string)=>svg.append(make('text',{x:tx,y:ty,'text-anchor':'middle',class:'plot-coordinate'},t));
-    if(shape===1){svg.append(make('path',{d:`M170 340 L${170+w} 340 L170 ${340-hh} Z`,...outline}));svg.append(make('path',{d:'M170 320 h20 v20',fill:'none',stroke:'var(--text)','stroke-width':2}));text(170+w/2,380,`b = ${label(a)}`);text(125,340-hh/2,`h = ${label(b)}`);}
+    if(shape===1||shape===8){svg.append(make('path',{d:`M170 340 L${170+w} 340 L170 ${340-hh} Z`,...outline}));svg.append(make('path',{d:'M170 320 h20 v20',fill:'none',stroke:'var(--text)','stroke-width':2}));text(170+w/2,380,`${shape===8?'a':'b'} = ${label(a)}`);text(125,340-hh/2,`${shape===8?'b':'h'} = ${label(b)}`);if(shape===8)text(195+w/2,320-hh/2,'c');}
     else if(shape===2){svg.append(make('rect',{x:200,y:80,width:w,height:Math.max(30,b*scale),...outline}));text(200+w/2,60,`a = ${label(a)}`);text(145,180,`b = ${label(b)}`);}
     else if(shape===3){svg.append(make('circle',{cx:400,cy:220,r:140,...outline}));svg.append(make('line',{x1:400,y1:220,x2:540,y2:220,stroke:'var(--text)','stroke-width':3}));text(470,205,`r = ${label(a)}`);}
     else{
       // Schematic solids: h is the dashed perpendicular, never a sloping edge.
       if(shape===5||shape===6){svg.append(make('path',{d:shape===6?'M250 330 L400 75 L550 330':'M250 330 L250 100 Q400 40 550 100 L550 330',...outline}));svg.append(make('ellipse',{cx:400,cy:330,rx:150,ry:40,...outline}));svg.append(make('line',{x1:400,y1:330,x2:550,y2:330,stroke:'var(--text)','stroke-width':2}));text(475,315,`r = ${label(a)}`);}
       else{svg.append(make('path',{d:shape===7?'M220 330 L520 330 L580 270 L280 270 Z M220 330 L400 70 L520 330 M400 70 L580 270 M400 70 L280 270':'M220 330 L520 330 L580 270 L580 90 L280 90 L220 150 Z M220 150 L520 150 L580 90 M520 150 V330',...outline}));text(360,385,`a = ${label(a)}, b = ${label(b)}`);}
-      svg.append(make('line',{x1:400,y1:330,x2:400,y2:75,stroke:'var(--text)','stroke-width':3,'stroke-dasharray':'8 6'}));text(355,205,`h = ${label(h)}`);
+      svg.append(make('line',{x1:400,y1:[4,7].includes(shape)?300:330,x2:400,y2:shape===4?120:75,stroke:'var(--text)','stroke-width':3,'stroke-dasharray':'8 6'}));text(355,205,`h = ${label(h)}`);
       text(400,440,'תרשים סכמטי · הגובה מאונך לבסיס');
     }
     commit();return;

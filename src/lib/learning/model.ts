@@ -131,8 +131,8 @@ export function learningProblems(raw: unknown, options: { requirePresenterNotes?
       const v=f.values;
       if(s.visual==='fraction'&&(!v.every(Number.isInteger)||v[0]<0||v[0]>v[1]||v[1]<1||v[1]>12||v[2]<1||v[2]>4||v[1]*v[2]>48))errors.push(`חלוקת שבר לא תקינה: ${s.id}`);
       if(s.visual==='geometry'){
-        const [shape,a,b,h]=v,positive=(n:number)=>n>0&&n<=20;
-        if(!Number.isInteger(shape)||shape<1||shape>7||shape!==s.frames[0].values[0]||!positive(a)||([1,2,4,7].includes(shape)?!positive(b):b!==0)||([4,5,6,7].includes(shape)?!positive(h):h!==0))errors.push(`ממדי צורה לא תקינים: ${s.id}`);
+        const [shape,a,b,h]=v,positive=(n:number)=>n>=.01&&n<=20&&Math.abs(n*100-Math.round(n*100))<1e-7;
+        if(!Number.isInteger(shape)||shape<1||shape>8||shape!==s.frames[0].values[0]||!positive(a)||([1,2,4,7,8].includes(shape)?!positive(b):b!==0)||([4,5,6,7].includes(shape)?!positive(h):h!==0))errors.push(`ממדי צורה לא תקינים: ${s.id}`);
       }
       if(s.visual==='data-bars'&&(!v.every(n=>Number.isInteger(n)&&n>=0&&n<=20)||v.every(n=>n===0)))errors.push(`שכיחויות לא תקינות: ${s.id}`);
       if(s.visual==='normal'||s.visual==='normal-school'){

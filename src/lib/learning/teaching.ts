@@ -4,7 +4,7 @@ export interface TeachingContext extends TeachingProfile {
  request:string; skill:string; curriculum:string; questionnaire:string; durationMin:45|90|135;
  history:Array<{kind:'taught'|'practice';topic:string;summary:string;independent:boolean;at:string}>;
  preferences?:{goals:string;style:string;notes:string};
- sourceQuestionIds?:string[]; requiredQuestionId?:string;
+ sourceQuestionIds?:string[]; requiredQuestionId?:string;usedQuestionIds?:string[];
 }
 export type ActivityKind='scene'|'game'|'homework'|'discussion';
 export interface TeachingPlan {

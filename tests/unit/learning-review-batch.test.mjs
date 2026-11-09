@@ -34,6 +34,7 @@ test('real runner resumes without regenerating, verifies artifacts and rejects m
     assert.equal(s.run().status,0);
     assert.equal(readFileSync(s.calls,'utf8').trim().split('\n').length,10,'resume must not make calls');
     assert.notEqual(s.run(['--effort','medium']).status,0,'configuration change rejected');
+    const otherVersion=s.run(['--version','2']);assert.notEqual(otherVersion.status,0);assert.match(otherVersion.stderr,/briefs|differs|configuration/);assert.doesNotMatch(otherVersion.stderr,/Unknown option/);
     const replacement=join(s.dir,'replacement');mkdirSync(replacement);
     const replacementManifest=JSON.parse(readFileSync(join(s.out,'manifest.json'),'utf8'));
     replacementManifest.batch='replacement-test';replacementManifest.config.model='replacement-model';

@@ -7,6 +7,7 @@ import { handle } from '../db.ts';
 import { latestPublished } from '../materials.ts';
 import {generationVersion} from '../../learning/teaching-rules.ts';
 import {canReuseTeachingPlan} from '../lesson/teaching-context.ts';
+import {teachingProblems}from'../../learning/teaching.ts';
 import type {LessonRequest} from '../lesson/prep.ts';
 import type { LessonPlan } from '../lesson/prep.ts';
 import { itemFor } from './store.ts';
@@ -27,6 +28,7 @@ export function libraryPlanFor(templateId: string, skillKey: string, request?:Le
   if (!row) return null;
   try {
     const plan=JSON.parse(row.content) as LessonPlan;
+    if(generationVersion()===2&&(!plan.teaching||teachingProblems(plan.teaching,plan).length))return null;
     if(request&&generationVersion()===2&&!canReuseTeachingPlan(plan,request))return null;
     return {masterSlug:master.slug,plan};
   } catch {

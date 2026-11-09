@@ -21,5 +21,17 @@ test('solutions require an attempt, are idempotent, and do not count as independ
  sourceDb.prepare("UPDATE learning_assignments SET practice_state='held',held_until='2099-01-01' WHERE lesson_slug=?").run(a.slug);sourceDb.close();
  assert.equal((await fetch(`${server.baseUrl}/app/learn/${a.slug}/homework`,{headers:{Cookie:a.cookie}})).status,404);
  assert.equal((await fetch(path+'?view=homework',{headers:{Cookie:a.cookie}})).status,404);
+ const editDb=new DatabaseSync(server.dbPath),target=`${a.slug}--practice`,now=new Date().toISOString();
+ editDb.prepare("INSERT INTO lesson_materials (lesson_slug,kind,version,content,origin,published_at,created_at) VALUES (?,'plan',1,?,'generated',?,?)").run(target,JSON.stringify({kind:'taught-homework-v2',title:p.title,homework:p.homework,minutes:12,coveredObjectiveIds:['o1'],sourceQuestionIds:[]}),now,now);
+ editDb.prepare("UPDATE learning_assignments SET practice_state='assigned',practice_material_slug=?,held_until=NULL WHERE lesson_slug=?").run(target,a.slug);editDb.close();
+ assert.equal((await fetch(`${server.baseUrl}/app/lessons/${a.slug}/experience`,{headers:{Cookie:teacher}})).status,200,'released homework remains editable');
+ const {homeworkExperience}=await import('../../src/lib/server/teaching-display.ts');const learning=homeworkExperience(p);learning.scenes[0].check.question='UpdatedHomeworkQuestion: 2+3';learning.scenes[0].check.answer=5;learning.scenes[0].check.success='חמישה איברים';learning.scenes[0].check.solution='PrivateCorrectedSolution: 2+3=5';
+ const edit=(action,expectedVersion,expectedTarget=target)=>fetch(`${server.baseUrl}/api/lessons/${a.slug}/experience`,{method:'PUT',headers:{Cookie:teacher,'Content-Type':'application/json'},body:JSON.stringify({action,expectedVersion,expectedTarget,learning})});
+ assert.equal((await edit('draft',1)).status,200);
+ const hwUrl=`${server.baseUrl}/app/learn/${a.slug}/homework`,familyGet=()=>fetch(hwUrl,{headers:{Cookie:a.cookie}});
+ assert.ok(!(await(await familyGet()).text()).includes('UpdatedHomeworkQuestion'));
+ assert.equal((await edit('publish',2)).status,200);const newHtml=await(await familyGet()).text();assert.match(newHtml,/UpdatedHomeworkQuestion/);assert.ok(!newHtml.includes('PrivateCorrectedSolution'));
+ assert.equal((await edit('publish',3,a.slug)).status,409,'stale targets cannot overwrite the replacement');
+ assert.equal((await fetch(hwUrl+'?solutions=1',{headers:{Cookie:a.cookie}})).status,403);
  }finally{await server.stop();}
 });

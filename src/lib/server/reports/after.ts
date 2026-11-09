@@ -24,8 +24,9 @@ import { libraryPlanFor } from '../library/use.ts';
 import { attachTaughtGames } from '../library/report-games.ts';
 import { bookingForReport } from './store.ts';
 import { releaseLearningForReport } from '../learning-store.ts';
+import{afterV2Report}from'../lesson/taught-bundle.ts';
 
-export type AfterReportOutcome = 'none' | 'released' | 'replaced' | 'replaced-from-library' | 'released-after-failure';
+export type AfterReportOutcome = 'obsolete' | 'none' | 'released' | 'replaced' | 'replaced-from-library' | 'released-after-failure';
 
 const FAILED = '⚠️ לא הצלחנו להכין שיעורי בית ממה שנלמד — נשלחו שיעורי הבית שהוכנו מראש';
 const FROM_LIBRARY = 'ℹ️ מנוע השיעורים לא זמין, ולכן שיעורי הבית ממה שנלמד נלקחו מהספרייה';
@@ -71,7 +72,7 @@ async function gamesForWhatWasTaught(bookingId: number, nodeIds: number[]): Prom
 }
 
 export async function afterReport(
-  input: { bookingId: number; note: string | null; nodeIds: number[] },
+  input: { bookingId: number; note: string | null; nodeIds: number[];coveredObjectiveIds?:string[] },
   deps: {
     generate?: typeof generateTaughtHomework;
     notify?: (text: string) => Promise<void> | void;
@@ -79,6 +80,7 @@ export async function afterReport(
   } = {},
 ): Promise<AfterReportOutcome> {
   const { generate = generateTaughtHomework, notify, now = new Date().toISOString() } = deps;
+  const v2=await afterV2Report(input,generate,now,notify);if(v2!==undefined)return v2;
 
   await gamesForWhatWasTaught(input.bookingId, input.nodeIds);
 

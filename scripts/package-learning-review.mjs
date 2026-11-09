@@ -28,13 +28,15 @@ try {
     versions.push({out,manifest});
   }
   const baseline=versions[0].manifest;
+  if(versions.some(v=>(v.manifest.config.generationVersion??1)!==(baseline.config.generationVersion??1)))throw Error('Cannot mix generator versions');
+  if(baseline.config.generationVersion===2){if(!hasDestination)destination=resolve('src/lib/server/learning-review-v2-corpus.json');else if(destination===resolve('src/lib/server/learning-review-corpus.json'))throw Error('Candidate version must not replace baseline corpus');}
   const cases=[],metadata=[];
   for(const initial of baseline.cases){
     // Only an explicitly supplied replacement directory may supersede a case, never silently mix folders.
     const chosen=versions.toReversed().find(v=>v.manifest.cases.some(c=>c.brief.id===initial.brief.id&&c.status==='ready'));
     if(!chosen)throw Error(`No validated generation available: ${initial.brief.id}`);
     const item=chosen.manifest.cases.find(c=>c.brief.id===initial.brief.id);
-    const plan=await readVerifiedPlan(chosen.out,item);await validatePlan(plan);
+    const plan=await readVerifiedPlan(chosen.out,item);await validatePlan(plan,chosen.manifest.config.generationVersion??1);
     cases.push({brief:item.brief,plan});
     metadata.push({...item,generationConfig:chosen.manifest.config,sourceBatch:chosen.manifest.batch});
   }

@@ -69,6 +69,12 @@ export function publishedExperience(slug: string,mode?:'homework'): { experience
   if (!row) return null;
   try {
     const plan = JSON.parse(row.content) as LessonPlan;
+    if((plan as unknown as {kind?:string}).kind==='taught-homework-v2'){
+      if(mode!=='homework')return null;
+      const experience=homeworkExperience(plan);
+      if(experienceProblems(experience,{mode:'homework'}).length)return null;
+      return {experience,fingerprint:learningFingerprint(experience),plan};
+    }
     if(!plan.learning||experienceProblems(plan.learning).length)return null;
     if(mode==='homework'&&!plan.teaching)return null;
     const experience=mode==='homework'?homeworkExperience(plan):plan.learning;
@@ -130,9 +136,10 @@ export function learningForStudent(studentId: number, mode: 'practice'|'preparat
     AND NOT EXISTS (SELECT 1 FROM bookings_v2 b WHERE b.id=a.booking_id AND b.status='cancelled')
     ORDER BY rowid DESC LIMIT 20`).all(studentId,mode==='practice'?'assigned':'held') as { lesson_slug: string }[];
   return assignments.flatMap(a => {
-    const lesson = mode==='practice' ? assignedExperience(a.lesson_slug) : publishedExperience(a.lesson_slug);
+    const normal=mode==='practice' ? assignedExperience(a.lesson_slug) : publishedExperience(a.lesson_slug);
+    const lesson=normal??(mode==='practice'?assignedExperience(a.lesson_slug,'homework'):null);
     if (!lesson) return [];
     const progress = learningProgress(studentId, a.lesson_slug, lesson.fingerprint);
-    return [{ slug: a.lesson_slug, title: lesson.experience.title, url: `/app/learn/${encodeURIComponent(a.lesson_slug)}`, solved: lesson.experience.scenes.filter(s => s.check && progress[s.id]?.solved).length, total: lesson.experience.scenes.filter(s => s.check).length }];
+    return [{ slug: a.lesson_slug, title: lesson.experience.title, url: `/app/learn/${encodeURIComponent(a.lesson_slug)}${normal?'':'/homework'}`, solved: lesson.experience.scenes.filter(s => s.check && progress[s.id]?.solved).length, total: lesson.experience.scenes.filter(s => s.check).length }];
   });
 }

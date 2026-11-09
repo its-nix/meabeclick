@@ -9,7 +9,7 @@ import { readContent } from '$server/content.ts';
 import { documentHeaders } from '$server/document-policy.ts';
 import { publishableSlides } from '$server/materials.ts';
 import { learningAccess, assignedExperience,learningMaterialSlug } from '$server/learning-store.ts';
-import {assignedTeachingDisplay}from'$server/teaching-display.ts';
+import {assignedTeachingDisplay}from'$server/assigned-teaching.ts';
 import { renderLearningDocument } from '$server/learning-render.ts';
 import type { RequestHandler } from './$types';
 

@@ -90,7 +90,7 @@ export const POST: RequestHandler = async (event) => {
     .catch(err => console.error('[reports] after-report failed:', (err as Error).message))
     /* Then the family's "lesson reported" email — after, so the homework it
        lists is the homework they can now see. Once per lesson. */
-    .then(() => emailFamilyAfterReport(booking.id))
+    .then(outcome => outcome === 'obsolete' ? undefined : emailFamilyAfterReport(booking.id))
     .catch(err => console.error('[reports] family email failed:', (err as Error).message));
 
   const report = reportForBooking(booking.id);

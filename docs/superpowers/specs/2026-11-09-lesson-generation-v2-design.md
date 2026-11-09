@@ -1,6 +1,6 @@
 # Lesson generation v2 — teaching quality and coherent practice
 
-Status: builder-reviewed design for owner review; implementation and promotion have not started.
+Status: owner-approved design, 2026-11-09; implementation and promotion have not started.
 
 Independent builder check, 2026-11-09: no important unanswered questions reported.
 
@@ -183,7 +183,7 @@ Synthetic review runs do not count as the production reliability streak in the p
 
 ## Further notes and review points
 
-The six numbered product decisions are confirmed. Support/reveal behaviour, the 10–15-minute homework default, the initial three visual families and the version-level release rubric are proposed builder defaults for owner review of this complete design.
+The six numbered product decisions and the complete design, including support/reveal behaviour, the 10–15-minute homework default, the initial three visual families and the version-level release rubric, were approved by Lior on 2026-11-09.
 
 Current product direction prioritises tutor preparation time and truthful progress evidence. Existing operational authority and customer safeguards continue to apply. Unrelated work in the main checkout is outside this design.
 

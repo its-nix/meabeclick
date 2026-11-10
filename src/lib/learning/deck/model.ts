@@ -27,6 +27,7 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
  const model=(m:unknown)=>{
   if(!object(m)){errors.push('מודל מתמטי לא תקין');return;}
   need(['population','curve','spread','bands','cumulative','axis','position'].includes(m.mode)&&['none','spread','region','position'].includes(m.interactive)&&typeof m.showProbability==='boolean','מצב המחשה לא נתמך');
+  need(m.interactive==='none'||Array.isArray(m.states)&&m.states.length===1,'חקירה חופשית דורשת מצב יחיד עם הסבר שמתעדכן');
   for(const s of list(m.states,5)){
    if(!object(s)){errors.push('מצב המחשה לא תקין');continue;}
    need(finite(s.mean)&&finite(s.sd)&&s.sd>=.1&&s.sd<=100,'פרמטרי התפלגות לא תקינים');
@@ -38,7 +39,8 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
   if(!object(s)){errors.push('שקף לא תקין');continue;}
   need(id(s.id)&&!slideIds.has(s.id),'מזהי שקפים חייבים להיות ייחודיים');slideIds.add(s.id);
   need(text(s.title,130)&&text(s.kicker,90)&&text(s.prompt,300,true)&&goals.has(s.objectiveId)&&DECK_LAYOUTS.includes(s.layout),'טקסט או פריסה לא תקינים');
-  for(const b of list(s.blocks,5)){
+  need(!s.taskId||Array.isArray(s.blocks)&&s.blocks.length===0,'בדיקה עצמאית מוצגת מנתוני המשימה בלבד');
+  for(const b of list(s.blocks,5,s.taskId?0:1)){
    if(!object(b)){errors.push('תוכן שקף לא תקין');continue;}
    need(['copy','equation','model','source','callout'].includes(b.type)&&text(b.text,600,true)&&Number.isInteger(b.reveal)&&b.reveal>=0&&b.reveal<=4,'בלוק מצגת לא תקין');
    if(b.type==='model')model(b.model);
@@ -56,7 +58,7 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
   need(text(t.title,140)&&text(t.prompt,900)&&text(t.givens,1000)&&goals.has(t.objectiveId)&&['guided','independent'].includes(t.support),'נתוני משימה חסרים');
   need(['checked','tutor-review'].includes(t.grading)&&text(t.solution,1800)&&text(t.success,350)&&text(t.retry,350),'משוב משימה לא תקין');
   need(Array.isArray(t.hints)&&t.hints.length>=1&&t.hints.length<=3&&t.hints.every((h:unknown)=>text(h,450)),'חסרים רמזים מדורגים');
-  if(t.model!==null){model(t.model);need(t.model?.showProbability===false&&t.model?.interactive==='none','מודל שאלה אינו יכול לחשוף תשובה או לאפשר פתרון חופשי');}
+  if(t.model!==null){model(t.model);need(t.model?.showProbability===false&&t.model?.interactive==='none'&&t.model?.states?.length===1,'מודל שאלה אינו יכול לחשוף תשובה או לאפשר פתרון חופשי');}
   const c=t.check;
   if(t.grading==='tutor-review'){need(c===null,'נימוק פתוח נבדק בידי מורה');return;}
   if(!object(c)){errors.push('חסרה בדיקת משימה');return;}
@@ -68,7 +70,7 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
  };
  for(const t of [...tasks,...homework])checkTask(t);
  const gameIds=new Set<string>();for(const g of games){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);for(const t of list(g.rounds,8,3))checkTask(t);}
- for(const s of slides.filter(object))need(s.taskId===null||taskIds.has(s.taskId),'שקף מפנה למשימה חסרה');
+ for(const s of slides.filter(object))need(s.taskId===null||tasks.some(t=>object(t)&&t.id===s.taskId),'שקף מפנה למשימת כיתה חסרה');
  for(const goal of goals)need([...tasks,...homework].some(t=>object(t)&&t.objectiveId===goal&&t.support==='independent'),'יעד ללא בדיקה עצמאית חדשה');
  const solutions=list(p.sourceSolutions,20,0);
  for(const s of solutions)need(object(s)&&slideIds.has(s.slideId)&&typeof s.answer==='string'&&options.sourceAnswers?.[s.questionId]?.[s.part]===s.answer,'פתרון מקור לא מאומת');

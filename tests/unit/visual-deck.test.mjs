@@ -21,6 +21,8 @@ test('task checks and public projections preserve answer and note boundaries',as
  const pub=JSON.stringify(publicVisualLesson(p));assert.ok(!pub.includes('PRIVATE-'));assert.ok(!pub.includes('"answer"'));assert.ok(!pub.includes('"hints"'));assert.ok(!pub.includes('sourceSolutions'));
  for(const key of ['slides','tasks','homework','games','agenda','objectives','sourceSolutions']){const bad=visualDeckFixture();bad[key]=[null];assert.doesNotThrow(()=>visualLessonProblems(bad));assert.ok(visualLessonProblems(bad).length);}
  const bad=visualDeckFixture();bad.tasks[0].model.showProbability=true;assert.ok(visualLessonProblems(bad).some(x=>x.includes('לחשוף')));
+ const wrongRef=visualDeckFixture();wrongRef.slides[0].taskId=wrongRef.homework[0].id;assert.ok(visualLessonProblems(wrongRef).some(x=>x.includes('כיתה')));
+ const staleExplore=visualDeckFixture();staleExplore.slides[0].blocks[0].model.states.push({...staleExplore.slides[0].blocks[0].model.states[0],sd:15});assert.ok(visualLessonProblems(staleExplore).some(x=>x.includes('חקירה')));
 });
 test('the visual wire contract supports explicit composition and private checking',async()=>{
  const m=await import('../../src/lib/learning/deck/schema.ts').catch(()=>null);assert.ok(m,'visual wire schema exists');
@@ -38,4 +40,6 @@ test('school bands, changed spread and non-half standard scores remain mathemati
  assert.notEqual(base.svg,spread.svg);assert.match(spread.formula,/15/);
  model.mode='position';model.showProbability=false;model.states[0]={mean:72,sd:8,lowerZ:null,upperZ:null,pointZ:1.75,hideZ:1.75};
  const hidden=m.normalVisual(model);assert.ok(!hidden.formula.includes('86'));assert.ok(!hidden.svg.includes('>86<'));
+ assert.match(hidden.svg,/data-standard-distance/);
+ model.mode='axis';assert.match(m.normalVisual(model).caption,/חצי/);
 });

@@ -11,7 +11,7 @@ export interface DeckSlide {id:string;title:string;kicker:string;prompt:string;o
 export interface VisualLesson {version:1;ruleVersion:string;title:string;subtitle:string;durationMin:number;homeworkMinutes:number;objectives:{id:string;title:string}[];agenda:{title:string;minutes:number;slideId:string}[];slides:DeckSlide[];tasks:DeckTask[];homework:DeckTask[];games:{id:string;title:string;intro:string;kind:'region'|'axis';rounds:DeckTask[]}[];sourceSolutions:{questionId:string;part:string;slideId:string;answer:string}[]}
 export interface DeckValidation {durationMin?:number;sourceAnswers?:Record<string,Record<string,string>>}
 const object=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
-const text=(v:unknown,max=600,empty=false)=>typeof v==='string'&&v.length<=max&&(empty||!!v.trim())&&!mathText(v).includes('data-math-error');
+const text=(v:unknown,max=600,empty=false)=>typeof v==='string'&&v.length<=max&&(empty||!!v.trim())&&!/(?<!\$)\$(?!\$)/.test(v)&&!mathText(v).includes('data-math-error');
 const id=(v:unknown)=>typeof v==='string'&&/^[a-z0-9-]{1,80}$/.test(v);
 const finite=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<=10000;
 export function visualLessonProblems(raw:unknown,options:DeckValidation={}):string[]{
@@ -33,6 +33,7 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
    need(finite(s.mean)&&finite(s.sd)&&s.sd>=.1&&s.sd<=100,'פרמטרי התפלגות לא תקינים');
    for(const k of ['lowerZ','upperZ','pointZ','hideZ'])need(s[k]===null||finite(s[k])&&Math.abs(s[k])<=4,'מיקום על ההתפלגות לא תקין');
    need((s.lowerZ===null&&s.upperZ===null)||(finite(s.lowerZ)&&finite(s.upperZ)&&s.lowerZ<s.upperZ),'תחום צביעה לא תקין');
+   if(m.interactive==='region')need(finite(s.lowerZ)&&finite(s.upperZ)&&(m.mode!=='cumulative'||s.lowerZ===-4),'גבולות חקירה אינם תואמים לבקרים');
   }
  };
  for(const s of slides){
@@ -67,11 +68,24 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
   else if(c.kind==='choice')need(Number.isInteger(c.answer)&&c.options?.length>=2&&c.options.length<=4&&c.answer>=0&&c.answer<c.options.length,'מפתח בחירה לא תקין');
   else if(c.kind==='region')need(t.model&&Array.isArray(c.answer)&&c.answer.length===2&&c.answer.every((v:unknown)=>finite(v)&&Math.abs(Number(v))<=4)&&c.answer[0]<c.answer[1],'מפתח תחום לא תקין');
   else errors.push('סוג בדיקה לא נתמך');
+  if(object(t.model)&&Array.isArray(t.model.states)&&object(t.model.states[0])&&object(c)){
+   const s=t.model.states[0];
+   if(c.kind==='number'){
+    need(c.answer!==s.mean,'שאלת ממוצע לא ידוע דורשת מודל ריק כדי לא לחשוף את הממוצע');
+    const z=(c.answer-s.mean)/s.sd;
+    if(Math.abs(z)<=2.5&&Math.abs(z*2-Math.round(z*2))<1e-7)need(s.hideZ===z,'תשובת משימה מספרית מופיעה בתוויות הציר');
+    if(t.model.mode==='axis')need(s.hideZ!==null&&s.hideZ!==0&&Math.abs(s.mean+s.sd*s.hideZ-c.answer)<1e-7,'תווית חסרה חייבת להתאים למפתח');
+    if(s.pointZ!==null)need(s.hideZ===s.pointZ,'מיקום פתרון מספרי חייב להיות מוסתר');
+   }
+   if(c.kind==='region')need(s.lowerZ===null&&s.upperZ===null,'משימת צביעה חייבת להתחיל בלי צביעה');
+  }
  };
  for(const t of [...tasks,...homework])checkTask(t);
  const gameIds=new Set<string>();for(const g of games){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);for(const t of list(g.rounds,8,3))checkTask(t);}
  for(const s of slides.filter(object))need(s.taskId===null||tasks.some(t=>object(t)&&t.id===s.taskId),'שקף מפנה למשימת כיתה חסרה');
  for(const goal of goals)need([...tasks,...homework].some(t=>object(t)&&t.objectiveId===goal&&t.support==='independent'),'יעד ללא בדיקה עצמאית חדשה');
+ const explorations=slides.filter(object).flatMap(s=>Array.isArray(s.blocks)?s.blocks.filter(object).flatMap(b=>object(b.model)?[b.model]:[]):[]);
+ need(explorations.some(m=>m.interactive==='spread')&&explorations.some(m=>m.interactive==='region'),'חסרה חקירה חיה של פיזור ושל שטח');
  const solutions=list(p.sourceSolutions,20,0);
  for(const s of solutions)need(object(s)&&slideIds.has(s.slideId)&&typeof s.answer==='string'&&options.sourceAnswers?.[s.questionId]?.[s.part]===s.answer,'פתרון מקור לא מאומת');
  for(const [qid,parts] of Object.entries(options.sourceAnswers??{})){need(sourceIds.has(qid),'השאלה הרשמית חסרה');for(const part of Object.keys(parts))need(solutions.some(s=>object(s)&&s.questionId===qid&&s.part===part),'סעיף מקור ללא פתרון');}

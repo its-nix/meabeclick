@@ -17,7 +17,7 @@ test('visual pilot pages and checking stay tutor-only and never write customer e
   const task=corpus.bundle.homework.find(t=>t.check?.kind==='number');
   const post=(action,input,eventId)=>fetch(server.baseUrl+'/api/learning-pilot',{method:'POST',headers:{Cookie:auth,'Content-Type':'application/json'},body:JSON.stringify({version:corpus.manifest.bundleSha256,taskId:task.id,action,input,eventId})});
   assert.equal((await post('solution',null,'before')).status,409);
-  const attempt=await post('attempt',task.check.answer,'try1');assert.equal(attempt.status,200);assert.equal((await attempt.json()).independent,true);
+  const attempt=await post('attempt',task.check.answer,'try1');assert.equal(attempt.status,200);assert.equal((await attempt.json()).independent,task.support==='independent');
   assert.equal((await post('solution',null,'after')).status,200);
   assert.deepEqual(reviewCounts(server.dbPath),before);
  }finally{await server.stop();}

@@ -20,17 +20,18 @@ export function normalVisual(model:NormalModel,stage=0,scope='normal',override:P
  const clamp=(v:number)=>Math.max(62,Math.min(838,v));
  const lower=s.lowerZ===null?62:clamp(x(value(s.lowerZ))),upper=s.upperZ===null?62:clamp(x(value(s.upperZ)));
  const shaded=s.lowerZ!==null&&s.upperZ!==null;
+ const reference=pool.reduce((a,b)=>a.sd>b.sd?a:b),axisValue=(z:number)=>comparison.length?reference.mean+z*maxSd:value(z);
  const tick=(z:number)=>{
-  const at=x(value(z));if(at<60||at>840)return '';
-  const hidden=s.hideZ!==null&&Math.abs(z-s.hideZ)<1e-7;
-  return `<g data-z-tick="${z}" data-missing="${hidden}"><line x1="${at}" y1="270" x2="${at}" y2="279" stroke="currentColor"/><text x="${at}" y="306" text-anchor="middle" font-size="32">${hidden?'?':fmt(value(z))}</text></g>`;
+  const v=axisValue(z),at=x(v);if(at<60||at>840)return '';
+  const hidden=s.hideZ!==null&&Math.abs(v-value(s.hideZ))<1e-7;
+  return `<g data-z-tick="${z}" data-missing="${hidden}"><line x1="${at}" y1="270" x2="${at}" y2="279" stroke="currentColor"/><text x="${at}" y="306" text-anchor="middle" font-size="32">${hidden?'?':fmt(v)}</text></g>`;
  };
  const bandLabels=model.mode==='bands'||model.mode==='cumulative'?bounds.slice(0,-1).map((z,i)=>{
   const next=bounds[i+1],at=clamp(x(value((Math.max(-3,z)+Math.min(3,next))/2)));
   return `<text data-band-label x="${at}" y="335" font-size="20" text-anchor="middle" fill="#475569">${fmt(cumulative[i+1]-cumulative[i])}%</text>`;
  }).join(''):'';
  const ticks=Array.from({length:11},(_,i)=>tick(-2.5+i*.5)).join('');
- const grid=Array.from({length:11},(_,i)=>{const z=-2.5+i*.5,at=x(value(z));return at>=62&&at<=838?`<line x1="${at}" y1="${y(value(z))}" x2="${at}" y2="270" stroke="#cbd5e1" stroke-width="1"/>`:'';}).join('');
+ const grid=Array.from({length:11},(_,i)=>{const v=axisValue(-2.5+i*.5),at=x(v);return at>=62&&at<=838?`<line x1="${at}" y1="${y(v)}" x2="${at}" y2="270" stroke="#cbd5e1" stroke-width="1"/>`:'';}).join('');
  const point=s.pointZ===null?null:{x:clamp(x(value(s.pointZ))),y:y(value(s.pointZ)),hidden:s.hideZ!==null&&Math.abs(s.hideZ-s.pointZ)<1e-7};
  const distance=point&&s.pointZ!==null&&model.mode==='position'?`<g data-standard-distance><line x1="${x(s.mean)}" y1="55" x2="${point.x}" y2="55" stroke="#fa8231" stroke-width="6" stroke-linecap="round"/><line x1="${x(s.mean)}" y1="43" x2="${x(s.mean)}" y2="67" stroke="#b83d0b" stroke-width="2"/><line x1="${point.x}" y1="43" x2="${point.x}" y2="67" stroke="#b83d0b" stroke-width="2"/><text x="${(x(s.mean)+point.x)/2}" y="33" text-anchor="middle" font-size="28" fill="#b83d0b">${fmt(s.pointZ)} s</text></g>`:'';
  const axisSteps=model.mode==='axis'?Array.from({length:11},(_,i)=>{const z=-2.5+i*.5,at=x(value(z));return `<rect x="${at-23}" y="286" width="46" height="35" rx="6" fill="${s.hideZ===z?'#fff7ed':'#eff6ff'}" stroke="${s.hideZ===z?'#fa8231':'#cbd5e1'}"/>`;}).join(''):'';

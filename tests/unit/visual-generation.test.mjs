@@ -8,7 +8,7 @@ async function inert(responses,action){const dir=await mkdtemp(join(tmpdir(),'vi
 import{readFileSync,writeFileSync}from'node:fs';import{join}from'node:path';
 const d=process.env.VISUAL_STUB_DIR,a=process.argv.slice(2);let p='';for await(const c of process.stdin)p+=c;
 let n=0;try{n=Number(readFileSync(join(d,'count'),'utf8'))}catch{}writeFileSync(join(d,'count'),String(n+1));writeFileSync(join(d,'prompt-'+n),p);writeFileSync(join(d,'schema.json'),readFileSync(a[a.indexOf('--output-schema')+1]));const r=JSON.parse(readFileSync(join(d,'responses.json'),'utf8'))[n];
-if(r?.failure){process.stderr.write(r.failure);process.exit(1)}writeFileSync(a[a.indexOf('-o')+1],JSON.stringify(r));
+if(r?.pause)await new Promise(resolve=>setTimeout(resolve,2000));if(r?.failure){process.stderr.write(r.failure);process.exit(1)}writeFileSync(a[a.indexOf('-o')+1],JSON.stringify(r));
 `,{mode:0o755});process.env.CODEX_BIN=bin;process.env.VISUAL_STUB_DIR=dir;return await action(dir);
  }finally{for(const[k,v]of Object.entries(old)){if(v===undefined)delete process.env[k];else process.env[k]=v;}await rm(dir,{recursive:true,force:true});}}
 test('the real visual generation boundary uses compositional authoring rules and strict output',async()=>{
@@ -20,6 +20,7 @@ test('invalid nested output repairs once; quota and unknown sources never retry'
  await inert([{slides:[null]},visualDeckFixture()],async dir=>{assert.equal((await generateVisualLesson({context,sourceIds:[],timeoutMs:3000})).slides.length,20);assert.equal(await readFile(join(dir,'count'),'utf8'),'2');assert.match(await readFile(join(dir,'prompt-1'),'utf8'),/validation failures/);});
  await inert([{},{}],async dir=>{await assert.rejects(generateVisualLesson({context,sourceIds:[],timeoutMs:3000}),e=>e.kind==='bad-output');assert.equal(await readFile(join(dir,'count'),'utf8'),'2');});
  await inert([{failure:"You've hit your usage limit"}],async dir=>{await assert.rejects(generateVisualLesson({context,sourceIds:[],timeoutMs:3000}),e=>e.kind==='engine-quota');assert.equal(await readFile(join(dir,'count'),'utf8'),'1');await assert.rejects(generateVisualLesson({context,sourceIds:['invented'],timeoutMs:3000}),/source/);assert.equal(await readFile(join(dir,'count'),'utf8'),'1');});
+ for(const [response,kind,timeoutMs]of [[{failure:'please run codex login'},'engine-auth',3000],[{pause:true},'engine-timeout',500]])await inert([response],async dir=>{await assert.rejects(generateVisualLesson({context,sourceIds:[],timeoutMs}),e=>e.kind===kind);assert.equal(await readFile(join(dir,'count'),'utf8'),'1');});
 });
 test('sealed candidates reject artifact/source drift and failed packaging preserves destination',async()=>{
  const m=await import('../../scripts/visual-pilot-validation.mjs').catch(()=>null);assert.ok(m,'shared provenance verification exists');

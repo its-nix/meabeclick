@@ -47,4 +47,12 @@ test('side-by-side spreads share axes so their visible widths actually differ',a
  const {normalVisual}=await import('../../src/lib/learning/deck/normal.ts');const small={mode:'spread',interactive:'none',showProbability:false,states:[{mean:70,sd:4,lowerZ:null,upperZ:null,pointZ:null,hideZ:null}]},large=structuredClone(small);large.states[0].sd=12;
  const peers=[small,large],a=normalVisual(small,0,'one',{},peers),b=normalVisual(large,0,'two',{},peers);
  const path=s=>s.match(/<polyline[^>]*points="([^"]*)"/)[1];assert.notEqual(path(a.svg),path(b.svg));
+ const ticks=s=>[...s.matchAll(/data-z-tick="[^"]*"[^]*?<text x="([^"]*)"[^]*?>([^<]*)<\/text>/g)].map(m=>m[1]+':'+m[2]);assert.deepEqual(ticks(a.svg),ticks(b.svg));
+});
+test('questions reject mean disclosure, mismatched missing labels and solution-shaded regions',async()=>{
+ const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');
+ const leak=visualDeckFixture();const t=leak.homework[0];t.model.mode='axis';t.model.states[0].hideZ=0;t.check.answer=t.model.states[0].mean;assert.ok(visualLessonProblems(leak).some(x=>x.includes('ממוצע')));
+ const region=visualDeckFixture();region.games[0].rounds[0].model.states[0].lowerZ=-.5;assert.ok(visualLessonProblems(region).some(x=>x.includes('צביעה')));
+ const wrong=visualDeckFixture();const a=wrong.homework[0];a.model.mode='axis';a.model.states[0].hideZ=1;a.check.answer=999;assert.ok(visualLessonProblems(wrong).some(x=>x.includes('תווית')));
+ const dollar=visualDeckFixture();dollar.slides[0].prompt='מהו $s=10$?';assert.ok(visualLessonProblems(dollar).length,'unsupported inline delimiters cannot silently render as prose');
 });

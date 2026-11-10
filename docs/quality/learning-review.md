@@ -39,7 +39,7 @@ Exactly one baseline is required. Optional explicit replacements take priority o
 
 For an explicitly reviewed game-only improvement, add `--replace-game '08-normal-school:twoTruths=/path/to/verified-donor'`. This preserves the selected lesson, homework and teaching plan. Both artifacts must have identical authoritative teaching contexts; the selected game and assembled plan must validate before the atomic corpus write. Review the game's fit to its existing objective, mathematical keys and standalone givens. The manifest records the base-plan hash, assembled hash, donor batch/configuration/plan hash, selected asset hash and assembly-script hash. A donor's other activities are not imported or implicitly approved.
 
-The November 10 candidate retains formal cases01–03, refined04/06, and corrected05/07/08/09/10. Only08's `twoTruths` comes from the later context run: its lesson retains the independently reviewed fresh31% challenge. All four batches have verified source seals. This assembled corpus awaits owner teaching feedback.
+The November 10 candidate retains formal cases01–03, refined04/06, and corrected05/07/08/09/10. Only08's `twoTruths` comes from the later context run: its lesson retains the independently reviewed fresh31% challenge. All four batches have verified source seals. This assembled corpus awaits owner teaching feedback. The final implementation passed1,792 tests on Linux/Node22, build/typecheck at the existing22-warning ceiling, and all136 candidate scene viewports/29 games in Chromium. Baseline learning, controlled-family mobile/print and optional decoded-video checks also passed.
 
 Run the affected regression tests, build/typecheck, and the browser checks:
 

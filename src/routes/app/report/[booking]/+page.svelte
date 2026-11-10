@@ -56,6 +56,12 @@
   // below, so the server rendered a blank textarea and only client-side
   // hydration ever wrote the real value into it.
   let note = $state(untrack(() => (data.reportable ? data.report?.note : null) ?? ''));
+  // Restore recorded goals only for the same published material, never infer coverage for revised goals.
+  function savedObjectives():string[]{
+    const saved=data.reportable?data.savedCoverage:null,target=data.reportable?data.teaching:null;
+    return saved&&target&&saved.lessonSlug===target.lessonSlug&&saved.materialVersion===target.materialVersion?saved.objectiveIds:[];
+  }
+  let objectives = $state<string[]>(untrack(savedObjectives));
   let saving = $state(false);
   let formError = $state<string | null>(null);
   let searchOpen = $state(false);
@@ -72,6 +78,7 @@
     ticked = Object.fromEntries(all.map(s => [s.id, false]));
     statusChoice = Object.fromEntries(all.map(s => [s.id, '']));
     note = data.report?.note ?? '';
+    objectives = savedObjectives();
     saving = false;
     formError = null;
     searchOpen = false;
@@ -143,6 +150,7 @@
         body: JSON.stringify({
           bookingId: data.booking.id,
           note: note.trim() ? note.trim() : null,
+          ...(data.reportable&&data.teaching?{coverage:{lessonSlug:data.teaching.lessonSlug,materialVersion:data.teaching.materialVersion,objectiveIds:objectives}}:{}),
           entries: tickedIds.map(id => ({ nodeId: id, status: statusChoice[id] })),
         }),
       });
@@ -310,6 +318,16 @@
   {/if}
 
   {#if data.reportable}
+    {#if data.teaching}
+      <fieldset class="coverage" disabled={saving}>
+        <legend>מה מתוך השיעור נלמד בפועל?</legend>
+        <p>סמנו רק את היעדים שתרגלתם. שיעורי הבית יותאמו לבחירה.</p>
+        {#each data.teaching.objectives as objective (objective.id)}
+          <label class="skill-check"><input type="checkbox" bind:group={objectives} value={objective.id} /><span>{objective.title}</span></label>
+        {/each}
+        <p>אם לא סומנו יעדים או יכולות, יישלח התרגול שהוכן מראש.</p>
+      </fieldset>
+    {/if}
     <label class="field note-field">
       <span>הערה</span>
       <textarea
@@ -415,6 +433,9 @@
     background: var(--bg-card); margin-bottom: 8px;
   }
 
+  .coverage { border:1px solid var(--border); border-radius:14px; padding:14px; margin:0 0 18px; background:var(--bg-card); }
+  .coverage legend { font-weight:700; padding-inline:6px; }
+  .coverage p { font-size:.85rem; line-height:1.6; color:var(--text-muted); margin:6px 0; }
   .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
   .field span { font-size: .78rem; font-weight: 700; color: var(--text-muted); }
   .field textarea {

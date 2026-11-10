@@ -1,10 +1,12 @@
 import type { PublicExperience, LearningCheck, LearningExperience } from './model.ts';
 import type { drawLearningVisual, learningFrameAt, formulaForVisual } from './visual.ts';
 
-export interface LearningProgress { attempts: number; hints: number; solved: boolean; visited: boolean }
+export interface LearningProgress { attempts: number; hints: number; solved: boolean; visited: boolean;revealed?:boolean }
 export interface LearningClientConfig {
   experience: PublicExperience; fingerprint: string; lessonSlug: string | null;
   demo: boolean; demoChecks?: Record<string, LearningCheck>; storageScope?: string;
+  variant?:'homework';
+  independentSceneIds?:string[];
 }
 
 /** Only TeX renderer output becomes markup; every piece of prose is a text node. */
@@ -41,6 +43,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   const status = query('[data-save-status]');
   const root = document.documentElement;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const independentIds=new Set(config.independentSceneIds??scenes.filter(s=>s.phase==='challenge').map(s=>s.id));
   let active = 0, elapsed = 0, playing = false, speed = 1, animation = 0, previousTime = 0;
   let params = scenes[0].frames[0].values.slice();
   let selected: number | null = null;
@@ -54,11 +57,11 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   const mergeProgress = (incoming: Record<string, LearningProgress>) => {
     for (const [id, next] of Object.entries(incoming)) {
       const old = progress(id);
-      states[id] = { attempts: Math.max(old.attempts, next.attempts), hints: Math.max(old.hints, next.hints), solved: old.solved || next.solved, visited: old.visited || next.visited };
+      states[id] = { attempts: Math.max(old.attempts, next.attempts), hints: Math.max(old.hints, next.hints), solved: old.solved || next.solved, visited: old.visited || next.visited,revealed:!!(old.revealed||next.revealed) };
     }
   };
   const slug = config.lessonSlug ?? decodeURIComponent(location.pathname.match(/^\/(?:app\/learn|lessons)\/([^/]+)/)?.[1] ?? '');
-  const endpoint = slug ? `/api/learning/${encodeURIComponent(slug)}` : null;
+  const endpoint = slug ? `/api/learning/${encodeURIComponent(slug)}${config.variant==='homework'?'?view=homework':''}` : null;
   const key = () => `meabeclick:learning:${scope}:${slug || 'demo'}:${config.fingerprint}`;
   const progress = (id: string) => states[id] ??= { attempts: 0, hints: 0, solved: false, visited: false };
   const feedback = (text: string, kind = 'success') => {
@@ -95,21 +98,23 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     query('[data-course-progress]').setAttribute('aria-valuenow', String(completed));
     const checked = scenes.filter(s => !!s.check);
     const solved = checked.filter(s => progress(s.id).solved).length;
-    const independent = checked.filter(s => progress(s.id).solved && progress(s.id).hints === 0 && progress(s.id).attempts === 1).length;
+    const independent = checked.filter(s => independentIds.has(s.id)&&progress(s.id).solved && progress(s.id).hints === 0 && !progress(s.id).revealed && progress(s.id).attempts === 1).length;
+    sections.forEach((section,i)=>{const b=section.querySelector<HTMLButtonElement>('[data-solution]');if(b)b.disabled=progress(scenes[i].id).attempts===0;});
     const summary = query('[data-completion]');
     if (summary) summary.textContent = solved
-      ? `פתרתם ${solved} מתוך ${checked.length} אתגרים. ${independent} נפתרו בניסיון הראשון וללא רמז. אפשר לחזור ולתרגל בכל שלב.`
+      ? `פתרתם ${solved} מתוך ${checked.length} אתגרים. בשאלות העצמאיות, ${independent} נפתרו בניסיון הראשון בלי פתיחת רמז או פתרון. אפשר לחזור ולתרגל בכל שלב.`
       : 'אפשר לחזור להסבר, לנסות שוב או לבקש רמז. כל צעד קטן מצטרף להבנה.';
   }
 
   function render(values = params, time = elapsed): void {
     const scene = scenes[active], section = sections[active];
     const state = progress(scene.id);
-    const hidden = scene.phase === 'challenge' && !!scene.check && !state.solved;
+    const hidden = independentIds.has(scene.id) && !!scene.check && !state.solved&&!state.revealed;
+    const questionVisual=['fraction','geometry','data-bars','normal','normal-school'].includes(scene.visual);
     const svg = query<SVGSVGElement>('[data-plot]', section);
     draw(svg, scene.visual, values, scene.xDomain, scene.yDomain, {
       target: scene.check?.kind === 'graph-target' ? scene.check.target : undefined,
-      hide: hidden,
+      hide: hidden&&!questionVisual,questionOnly:hidden&&questionVisual,
       reference: scene.visual === 'quadratic' && !hidden && scene.phase !== 'challenge' ? [1, 0, 0] : undefined,
     });
     const f = at(scene as unknown as LearningExperience['scenes'][number], time);
@@ -130,6 +135,10 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       else if (scene.visual === 'quadratic') caption = `עכשיו הקודקוד ב־\\((${numbers[1]},${numbers[2]})\\), והפרבולה נפתחת ${values[0] > 0 ? 'כלפי מעלה' : 'כלפי מטה'}.`;
       else if (scene.visual === 'linear') caption = `השיפוע עכשיו \\(m=${numbers[0]}\\), והישר חותך את ציר \\(y\\) ב־\\((0,${numbers[1]})\\).`;
       else if (scene.visual === 'number-line') caption = `הנקודה עכשיו ב־\\(${numbers[0]}\\).`;
+      else if(scene.visual==='fraction')caption=`צובעים ${values[0]} מתוך ${values[1]} חלקים. מחלקים כל חלק ל־${values[2]} חלקים שווים. כשמשנים רק את החלוקה, הכמות הצבועה נשמרת.`;
+      else if(scene.visual==='geometry')caption='המידות החדשות מסומנות בתרשים. הנוסחה מתעדכנת לפי אותן מידות; הגובה מאונך לבסיס.';
+      else if(scene.visual==='data-bars')caption=`שינינו שכיחויות. עכשיו יש ${values.reduce((a,b)=>a+b,0)} תצפיות; גובה כל עמודה מציג את השכיחות.`;
+      else if(scene.visual==='normal'||scene.visual==='normal-school')caption=`השטח הצבוע נמצא בין ${numbers[2]} ל־${numbers[3]}. ${scene.visual==='normal-school'?'האחוזים הם קירוב בית ספרי ברצועות של חצי s.':'ההסתברות מתעדכנת לפי המודל הנורמלי.'}`;
     }
     rich(query('[data-caption]', section), caption);
     if (scene.visual === 'steps') {
@@ -162,6 +171,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     }
     sections.forEach((s, i) => s.hidden = i !== active);
     const section = sections[active], scene = scenes[active], state = progress(scene.id);
+    const reasoning=section.querySelector<HTMLTextAreaElement>('[data-reasoning]');if(reasoning&&scope!=='pending')try{reasoning.value=localStorage.getItem(key()+':reason:'+scene.id)??'';}catch{}
     query('[data-current-step]').textContent = `${String(active + 1).padStart(2, '0')} / ${String(scenes.length).padStart(2, '0')}`;
     query('[data-phase-label]').textContent = ({ discover: 'מגלים', explore: 'מנסים', practice: 'מתרגלים', challenge: 'אתגר', reflect: 'מה לקחנו' })[scene.phase];
     query<HTMLButtonElement>('[data-prev]').disabled = active === 0;
@@ -199,6 +209,10 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     if (event.sceneId === scenes[active].id && event.action === 'answer') {
       feedback(data.feedback, data.correct ? 'success' : 'retry');
       if (data.correct) { render(); query('[data-next-label]').textContent = 'ממשיכים'; }
+    }
+    if(event.sceneId===scenes[active].id&&event.action==='solution'&&typeof data.solution==='string'){
+      const box=query('[data-worked-solution]',sections[active]);rich(box,'פתרון בשלבים: '+data.solution);box.hidden=false;
+      feedback('עברנו על פתרון עם עזרה. כדי לבדוק הבנה עצמאית, נסו שאלה חדשה.','retry');
     }
     updateProgress(); remember();
     return true;
@@ -281,7 +295,9 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       feedback('');
       const index = Number(input.dataset.param), previous = params[index];
       params[index] = Number(input.value);
-      if (scene.visual === 'quadratic' && index === 0 && params[0] === 0) params[0] = previous > 0 ? -1 : 1;
+      if (scene.visual === 'quadratic' && index === 0 && params[0] === 0) params[0] = previous > 0 ? -(Number(input.step)||1) : (Number(input.step)||1);
+      if((scene.visual==='normal'||scene.visual==='normal-school')&&params[2]>=params[3])params[index]=previous;
+      if(scene.visual==='data-bars'&&params.reduce((a,b)=>a+b,0)===0)params[index]=previous;
       render();
     }));
     all<HTMLButtonElement>('[data-option]', section).forEach(option => option.addEventListener('click', () => {
@@ -311,6 +327,15 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       rich(hint, scene.check.hints[index]); hint.hidden = false;
       await record('hint');
     });
+    section.querySelector<HTMLButtonElement>('[data-solution]')?.addEventListener('click',async()=>{
+      if(!progress(scene.id).attempts)return;
+      const b=query<HTMLButtonElement>('[data-solution]',section);b.disabled=true;
+      try{await record('solution');}finally{b.disabled=false;}
+    });
+    section.querySelector<HTMLTextAreaElement>('[data-reasoning]')?.addEventListener('input',event=>{
+      if(scope==='pending')return;
+      try{localStorage.setItem(key()+':reason:'+scene.id,(event.target as HTMLTextAreaElement).value);}catch{status.textContent='לא ניתן לשמור את הטיוטה במכשיר הזה.';}
+    });
     section.querySelector<HTMLInputElement>('[data-number-answer]')?.addEventListener('keydown', event => {
       if (event.key === 'Enter') query<HTMLButtonElement>('[data-submit]', section).click();
     });
@@ -337,9 +362,12 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   window.addEventListener('online', () => void flush());
   window.addEventListener('beforeprint', () => {
     pause();
+    all<SVGSVGElement>('[data-print-visual]').forEach(svg=>{const [id,index]=svg.dataset.printVisual!.split(':');const s=scenes.find(s=>s.id===id)!;draw(svg,s.visual,s.frames[Number(index)].values,s.xDomain,s.yDomain);});
+    all<HTMLElement>('[data-reasoning-print]').forEach(p=>{p.textContent=document.querySelector<HTMLTextAreaElement>(`[data-scene="${p.dataset.reasoningPrint}"] [data-reasoning]`)?.value??'';});
     all<SVGSVGElement>('[data-print-plot]').forEach(svg => {
       const scene = scenes.find(s => s.id === svg.dataset.printPlot)!;
-      draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: true });
+      const questionVisual=['fraction','geometry','data-bars','normal','normal-school'].includes(scene.visual);
+      draw(svg, scene.visual, scene.frames[0].values, scene.xDomain, scene.yDomain, { target: scene.check?.target, hide: !questionVisual,questionOnly:questionVisual });
     });
   });
   document.addEventListener('keydown', event => {

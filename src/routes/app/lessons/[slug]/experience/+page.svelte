@@ -4,6 +4,7 @@
   import { PHASE_LABELS } from '$lib/learning/model.ts';
   import { formulaForVisual } from '$lib/learning/visual.ts';
   const parameterLabels = {
+    fraction:['מונה n','מכנה d','חלוקה k'],geometry:['סוג צורה','a או רדיוס','b או גובה משולש','גובה גוף'], 'data-bars':['שכיחות 1','שכיחות 2','שכיחות 3','שכיחות 4'], normal:['ממוצע','סטיית תקן sigma','גבול תחתון','גבול עליון'], 'normal-school':['ממוצע','סטיית תקן s','גבול תחתון','גבול עליון'],
     quadratic: ['a · מקדם הפתיחה', 'h · מיקום אופקי', 'k · גובה הקודקוד'],
     linear: ['m · שיפוע', 'b · חיתוך עם הציר'],
     'number-line': ['מיקום על הציר'], balance: ['מקדם x', 'המספר שמוסיפים', 'אגף ימין'], steps: [],
@@ -17,7 +18,7 @@
   async function save(action:'draft'|'publish') {
     busy=true;message='';failed=false;
     try {
-      const response=await fetch(`/api/lessons/${encodeURIComponent(data.slug)}/experience`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,expectedVersion:version,expectedTarget:data.materialSlug,learning:lesson})});
+      const response=await fetch(`/api/lessons/${encodeURIComponent(data.slug)}/experience${data.variant==='homework'?'?view=homework':''}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,expectedVersion:version,expectedTarget:data.materialSlug,learning:lesson})});
       const result=await response.json();
       if(!response.ok)throw new Error(result.error??'השמירה לא הצליחה');
       version=result.version;saved=JSON.stringify(lesson);
@@ -31,7 +32,7 @@
 <svelte:window onbeforeunload={e=>{if(dirty){e.preventDefault();e.returnValue='';}}} />
 <main class="experience-editor">
   <nav><a href="/app/lessons/{data.slug}/edit">→ חזרה לשיעור ולמשחקים</a></nav>
-  <header><div><p class="eyebrow">חומרי הלימוד · גרסה {version}</p><h1>עריכת מרחב הלמידה</h1><p>תיקון ממוקד של ההסבר, ההמחשה או התרגול. כל שמירה יוצרת גרסה חדשה.</p></div><a href="/app/learn/{data.slug}?solutions=1" target="_blank" rel="noreferrer">פתיחת הגרסה שפורסמה והתשובון ↗</a></header>
+  <header><div><p class="eyebrow">חומרי הלימוד · גרסה {version}</p><h1>עריכת מרחב הלמידה</h1><p>תיקון ממוקד של ההסבר, ההמחשה או התרגול. כל שמירה יוצרת גרסה חדשה.</p></div><a href="/app/learn/{data.slug}{data.variant==='homework'?'/homework':''}?solutions=1" target="_blank" rel="noreferrer">פתיחת הגרסה שפורסמה והתשובון ↗</a></header>
   <div class="toolbar"><a href="/app/lessons/{data.slug}/presenter" target="_blank" rel="noopener">הערות למצגת שפורסמה ↗</a><button onclick={()=>save('draft')} disabled={busy}>שמירת טיוטה</button><button class="primary" onclick={()=>save('publish')} disabled={busy}>פרסום לתלמיד/ה</button><span>{busy?'שומרים…':dirty?'יש שינויים שלא נשמרו':'כל השינויים נשמרו'}</span></div>
   {#if data.pendingRegeneration}<p>נוצרה הצעה חדשה שטרם אושרה. העריכה כאן ממשיכה מהעבודה ששמרת; אפשר להשוות להצעה בעורך השיעור.</p>{/if}
   {#if data.materialSlug!==data.slug}<p>זה התרגול שנבחר לפי מה שנלמד בשיעור. העריכה תעדכן את אותו תרגול שהתלמיד/ה פותח/ת.</p>{/if}
@@ -45,11 +46,11 @@
   {/if}
   {#if message}<p role="status" class:failed>{message}</p>{/if}
   <div class="editor-columns"><div>
-    <section class="intro"><label>שם השיעור<input bind:value={lesson.title} maxlength="120" /></label><label>כותרת משנה<input bind:value={lesson.subtitle} maxlength="220" /></label><label>מה התלמיד/ה יוכל/תוכל לעשות?<input bind:value={lesson.objective} maxlength="220" /></label></section>
+    <section class="intro"><label>שם השיעור<input bind:value={lesson.title} maxlength="120" /></label>{#if !data.variant}<label>כותרת משנה<input bind:value={lesson.subtitle} maxlength="220" /></label><label>מה התלמיד/ה יוכל/תוכל לעשות?<input bind:value={lesson.objective} maxlength="220" /></label>{/if}</section>
     {#each lesson.scenes as scene,index (scene.id)}
       <details open={index===0}><summary><span>{String(index+1).padStart(2,'0')}</span>{scene.title}<small>{PHASE_LABELS[scene.phase]}</small></summary>
-        <label>כותרת<input bind:value={scene.title} maxlength="100" /></label><label>הנחיה קצרה<textarea bind:value={scene.prompt} rows="2" maxlength="280"></textarea></label><label>הרעיון שנשאר<textarea bind:value={scene.takeaway} rows="2" maxlength="280"></textarea></label>
-        <details class="presenter-note-editor"><summary>הערות למורה בלבד</summary>
+        {#if !data.variant}<label>כותרת<input bind:value={scene.title} maxlength="100" /></label><label>הנחיה קצרה<textarea bind:value={scene.prompt} rows="2" maxlength="280"></textarea></label>{/if}<label>הרעיון שנשאר<textarea bind:value={scene.takeaway} rows="2" maxlength="280"></textarea></label>
+        {#if !data.variant}<details class="presenter-note-editor"><summary>הערות למורה בלבד</summary>
           <p>ההערות מופיעות בדף המורה, בנפרד מהמצגת ומהתרגול לתלמידים.</p>
           {#if scene.presenterNotes}
             <label>מה לומר<textarea bind:value={scene.presenterNotes.explanation} rows="4" maxlength="700"></textarea></label>
@@ -62,13 +63,15 @@
             <button onclick={()=>{scene.presenterNotes={explanation:'',ask:'',expectedAnswer:'',ifStuck:''};}}>הוספת הערות לשלב הזה</button>
           {/if}
         </details>
-        <h3>שלבי ההסבר</h3>
+        {/if}
+        {#if !data.variant || !scene.check}<h3>{data.variant?'המשימה':'שלבי ההסבר'}</h3>
         {#each scene.frames as frame,frameIndex}
           <fieldset><legend>שלב {frameIndex+1}</legend><label>הסבר קצר<textarea bind:value={frame.caption} rows="2" maxlength="180"></textarea></label>
-            {#if scene.visual==='steps'}<label>נוסחה<input bind:value={frame.tex} dir="ltr" /></label>{/if}
-            <div class="math-preview"><FormulaText text={'\\('+(scene.visual==='steps'?frame.tex:formulaForVisual(scene.visual,frame.values))+'\\)'} /></div>
+            {#if scene.visual==='steps'&&!data.variant}<label>נוסחה<input bind:value={frame.tex} dir="ltr" /></label>{/if}
+            {#if !data.variant}<div class="math-preview"><FormulaText text={'\\('+(scene.visual==='steps'?frame.tex:formulaForVisual(scene.visual,frame.values))+'\\)'} /></div>{/if}
             <div class="values">{#each frame.values as _,valueIndex}<label>{parameterLabels[scene.visual][valueIndex]}<input type="number" step="any" bind:value={frame.values[valueIndex]} /></label>{/each}</div></fieldset>
         {/each}
+        {/if}
         {#if scene.check}
           <h3>שאלת התרגול</h3><label>השאלה<textarea bind:value={scene.check.question} rows="2" maxlength="280"></textarea></label>
           {#if scene.check.kind==='choice'}
@@ -79,11 +82,12 @@
             <fieldset><legend>פרמטרי גרף המטרה</legend><div class="values">{#each scene.check.answer as _,i}<label>{parameterLabels[scene.visual][i]}<input type="number" min="-5" max="5" step="1" bind:value={scene.check.answer[i]} /></label>{/each}</div></fieldset>
           {/if}
           {#each scene.check.hints as _,i}<label>רמז {i+1}<textarea bind:value={scene.check.hints[i]} rows="2" maxlength="250"></textarea></label>{/each}
+          {#if scene.check.solution!==undefined}<label>פתרון בשלבים · מוצג אחרי ניסיון ובקשה<textarea bind:value={scene.check.solution} rows="4" maxlength="1400"></textarea></label>{/if}
           <label>משוב על הצלחה<textarea bind:value={scene.check.success} rows="2" maxlength="280"></textarea></label><label>משוב לניסיון נוסף<textarea bind:value={scene.check.retry} rows="2" maxlength="280"></textarea></label>
         {/if}
       </details>
     {/each}
-  </div><aside><form method="POST" action="/api/lessons/{data.slug}/experience" target="learning-preview"><input type="hidden" name="learning" value={JSON.stringify(lesson)} /><button type="submit">עדכון התצוגה המקדימה</button></form><iframe name="learning-preview" title="תצוגה מקדימה של מרחב הלמידה" sandbox="allow-scripts" src="/app/learn/{data.slug}"></iframe></aside></div>
+  </div><aside><form method="POST" action="/api/lessons/{data.slug}/experience" target="learning-preview"><input type="hidden" name="variant" value={data.variant??''} /><input type="hidden" name="learning" value={JSON.stringify(lesson)} /><button type="submit">עדכון התצוגה המקדימה</button></form><iframe name="learning-preview" title="תצוגה מקדימה של מרחב הלמידה" sandbox="allow-scripts" src="/app/learn/{data.slug}{data.variant==='homework'?'/homework':''}"></iframe></aside></div>
 </main>
 
 <style>

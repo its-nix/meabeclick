@@ -1,3 +1,6 @@
+import {generationVersion} from '../../learning/teaching-rules.ts';
+import {teachingContextFor} from './teaching-context.ts';
+import type {TeachingContext} from '../../learning/teaching.ts';
 /**
  * Fires lesson generation the moment a lesson is booked.
  *
@@ -125,7 +128,8 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
      cap applies to it — its lessons keep coming even when the engine
      cannot. See library/use.ts. */
   const target: TargetSkill | null = targetSkillFor(opts.enrolledCode ?? null, booking.subject);
-  const fromLibrary = target ? libraryPlanFor(target.templateId, target.key) : null;
+  const teachingContext=generationVersion()===2?teachingContextFor(booking,opts.enrolledCode??null,target):undefined;
+  const fromLibrary = target ? libraryPlanFor(target.templateId,target.key,{subject:booking.subject,level:booking.level??'',request:booking.request,durationMin:booking.durationMin,teachingContext}) : null;
 
   if (!fromLibrary) {
     // Structural pre-flight only — "has anyone configured credentials", not
@@ -160,7 +164,7 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
   });
 
   // Intentionally not awaited.
-  run(slug, booking, opts, target, fromLibrary).catch(err => {
+  run(slug, booking, opts, target, fromLibrary, teachingContext).catch(err => {
     // The engine's own words go to the log and ONLY to the log — see the
     // warning on LessonGenerationError.detail.
     const kind = err instanceof LessonGenerationError ? err.kind : 'unclassified';
@@ -193,6 +197,7 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
  * looking at, or that the answer was "renew a subscription".
  */
 const FAILURE_MESSAGES: Record<LessonFailureKind, string> = {
+  'source-unresolved': 'לא ניתן לקרוא או לאמת את השאלה המבוקשת — יש לצרף מקור ברור לפני יצירת השיעור',
   ...ENGINE_DOWN_MESSAGES,
   'engine-timeout': 'יצירת השיעור ארכה זמן רב מדי ונעצרה — אפשר לנסות שוב',
   'engine-failed':  'מנוע יצירת השיעורים נכשל — יש לבדוק את יומן השרת',
@@ -226,6 +231,7 @@ function skip(slug: string, booking: Booking, opts: TriggerOpts, reasonKey: stri
 }
 
 interface RunMeta {
+  teachingContext?: TeachingContext;
   subject: string;
   level: string;
   student: string;
@@ -250,9 +256,11 @@ async function run(
   /* The master's published plan when the target skill is prepared: then
      this lesson is a copy of it, and no engine runs. */
   fromLibrary: { masterSlug: string; plan: LessonPlan } | null,
+  teachingContext?: TeachingContext,
 ): Promise<void> {
 
   const meta: RunMeta = {
+    teachingContext,
     subject: booking.subject,
     level:   booking.level ?? '',
     student: booking.name,
@@ -369,7 +377,7 @@ export async function publish(slug: string, plan: LessonPlan, meta: RunMeta): Pr
     games.push({ title: data.title, template, dataId });
   }
 
-  const slidesHtml = renderSlides(plan, meta);
+  const slidesHtml = renderSlides(plan, {...meta,slug});
   const slidesPath = contentPath('lessons', slug);
   await mkdir(dirname(slidesPath), { recursive: true });
   await writeFile(slidesPath, slidesHtml, 'utf8');
@@ -393,7 +401,7 @@ export async function publishDraftOnly(slug: string, plan: LessonPlan, meta: Run
   const slidesPath = contentPath('drafts', slug, 'slides.html');
   const planPath   = contentPath('drafts', slug, 'lesson.json');
   await mkdir(dirname(slidesPath), { recursive: true });
-  await writeFile(slidesPath, renderSlides(plan, meta), 'utf8');
+  await writeFile(slidesPath, renderSlides(plan, {...meta,slug}), 'utf8');
   await writeFile(planPath, JSON.stringify(plan, null, 2), 'utf8');
 }
 

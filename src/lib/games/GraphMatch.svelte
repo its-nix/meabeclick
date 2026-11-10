@@ -1,4 +1,6 @@
 <script lang="ts">
+  import {formulaLabel} from '../learning/math.ts';
+  import {sampleBounds,sampleGraph} from './graph-plot.ts';
   import FormulaText from '$lib/components/FormulaText.svelte';
   /**
    * Port of games/graph-match.html. `plot()` still builds a raw SVG
@@ -24,7 +26,7 @@
   import { GAME_CONTEXT_KEY, offersHints, verdict, type GameEngineContext, type GameData } from './engine.ts';
   import RoundHint from './RoundHint.svelte';
 
-  type Round = { prompt: string; mainLabel?: string; main: number[]; options: number[][]; answer: number; why?: string; hint?: string };
+  type Round = { prompt: string; mainLabel?: string; main: number[]; xValues?:number[]; options: number[][]; answer: number; why?: string; hint?: string };
   type OptBtn = { svg: string; label: string; correct: boolean; state: 'idle' | 'correct' | 'wrong' };
 
   let { data }: { data: GameData } = $props();
@@ -41,22 +43,6 @@
   let whyText = $state('');
   const missed: string[] = [];
   const elapsed = $derived(engine.secs());
-
-  function plot(ys: number[], color: string): string {
-    const W = 200, H = 120, PAD = 8;
-    const lo = Math.min(...ys), hi = Math.max(...ys);
-    const span = hi - lo || 1;
-    const px = (i: number) => PAD + (i * (W - 2 * PAD)) / (ys.length - 1);
-    const py = (v: number) => H - PAD - ((v - lo) * (H - 2 * PAD)) / span;
-    const pts = ys.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
-    const zero = lo <= 0 && hi >= 0 ? py(0) : null;
-    return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img">
-      <rect width="${W}" height="${H}" fill="none"/>
-      ${zero !== null ? `<line x1="${PAD}" y1="${zero.toFixed(1)}" x2="${W - PAD}" y2="${zero.toFixed(1)}" stroke="#CBD5E1" stroke-width="1"/>` : ''}
-      <line x1="${(W / 2).toFixed(1)}" y1="${PAD}" x2="${(W / 2).toFixed(1)}" y2="${H - PAD}" stroke="#CBD5E1" stroke-width="1"/>
-      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
-  }
 
   function hashSeed(s: string): number {
     let h = 2166136261;
@@ -82,12 +68,13 @@
     answered = false;
     whyText = '';
     const r = rounds[idx];
-    mainSvg = plot(r.main, '#2563EB');
+    const bounds=sampleBounds([r.main,...r.options],r.xValues);
+    mainSvg = sampleGraph(r.main,'primary',bounds);
     const order = seededShuffle(
       r.options.map((ys, i) => ({ ys, correct: i === r.answer })),
       hashSeed(r.prompt + idx),
     );
-    opts = order.map((o) => ({ svg: plot(o.ys, '#1E293B'), label: '', correct: o.correct, state: 'idle' as const }));
+    opts = order.map((o) => ({ svg: sampleGraph(o.ys,'option',bounds), label: '', correct: o.correct, state: 'idle' as const }));
     opts.forEach((o, i) => (o.label = 'אבגד'[i] ?? String(i + 1)));
   }
 
@@ -126,7 +113,7 @@
 
   <div class="prompt"><FormulaText text={rounds[idx].prompt} /></div>
   <div class="main-graph">
-    <div class="cap">{rounds[idx].mainLabel || 'f(x)'}</div>
+    <div class="cap"><FormulaText text={formulaLabel(rounds[idx].mainLabel || 'f(x)')} /></div>
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     {@html mainSvg}
   </div>
@@ -173,6 +160,7 @@
   .gopt.wrong { border-color: var(--danger); background: var(--danger-dim); animation: shake 0.4s; }
   .gopt:focus-visible { outline: 3px solid var(--accent2-strong); outline-offset: 3px; }
   .gopt .lbl { font-size: 0.8rem; font-weight:600; color: var(--text-muted); }
+  @media(max-width:480px){.grid{grid-template-columns:1fr}}
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-6px); }

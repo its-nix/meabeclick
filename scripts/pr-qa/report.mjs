@@ -44,6 +44,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     supplemental: process.env.CI ? [
       { id: 'learning', required: has('learning'), outcome: process.env.QA_LEARNING_OUTCOME },
       { id: 'learning-review', required: has('learning'), outcome: process.env.QA_REVIEW_OUTCOME },
+      { id: 'teaching-v2', required: has('learning'), outcome: process.env.QA_TEACHING_V2_OUTCOME },
+      { id: 'learning-review-v2', required: has('learning'), outcome: process.env.QA_REVIEW_V2_OUTCOME },
       { id: 'tutor-workspace', required: has('workspace') || has('tutor-create'), outcome: process.env.QA_WORKSPACE_OUTCOME },
       { id: 'charts', required: has('workspace'), outcome: process.env.QA_CHARTS_OUTCOME },
       { id: 'google-onboarding', required: has('invitations'), outcome: process.env.QA_AUTH_OUTCOME },

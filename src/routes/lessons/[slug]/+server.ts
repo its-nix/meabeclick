@@ -8,19 +8,21 @@ import { error, redirect } from '@sveltejs/kit';
 import { readContent } from '$server/content.ts';
 import { documentHeaders } from '$server/document-policy.ts';
 import { publishableSlides } from '$server/materials.ts';
-import { learningAccess, assignedExperience } from '$server/learning-store.ts';
+import { learningAccess, presentationExperience,presentationMaterialSlug } from '$server/learning-store.ts';
+import {assignedTeachingDisplay}from'$server/assigned-teaching.ts';
 import { renderLearningDocument } from '$server/learning-render.ts';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
   if (locals.authenticated) {
-    const lesson = assignedExperience(params.slug);
+    const lesson = presentationExperience(params.slug);
     if (lesson) return new Response(renderLearningDocument(lesson.experience, {
+      teaching:assignedTeachingDisplay(lesson.plan,params.slug,presentationMaterialSlug(params.slug),{preview:true}),
       slug: params.slug, preview: true, storageScope: `teacher:${params.slug}`, backUrl: '/app/dashboard',
       presenterUrl: `/app/lessons/${encodeURIComponent(params.slug)}/presenter`,
     }), { headers: { ...documentHeaders(), 'Cache-Control': 'no-store' } });
   }
-  if (locals.family && learningAccess(params.slug,locals) && assignedExperience(params.slug)) redirect(303,`/app/learn/${encodeURIComponent(params.slug)}`);
+  if (locals.family && learningAccess(params.slug,locals) && presentationExperience(params.slug)) redirect(303,`/app/learn/${encodeURIComponent(params.slug)}`);
   /* The published version wins over the file on disk.
   
      materials.ts says "a student may only ever be shown a version with

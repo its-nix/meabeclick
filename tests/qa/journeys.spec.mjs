@@ -175,6 +175,9 @@ test('permissions: student cannot read sibling, parent money or tutor data', asy
   await expect(page.getByRole('heading', { name: 'היום שלי', exact: true })).toBeVisible();
   await page.goto(`/app/student?s=${qa.sibling}`);
   await expect(page.getByRole('heading', { name: 'אחות בדיקה', exact: true })).toHaveCount(0);
+  // Session invalidation intentionally interrupts the next request, not a
+  // CSS preload still belonging to the preceding navigation (WebKit).
+  await page.waitForLoadState('networkidle');
   await page.context().clearCookies();
   await page.reload();
   await expect(page).toHaveURL(/\/portal/);

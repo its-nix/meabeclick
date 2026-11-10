@@ -34,3 +34,7 @@ Teaching feedback still needed: ...
 ```
 
 For batch/resume/replacement commands and stale-lock recovery, read `docs/quality/learning-review.md`. Prior released review corpora are preserved in Git history; temporary generation folders alone are not durable evidence.
+
+V2 contracts: `learning/teaching*.ts`, `server/lesson/teaching-context.ts`, `official-questions.ts`, `server/teaching-display.ts`. Report coverage and safe release: `server/reports/teaching-coverage.ts`, `server/lesson/taught-bundle.ts`, migration038. Actual publication navigation: `server/assigned-teaching.ts`; original-class versus assigned-homework routing: `server/learning-store.ts`. Use both unit tests and live `teaching-lifecycle` / `teaching-report-coverage` characterization tests for changes at these seams.
+
+Checked game geometry lives in `src/lib/games/diagrams.ts`; v2 wire output is expanded by `lesson/prep.ts` before validation. Shared graph axes live in `src/lib/games/graph-plot.ts`. Keep catalogue IDs stable for already published material; add versioned IDs for changes.

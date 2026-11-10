@@ -208,3 +208,17 @@ explicitly upgraded and reviewed. New generation requires an experience;
 reusing a ready older master does not silently run an engine or replace the
 tutor's approved content. Broad topic-level mathematical quality and actual
 student usability still need a representative evaluation before promotion.
+
+## V2 full lesson contract
+
+The versioned teaching plan wraps the existing scene engine with a45/90/135-minute agenda,1–4 objectives, goal-linked practice/games/homework,10–15-minute homework and optional replacement branches. Preparation context is server-owned. Grade, unit track, curriculum, questionnaire, notation and recorded readiness remain separate. Public projections use explicit allowlists; presenter notes and worked keys stay private.
+
+Controlled models now include equivalent fractions `[numerator,denominator,partition]`, geometry `[shape,a,b,h]`, four numeric frequency bars, standard normal probability and school half-standard-deviation bands. Geometry shapes1–8 are triangle, rectangle, circle, box, cylinder, cone, rectangle-base pyramid and right triangle. Dimensions are positive, bounded and have at most two decimal places; unused parameters are zero. Normal spread is0.1–30 in tenths, values have at most two decimal places, and bounds align to tenths of a spread (standard) or halves (school). Unsupported precision uses staged typeset steps. Exact products/fractions are preserved until approximation is explicitly shown.
+
+Independent numeric visual questions retain the given diagram but show authored question formulas rather than computed values. They have one frame, no free answer-revealing controls, and no derived answer in student print or video. School-band percentages have a legible HTML legend on narrow screens. Supported attempts, opened hints/solutions and fresh independent results remain distinct evidence.
+
+The report form records selected teaching goals with the exact published material version. Unknown IDs are rejected; a changed plan requires a refresh. Each filing appends coverage history. Homework follows selected goals; the established no-selection fallback is explicitly prepared practice and does not claim every planned goal was taught. Async completion rechecks the clock, report revision and material version before replacing still-held work. Released/submitted work stays intact. The original presentation, progress, notes and editor remain reachable after a homework replacement; `/experience?view=homework` edits the separate report-homework version.
+
+Custom `learning:video -- --input ...` compositions and renders stay in ignored `learning-video/`; they are not automatically published to static assets. Only the fixed public reference writes to `static/learning-media/`. Browser animation is the default and optional rendered clips never block lesson creation.
+
+V2 labelling games now choose checked `right-triangle` / `cylinder` catalogue IDs. The model emits no SVG or target map; production supplies their verified geometry and visible identities. Other topics use another validated game family until an appropriate diagram is added. Existing authored SVG games remain supported. V2 parabola exploration exposes a,h,k; a changes in halves and excludes zero. Exact recurring answers may be entered as fractions; prompts must specify precision for decimal rounding.

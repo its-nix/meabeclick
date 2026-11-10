@@ -136,3 +136,15 @@ test('without a ready item, nothing changes: no credentials still means no lesso
   const r = triggerForBooking(booking, { notify: () => {}, enrolledCode: code });
   assert.equal(r.skipped, 'no credentials');
 });
+
+test('candidate and review masters cannot bypass the active generation version',async()=>{
+ const {teachingFixture}=await import('../teaching-fixture.mjs'),{recordGenerated}=await import('../../src/lib/server/materials.ts');
+ const {code}=await studentWithPlan(),target=T.targetSkillFor(code,'מתמטיקה'),slug='library-candidate-gate',p=teachingFixture();
+ DB.handle().prepare("INSERT OR REPLACE INTO library_items(template_id,skill_key,slug,status,updated_at) VALUES(?,?,?,'ready',?)").run('math-8',target.key,slug,new Date().toISOString());
+ recordGenerated(slug,{plan:JSON.stringify(p)});
+ const prior=process.env.LESSON_GENERATION_VERSION;
+ try{process.env.LESSON_GENERATION_VERSION='1';assert.equal(U.libraryPlanFor('math-8',target.key),null);
+ process.env.LESSON_GENERATION_VERSION='2';assert.ok(U.libraryPlanFor('math-8',target.key));
+ p.teaching.context.purpose='review';recordGenerated(slug,{plan:JSON.stringify(p)});assert.equal(U.libraryPlanFor('math-8',target.key),null);
+ }finally{if(prior===undefined)delete process.env.LESSON_GENERATION_VERSION;else process.env.LESSON_GENERATION_VERSION=prior;}
+});

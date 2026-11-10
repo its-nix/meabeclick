@@ -9,6 +9,7 @@ import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
 import { readJson } from '$server/http.ts';
 import { STATUSES, type SkillStatus } from '$lib/plan-status.ts';
+import {TeachingCoverageError,validateTeachingCoverage,type TeachingCoverage} from '$server/reports/teaching-coverage.ts';
 import { fileReport, reportForBooking, bookingForReport } from '$server/reports/store.ts';
 import { planForEnrollment, planData, nodeInPlan, lastLessonAt } from '$server/plans/store.ts';
 import { buildTree } from '$server/plans/view.ts';
@@ -76,9 +77,12 @@ export const POST: RequestHandler = async (event) => {
   // mismatch this route already checked above). Its error messages carry
   // booking and plan ids for the log, which must never reach the tutor's
   // browser as a raw 500; map every failure to a 400 with a fixed message.
+  let coverage:TeachingCoverage|null;
   try {
-    fileReport({ bookingId: booking.id, note, entries });
+    coverage=validateTeachingCoverage(booking.id,body.coverage);
+    fileReport({ bookingId: booking.id, note, entries,coverage });
   } catch (err) {
+    if(err instanceof TeachingCoverageError)return json({error:err.message},{status:err.status});
     console.error('[reports] file failed:', (err as Error).message);
     return json({ error: 'אי אפשר לשמור את הדיווח הזה' }, { status: 400 });
   }
@@ -86,11 +90,12 @@ export const POST: RequestHandler = async (event) => {
   /* Homework from what was actually taught (spec 2026-09-25). Not awaited:
      it may run an agent for minutes, and the lesson's held homework goes
      out on its own a day after the lesson if this never finishes. */
-  afterReport({ bookingId: booking.id, note, nodeIds: entries.map(e => e.nodeId) }, { notify: sendWhatsApp })
+  const teachingInput=coverage?{coveredObjectiveIds:coverage.objectiveIds.length||entries.length?coverage.objectiveIds:undefined,teachingTarget:{slug:coverage.lessonSlug,version:coverage.materialVersion}}:{};
+  afterReport({ bookingId: booking.id, note, nodeIds: entries.map(e => e.nodeId),...teachingInput }, { notify: sendWhatsApp })
     .catch(err => console.error('[reports] after-report failed:', (err as Error).message))
     /* Then the family's "lesson reported" email — after, so the homework it
        lists is the homework they can now see. Once per lesson. */
-    .then(() => emailFamilyAfterReport(booking.id))
+    .then(outcome => outcome === 'obsolete' ? undefined : emailFamilyAfterReport(booking.id))
     .catch(err => console.error('[reports] family email failed:', (err as Error).message));
 
   const report = reportForBooking(booking.id);

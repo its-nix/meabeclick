@@ -1,0 +1,11 @@
+import {DECK_LAYOUTS,VISUAL_RULE_VERSION} from './model.ts';
+const text={type:'string'},number={type:'number'},nullableNumber={anyOf:[number,{type:'null'}]};
+const en=(...values:string[])=>({type:'string',enum:values});
+const object=(properties:Record<string,unknown>)=>({type:'object',required:Object.keys(properties),properties});
+const array=(items:unknown)=>({type:'array',items});
+const nullable=(s:unknown)=>({anyOf:[{type:'null'},s]});
+const model=object({mode:en('population','curve','spread','bands','cumulative','axis','position'),interactive:en('none','spread','region','position'),showProbability:{type:'boolean'},states:array(object({mean:number,sd:number,lowerZ:nullableNumber,upperZ:nullableNumber,pointZ:nullableNumber,hideZ:nullableNumber}))});
+const check=object({kind:en('number','choice','region'),answer:{anyOf:[number,array(number)]},options:array(text)});
+const task=object({id:text,title:text,prompt:text,givens:text,objectiveId:text,support:en('guided','independent'),grading:en('checked','tutor-review'),model:nullable(model),check:nullable(check),hints:array(text),solution:text,success:text,retry:text});
+const notes=object({minutes:number,explanation:text,ask:text,expectedAnswer:text,ifStuck:text,misconception:text,transition:text,sources:array(text)});
+export const VISUAL_LESSON_SCHEMA=object({version:{type:'integer',enum:[1]},ruleVersion:en(VISUAL_RULE_VERSION),title:text,subtitle:text,durationMin:number,homeworkMinutes:number,objectives:array(object({id:text,title:text})),agenda:array(object({title:text,minutes:{type:'integer'},slideId:text})),slides:array(object({id:text,title:text,kicker:text,prompt:text,objectiveId:text,layout:en(...DECK_LAYOUTS),blocks:array(object({type:en('copy','equation','model','source','callout'),text:text,model:nullable(model),sourceId:nullable(text),reveal:{type:'integer'}})),taskId:nullable(text),presenterNotes:notes})),tasks:array(task),homework:array(task),games:array(object({id:text,title:text,intro:text,kind:en('region','axis'),rounds:array(task)})),sourceSolutions:array(object({questionId:text,part:text,slideId:text,answer:text}))});

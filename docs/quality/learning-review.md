@@ -37,6 +37,10 @@ node scripts/package-learning-review.mjs --from /path/to/baseline \
 
 Exactly one baseline is required. Optional explicit replacements take priority only for their ready cases, in the order supplied. All ten selected artifacts must pass hashes, lesson/TeX/private-notes validation, rendering and game contracts before the corpus changes. Each case retains its own generation configuration; assembly records the current validation fingerprint separately. V2 assembly writes `src/lib/server/learning-review-v2-corpus.json` and refuses to overwrite the baseline `learning-review-corpus.json`. Both contain only synthetic material. The candidate review URL is `/app/learning-review?version=v2`; the baseline remains the default index. Prior released corpora remain recoverable through Git history; retain local baselines too when comparing new candidates.
 
+For an explicitly reviewed game-only improvement, add `--replace-game '08-normal-school:twoTruths=/path/to/verified-donor'`. This preserves the selected lesson, homework and teaching plan. Both artifacts must have identical authoritative teaching contexts; the selected game and assembled plan must validate before the atomic corpus write. Review the game's fit to its existing objective, mathematical keys and standalone givens. The manifest records the base-plan hash, assembled hash, donor batch/configuration/plan hash, selected asset hash and assembly-script hash. A donor's other activities are not imported or implicitly approved.
+
+The November 10 candidate retains formal cases01–03, refined04/06, and corrected05/07/08/09/10. Only08's `twoTruths` comes from the later context run: its lesson retains the independently reviewed fresh31% challenge. All four batches have verified source seals. This assembled corpus awaits owner teaching feedback.
+
 Run the affected regression tests, build/typecheck, and the browser checks:
 
 ```sh

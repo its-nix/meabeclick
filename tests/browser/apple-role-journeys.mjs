@@ -7,6 +7,10 @@ import { seedLearning } from '../characterization/learning-fixture.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { chromium } from 'playwright-core';
 import { startServer, login, familySession } from '../characterization/harness.mjs';
+import { readFileSync } from 'node:fs';
+import { matrixPaths, MATRIX_ROUTES } from '../../scripts/pr-qa/matrix.mjs';
+const impact = process.env.PR_QA_PLAN ? JSON.parse(readFileSync(process.env.PR_QA_PLAN, 'utf8')) : null;
+const scoped = impact?.mode === 'selected';
 
 const baseline = process.env.BASELINE === '1';
 const evidence = process.env.EVIDENCE_DIR ?? join(tmpdir(), `meabeclick-apple-${baseline ? 'before' : 'after'}`);
@@ -71,8 +75,10 @@ try {
     const paths = role === 'public' ? ['/', '/booking', '/portal', '/login', '/privacy', '/terms', '/enter', '/not-a-page', `/confirm-booking?t=${encodeURIComponent(confirmationToken)}`, '/confirm-booking?t=invalid', setupPath, setupPath + '?e=denied', '/app/tutor-setup/invalid', '/app/tutor-setup/done', '/learn/parabolas'] : role === 'tutor' ? ['/app/dashboard', '/app/library', '/app/marketing', '/app/metrics', '/app/games', `/app/students/${first.portal.code}`, `/app/plan/${first.portal.code}`, `/app/plan/${second.portal.code}`, `/app/report/${pastBooking}`, `/app/lessons/${learning.slug}/edit`, `/app/lessons/${learning.slug}/experience`, `/app/lessons/${learning.slug}/presenter`, ...gamePaths] : role === 'parent' ? ['/app/parent', `/app/parent?s=${first.portal.code}`, `/app/parent?s=${first.portal.code}&v=progress`, `/app/parent?s=${first.portal.code}&v=payments`] : [`/app/student?s=${first.portal.code}`, `/app/student?s=${first.portal.code}&v=hw`, `/app/student?s=${first.portal.code}&v=games`, `/app/student?s=${first.portal.code}&v=ask`];
     for (const width of baseline ? [390, 1440, 320] : [390, 768, 1440, 320]) {
       await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
-      for (const path of paths) {
-        await page.goto(server.baseUrl + path); await page.evaluate(() => document.fonts.ready);
+      for (const path of matrixPaths(paths, impact)) {
+        const response = await page.goto(server.baseUrl + path);
+        assert.ok(response.status() < 500, `${role} ${path} returned ${response.status()}`);
+        await page.evaluate(() => document.fonts.ready);
         if (role === 'student') await page.locator('#app').waitFor();
         if (role === 'parent' && path.includes('?')) await page.locator('.student-header').waitFor();
         const geometry = await page.evaluate(() => ({ viewport: innerWidth, width: document.documentElement.scrollWidth, headings: [...document.querySelectorAll('h1,h2')].map(e => e.textContent) }));
@@ -107,7 +113,7 @@ try {
         await page.screenshot({ path: join(evidence, `${key}-${appearance}-${width}.png`), fullPage: false });
       }
     }
-    if (!baseline) {
+    if (!baseline && !scoped) {
       await page.setViewportSize({ width: 390, height: 844 });
       if (role === 'public') {
         await page.goto(server.baseUrl + '/');
@@ -225,6 +231,10 @@ try {
     }
     await context.close();
     }
+  }
+  if (scoped) for (const route of impact.routes.filter(route => MATRIX_ROUTES.includes(route))) {
+    assert.ok(matrixPaths(report.pages.map(page => page.path), { mode: 'selected', routes: [route] }).length,
+      `affected page had no seeded browser visit: ${route}`);
   }
   await writeFile(join(evidence, 'report.json'), JSON.stringify(report, null, 2));
   assert.deepEqual(report.errors, []);

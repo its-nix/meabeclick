@@ -34,11 +34,11 @@
 
 **Interfaces:** `VisualLesson` contains version/ruleVersion/title/subtitle/durationMin/homeworkMinutes/objectives/agenda/slides/tasks/homework/games/sourceSolutions. `DeckSlide` contains id/title/kicker/prompt/objectiveId/layout/blocks/taskId/presenterNotes. Blocks are bounded copy/equation/model/source/callout with reveal stages; layouts are cover/visual/split/compare/source/working/challenge/recap. `NormalModel` has mode, interactive, showProbability and staged numeric states. Tasks have unique IDs, complete givens, an optional model and private number/choice/region checks, hints and solutions. `visualLessonProblems(raw,context?)`, `publicVisualLesson(bundle)`, `normalVisual(model,stage?,scope?)` and `gradeDeckTask(task,input)` are the shared contracts. The normal helper is self-contained and returns SVG/caption/formula/percent; it can be serialized into the browser runtime.
 
-- [ ] Add a valid synthetic fixture and a RED test for a20–30-slide bundle beyond the historical12-scene cap. Implement validation without changing historical `learningProblems`.
-- [ ] RED→GREEN school-band math:16% above1s,93% below1.5s, symmetric bands, changed center/spread, and no probability at1.75s. Reject nonfinite/invalid model values and malformed nested objects safely.
-- [ ] RED→GREEN numeric/choice/region grading and an explicit public allowlist that strips notes, solutions, answer keys and unknown properties.
-- [ ] RED→GREEN trusted multi-part source/provenance. Add the verified35372 record and a readable question-only crop; keep it out of the legacy single-number generator. Verify document/crop hashes and profile identity.
-- [ ] Run `node --test tests/unit/visual-deck.test.mjs tests/unit/official-questions.test.mjs`; commit.
+- [x] Add a valid synthetic fixture and a RED test for a20–30-slide bundle beyond the historical12-scene cap. Implement validation without changing historical `learningProblems`.
+- [x] RED→GREEN school-band math:16% above1s,93% below1.5s, symmetric bands, changed center/spread, and no probability at1.75s. Reject nonfinite/invalid model values and malformed nested objects safely.
+- [x] RED→GREEN numeric/choice/region grading and an explicit public allowlist that strips notes, solutions, answer keys and unknown properties.
+- [x] RED→GREEN trusted multi-part source/provenance. Add the verified35372 record and a readable question-only crop; keep it out of the legacy single-number generator. Verify document/crop hashes and profile identity.
+- [x] Run `node --test tests/unit/visual-deck.test.mjs tests/unit/official-questions.test.mjs`; commit.
 
 ## Task 2: Varied slide compositions, teaching guide, homework and visual games
 
@@ -46,11 +46,11 @@
 
 **Interfaces:** `renderVisualDeck(bundle,{view,gameId?,baseUrl?})` renders lesson/presenter/homework/game views. Server review state is bounded, short-lived and isolated from the DB; `previewAction(session,task,action,input,eventId)` records attempts/support/reveal and returns graded feedback or a requested hint/solution. The authenticated endpoint selects tasks only from the current packaged bundle. `mountVisualDeck(config,normalVisual)` owns navigation/builds, linked model controls, responsive activities and print preparation; it receives only public projections.
 
-- [ ] RED→GREEN rendering of distinct full-canvas layouts, original source/detail view, slide links, real logo and math. Check private notes/keys absent from audience output and present only in the guide/teacher answer view.
-- [ ] RED→GREEN preview attempt→hint→requested solution, duplicate events, stale sessions, invalid input and assisted-versus-independent success. Authenticate every route and verify no DB writes.
-- [ ] Implement teacher-controlled slide/build navigation, real model changes, useful captions, keyboard/touch region input, axis tasks, homework and both games with explicit score-free review wording.
-- [ ] Browser-check every fixture slide/build at1440/768 and activity views at390/320; exercise model controls, backward navigation, task grading, reveal behavior and reduced motion. Print/render a PDF and inspect it.
-- [ ] Run affected unit/HTTP/browser checks and build/typecheck; commit.
+- [x] RED→GREEN rendering of distinct full-canvas layouts, original source/detail view, slide links, real logo and math. Check private notes/keys absent from audience output and present only in the guide/teacher answer view.
+- [x] RED→GREEN preview attempt→hint→requested solution, duplicate events, stale sessions, invalid input and assisted-versus-independent success. Authenticate every route and verify no DB writes.
+- [x] Implement teacher-controlled slide/build navigation, real model changes, useful captions, keyboard/touch region input, axis tasks, homework and both games with explicit score-free review wording.
+- [x] Browser-check every fixture slide/build at1440/768 and activity views at390/320; exercise model controls, backward navigation, task grading, reveal behavior and reduced motion. Print/render a PDF and inspect it.
+- [x] Run affected unit/HTTP/browser checks and build/typecheck; commit.
 
 ## Task 3: Reusable authoring rules, real generation and sealed packaging
 
@@ -58,10 +58,10 @@
 
 **Interfaces:** `generateVisualLesson({context,sourceIds,model?,timeoutMs?})` uses the existing Codex spawn/structured-output/engine-error boundaries. It returns a validated `VisualLesson`, attaches authoritative context in provenance and permits one targeted bad-output retry. Runner manifests record model/effort/CLI/rules/schema/source fingerprints/latency/hashes with a source-integrity seal. Packaging accepts a verified immutable generation and atomically writes the single candidate corpus after revalidation. Default booking generation is not changed.
 
-- [ ] RED→GREEN an inert-CLI generation test covering actual schema/rules, authoritative context, invalid nested output and bounded repair; auth/quota/timeouts do not retry.
-- [ ] Build prompts from the revised shared rules/guides: storyboard purpose, varied composition, mathematical visual recipes, exact source treatment, friendly notes and fresh practice. Match the actual renderer's capabilities; do not request unsupported illustration or grading.
-- [ ] RED→GREEN packaging provenance, changed bytes/source, invalid flags and preserving an existing destination on failure. Add explicit candidate timeouts without changing production defaults.
-- [ ] Update and validate the canonical skill, synchronize its installed copy, and record the reference-comparison workflow. Run generation-boundary/packaging checks; commit.
+- [x] RED→GREEN an inert-CLI generation test covering actual schema/rules, authoritative context, invalid nested output and bounded repair; auth/quota/timeouts do not retry.
+- [x] Build prompts from the revised shared rules/guides: storyboard purpose, varied composition, mathematical visual recipes, exact source treatment, friendly notes and fresh practice. Match the actual renderer's capabilities; do not request unsupported illustration or grading.
+- [x] RED→GREEN packaging provenance, changed bytes/source, invalid flags and preserving an existing destination on failure. Add explicit candidate timeouts without changing production defaults.
+- [x] Update and validate the canonical skill, synchronize its installed copy, and record the reference-comparison workflow. Run generation-boundary/packaging checks; commit.
 
 ## Task 4: Generate, inspect, criticize and deliver the calibration bundle
 
@@ -71,7 +71,7 @@
 - [ ] Package it, inspect all slides/builds and both games, and compare source/question/solution/summary views to the reference decks. Independently read/check all mathematics, feedback and notes; verify actual rendered PDF and narrow activity views.
 - [ ] Run build/typecheck, supported-Node full suite and relevant baseline/v2/new browser checks. Get one fresh whole-branch implementation/content review, reproduce and fix material findings.
 - [ ] Integrate via normal PR/CI/deployment with the pilot protected and automatic v2 activation still off. Verify deployment and provide the actual review URL. Preserve owner teaching review as the quality gate.
-- [ ] After the pilot and skill refinement are reviewed, return to the explicitly deferred readiness-clarification/reuse idea for discussion.
+Follow-up after owner teaching review: return to the explicitly deferred readiness-clarification/reuse idea for discussion. This remains outside the pilot deployment gate.
 
 ## Self-review and execution
 

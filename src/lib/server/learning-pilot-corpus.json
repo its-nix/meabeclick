@@ -1,1 +1,1983 @@
-{"manifest":{"status":"pending"},"bundle":null}
+{
+  "manifest": {
+    "version": 1,
+    "status": "ready",
+    "syntheticOnly": true,
+    "approval": "needs-human-review",
+    "context": {
+      "purpose": "review",
+      "skill": "התפלגות נורמלית",
+      "request": "שיעור היכרות חזותי: התלמיד מבין אחוזים וממוצע, אך חדש בהתפלגות נורמלית. 90 דקות לקראת בגרות 3 יחידות 35372. השאלה המודרכת: קיץ 2025 שאלה 3. תרגול עצמאי, בית ומשחקים עם נתונים חדשים.",
+      "track": "3",
+      "questionnaire": "35372",
+      "durationMin": 90,
+      "history": [],
+      "notation": "school-normal-s"
+    },
+    "sourceIds": [
+      "moe-2025a-35372-3"
+    ],
+    "ruleVersion": "mea-visual-v1",
+    "schemaVersion": "visual-lesson-1",
+    "config": {
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "cli": "codex",
+      "cliVersion": "codex-cli 0.149.0",
+      "sourceFiles": [
+        "src/lib/learning/deck/model.ts",
+        "src/lib/learning/deck/normal.ts",
+        "src/lib/learning/deck/schema.ts",
+        "src/lib/learning/deck/rules.ts",
+        "src/lib/learning/deck/runtime.ts",
+        "src/lib/learning/deck/styles.ts",
+        "src/lib/server/lesson/visual-generation.ts",
+        "src/lib/server/lesson/official-questions.ts",
+        "src/lib/server/lesson/prompt.ts",
+        "src/lib/server/lesson/spawn.ts",
+        "src/lib/server/lesson/engine.ts",
+        "src/lib/server/lesson/engine-health.ts",
+        "src/lib/server/lesson/structured-output.ts",
+        "src/lib/server/lesson/official-question-assets.json",
+        "src/lib/server/visual-deck-render.ts",
+        "src/lib/server/visual-pilot.ts",
+        "src/lib/learning/math.ts",
+        "src/lib/learning/model.ts",
+        "src/lib/brand.ts",
+        "src/lib/bidi.ts",
+        "package-lock.json",
+        "scripts/visual-pilot-validation.mjs",
+        "scripts/generate-visual-pilot.mjs",
+        "scripts/package-visual-pilot.mjs",
+        "skills/meabeclick-learning-iteration/SKILL.md",
+        "skills/meabeclick-learning-iteration/references/presentation.md",
+        "skills/meabeclick-learning-iteration/references/games.md",
+        "skills/meabeclick-learning-iteration/references/homework.md",
+        "skills/meabeclick-learning-iteration/references/mathematics.md"
+      ],
+      "sourceFingerprint": "9630f9c08a2b2710bafee708fd8a1c741f00cf56d9e8af1c76b52fa90b873509",
+      "gitRevision": "059563252d2d7f246b36aee5f899026d95043aff"
+    },
+    "createdAt": "2026-11-10T21:33:36.263Z",
+    "revision": {
+      "mode": "targeted-text-1",
+      "fields": [
+        "/slides/8/prompt",
+        "/slides/4/blocks/2/text",
+        "/slides/14/blocks/1/text",
+        "/slides/14/blocks/2/text"
+      ],
+      "parentBundleSha256": "92194594d06f368f2c8fccb7b66034072528e9bb881bca0767129acba8f2e735",
+      "parentManifestSha256": "e57def6820d1ebc2c67cca06e46f9eb50b22d73698bd0bc8ae986036150cf0a3",
+      "parentSourceFingerprint": "5e9da375342cdf8a2632ffcbeb81eb9658575449d20758f8914efc8c702baaec",
+      "parentSourceRevision": "2f9b405813e7ed1cdd392293bcbcd973dfd3bcb7",
+      "parentModel": "gpt-5.6-sol",
+      "feedbackSha256": "8e10f91e75eb83adc5c2e6736b200d2281e4a9c5a4d78f81d75adc6edeb9cb2e",
+      "patchSha256": "48dcf9b40f9f41b7be5158196a9c7d5dea318ce58de99ba387e7e1ebc6082f61"
+    },
+    "bundleSha256": "ffd48786e4e08bff6097d3a507d6ecf36534a718c4c027f7e2b0317b3af6c420",
+    "seconds": 10.546,
+    "finishedAt": "2026-11-10T21:33:46.820Z",
+    "sourceVerification": {
+      "status": "verified",
+      "fingerprint": "9630f9c08a2b2710bafee708fd8a1c741f00cf56d9e8af1c76b52fa90b873509"
+    }
+  },
+  "bundle": {
+    "version": 1,
+    "ruleVersion": "mea-visual-v1",
+    "title": "מהציונים לעקומה: היכרות עם התפלגות נורמלית",
+    "subtitle": "שיעור חזותי לקראת שאלון 35372 — קיץ 2025, שאלה 3",
+    "durationMin": 90,
+    "homeworkMinutes": 12,
+    "objectives": [
+      {
+        "id": "obj-shape",
+        "title": "לזהות מרכז, סימטריה ופיזור בעקומה נורמלית"
+      },
+      {
+        "id": "obj-area",
+        "title": "לפרש שטח מתחת לעקומה כאחוז מן הקבוצה"
+      },
+      {
+        "id": "obj-z",
+        "title": "לקשר בין ציון, ממוצע, סטיית תקן וציון תקן"
+      },
+      {
+        "id": "obj-transfer",
+        "title": "לפתור שאלה רשמית ולהעביר את הרעיון לנתונים חדשים"
+      }
+    ],
+    "agenda": [
+      {
+        "title": "מציונים בודדים לצורת הפעמון",
+        "minutes": 13,
+        "slideId": "s01-hook"
+      },
+      {
+        "title": "מרחק מן הממוצע ופיזור",
+        "minutes": 13,
+        "slideId": "s05-z-position"
+      },
+      {
+        "title": "שטח, רצועות ושטח מצטבר",
+        "minutes": 26,
+        "slideId": "s08-live-area"
+      },
+      {
+        "title": "קריאה ופתרון של שאלת המקור",
+        "minutes": 26,
+        "slideId": "s14-source"
+      },
+      {
+        "title": "בדיקות העברה ומשחקי מושגים",
+        "minutes": 10,
+        "slideId": "s20-z-check"
+      },
+      {
+        "title": "סיכום וכרטיס יציאה",
+        "minutes": 2,
+        "slideId": "s25-recap"
+      }
+    ],
+    "slides": [
+      {
+        "id": "s01-hook",
+        "title": "איך נראית כיתה שלמה בציור אחד?",
+        "kicker": "פתיחה",
+        "prompt": "דמיינו את כל ציוני הכיתה: איפה יהיו רובם?",
+        "objectiveId": "obj-shape",
+        "layout": "cover",
+        "blocks": [
+          {
+            "type": "copy",
+            "text": "לא נתחיל בנוסחה. נתחיל בהרבה ציונים ונחפש את הצורה שהם יוצרים יחד.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "model",
+            "text": "איפה נמצאים רוב הציונים?",
+            "model": {
+              "mode": "curve",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 3,
+          "explanation": "פתחו בשאלה מוחשית: אם מבחן מתאים לרמת הכיתה, יהיו מעט ציונים נמוכים מאוד, מעט גבוהים מאוד והרבה ציונים באזור האמצע. התרשים הוא המחשה של קבוצה אפשרית, לא נתוני כיתה אמיתיים.",
+          "ask": "איפה אתם מצפים למצוא את רוב הציונים — בקצוות או באזור האמצע?",
+          "expectedAnswer": "באזור האמצע, עם פחות ציונים ככל שמתרחקים ממנו.",
+          "ifStuck": "בקשו לחשוב על מבחן שבו רק מעטים קיבלו ציון קיצוני.",
+          "misconception": "גובה העקומה אינו ציון גבוה; הוא מראה שבאזור הזה יש יותר ציונים קרובים זה לזה.",
+          "transition": "כעת נבנה את העקומה מתוך אנשים או נקודות.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s02-people-to-curve",
+        "title": "הרבה ציונים יוצרים צורת פעמון",
+        "kicker": "ראיות לפני שם",
+        "prompt": "עקבו אחר המעבר מאנשים לעקומה.",
+        "objectiveId": "obj-shape",
+        "layout": "visual",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "נקודות, עקומה, ואז הצורה לבדה",
+            "model": {
+              "mode": "population",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                },
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                },
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "הציגו את שלושת שלבי המודל: נקודות שמייצגות ציונים אפשריים, עקומה שמסכמת את הריכוז שלהן, ולבסוף העקומה לבדה. הדגישו שאין כאן מדגם אמיתי אלא המחשה של דפוס.",
+          "ask": "מה העקומה שומרת מן הנקודות, ומה היא מסתירה?",
+          "expectedAnswer": "היא שומרת את צורת הריכוז והפיזור, אך לא מציגה כל תלמיד בנפרד.",
+          "ifStuck": "הצביעו על האזור שבו הנקודות צפופות ושאלו מה קורה לעקומה מעליו.",
+          "misconception": "העקומה אינה קו שמחבר ציונים לפי סדר התלמידים.",
+          "transition": "נבדוק מה אפשר להסיק מן הצורה עצמה.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s03-most-near-center",
+        "title": "רוב הציונים קרובים לאמצע",
+        "kicker": "קריאת הצורה",
+        "prompt": "הצביעו על אזור שבו נמצאים ציונים רבים.",
+        "objectiveId": "obj-shape",
+        "layout": "visual",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "יותר ציונים באזור האמצע",
+            "model": {
+              "mode": "curve",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "callout",
+            "text": "עקומה גבוהה באזור מסוים מעידה שציונים רבים קרובים לאזור הזה.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 3,
+          "explanation": "קשרו בין צפיפות הנקודות שראינו ובין גובה העקומה. באזור האמצע הציונים קרובים יותר זה לזה; בקצוות יש פחות ציונים.",
+          "ask": "איפה נמצאים רוב הציונים, ואיך התמונה מראה זאת?",
+          "expectedAnswer": "ליד האמצע, משום שהעקומה שם גבוהה ורחבה יותר מאשר בקצוות.",
+          "ifStuck": "בקשו להשוות קטע קטן במרכז לקטע קטן בקצה.",
+          "misconception": "גובה בנקודה אינו אחוז התלמידים שקיבלו בדיוק את הציון הזה.",
+          "transition": "האמצע הזה יקבל משמעות של ממוצע.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s04-center-symmetry",
+        "title": "הממוצע יושב במרכז הסימטריה",
+        "kicker": "מרכז",
+        "prompt": "קפלו בדמיון את הצורה סביב הממוצע.",
+        "objectiveId": "obj-shape",
+        "layout": "split",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "אותה צורה משני צדי המרכז",
+            "model": {
+              "mode": "curve",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "copy",
+            "text": "בהתפלגות נורמלית העקומה סימטרית. לכן חצי מן הקבוצה מתחת לממוצע וחצי מעליו.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 3,
+          "explanation": "הראו שהמרכז מחלק את השטח לשני חלקים שווים. זהו הממוצע במודל הנורמלי, ולכן 50% נמצאים בכל צד.",
+          "ask": "איזה אחוז מן הקבוצה נמצא משמאל לממוצע?",
+          "expectedAnswer": "50%.",
+          "ifStuck": "הזכירו שסימטריה יוצרת שני חצאים שווים.",
+          "misconception": "סימטריה אינה אומרת שכל תלמיד משמאל מותאם לתלמיד בעל אותו ציון מימין; היא תכונה של ההתפלגות.",
+          "transition": "כדי לתאר מרחק מן המרכז נציג סימון קצר.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s05-z-position",
+        "title": "ציון תקן מודד מרחק חתום מהמרכז",
+        "kicker": "מיקום על הציר",
+        "prompt": "האם הנקודה נמצאת מעל הממוצע או מתחתיו?",
+        "objectiveId": "obj-z",
+        "layout": "split",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "75 נמצא סטיית תקן אחת מעל 65",
+            "model": {
+              "mode": "position",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": 1,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "copy",
+            "text": "ציון התקן \\(z\\) הוא מספר סטיות התקן מן הממוצע. ימינה הוא חיובי, שמאלה שלילי, ובממוצע \\(z=0\\).",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "equation",
+            "text": "z=\\frac{x-\\mu}{s}",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "הצביעו תחילה על 65 ועל 75. המרחק הוא 10, וזה בדיוק גודל סטיית התקן. לכן 75 נמצא סטיית תקן אחת מעל הממוצע ומקבל ציון תקן חיובי.",
+          "ask": "מה יהיה הסימן של \\(z\\) לציון שנמצא מתחת לממוצע?",
+          "expectedAnswer": "שלילי.",
+          "ifStuck": "שאלו לאיזה כיוון נעים מן המרכז: שמאלה או ימינה.",
+          "misconception": "ציון תקן אינו אחוז ואינו הציון המקורי; הוא מרחק הנמדד ביחידות של סטיית תקן.",
+          "transition": "כעת נראה מה סטיית התקן עושה לצורה כולה.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s06-live-spread",
+        "title": "אותו מרכז, אבל פיזור אחר",
+        "kicker": "חקירה חיה",
+        "prompt": "חזו: כשהפיזור יגדל, העקומה תהיה רחבה או צרה יותר?",
+        "objectiveId": "obj-shape",
+        "layout": "visual",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "גררו את הפיזור; המרכז נשאר קבוע",
+            "model": {
+              "mode": "spread",
+              "interactive": "spread",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "callout",
+            "text": "בדקו גם מה קורה לגובה כשאותם ציונים נפרשים על טווח רחב יותר.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 5,
+          "explanation": "בקשו תחזית לפני הגרירה. גררו את בקר הפיזור לשני הכיוונים ועצרו כמה פעמים. כאשר סטיית התקן גדלה, הציונים פרושים יותר ולכן העקומה מתרחבת ונעשית נמוכה יותר; המרכז אינו זז.",
+          "ask": "מה נשאר קבוע, ומה השתנה כששינינו את סטיית התקן?",
+          "expectedAnswer": "הממוצע נשאר קבוע; הרוחב והגובה השתנו.",
+          "ifStuck": "סמנו באצבע את המרכז לפני ואחרי, ואז השוו את הקצוות.",
+          "misconception": "עקומה גבוהה יותר אינה קבוצה עם ממוצע גבוה יותר; כאן הממוצע נשאר 65.",
+          "transition": "נקבע שתי צורות ונשווה אותן על אותו ציר.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s07-compare-spreads",
+        "title": "פיזור קטן מרכז ציונים קרוב יותר",
+        "kicker": "השוואה",
+        "prompt": "איזו קבוצה עקבית יותר? חזו לפני החשיפה השנייה.",
+        "objectiveId": "obj-shape",
+        "layout": "compare",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "קבוצה א: אותו ממוצע, פיזור קטן",
+            "model": {
+              "mode": "spread",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 6,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "model",
+            "text": "קבוצה ב: אותו ממוצע, פיזור גדול",
+            "model": {
+              "mode": "spread",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 14,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 2
+          },
+          {
+            "type": "callout",
+            "text": "הממוצע זהה; בקבוצה א הציונים קרובים יותר זה לזה.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 3
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "הציגו את שתי העקומות על אותו קנה מידה. השוו רוחב ולא רק גובה. קבוצה א בעלת סטיית תקן קטנה יותר ולכן ציוניה מרוכזים יותר סביב אותו ממוצע.",
+          "ask": "אם נבחר תלמיד באקראי, באיזו קבוצה פחות סביר לקבל ציון רחוק מאוד מ־65?",
+          "expectedAnswer": "בקבוצה א.",
+          "ifStuck": "בקשו לזהות איזו עקומה מגיעה פחות רחוק לצדדים.",
+          "misconception": "צרה יותר אינה אומרת ממוצע קטן יותר; לשתי הקבוצות אותו מרכז.",
+          "transition": "עד כה קראנו צורה. עכשיו נקרא חלקים מן הקבוצה בעזרת שטח.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s08-live-area",
+        "title": "שטח מסומן מייצג חלק מן האנשים",
+        "kicker": "חקירת שטח חיה",
+        "prompt": "חזו: מה יקרה לאחוז כשנרחיב את האזור?",
+        "objectiveId": "obj-area",
+        "layout": "visual",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "גררו שני גבולות ושנו את האזור",
+            "model": {
+              "mode": "bands",
+              "interactive": "region",
+              "showProbability": true,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": -0.5,
+                  "upperZ": 0.5,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "callout",
+            "text": "אזור רחב יותר כולל יותר ציונים ולכן שטחו מייצג אחוז גדול יותר.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 5,
+          "explanation": "בקשו תחזית, ואז הזיזו כל גבול בנפרד. הדגישו שהשטח המסומן הוא חלק מכל השטח שמתחת לעקומה, ולכן הוא חלק מן הקבוצה.",
+          "ask": "אם מזיזים רק את הגבול הימני ימינה, האם האחוז גדל או קטן? מדוע?",
+          "expectedAnswer": "גדל, משום שהאזור כולל ציונים נוספים.",
+          "ifStuck": "השוו את השטח לפני הגרירה ואחריה כאילו הוא חלק מתוך 100 תלמידים.",
+          "misconception": "האחוז נקבע לפי שטח האזור, לא לפי גובה העקומה בנקודת הגבול.",
+          "transition": "נראה כיצד תרשים בית־ספרי מחלק את השטח לרצועות קבועות.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s09-school-bands",
+        "title": "רצועות חצי־סטייה מחלקות את הקבוצה",
+        "kicker": "התרשים הבית־ספרי",
+        "prompt": "חברו את ארבע הרצועות שבין \\(z=-1\\) ובין \\(z=1\\).",
+        "objectiveId": "obj-area",
+        "layout": "split",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "בין מינוס סטייה לפלוס סטייה",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": true,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": -1,
+                  "upperZ": 1,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "equation",
+            "text": "15\\%+19\\%+19\\%+15\\%=68\\%",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "callout",
+            "text": "אלה קירובים מודפסים של התרשים. האחוז הוא שטח, לא גובה בנקודה.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "הראו שכל צעד על הציר הוא חצי סטיית תקן. חיבור ארבע הרצועות שבין \\(z=-1\\) ובין \\(z=1\\) נותן בקירוב 68% מן הקבוצה.",
+          "ask": "מדוע מחברים ארבעה שטחים ולא קוראים את גובה העקומה ב־\\(z=1\\)?",
+          "expectedAnswer": "מפני שמחפשים את כל האנשים בטווח, והם מיוצגים בשטח שמתחת לעקומה.",
+          "ifStuck": "צבעו בדמיון כל רצועה ושאלו איזה חלק מן הקבוצה היא מוסיפה.",
+          "misconception": "68% הוא קירוב בית־ספרי לטווח, לא אחוז שמקבלים בדיוק בנקודה אחת.",
+          "transition": "אותו גבול עליון יכול לתאר רצועה או שטח מצטבר שונה לגמרי.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s10-band-vs-cumulative",
+        "title": "אותו גבול, אבל שטח אחר",
+        "kicker": "השוואה מכריעה",
+        "prompt": "שני האזורים מסתיימים ב־\\(z=0.5\\). מה מוסיף 50%?",
+        "objectiveId": "obj-area",
+        "layout": "compare",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "רק הרצועה: מאפס עד חצי",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": true,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": 0,
+                  "upperZ": 0.5,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "model",
+            "text": "מצטבר מהזנב השמאלי עד חצי",
+            "model": {
+              "mode": "cumulative",
+              "interactive": "none",
+              "showProbability": true,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": -4,
+                  "upperZ": 0.5,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 2
+          },
+          {
+            "type": "equation",
+            "text": "19\\%+50\\%=69\\%",
+            "model": null,
+            "sourceId": null,
+            "reveal": 3
+          },
+          {
+            "type": "callout",
+            "text": "התוספת היא כל החצי שנמצא מתחת לממוצע.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 4
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "לפני החשיפה השנייה בקשו לנבא אם השטח יהיה 19% או גדול יותר. הרצועה כוללת רק ציונים שבין הממוצע לחצי סטיית תקן מעליו. השטח המצטבר כולל גם את כל 50% שמשמאל לממוצע.",
+          "ask": "מה מייצגים 50 האחוזים הנוספים בשטח המצטבר?",
+          "expectedAnswer": "את כל הציונים שמתחת לממוצע.",
+          "ifStuck": "הצביעו על המרכז והזכירו שסימטריה נותנת חצי מן הקבוצה משמאלו.",
+          "misconception": "גבול עליון זהה אינו מבטיח אזור זהה; חייבים לדעת מאיפה מתחיל השטח.",
+          "transition": "ניישם את אותו חיבור כדי להבין את המספר 93%.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s11-under-1-5",
+        "title": "93% נבנים מחצי ועוד שלוש רצועות",
+        "kicker": "שטח מצטבר",
+        "prompt": "עקבו מן הממוצע ימינה עד \\(z=1.5\\).",
+        "objectiveId": "obj-area",
+        "layout": "working",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "מהזנב השמאלי עד סטייה וחצי",
+            "model": {
+              "mode": "cumulative",
+              "interactive": "none",
+              "showProbability": true,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": -4,
+                  "upperZ": 1.5,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "equation",
+            "text": "50\\%+19\\%+15\\%+9\\%=93\\%",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "callout",
+            "text": "לכן גבול שמעליו רק 7% נמצא סטייה וחצי מעל הממוצע.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 5,
+          "explanation": "התחילו ב־50% שמשמאל לממוצע והוסיפו את שלוש הרצועות שמימין: 19%, 15% ו־9%. כך רואים בתמונה מדוע 93% מסתיימים ב־\\(z=1.5\\), בלי לשנן טבלת זוגות.",
+          "ask": "איזו רצועה אחרונה צריך להוסיף כדי לעבור מ־84% ל־93%?",
+          "expectedAnswer": "הרצועה של 9%, בין סטיית תקן אחת לסטייה וחצי מעל הממוצע.",
+          "ifStuck": "בנו יחד את הסכום לפי הסדר: 50, אחר כך 19, אחר כך 15.",
+          "misconception": "93% אינם נמצאים ברצועה האחרונה; זהו כל השטח המצטבר משמאל לגבול.",
+          "transition": "לפעמים קל יותר למצוא את הזנב הנותר באמצעות משלים ל־100%.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s12-complement",
+        "title": "הזנב הימני הוא המשלים ל־100%",
+        "kicker": "משלים",
+        "prompt": "אם 84% נמצאים עד סטייה אחת, כמה מעליה?",
+        "objectiveId": "obj-area",
+        "layout": "split",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "כל הזנב שמעל סטיית תקן אחת",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": true,
+              "states": [
+                {
+                  "mean": 65,
+                  "sd": 10,
+                  "lowerZ": 1,
+                  "upperZ": 4,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "equation",
+            "text": "100\\%-84\\%=16\\%",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "copy",
+            "text": "השטח עד \\(z=1\\) הוא 84%. כל מי שמעל הגבול נמצא בשטח שנותר מימין.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "קשרו בין שטח מצטבר לזנב המשלים. עד סטיית תקן אחת מעל הממוצע נמצאים 84%, ולכן מעל הגבול נותרים 16%.",
+          "ask": "מדוע מותר לחסר מ־100%?",
+          "expectedAnswer": "כי שני האזורים יחד מכסים את כל הקבוצה ואינם חופפים.",
+          "ifStuck": "תארו 100 תלמידים: 84 בצד אחד של הגבול, והשאר בצד האחר.",
+          "misconception": "אין לחסר מ־50% רק מפני שהגבול נמצא מימין לממוצע; האזור המבוקש מושווה לכל הקבוצה.",
+          "transition": "עכשיו אתם תבנו זנב בעצמכם.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s13-region-check",
+        "title": "בנו את הזנב בלי להסתמך על גובה",
+        "kicker": "תרגול מקורי",
+        "prompt": "סמנו את כל האזור המבוקש.",
+        "objectiveId": "obj-area",
+        "layout": "challenge",
+        "blocks": [],
+        "taskId": "task-region-tail",
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "תנו ניסיון לפני רמז. התלמיד צריך לבחור את כל הזנב השמאלי, לא רצועה יחידה ליד הגבול. לאחר הבדיקה בקשו להסביר במילים מה מייצג השטח.",
+          "ask": "מאיזה כיוון השטח מתחיל, ובאיזה גבול הוא נעצר?",
+          "expectedAnswer": "הוא מתחיל בכל הזנב השמאלי ונעצר ב־\\(z=-1\\).",
+          "ifStuck": "שאלו אם הביטוי 'מתחת ל־' כולל ציון תקן קטן יותר או גדול יותר מן הגבול.",
+          "misconception": "בחירת הרצועה שבין \\(z=-1.5\\) ובין \\(z=-1\\) בלבד משמיטה את שאר הזנב.",
+          "transition": "עם הבנת השטח נעבור לקריאת שאלת הבגרות המקורית.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s14-source",
+        "title": "קוראים את הנתונים לפני שמחשבים",
+        "kicker": "שאלת מקור רשמית",
+        "prompt": "מצאו בטקסט: מה נתון, מה לא ידוע, ומה פירוש 93%.",
+        "objectiveId": "obj-transfer",
+        "layout": "source",
+        "blocks": [
+          {
+            "type": "source",
+            "text": "קיץ 2025, שאלון 35372, שאלה 3 — מקורית",
+            "model": null,
+            "sourceId": "moe-2025a-35372-3",
+            "reveal": 0
+          },
+          {
+            "type": "copy",
+            "text": "פתחו את המקור בהגדלה. קראו יחד את הנתון \\(s=8\\) ואת המשפט: 93% מן הציונים נמוכים מ־84.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 0
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 5,
+          "explanation": "פתחו את קטע המקור בהגדלה וקראו עם התלמיד את כל הנתונים ואת סעיפי השאלה. אל תמסרו עדיין את הממוצע. תרגמו את המשפט על 93% לשטח שמסתיים בציון 84.",
+          "ask": "איזה מספר מתאר גבול על הציר, ואיזה מספר מתאר שטח מן הקבוצה?",
+          "expectedAnswer": "84 הוא גבול של ציון; 93% הוא השטח המצטבר שמתחתיו.",
+          "ifStuck": "בקשו להקיף בטקסט את הציון ולסמן בקו את האחוז.",
+          "misconception": "93% אינם סטיית התקן ואינם הציון של תלמיד מסוים.",
+          "transition": "נמקם את 84 ביחידות של סטיית תקן וכך נמצא את המרכז.",
+          "sources": [
+            "moe-2025a-35372-3"
+          ]
+        }
+      },
+      {
+        "id": "s15-official-a1",
+        "title": "93% ממקמים את 84 מעל המרכז",
+        "kicker": "סעיף א(1)",
+        "prompt": "איזה מרחק מן הממוצע מתאים לשטח של 93%?",
+        "objectiveId": "obj-transfer",
+        "layout": "working",
+        "blocks": [
+          {
+            "type": "copy",
+            "text": "בתרשים הבית־ספרי \\(93\\%=50\\%+19\\%+15\\%+9\\%\\). לכן 84 נמצא \\(1.5s\\) מעל הממוצע.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "equation",
+            "text": "84=\\mu+1.5\\cdot 8",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "equation",
+            "text": "\\mu=84-12=72",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          },
+          {
+            "type": "callout",
+            "text": "החיסור מחזיר אותנו מן הגבול אל מרכז העקומה.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 3
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 5,
+          "explanation": "הסבירו תחילה את המיקום: השטח של 93% מסתיים ב־\\(z=1.5\\). לכן המרחק מן הממוצע אל 84 הוא סטייה וחצי, כלומר 12 נקודות. מחסרים את המרחק כדי לחזור למרכז.",
+          "ask": "מדוע מחסרים 12 מ־84 ולא מוסיפים?",
+          "expectedAnswer": "כי 84 נמצא מעל הממוצע, ואנחנו חוזרים שמאלה אל המרכז.",
+          "ifStuck": "ציירו חץ מ־84 שמאלה באורך של סטייה וחצי.",
+          "misconception": "אין להציב 93 בתוך נוסחת ציון התקן; 93% משמשים לזיהוי המיקום \\(z=1.5\\).",
+          "transition": "כשהמרכז ידוע, נוכל להשלים את כל סימוני הציר.",
+          "sources": [
+            "moe-2025a-35372-3"
+          ]
+        }
+      },
+      {
+        "id": "s16-official-a2",
+        "title": "חצי סטיית תקן מזיז ארבע נקודות",
+        "kicker": "סעיף א(2)",
+        "prompt": "התחילו ב־72 והתקדמו בצעדים שווים.",
+        "objectiveId": "obj-transfer",
+        "layout": "working",
+        "blocks": [
+          {
+            "type": "equation",
+            "text": "\\frac{s}{2}=\\frac{8}{2}=4",
+            "model": null,
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "callout",
+            "text": "כל מלבן סמוך על הציר רחוק ארבע נקודות מקודמו.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "model",
+            "text": "הציר המושלם בצעדים של ארבע",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 72,
+                  "sd": 8,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 2
+          },
+          {
+            "type": "equation",
+            "text": "52,56,60,64,68,72,76,80,84,88,92",
+            "model": null,
+            "sourceId": null,
+            "reveal": 3
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "התרשים מחלק כל סטיית תקן לשני צעדים, ולכן כל צעד שווה 4 נקודות. מתחילים בממוצע 72 ומוסיפים או מחסרים 4 שוב ושוב. בדקו ש־84 אכן מתקבל שלושה חצאי צעדים מעל המרכז.",
+          "ask": "איזה ציון נמצא חצי סטיית תקן מתחת ל־72?",
+          "expectedAnswer": "68.",
+          "ifStuck": "חשבו תחילה כמה שווה חצי של 8.",
+          "misconception": "אין לקפוץ בכל מלבן ב־8; מרחק של 8 מכסה שני מלבנים סמוכים.",
+          "transition": "כעת נשתמש בציר כדי למקם את סף הקבלה להעשרה.",
+          "sources": [
+            "moe-2025a-35372-3"
+          ]
+        }
+      },
+      {
+        "id": "s17-official-b",
+        "title": "80 נמצא סטיית תקן אחת מעל הממוצע",
+        "kicker": "סעיף ב",
+        "prompt": "איזה שטח מייצג ציונים גבוהים מ־80?",
+        "objectiveId": "obj-transfer",
+        "layout": "working",
+        "blocks": [
+          {
+            "type": "equation",
+            "text": "80=72+1\\cdot 8",
+            "model": null,
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "model",
+            "text": "הזנב שמעל 80",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": true,
+              "states": [
+                {
+                  "mean": 72,
+                  "sd": 8,
+                  "lowerZ": 1,
+                  "upperZ": 4,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "equation",
+            "text": "100\\%-84\\%=16\\%",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          },
+          {
+            "type": "callout",
+            "text": "16% מן התלמידים התקבלו להעשרה.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 3
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "הראו ש־80 רחוק 8 נקודות מן הממוצע, ולכן הוא ב־\\(z=1\\). בתרשים 84% נמצאים עד הגבול הזה, ולכן הזנב שמעליו הוא 16%.",
+          "ask": "מדוע האזור המבוקש נמצא מימין ל־80?",
+          "expectedAnswer": "כי התקבלו תלמידים שהציון שלהם גבוה מ־80.",
+          "ifStuck": "החליפו את המילה 'גבוה' בחץ על ציר הציונים.",
+          "misconception": "אין לבחור את 84% שמתחת לסף; השאלה מבקשת את הצד שמעליו.",
+          "transition": "בסעיף הבא אותו 16% מתורגם ממספר תלמידים לגודל הקבוצה.",
+          "sources": [
+            "moe-2025a-35372-3"
+          ]
+        }
+      },
+      {
+        "id": "s18-official-c",
+        "title": "אם 32 הם 16%, מוצאים את השלם",
+        "kicker": "סעיף ג",
+        "prompt": "איזה מספר מייצג 100% מן הנבחנים?",
+        "objectiveId": "obj-transfer",
+        "layout": "working",
+        "blocks": [
+          {
+            "type": "copy",
+            "text": "32 התלמידים שמעל 80 הם בדיוק הקבוצה שמצאנו בסעיף הקודם: 16% מכלל הנבחנים.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "equation",
+            "text": "0.16N=32",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "equation",
+            "text": "N=\\frac{32}{0.16}=200",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          },
+          {
+            "type": "callout",
+            "text": "החלוקה ב־0.16 מחזירה מחלק קטן אל הקבוצה השלמה.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 3
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "קשרו במפורש לסעיף ב: 16% מן הקבוצה הם 32 תלמידים. לכן כותבים חלק שווה לאחוז כפול השלם. החלוקה ב־0.16 מוצאת את 100%.",
+          "ask": "איך אפשר לבדוק במהירות שהתוצאה הגיונית?",
+          "expectedAnswer": "16% מ־200 הם 32.",
+          "ifStuck": "מצאו תחילה כמה תלמידים הם 1% באמצעות חלוקה ב־16, ואז הכפילו ב־100.",
+          "misconception": "אין לחשב 32 כפול 0.16; פעולה זו תמצא חלק קטן נוסף ולא את השלם.",
+          "transition": "בסעיף האחרון נעבור מציון תקן נתון בחזרה לציון רגיל.",
+          "sources": [
+            "moe-2025a-35372-3"
+          ]
+        }
+      },
+      {
+        "id": "s19-official-d",
+        "title": "ציון תקן מחזיר אותנו לציון רגיל",
+        "kicker": "סעיף ד",
+        "prompt": "חזו את הציון של עמית לפני שמגלים אותו.",
+        "objectiveId": "obj-transfer",
+        "layout": "working",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "עמית נמצא 1.75 סטיות מעל המרכז",
+            "model": {
+              "mode": "position",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 72,
+                  "sd": 8,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": 1.75,
+                  "hideZ": 1.75
+                },
+                {
+                  "mean": 72,
+                  "sd": 8,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": 1.75,
+                  "hideZ": null
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "equation",
+            "text": "z=\\frac{x-72}{8}=1.75",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "equation",
+            "text": "x=72+1.75\\cdot 8=86",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          },
+          {
+            "type": "callout",
+            "text": "כופלים כדי להפוך סטיות תקן לנקודות, ואז מוסיפים לממוצע.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 3
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 4,
+          "explanation": "הסתירו את ערך הנקודה בתחילה ובקשו הערכה: התוצאה צריכה להיות מעל 80 ומתחת ל־88. אחר כך חשבו את המרחק בנקודות: \\(1.75\\cdot8=14\\), והוסיפו לממוצע.",
+          "ask": "מדוע התשובה חייבת להיות גבוהה מ־72?",
+          "expectedAnswer": "כי ציון התקן חיובי, ולכן עמית נמצא מעל הממוצע.",
+          "ifStuck": "פרקו \\(1.75\\) ל־\\(1+0.75\\) וחשבו את המרחק בשני חלקים.",
+          "misconception": "1.75 אינו מספר נקודות שיש להוסיף; הוא מספר סטיות תקן.",
+          "transition": "נעבור לנתונים חדשים כדי לבדוק שהרעיון אינו תלוי בשאלה המקורית.",
+          "sources": [
+            "moe-2025a-35372-3"
+          ]
+        }
+      },
+      {
+        "id": "s20-z-check",
+        "title": "מצאו מרחק תקני בהקשר חדש",
+        "kicker": "תרגול מקורי",
+        "prompt": "חשבו תחילה את המרחק בנקודות, ואז חלקו בסטיית התקן.",
+        "objectiveId": "obj-z",
+        "layout": "challenge",
+        "blocks": [],
+        "taskId": "task-z-delivery",
+        "presenterNotes": {
+          "minutes": 2,
+          "explanation": "תנו ניסיון ללא הצגת נוסחה נוספת. הבדיקה דורשת לתרגם הפרש של 9 דקות ליחידות שגודלן 6 דקות.",
+          "ask": "כמה סטיות תקן מפרידות בין 70 ל־79?",
+          "expectedAnswer": "סטייה וחצי, ולכן \\(z=1.5\\).",
+          "ifStuck": "בקשו לחשב תחילה \\(79-70\\), ורק אחר כך לחלק ב־6.",
+          "misconception": "אין לחלק את הציון 79 עצמו ב־6; מחלקים את המרחק מן הממוצע.",
+          "transition": "כעת נבדוק אם אתם קוראים פיזור בלי להסתמך על גובה בלבד.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s21-spread-check",
+        "title": "בחרו את הקבוצה העקבית יותר",
+        "kicker": "תרגול מקורי",
+        "prompt": "הממוצעים שווים; איזו סטיית תקן מצביעה על ריכוז גדול יותר?",
+        "objectiveId": "obj-shape",
+        "layout": "challenge",
+        "blocks": [],
+        "taskId": "task-spread-choice",
+        "presenterNotes": {
+          "minutes": 2,
+          "explanation": "המשימה משתמשת בהקשר ובמספרים חדשים, ובסדר קבוצות הפוך מן ההשוואה החזותית. בקשו נימוק קצר גם לאחר הבחירה.",
+          "ask": "איזו קבוצה צפויה להציג פחות אריזות רחוקות מן המשקל הממוצע?",
+          "expectedAnswer": "קבוצה ב, משום שסטיית התקן שלה קטנה יותר.",
+          "ifStuck": "שאלו איזו סטיית תקן מתארת מרחק טיפוסי קטן יותר מן הממוצע.",
+          "misconception": "אין לבחור לפי שם הקבוצה או לפי הממוצע, משום שהממוצע זהה.",
+          "transition": "נשתמש באותה הבנה במשחק קצר של בניית אזורים.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s22-region-game",
+        "title": "משחק: בונים את האזור המבוקש",
+        "kicker": "משחק מושגים 1",
+        "prompt": "בכל סיבוב קראו את הגבולות לפני שאתם מסמנים.",
+        "objectiveId": "obj-area",
+        "layout": "challenge",
+        "blocks": [
+          {
+            "type": "copy",
+            "text": "המטרה אינה לנחש אחוז. בנו את השטח שמתאים בדיוק למילים: בין, מעל, מתחת או סביב הממוצע.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "callout",
+            "text": "בדקו כיוון, גבול שמאלי וגבול ימני.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 1.5,
+          "explanation": "הפעילו את משחק האזורים. בכל סיבוב דרשו מן התלמיד לומר את הכיוון במילים לפני הסימון. הסיבובים עולים מזנב או מרכז פשוטים לטווח שאינו סימטרי.",
+          "ask": "איזו מילה במשפט קובעת אם צריך זנב או אזור בין שני גבולות?",
+          "expectedAnswer": "המילים מעל או מתחת יוצרות זנב; המילה בין יוצרת שני גבולות סופיים.",
+          "ifStuck": "בקשו לסמן תחילה רק את הגבולות ורק אחר כך את השטח ביניהם או מחוץ להם.",
+          "misconception": "גבול נכון אחד אינו מספיק אם הצד המסומן שגוי.",
+          "transition": "במשחק הבא נשחזר מספר חסר על ציר ציונים.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s23-axis-game",
+        "title": "משחק: משחזרים תווית חסרה בציר",
+        "kicker": "משחק מושגים 2",
+        "prompt": "ספרו חצאי סטיית תקן מן הממוצע.",
+        "objectiveId": "obj-z",
+        "layout": "challenge",
+        "blocks": [
+          {
+            "type": "model",
+            "text": "כל סימון סמוך הוא חצי סטייה",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 40,
+                  "sd": 8,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": 1.5
+                }
+              ]
+            },
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "callout",
+            "text": "מצאו תחילה את גודל הצעד, ואז את הכיוון.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 1.5,
+          "explanation": "הסבירו את כלל המשחק בלבד: כל צעד סמוך שווה חצי סטיית תקן. אין צורך לחשב ציון תקן בנוסחה אם סופרים צעדים מן המרכז.",
+          "ask": "מה כדאי לחשב לפני שמתחילים לנוע על הציר?",
+          "expectedAnswer": "את חצי סטיית התקן, כלומר את גודל הצעד בין סימונים סמוכים.",
+          "ifStuck": "הדגימו מילולית: אם סטיית התקן 8, צעד אחד הוא 4.",
+          "misconception": "הסימונים הסמוכים אינם רחוקים סטיית תקן שלמה.",
+          "transition": "לפני הסיכום נבדוק שוב קריאה של שטח מצטבר.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s24-cumulative-check",
+        "title": "גבול מצטבר כולל גם את החצי השמאלי",
+        "kicker": "תרגול מקורי",
+        "prompt": "בחרו את האחוז שמתחת לגבול החדש.",
+        "objectiveId": "obj-area",
+        "layout": "challenge",
+        "blocks": [],
+        "taskId": "task-cumulative-choice",
+        "presenterNotes": {
+          "minutes": 3,
+          "explanation": "בקשו מן התלמיד לתאר את השטח לפני בחירת מספר. הגבול נמצא חצי סטיית תקן מעל הממוצע, ולכן השטח כולל את 50% שמשמאל לממוצע ועוד רצועת 19%.",
+          "ask": "האם מחפשים רק את הרצועה מן הממוצע לגבול, או את כל מה שמתחת לגבול?",
+          "expectedAnswer": "את כל מה שמתחת לגבול, ולכן כוללים גם את החצי השמאלי.",
+          "ifStuck": "ציירו חץ שמתחיל בזנב השמאלי ונעצר ב־\\(z=0.5\\).",
+          "misconception": "19% מתארים רק רצועה אחת, לא שטח מצטבר מתחת לגבול.",
+          "transition": "נרכז את שלושת הרעיונות שצריך לקחת מן השיעור.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s25-recap",
+        "title": "צורה, שטח ומרחק עובדים יחד",
+        "kicker": "סיכום",
+        "prompt": "אמרו משפט אחד שמקשר בין שלושת הרעיונות.",
+        "objectiveId": "obj-transfer",
+        "layout": "recap",
+        "blocks": [
+          {
+            "type": "copy",
+            "text": "צורת העקומה מראה מרכז ופיזור.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 0
+          },
+          {
+            "type": "copy",
+            "text": "שטח מתחת לעקומה מייצג אחוז מן הקבוצה.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 1
+          },
+          {
+            "type": "copy",
+            "text": "ציון תקן אומר כמה סטיות תקן ובאיזה כיוון מן הממוצע.",
+            "model": null,
+            "sourceId": null,
+            "reveal": 2
+          }
+        ],
+        "taskId": null,
+        "presenterNotes": {
+          "minutes": 1,
+          "explanation": "עברו במהירות על שלושת המשפטים וקשרו אותם לשאלה הרשמית: הצורה נתנה מיקום, השטח נתן אחוז, וציון התקן תורגם לציון רגיל.",
+          "ask": "באיזה רעיון השתמשנו כדי להבין את הנתון 93%?",
+          "expectedAnswer": "בשטח מצטבר מתחת לעקומה ובמיקום שלו ביחידות של סטיית תקן.",
+          "ifStuck": "הזכירו את החיבור \\(50\\%+19\\%+15\\%+9\\%\\).",
+          "misconception": "אין לבחור נוסחה לפני שמחליטים אם הנתון מתאר ציון, מרחק או שטח.",
+          "transition": "נסיים בחישוב חדש וקצר ללא עזרת התרשים הרשמי.",
+          "sources": []
+        }
+      },
+      {
+        "id": "s26-exit",
+        "title": "כרטיס יציאה: עברו מ־z לציון",
+        "kicker": "בדיקת העברה",
+        "prompt": "חשבו ציון חדש והשתמשו בסימן של \\(z\\) לבדיקת היגיון.",
+        "objectiveId": "obj-transfer",
+        "layout": "challenge",
+        "blocks": [],
+        "taskId": "task-exit-score",
+        "presenterNotes": {
+          "minutes": 1,
+          "explanation": "אספו תשובה אישית קצרה. התוצאה צריכה להיות מתחת לממוצע מפני שציון התקן שלילי. החישוב הוא חצי סטיית תקן, כלומר 3 נקודות, שמאלה מן הממוצע.",
+          "ask": "עוד לפני החישוב: האם התוצאה צריכה להיות מעל 76 או מתחתיו?",
+          "expectedAnswer": "מתחתיו; הציון הוא 73.",
+          "ifStuck": "חשבו חצי של 6 וקבעו את הכיוון לפי הסימן השלילי.",
+          "misconception": "סימן שלילי אינו ציון שלילי; הוא רק מציין מיקום מתחת לממוצע.",
+          "transition": "המשיכו בבית בארבע משימות קצרות עם נתונים חדשים.",
+          "sources": []
+        }
+      }
+    ],
+    "tasks": [
+      {
+        "id": "task-region-tail",
+        "title": "בניית זנב שמאלי",
+        "prompt": "בנו את האזור שמייצג את כל הנבחנים שעבורם \\(z\\leq-1\\).",
+        "givens": "העקומה נורמלית; הגבול הוא סטיית תקן אחת מתחת לממוצע.",
+        "objectiveId": "obj-area",
+        "support": "independent",
+        "grading": "checked",
+        "model": {
+          "mode": "bands",
+          "interactive": "none",
+          "showProbability": false,
+          "states": [
+            {
+              "mean": 58,
+              "sd": 6,
+              "lowerZ": null,
+              "upperZ": null,
+              "pointZ": null,
+              "hideZ": null
+            }
+          ]
+        },
+        "check": {
+          "kind": "region",
+          "answer": [
+            -4,
+            -1
+          ],
+          "options": []
+        },
+        "hints": [
+          "הביטוי \\(z\\leq-1\\) מתאר ציוני תקן קטנים מן הגבול.",
+          "התחילו בכל הזנב השמאלי ועצרו ב־\\(z=-1\\)."
+        ],
+        "solution": "האזור הוא כל השטח מן הזנב השמאלי ועד \\(z=-1\\), כולל הגבול.",
+        "success": "בניתם את הזנב בכיוון הנכון.",
+        "retry": "בדקו אם סימנתם את כל הצד שמתחת לגבול, ולא רק רצועה אחת."
+      },
+      {
+        "id": "task-z-delivery",
+        "title": "זמן משלוח ביחידות תקן",
+        "prompt": "זמן משלוח היה 79 דקות. מהו ציון התקן שלו?",
+        "givens": "ממוצע זמני המשלוח הוא 70 דקות וסטיית התקן היא 6 דקות.",
+        "objectiveId": "obj-z",
+        "support": "independent",
+        "grading": "checked",
+        "model": null,
+        "check": {
+          "kind": "number",
+          "answer": 1.5,
+          "options": []
+        },
+        "hints": [
+          "חשבו את המרחק של 79 מן הממוצע 70.",
+          "חלקו את המרחק 9 בגודל סטיית התקן 6."
+        ],
+        "solution": "\\(z=\\frac{79-70}{6}=\\frac{9}{6}=1.5\\). הזמן נמצא סטייה וחצי מעל הממוצע.",
+        "success": "המרתם את המרחק בדקות ליחידות של סטיית תקן.",
+        "retry": "בדקו שחיסרתם את הממוצע מן הזמן לפני החלוקה."
+      },
+      {
+        "id": "task-spread-choice",
+        "title": "איזו מכונה עקבית יותר?",
+        "prompt": "איזו קבוצה מציגה משקלים קרובים יותר לממוצע?",
+        "givens": "בשתי הקבוצות ממוצע האריזה הוא 120 גרם. בקבוצה ב סטיית התקן 3 גרם; בקבוצה א סטיית התקן 9 גרם.",
+        "objectiveId": "obj-shape",
+        "support": "independent",
+        "grading": "checked",
+        "model": null,
+        "check": {
+          "kind": "choice",
+          "answer": 1,
+          "options": [
+            "קבוצה א",
+            "קבוצה ב",
+            "אותה מידה"
+          ]
+        },
+        "hints": [
+          "כאשר הממוצעים שווים, השוו את גדלי סטיות התקן.",
+          "סטיית תקן קטנה מתארת מרחקים קטנים יותר מן הממוצע."
+        ],
+        "solution": "קבוצה ב. סטיית התקן שלה היא 3 גרם, ולכן המשקלים בה מרוכזים יותר סביב 120 גרם.",
+        "success": "קישרתם נכון בין סטיית תקן קטנה לעקביות.",
+        "retry": "התמקדו בפיזור ולא בממוצע, שזהה בשתי הקבוצות."
+      },
+      {
+        "id": "task-cumulative-choice",
+        "title": "שטח מצטבר עד חצי סטייה",
+        "prompt": "איזה אחוז מן הרצים סיימו בזמן הנמוך מן הגבול \\(z=0.5\\)?",
+        "givens": "זמני הריצה מתפלגים נורמלית לפי קירובי התרשים הבית־ספרי.",
+        "objectiveId": "obj-area",
+        "support": "independent",
+        "grading": "checked",
+        "model": null,
+        "check": {
+          "kind": "choice",
+          "answer": 2,
+          "options": [
+            "19%",
+            "50%",
+            "69%",
+            "84%"
+          ]
+        },
+        "hints": [
+          "השטח המבוקש מתחיל בזנב השמאלי, לא בממוצע.",
+          "חברו את 50% שמתחת לממוצע ואת רצועת 19% שמעליו."
+        ],
+        "solution": "השטח המצטבר הוא \\(50\\%+19\\%=69\\%\\).",
+        "success": "הבחנתם בין רצועה יחידה לשטח מצטבר.",
+        "retry": "בדקו אם כללתם גם את כל החצי שמתחת לממוצע."
+      },
+      {
+        "id": "task-exit-score",
+        "title": "מציון תקן לציון קריאה",
+        "prompt": "מהו מספר המילים שקראה תלמידה שציון התקן שלה הוא \\(z=-0.5\\)?",
+        "givens": "ממוצע הקריאה הוא 76 מילים בדקה וסטיית התקן היא 6 מילים בדקה.",
+        "objectiveId": "obj-transfer",
+        "support": "independent",
+        "grading": "checked",
+        "model": null,
+        "check": {
+          "kind": "number",
+          "answer": 73,
+          "options": []
+        },
+        "hints": [
+          "חצי סטיית תקן הוא חצי של 6.",
+          "הסימן השלילי מורה לנוע מתחת לממוצע."
+        ],
+        "solution": "\\(x=76+(-0.5)\\cdot6=76-3=73\\) מילים בדקה.",
+        "success": "השתמשתם גם בגודל המרחק וגם בכיוונו.",
+        "retry": "בדקו את כיוון התנועה מן הממוצע לפי הסימן של ציון התקן."
+      }
+    ],
+    "homework": [
+      {
+        "id": "hw-spread",
+        "title": "פיזור זמני תגובה",
+        "prompt": "באיזו קבוצה זמני התגובה מרוכזים יותר סביב הממוצע?",
+        "givens": "לשתי הקבוצות ממוצע 40 שניות. לקבוצה א סטיית תקן 7 שניות ולקבוצה ב סטיית תקן 11 שניות.",
+        "objectiveId": "obj-shape",
+        "support": "guided",
+        "grading": "checked",
+        "model": null,
+        "check": {
+          "kind": "choice",
+          "answer": 0,
+          "options": [
+            "קבוצה א",
+            "קבוצה ב",
+            "הפיזור זהה"
+          ]
+        },
+        "hints": [
+          "אין צורך להשוות ממוצעים, מפני שהם שווים.",
+          "בחרו בסטיית התקן הקטנה יותר."
+        ],
+        "solution": "קבוצה א מרוכזת יותר, משום שסטיית התקן שלה 7 שניות לעומת 11 שניות בקבוצה ב.",
+        "success": "זיהיתם נכון את הקבוצה בעלת הפיזור הקטן.",
+        "retry": "השוו את סטיות התקן ולא את שמות הקבוצות."
+      },
+      {
+        "id": "hw-central-region",
+        "title": "בניית 68% המרכזיים",
+        "prompt": "בנו את האזור שבין סטיית תקן אחת מתחת לממוצע לסטיית תקן אחת מעליו.",
+        "givens": "ההתפלגות נורמלית ומשתמשים בקירובי התרשים הבית־ספרי.",
+        "objectiveId": "obj-area",
+        "support": "guided",
+        "grading": "checked",
+        "model": {
+          "mode": "bands",
+          "interactive": "none",
+          "showProbability": false,
+          "states": [
+            {
+              "mean": 90,
+              "sd": 12,
+              "lowerZ": null,
+              "upperZ": null,
+              "pointZ": null,
+              "hideZ": null
+            }
+          ]
+        },
+        "check": {
+          "kind": "region",
+          "answer": [
+            -1,
+            1
+          ],
+          "options": []
+        },
+        "hints": [
+          "תרגמו 'סטיית תקן אחת מתחת' ל־\\(z=-1\\).",
+          "הגבול השני הוא \\(z=1\\); סמנו את השטח שביניהם."
+        ],
+        "solution": "מסמנים את האזור \\(-1\\leq z\\leq1\\). לפי קירובי התרשים, שטחו 68%.",
+        "success": "בניתם אזור מרכזי סימטרי.",
+        "retry": "בדקו ששני הגבולות רחוקים באותה מידה מן הממוצע."
+      },
+      {
+        "id": "hw-score-transfer",
+        "title": "מיקום מדידה חדשה",
+        "prompt": "מהי המדידה המתאימה לציון תקן \\(z=1.5\\)?",
+        "givens": "ממוצע המדידות הוא 68 ס״מ וסטיית התקן היא 4 ס״מ.",
+        "objectiveId": "obj-z",
+        "support": "independent",
+        "grading": "checked",
+        "model": null,
+        "check": {
+          "kind": "number",
+          "answer": 74,
+          "options": []
+        },
+        "hints": [
+          "חשבו כמה סנטימטרים הם סטייה וחצי.",
+          "ציון התקן חיובי, לכן הוסיפו את המרחק לממוצע."
+        ],
+        "solution": "\\(x=68+1.5\\cdot4=68+6=74\\) ס״מ.",
+        "success": "המרתם ציון תקן חיובי למדידה רגילה.",
+        "retry": "חשבו תחילה את המרחק מן הממוצע, ורק אחר כך קבעו את הכיוון."
+      },
+      {
+        "id": "hw-full-explanation",
+        "title": "הסבר מלא: אחוז ומספר אנשים",
+        "prompt": "הסבירו כיצד מוצאים את אחוז העובדים שמעל 60 ואת מספר העובדים הכולל. המורה יבדוק את ההסבר.",
+        "givens": "ממוצע התפוקה 54, סטיית התקן 6, ו־24 עובדים נמצאים מעל 60. השתמשו בקירובי התרשים הבית־ספרי.",
+        "objectiveId": "obj-transfer",
+        "support": "independent",
+        "grading": "tutor-review",
+        "model": null,
+        "check": null,
+        "hints": [
+          "מקמו את 60 ביחס לממוצע ביחידות של סטיית תקן.",
+          "מצאו את הזנב שמעל הגבול, ואז כתבו משוואה שבה 24 הם אותו אחוז מן השלם."
+        ],
+        "solution": "60 נמצא סטיית תקן אחת מעל 54, לכן 16% מן העובדים מעליו. אם \\(N\\) הוא מספר העובדים, אז \\(0.16N=24\\), ולכן \\(N=\\frac{24}{0.16}=150\\). ההסבר צריך לקשר בין המיקום, השטח והשלם.",
+        "success": "ההסבר קישר בין ציר, שטח ומספר אנשים; המורה יבדוק את הנימוק.",
+        "retry": "ודאו שההסבר כולל שלושה שלבים: מיקום הגבול, אחוז הזנב ומציאת 100%."
+      }
+    ],
+    "games": [
+      {
+        "id": "game-regions",
+        "title": "בוני האזורים",
+        "intro": "קראו את המשפט, אמרו את הכיוון, ואז בנו את השטח. הסיבובים עוברים מאזור מרכזי לזנבות ולטווח לא סימטרי.",
+        "kind": "region",
+        "rounds": [
+          {
+            "id": "gr-r1",
+            "title": "סיבוב 1 — סביב הממוצע",
+            "prompt": "בנו את האזור שבין \\(z=-0.5\\) ובין \\(z=0.5\\).",
+            "givens": "יש לסמן רק את השטח שבין שני הגבולות.",
+            "objectiveId": "obj-area",
+            "support": "guided",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 50,
+                  "sd": 8,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                -0.5,
+                0.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "שני הגבולות נמצאים במרחק שווה מן הממוצע.",
+              "סמנו את האזור המרכזי שביניהם."
+            ],
+            "solution": "הגבולות הם \\(z=-0.5\\) ו־\\(z=0.5\\), ולכן מסמנים את האזור המרכזי ביניהם.",
+            "success": "בניתם אזור מרכזי מאוזן.",
+            "retry": "בדקו אם השטח שלכם נמצא בין שני הגבולות."
+          },
+          {
+            "id": "gr-r2",
+            "title": "סיבוב 2 — הזנב הימני",
+            "prompt": "בנו את כל האזור שבו \\(z\\geq1\\).",
+            "givens": "האזור מתחיל ב־\\(z=1\\) וממשיך לכל הזנב הימני.",
+            "objectiveId": "obj-area",
+            "support": "guided",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 44,
+                  "sd": 6,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                1,
+                4
+              ],
+              "options": []
+            },
+            "hints": [
+              "הסימן \\(\\geq\\) מצביע על ערכים גדולים מן הגבול.",
+              "התחילו ב־\\(z=1\\) והמשיכו ימינה לכל הזנב."
+            ],
+            "solution": "מסמנים את כל הזנב הימני החל ב־\\(z=1\\).",
+            "success": "כיוון הזנב והגבול נכונים.",
+            "retry": "בדקו אם סימנתם את הצד של ציוני התקן הגדולים יותר."
+          },
+          {
+            "id": "gr-r3",
+            "title": "סיבוב 3 — הזנב השמאלי הרחוק",
+            "prompt": "בנו את כל האזור שבו \\(z\\leq-1.5\\).",
+            "givens": "האזור מסתיים ב־\\(z=-1.5\\) וכולל את כל הזנב השמאלי.",
+            "objectiveId": "obj-area",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 72,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                -4,
+                -1.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "ציוני תקן קטנים יותר נמצאים שמאלה.",
+              "כללו את כל השטח שמשמאל לגבול."
+            ],
+            "solution": "מסמנים את כל הזנב השמאלי עד \\(z=-1.5\\).",
+            "success": "זיהיתם זנב שמאלי רחוק.",
+            "retry": "אל תסתפקו ברצועה הסמוכה לגבול; בדקו את כל הצד השמאלי."
+          },
+          {
+            "id": "gr-r4",
+            "title": "סיבוב 4 — טווח לא סימטרי",
+            "prompt": "בנו את האזור שבין \\(z=0.5\\) ובין \\(z=1.5\\).",
+            "givens": "שני הגבולות נמצאים מעל הממוצע.",
+            "objectiveId": "obj-area",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 36,
+                  "sd": 4,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                0.5,
+                1.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "שני ציוני התקן חיוביים, ולכן שניהם מימין לממוצע.",
+              "סמנו רק את השטח שבין שני הגבולות."
+            ],
+            "solution": "מסמנים את הטווח \\(0.5\\leq z\\leq1.5\\), כולו מימין לממוצע.",
+            "success": "בניתם נכון טווח שאינו מרכזי.",
+            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון."
+          }
+        ]
+      },
+      {
+        "id": "game-axis",
+        "title": "בלשי הציר",
+        "intro": "בכל סיבוב חסרה תווית אחת. חשבו את גודל חצי הסטייה, ספרו צעדים מן הממוצע והשלימו את המספר.",
+        "kind": "axis",
+        "rounds": [
+          {
+            "id": "ga-r1",
+            "title": "סיבוב 1 — חצי צעד ימינה",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 50, סטיית התקן 8, והתווית החסרה נמצאת חצי סטיית תקן מעל הממוצע.",
+            "objectiveId": "obj-z",
+            "support": "guided",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 50,
+                  "sd": 8,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": 0.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 54,
+              "options": []
+            },
+            "hints": [
+              "חצי של 8 הוא גודל הצעד.",
+              "הכיוון הוא ימינה מן הממוצע."
+            ],
+            "solution": "חצי סטיית תקן הוא 4, ולכן הציון הוא \\(50+4=54\\).",
+            "success": "מצאתם את הצעד ואת הכיוון.",
+            "retry": "חשבו תחילה את חצי סטיית התקן."
+          },
+          {
+            "id": "ga-r2",
+            "title": "סיבוב 2 — סטייה שמאלה",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 70, סטיית התקן 6, והתווית החסרה נמצאת סטיית תקן אחת מתחת לממוצע.",
+            "objectiveId": "obj-z",
+            "support": "guided",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 70,
+                  "sd": 6,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": -1
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 64,
+              "options": []
+            },
+            "hints": [
+              "סטיית תקן שלמה היא שני צעדי חצי־סטייה.",
+              "מתחת לממוצע פירושו לחסר."
+            ],
+            "solution": "נעים 6 נקודות שמאלה: \\(70-6=64\\).",
+            "success": "שמרתם על הכיוון השלילי.",
+            "retry": "בדקו אם הוספתם במקום לחסר מן הממוצע."
+          },
+          {
+            "id": "ga-r3",
+            "title": "סיבוב 3 — שלושה חצאי צעדים",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 82, סטיית התקן 4, והתווית החסרה נמצאת \\(1.5\\) סטיות תקן מעל הממוצע.",
+            "objectiveId": "obj-z",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 82,
+                  "sd": 4,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": 1.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 88,
+              "options": []
+            },
+            "hints": [
+              "חצי סטיית תקן הוא 2 נקודות.",
+              "\\(1.5\\) סטיות הן שלושה צעדים של 2."
+            ],
+            "solution": "המרחק הוא \\(1.5\\cdot4=6\\), ולכן הציון הוא \\(82+6=88\\).",
+            "success": "ספרתם נכון שלושה חצאי צעדים.",
+            "retry": "הפרידו בין מספר הצעדים ובין גודל כל צעד."
+          },
+          {
+            "id": "ga-r4",
+            "title": "סיבוב 4 — רחוק משמאל",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 60, סטיית התקן 10, והתווית החסרה נמצאת \\(2.5\\) סטיות תקן מתחת לממוצע.",
+            "objectiveId": "obj-z",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 60,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": -2.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 35,
+              "options": []
+            },
+            "hints": [
+              "המרחק הוא \\(2.5\\cdot10\\) נקודות.",
+              "המיקום מתחת לממוצע, לכן נעים שמאלה."
+            ],
+            "solution": "המרחק הוא 25 נקודות, ולכן הציון הוא \\(60-25=35\\).",
+            "success": "שילבתם מרחק גדול עם כיוון נכון.",
+            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע."
+          }
+        ]
+      }
+    ],
+    "sourceSolutions": [
+      {
+        "questionId": "moe-2025a-35372-3",
+        "part": "a1",
+        "slideId": "s15-official-a1",
+        "answer": "72"
+      },
+      {
+        "questionId": "moe-2025a-35372-3",
+        "part": "a2",
+        "slideId": "s16-official-a2",
+        "answer": "52,56,60,64,68,72,76,80,84,88,92"
+      },
+      {
+        "questionId": "moe-2025a-35372-3",
+        "part": "b",
+        "slideId": "s17-official-b",
+        "answer": "16"
+      },
+      {
+        "questionId": "moe-2025a-35372-3",
+        "part": "c",
+        "slideId": "s18-official-c",
+        "answer": "200"
+      },
+      {
+        "questionId": "moe-2025a-35372-3",
+        "part": "d",
+        "slideId": "s19-official-d",
+        "answer": "86"
+      }
+    ]
+  }
+}

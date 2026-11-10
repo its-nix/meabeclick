@@ -67,9 +67,9 @@
 
 **Files:** Real pilot corpus; browser evidence/scripts; protected gallery link; CI and quality documentation as needed.
 
-- [ ] Freeze generator inputs, run one real synthetic generation with the verified local-account model and record source/CLI/checksums/latency. Never hand-edit the generated JSON; repair common causes and generate an explicit replacement when needed.
-- [ ] Package it, inspect all slides/builds and both games, and compare source/question/solution/summary views to the reference decks. Independently read/check all mathematics, feedback and notes; verify actual rendered PDF and narrow activity views.
-- [ ] Run build/typecheck, supported-Node full suite and relevant baseline/v2/new browser checks. Get one fresh whole-branch implementation/content review, reproduce and fix material findings.
+- [x] Freeze generator inputs, run one real synthetic generation with the verified local-account model and record source/CLI/checksums/latency. Never hand-edit the generated JSON; repair common causes and generate an explicit replacement when needed.
+- [x] Package it, inspect all slides/builds and both games, and compare source/question/solution/summary views to the reference decks. Independently read/check all mathematics, feedback and notes; verify actual rendered PDF and narrow activity views.
+- [x] Run build/typecheck, supported-Node full suite and relevant baseline/v2/new browser checks. Get one fresh whole-branch implementation/content review, reproduce and fix material findings.
 - [ ] Integrate via normal PR/CI/deployment with the pilot protected and automatic v2 activation still off. Verify deployment and provide the actual review URL. Preserve owner teaching review as the quality gate.
 Follow-up after owner teaching review: return to the explicitly deferred readiness-clarification/reuse idea for discussion. This remains outside the pilot deployment gate.
 

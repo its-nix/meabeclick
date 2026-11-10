@@ -18,3 +18,10 @@ test('browser checks block the existing build and preserve artifacts and summary
   assert.match(workflow, /- name: Save PR UI evidence\n        if: always\(\)/);
   assert.match(workflow, /playwright install --with-deps chromium webkit/);
 });
+test('visual pilot shares learning browser selection and reports its actual outcome', () => {
+  const pilot = workflow.match(/- name: Check visual calibration pilot in Chromium[\s\S]*?(?=\n      - name:)/)?.[0] ?? '';
+  assert.match(pilot, /id: qa_pilot/);
+  assert.match(pilot, /if: steps.pr_qa_select.outputs.learning == 'true'/);
+  assert.match(pilot, /run: npm run test:pilot:browser/);
+  assert.match(workflow, /QA_PILOT_OUTCOME: \$\{\{ steps.qa_pilot.outcome \}\}/);
+});

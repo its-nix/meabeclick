@@ -119,6 +119,8 @@ jobs:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/learning-review-v2
 
       - name: Check visual calibration pilot in Chromium
+        id: qa_pilot
+        if: steps.pr_qa_select.outputs.learning == 'true'
         run: npm run test:pilot:browser
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/visual-pilot
@@ -186,6 +188,7 @@ jobs:
           QA_REVIEW_OUTCOME: ${{ steps.qa_review.outcome }}
           QA_TEACHING_V2_OUTCOME: ${{ steps.qa_teaching_v2.outcome }}
           QA_REVIEW_V2_OUTCOME: ${{ steps.qa_review_v2.outcome }}
+          QA_PILOT_OUTCOME: ${{ steps.qa_pilot.outcome }}
           QA_WORKSPACE_OUTCOME: ${{ steps.qa_workspace.outcome }}
           QA_CHARTS_OUTCOME: ${{ steps.qa_charts.outcome }}
           QA_AUTH_OUTCOME: ${{ steps.qa_auth.outcome }}

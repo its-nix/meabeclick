@@ -9,7 +9,7 @@ test('targeted legacy UI matrix opens the actual changed landing and confirmatio
   assert.deepEqual(matrixPaths(paths, { mode: 'selected', routes: ['/confirm-booking'] }), paths.slice(2));
 });
 test('catalog page claims are backed by an executable direct or legacy page check', () => {
-  const checks = new Set([...MATRIX_ROUTES, '/app/learn/[slug]', '/lessons/[slug]', '/app/learning-review', '/app/review-game/[caseId]/[template]', '/onboarding']);
+  const checks = new Set([...MATRIX_ROUTES, '/app/learn/[slug]', '/lessons/[slug]', '/app/learning-review', '/app/learning-pilot', '/app/review-game/[caseId]/[template]', '/onboarding']);
   for (const journey of JOURNEYS) for (const route of journey.routes) {
     if (!route.startsWith('/api/') && !route.startsWith('/auth/')) assert.ok(checks.has(route), `no browser page check: ${route}`);
   }

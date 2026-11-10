@@ -1,6 +1,6 @@
 # Visual math lesson calibration
 
-Status: product decisions agreed in conversation; concrete design awaiting final readback. This supersedes the visual-quality assumptions of the first v2 candidate gallery, not its customer-data and access safeguards.
+Status: approved by Lior after the final design readback. This supersedes the visual-quality assumptions of the first v2 candidate gallery, not its customer-data and access safeguards.
 
 ## Intent and agreed scope
 

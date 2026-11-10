@@ -50,7 +50,7 @@ test('malformed optional extended notes and incomplete bundles are rejected safe
 });
 test('v2 generation expands a controlled diagram before publication validation',async()=>{
  const{generatedPlanStub}=await import('../generated-plan-stub.mjs'),saved=process.env.LESSON_GENERATION_VERSION;process.env.LESSON_GENERATION_VERSION='2';
- try{const p=teachingFixture();p.games.labelling={title:'ניצבים ויתר',subject:'מתמטיקה',diagram:'right-triangle'};p.teaching.practice.push({asset:'game',ref:'labelling',objectiveId:'o1',problemId:'p-label',misconception:'היתר מול הזווית הישרה',support:'guided',grading:'checked'});
- const{result}=await generatedPlanStub(p);assert.match(result.games.labelling.svg,/>a<\/text>/);assert.equal(result.games.labelling.targets.length,3);
+ try{const p=teachingFixture();p.games.labelling={title:'ניצבים ויתר',subject:'מתמטיקה',diagram:'right-triangle',stimulus:'הצלעות a,b,c מסומנות בתרשים.'};p.teaching.practice.push({asset:'game',ref:'labelling',objectiveId:'o1',problemId:'p-label',misconception:'היתר מול הזווית הישרה',support:'guided',grading:'checked'});
+ const{result}=await generatedPlanStub(p);assert.match(result.games.labelling.svg,/>a<\/text>/);assert.equal(result.games.labelling.targets.length,3);assert.equal(result.games.labelling.stimulus,p.games.labelling.stimulus);
  }finally{if(saved===undefined)delete process.env.LESSON_GENERATION_VERSION;else process.env.LESSON_GENERATION_VERSION=saved;}
 });

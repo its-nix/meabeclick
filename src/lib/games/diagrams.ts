@@ -8,9 +8,10 @@ function diagram(id:string){
 }
 export function canonicalLabelling(raw:unknown){
  if(!raw||typeof raw!=='object')return null;
- const r=raw as {diagram?:unknown;title?:unknown;subject?:unknown};
+ const r=raw as {diagram?:unknown;title?:unknown;subject?:unknown;stimulus?:unknown};
  if(typeof r.diagram!=='string'||typeof r.title!=='string'||typeof r.subject!=='string')return null;
- const d=diagram(r.diagram);return d?{diagram:r.diagram,title:r.title,subject:r.subject,...d}:null;
+ if(r.stimulus!==undefined&&typeof r.stimulus!=='string')return null;
+ const d=diagram(r.diagram);return d?{diagram:r.diagram,title:r.title,subject:r.subject,...(typeof r.stimulus==='string'?{stimulus:r.stimulus}:{}),...d}:null;
 }
 export function isCanonicalLabelling(raw:unknown):boolean{
  const expected=canonicalLabelling(raw);if(!expected)return false;

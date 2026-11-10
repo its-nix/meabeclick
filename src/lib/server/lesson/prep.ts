@@ -86,64 +86,65 @@ export interface HomeworkItem {
   answer?: string;
 }
 
-export interface MemoryGame {
+export interface GameStimulus {stimulus?:string}
+export interface MemoryGame extends GameStimulus {
   title: string;
   subject: string;
   pairs: { a: string; b: string }[];
 }
 
-export interface TwoTruthsGame {
+export interface TwoTruthsGame extends GameStimulus {
   title: string;
   subject: string;
   rounds: { statements: string[]; lieIndex: number; why: string; hint: string }[];
 }
 
-export interface ErrorHuntGame {
+export interface ErrorHuntGame extends GameStimulus {
   title: string;
   subject: string;
   rounds: { problem: string; steps: string[]; badStep: number; why: string; hint: string }[];
 }
 
-export interface QuizGame {
+export interface QuizGame extends GameStimulus {
   title: string;
   subject: string;
   questions: { q: string; options: string[]; answer: number; why: string; hint: string }[];
 }
 
-export interface MatchingGame {
+export interface MatchingGame extends GameStimulus {
   title: string;
   subject: string;
   pairs: { left: string; right: string; hint: string }[];
 }
 
-export interface SequenceGame {
+export interface SequenceGame extends GameStimulus {
   title: string;
   subject: string;
   steps: string[];
 }
 
-export interface SortGame {
+export interface SortGame extends GameStimulus {
   title: string;
   subject: string;
   categories: string[];
   items: { text: string; category: string }[];
 }
 
-export interface TableGame {
+export interface TableGame extends GameStimulus {
   title: string;
   subject: string;
   columns: string[];
   rows: { label: string; cells: { text: string; blank: boolean }[] }[];
 }
 
-export interface SpeedDrillGame {
+export interface SpeedDrillGame extends GameStimulus {
   title: string;
   subject: string;
   seconds: number;
   items: { q: string; a: string; options: string[] }[];
 }
 
-export interface LabellingGame {
+export interface LabellingGame extends GameStimulus {
   diagram?:string;
   title: string;
   subject: string;
@@ -151,7 +152,7 @@ export interface LabellingGame {
   targets: { id: string; label: string }[];
 }
 
-export interface GraphMatchGame {
+export interface GraphMatchGame extends GameStimulus {
   title: string;
   subject: string;
   rounds: {
@@ -166,7 +167,7 @@ export interface GraphMatchGame {
   }[];
 }
 
-export interface NumberLineGame {
+export interface NumberLineGame extends GameStimulus {
   title: string;
   subject: string;
   min: number;
@@ -492,6 +493,7 @@ export function lessonOutputSchema(){
  check.properties.solution={type:'string'};check.required.push('solution');
  schema.properties.homework.items.properties.check={anyOf:[{type:'null'},structuredClone(check)]};
  schema.properties.homework.items.required.push('check');
+ for(const game of Object.values(schema.properties.games.properties) as Array<Record<string,any>>){game.properties.stimulus={type:'string',description:'Shared givens needed to play this game independently; empty only if every round is fully self-contained.'};(game.required??=[]).push('stimulus');}
  return schema;
 }
 

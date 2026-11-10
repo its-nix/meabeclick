@@ -6,6 +6,7 @@
    * GameShell.svelte's header comment) and provides it through context.
    */
   import type { PageData } from './$types';
+  import FormulaText from '$lib/components/FormulaText.svelte';
   import GameShell from '$lib/games/GameShell.svelte';
   import Memory from '$lib/games/Memory.svelte';
   import Quiz from '$lib/games/Quiz.svelte';
@@ -40,6 +41,7 @@
 
   const Board = $derived(components[data.template as keyof typeof components]);
   const gameData = $derived(data.gameData as GameData);
+  const stimulus=$derived(typeof gameData.stimulus==='string'?gameData.stimulus.trim():'');
 </script>
 
 {#if Board}
@@ -68,6 +70,7 @@
     preview={data.preview}
     backUrl={data.backUrl}
   >
+    {#if stimulus}<aside class="game-stimulus" data-game-stimulus aria-label="נתוני המשחק"><FormulaText text={stimulus}/></aside>{/if}
     <Board data={gameData} />
   </GameShell>
   {/key}
@@ -78,5 +81,6 @@
 {/if}
 
 <style>
+  .game-stimulus{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin-block:0 20px;font-size:1rem;line-height:1.8}
   .wrap { max-width: 760px; margin: 0 auto; }
 </style>

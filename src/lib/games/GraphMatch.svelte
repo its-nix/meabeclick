@@ -1,4 +1,5 @@
 <script lang="ts">
+  import {formulaLabel} from '../learning/math.ts';
   import {sampleBounds,sampleGraph} from './graph-plot.ts';
   import FormulaText from '$lib/components/FormulaText.svelte';
   /**
@@ -112,7 +113,7 @@
 
   <div class="prompt"><FormulaText text={rounds[idx].prompt} /></div>
   <div class="main-graph">
-    <div class="cap"><FormulaText text={rounds[idx].mainLabel || 'f(x)'} /></div>
+    <div class="cap"><FormulaText text={formulaLabel(rounds[idx].mainLabel || 'f(x)')} /></div>
     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     {@html mainSvg}
   </div>

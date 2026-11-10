@@ -9,3 +9,5 @@ Use the shared lesson/objective/problem IDs and notation. Keep answer keys priva
 V2 reports persist the selected objective IDs against the exact published lesson version. Reject stale or forged selection through the real API. Prepared no-selection fallback is not evidence that every goal was taught. Recheck the clock after asynchronous generation, preserve released/submitted work, and keep the original lesson/editor reachable beside replacement homework.
 
 Render the shared task stimulus for checked homework on screen and in print. The check question may contain only the final ask; hiding task can remove prices, temperatures, distribution parameters or other essential givens. Verify solvability without opening a hint. Preserve open reasoning as explicitly tutor-reviewed, with truthful local draft/submission wording.
+
+Each homework task must remain solvable after objective filtering removes every other task. Repeat all required distribution parameters, function definitions and intervals locally. Recurring numerical answers should request an exact fraction; a decimal request must specify rounding and a matching key.

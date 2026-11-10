@@ -24,3 +24,9 @@ export function mathText(text: string): string {
 export function mathFormula(tex: string): string {
   return katex.renderToString(tex, { throwOnError: true, trust: false, strict: 'error', maxExpand: 200, maxSize: 10 });
 }
+
+/** A dedicated graph label may be bare TeX; prose still uses explicit delimiters. */
+export function formulaLabel(label:string):string{
+ if(/\\\(|\\\[|\$\$/.test(label)||/[א-ת]/u.test(label))return label;
+ return /\\[a-zA-Z]+|[_^=]/.test(label)?`\\(${label}\\)`:label;
+}

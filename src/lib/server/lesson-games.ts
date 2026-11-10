@@ -155,6 +155,7 @@ function assertUnique(values: string[], path: string, message: string): void {
 }
 
 function validateSemantics(template: string, body: Record<string, unknown>): void {
+  if(body.stimulus!==undefined&&(typeof body.stimulus!=='string'||body.stimulus.length>1200))invalid('stimulus','נתוני המשחק חייבים להיות טקסט קצר.');
   const primaryKey: Record<string, string> = {
     memory: 'pairs', matching: 'pairs', sequence: 'steps', sort: 'items', labelling: 'targets',
     table: 'rows', quiz: 'questions', 'error-hunt': 'rounds', 'two-truths': 'rounds',

@@ -94,3 +94,14 @@ test('test fixtures and build context changes always run the UI gate', () => {
     assert.equal(run([path]).mode, 'full', path);
   }
 });
+
+test('shared lesson changes map existing preparation and source boundaries to their checked journeys', () => {
+  const learning = ['/app/learning-pilot', '/api/learning-pilot', '/app/learn/[slug]/homework', '/app/lessons/[slug]/preview', '/app/lessons/[slug]/source/[questionId]', '/api/reports', '/api/reports/prompt'];
+  const workspace = ['/api/drive-sync', '/api/library/import', '/api/library/prepare'];
+  for (const [journey, routes] of [['learning', learning], ['workspace', workspace]]) for (const route of routes) {
+    const file = 'src/routes' + route + '/+server.ts';
+    const plan = selectImpact({ changedFiles: [file], headFiles: { [file]: 'export const GET=()=>new Response();' } });
+    assert.deepEqual(plan.unmappedRoutes, [], route);
+    assert.ok(plan.journeys.includes(journey), route);
+  }
+});

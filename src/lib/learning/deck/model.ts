@@ -90,6 +90,8 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
  for(const goal of goals)need([...tasks,...homework].some(t=>object(t)&&t.objectiveId===goal&&t.support==='independent'),'יעד ללא בדיקה עצמאית חדשה');
  const explorations=slides.filter(object).flatMap(s=>Array.isArray(s.blocks)?s.blocks.filter(object).flatMap(b=>object(b.model)?[b.model]:[]):[]);
  need(explorations.some(m=>m.interactive==='spread')&&explorations.some(m=>m.interactive==='region'),'חסרה חקירה חיה של פיזור ושל שטח');
+ const sameBoundary=slides.filter(object).some(s=>{const states=(Array.isArray(s.blocks)?s.blocks:[]).filter(object).flatMap(b=>object(b.model)&&Array.isArray(b.model.states)?b.model.states.filter(object):[]);return states.some(a=>finite(a.lowerZ)&&a.lowerZ!==-4&&finite(a.upperZ)&&a.upperZ!==4&&states.some(b=>b.mean===a.mean&&b.sd===a.sd&&b.upperZ===a.upperZ&&b.lowerZ===-4));});
+ if(p.durationMin===90)need(sameBoundary,'דרושה השוואה בין רצועה לשטח מצטבר עם אותו גבול עליון');
  const solutions=list(p.sourceSolutions,20,0);
  for(const s of solutions){const valid=object(s)&&slideIds.has(s.slideId)&&typeof s.answer==='string'&&options.sourceAnswers?.[s.questionId]?.[s.part]===s.answer;need(valid,'פתרון מקור לא מאומת'+(object(s)?`: ${String(s.questionId).slice(0,80)}/${String(s.part).slice(0,40)}; expected ${options.sourceAnswers?.[s.questionId]?.[s.part]??'unknown part'}, received ${String(s.answer).slice(0,100)}`:''));}
  for(const [qid,parts] of Object.entries(options.sourceAnswers??{})){need(sourceIds.has(qid),'השאלה הרשמית חסרה');for(const part of Object.keys(parts))need(solutions.some(s=>object(s)&&s.questionId===qid&&s.part===part),`סעיף מקור ללא פתרון: ${qid}/${part}=${parts[part]}`);}

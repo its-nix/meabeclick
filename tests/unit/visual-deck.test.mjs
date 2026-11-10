@@ -36,7 +36,8 @@ test('school bands, changed spread and non-half standard scores remain mathemati
  model.states[0].lowerZ=1;model.states[0].upperZ=4;assert.equal(m.normalVisual(model).percent,16);
  model.states[0].lowerZ=-4;model.states[0].upperZ=1.5;assert.equal(m.normalVisual(model).percent,93);
  model.states[0].upperZ=1.75;assert.equal(m.normalVisual(model).percent,null);
- const base=m.normalVisual(model);const spread=m.normalVisual(model,0,'spread',{sd:15});
+ model.states[0].lowerZ=-4;model.states[0].upperZ=4;assert.equal(m.normalVisual(model).percent,100);assert.match(m.normalVisual(model).formula,/infty/,'the whole population has infinite tail bounds');
+ model.states[0].upperZ=1.75;const base=m.normalVisual(model);const spread=m.normalVisual(model,0,'spread',{sd:15});
  assert.notEqual(base.svg,spread.svg);assert.match(spread.formula,/15/);
  model.mode='position';model.showProbability=false;model.states[0]={mean:72,sd:8,lowerZ:null,upperZ:null,pointZ:1.75,hideZ:1.75};
  const hidden=m.normalVisual(model);assert.ok(!hidden.formula.includes('86'));assert.ok(!hidden.svg.includes('>86<'));
@@ -60,4 +61,8 @@ test('graded region bounds and missing ticks must be selectable by the actual co
  const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');
  const region=visualDeckFixture();region.games[0].rounds[0].check.answer=[-1.75,.5];assert.ok(visualLessonProblems(region).length,'quarter-step region cannot be selected');
  const axis=visualDeckFixture();const t=axis.homework[0];t.model.mode='axis';t.model.states[0].hideZ=1.75;t.check.answer=87.5;assert.ok(visualLessonProblems(axis).length,'axis has no quarter-step tick to hide');
+});
+test('a band and accumulation ending at the same boundary must actually be compared',async()=>{
+ const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();for(const s of p.slides)for(const b of s.blocks)if(b.model?.mode==='cumulative')b.model.states=b.model.states.slice(0,1);
+ assert.ok(visualLessonProblems(p).some(x=>x.includes('מצטבר')));
 });

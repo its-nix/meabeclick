@@ -6,7 +6,7 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
  const motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;
  const models=new WeakMap<HTMLElement,any>();let current=0,build=0,round=0;
  function syncControls(node:HTMLElement,state:any){
-  for(const input of all('[data-live-param]',node) as HTMLInputElement[]){const value=state[input.dataset.liveParam!];if(typeof value!=='number')continue;input.value=String(value);const out=input.parentElement?.querySelector('output');if(out)out.textContent=Number(input.value).toFixed(2).replace(/\.?0+$/,'');}
+  for(const input of all('[data-live-param]',node) as HTMLInputElement[]){const value=state[input.dataset.liveParam!];if(typeof value!=='number')continue;input.value=String(value);const out=input.parentElement?.querySelector('output');const tail=input.dataset.liveParam==='lowerZ'&&value===-4?'−∞':input.dataset.liveParam==='upperZ'&&value===4?'∞':null;const display=tail??Number(input.value).toFixed(2).replace(/\.?0+$/,'');if(out)out.textContent=display;input.setAttribute('aria-valuetext',tail?(value<0?'כל הזנב השמאלי':'כל הזנב הימני'):display);}
  }
  function paint(node:HTMLElement,stage=0,animate=false){
   const m=models.get(node);if(!m)return;m.stage=stage;m.seq++;
@@ -27,7 +27,7 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
    const s=model.states[0];
    if(model.interactive==='spread')slider('sd','משנים את סטיית התקן',s.sd*.65,s.sd*1.75,s.sd*.05,s.sd);
    if(model.interactive==='position')slider('pointZ','משנים את המיקום ביחידות סטיית תקן',-2.5,2.5,.25,s.pointZ??0);
-   if(model.interactive==='region'){if(model.mode!=='cumulative')slider('lowerZ','גבול תחתון',-2.5,2,.5,s.lowerZ??-.5);slider('upperZ','גבול עליון',-2,2.5,.5,s.upperZ??.5);}
+   if(model.interactive==='region'){if(model.mode!=='cumulative')slider('lowerZ','גבול תחתון',-4,3.5,.5,s.lowerZ??-.5);slider('upperZ','גבול עליון',-3.5,4,.5,s.upperZ??.5);}
   }
   paint(node);
  }

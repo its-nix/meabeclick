@@ -38,3 +38,12 @@ For batch/resume/replacement commands and stale-lock recovery, read `docs/qualit
 V2 contracts: `learning/teaching*.ts`, `server/lesson/teaching-context.ts`, `official-questions.ts`, `server/teaching-display.ts`. Report coverage and safe release: `server/reports/teaching-coverage.ts`, `server/lesson/taught-bundle.ts`, migration038. Actual publication navigation: `server/assigned-teaching.ts`; original-class versus assigned-homework routing: `server/learning-store.ts`. Use both unit tests and live `teaching-lifecycle` / `teaching-report-coverage` characterization tests for changes at these seams.
 
 Checked game geometry lives in `src/lib/games/diagrams.ts`; v2 wire output is expanded by `lesson/prep.ts` before validation. Shared graph axes live in `src/lib/games/graph-plot.ts`. Keep catalogue IDs stable for already published material; add versioned IDs for changes.
+
+## Composed visual calibration
+
+- Contract/math/projection/checking: `src/lib/learning/deck/model.ts`, `normal.ts`, `schema.ts`.
+- Authoring prompt and real Codex boundary: `rules.ts` in that directory and `src/lib/server/lesson/visual-generation.ts`. Task schema fixes question controls/probability flags; source-specific branches fix official identifiers/answer metadata. Human review still checks visible reasoning.
+- Shared HTML, responsive/print design and controls: `src/lib/server/visual-deck-render.ts`, `src/lib/learning/deck/styles.ts`, `runtime.ts`. Preserve common axes, model/control agreement and screen state after printing.
+- Isolated review: `src/lib/server/visual-pilot.ts`, `/app/learning-pilot`, `/api/learning-pilot`; memory-only preview attempts, no customer evidence writes.
+- Provenance/packaging: `scripts/generate-visual-pilot.mjs`, `visual-pilot-validation.mjs`, `package-visual-pilot.mjs`; immutable generated bundle plus sealed source fingerprint. Output is `learning-pilot-corpus.json`; it does not activate production generation.
+- Evidence: visual-deck/generation unit tests, visual-pilot HTTP characterization, `npm run test:pilot:browser` (focused controls plus complete packaged candidate). Real candidate content and reference comparison remain mandatory.

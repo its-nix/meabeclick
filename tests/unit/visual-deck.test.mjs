@@ -63,6 +63,6 @@ test('graded region bounds and missing ticks must be selectable by the actual co
  const axis=visualDeckFixture();const t=axis.homework[0];t.model.mode='axis';t.model.states[0].hideZ=1.75;t.check.answer=87.5;assert.ok(visualLessonProblems(axis).length,'axis has no quarter-step tick to hide');
 });
 test('a band and accumulation ending at the same boundary must actually be compared',async()=>{
- const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();for(const s of p.slides)for(const b of s.blocks)if(b.model?.mode==='cumulative')b.model.states=b.model.states.slice(0,1);
+ const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();for(const s of p.slides)for(const b of s.blocks)if(b.model?.mode==='cumulative')b.model.states=b.model.states.slice(0,1).map(s=>({...s,lowerZ:0}));
  assert.ok(visualLessonProblems(p).some(x=>x.includes('מצטבר')));
 });

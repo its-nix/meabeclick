@@ -1,12 +1,12 @@
 import '../isolate-lesson-data.mjs';
-import {test} from 'node:test';import assert from 'node:assert/strict';import{mkdtemp,writeFile,readFile,rm}from'node:fs/promises';import{tmpdir}from'node:os';import{join}from'node:path';
+import {test} from 'node:test';import assert from 'node:assert/strict';import{mkdtemp,writeFile,readFile,rm,mkdir}from'node:fs/promises';import{tmpdir}from'node:os';import{join,dirname}from'node:path';
 import{visualDeckFixture}from'../visual-deck-fixture.mjs';
 const context={purpose:'review',skill:'התפלגות נורמלית',request:'היכרות חזותית לפני בחינה',track:'3',questionnaire:'35372',durationMin:90,history:[],notation:'school-normal-s'};
 async function inert(responses,action){const dir=await mkdtemp(join(tmpdir(),'visual-gen-test-'));const old={};for(const k of ['CODEX_BIN','VISUAL_STUB_DIR'])old[k]=process.env[k];try{
  await writeFile(join(dir,'responses.json'),JSON.stringify(responses));
  const bin=join(dir,'stub.mjs');await writeFile(bin,`#!/usr/bin/env node
 import{readFileSync,writeFileSync}from'node:fs';import{join}from'node:path';
-const d=process.env.VISUAL_STUB_DIR,a=process.argv.slice(2);let p='';for await(const c of process.stdin)p+=c;
+const d=process.env.VISUAL_STUB_DIR,a=process.argv.slice(2);if(a.includes('--version')){process.stdout.write('codex-cli test');process.exit(0)}let p='';for await(const c of process.stdin)p+=c;
 let n=0;try{n=Number(readFileSync(join(d,'count'),'utf8'))}catch{}writeFileSync(join(d,'count'),String(n+1));writeFileSync(join(d,'prompt-'+n),p);writeFileSync(join(d,'schema.json'),readFileSync(a[a.indexOf('--output-schema')+1]));const r=JSON.parse(readFileSync(join(d,'responses.json'),'utf8'))[n];
 if(r?.pause)await new Promise(resolve=>setTimeout(resolve,2000));if(r?.failure){process.stderr.write(r.failure);process.exit(1)}writeFileSync(a[a.indexOf('-o')+1],JSON.stringify(r));
 `,{mode:0o755});process.env.CODEX_BIN=bin;process.env.VISUAL_STUB_DIR=dir;return await action(dir);
@@ -39,5 +39,22 @@ test('sealed candidates reject artifact/source drift and failed packaging preser
   const dest=join(dir,'published.json');await writeFile(dest,'keep existing');
   const {spawnSync}=await import('node:child_process');const failed=spawnSync(process.execPath,['scripts/package-visual-pilot.mjs','--from',dir,'--out',dest],{encoding:'utf8'});assert.notEqual(failed.status,0);assert.equal(await readFile(dest,'utf8'),'keep existing');
   await m.sealCandidate(dir,manifest,bundle,1);await writeFile(join(dir,'bundle.json'),'{}');await assert.rejects(m.readCandidate(dir),/checksum/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+test('targeted revisions change only explicitly allowed prose fields and retain parent mathematics',async()=>{
+ const m=await import('../../src/lib/server/lesson/visual-generation.ts');assert.equal(typeof m.applyVisualRevision,'function','bounded revision boundary exists');const parent=visualDeckFixture(),field='/slides/0/prompt',feedback='הבהירו את השאלה במילים קצרות';
+ await inert([{replacements:[{path:field,value:'איפה נמצאים רוב הציונים?'}]},{replacements:[{path:field,value:'איפה נמצאים רוב הציונים?'}]}],async dir=>{const revised=await m.generateVisualLesson({context,sourceIds:[],timeoutMs:3000,revision:{parent,feedback,fields:[field]}});assert.equal(revised.slides[0].prompt,'איפה נמצאים רוב הציונים?');const expected=structuredClone(parent);expected.slides[0].prompt=revised.slides[0].prompt;assert.deepEqual(revised,expected);const prompt=await readFile(join(dir,'prompt-0'),'utf8');assert.match(prompt,/targeted revision/i);assert.ok(prompt.includes(feedback));const schema=JSON.parse(await readFile(join(dir,'schema.json'),'utf8'));assert.deepEqual(schema.properties.replacements.items.properties.path.enum,[field]);});
+ await inert([{replacements:[{path:'/tasks/0/check/answer',value:'999'}]},{replacements:[{path:'/tasks/0/check/answer',value:'999'}]}],async()=>{await assert.rejects(m.generateVisualLesson({context,sourceIds:[],timeoutMs:3000,revision:{parent,feedback,fields:[field]}}),e=>e.kind==='bad-output');});
+ await assert.rejects(m.generateVisualLesson({context,sourceIds:[],revision:{parent,feedback,fields:['/tasks/0/check/answer']}}),/revision field/);
+});
+test('historical revision parents require their original source commit and exact artifact bytes',async()=>{
+ const m=await import('../../scripts/visual-pilot-validation.mjs');assert.equal(typeof m.readRevisionParent,'function');const {execFileSync}=await import('node:child_process');const dir=await mkdtemp(join(tmpdir(),'visual-revision-parent-')),repo=join(dir,'source'),out=join(dir,'candidate');await mkdir(repo);await mkdir(out);
+ try{
+  for(const file of m.SOURCE_FILES){await mkdir(dirname(join(repo,file)),{recursive:true});await writeFile(join(repo,file),await readFile(file));}
+  const git=args=>execFileSync('git',['-C',repo,'-c','user.name=Test','-c','user.email=test@example.invalid','-c','commit.gpgsign=false','-c','core.hooksPath=/dev/null',...args],{encoding:'utf8'}).trim();git(['init','-q']);git(['add','-A']);git(['commit','-qm','source snapshot']);const ref=git(['rev-parse','HEAD']);
+  const bundle=visualDeckFixture(),id='moe-2025a-35372-3';bundle.slides[2].blocks.push({type:'source',sourceId:id,text:'מקור',model:null,reveal:0});bundle.sourceSolutions=Object.entries({a1:'72',a2:'52,56,60,64,68,72,76,80,84,88,92',b:'16',c:'200',d:'86'}).map(([part,answer])=>({questionId:id,part,answer,slideId:'slide-3'}));
+  const manifest=await m.newManifest({model:'stub',cliVersion:'stub'});await m.sealCandidate(out,manifest,bundle,1);assert.equal((await m.readRevisionParent(out,ref,repo)).sourceRevision,ref);
+  await writeFile(join(repo,m.SOURCE_FILES[0]),'different source');git(['add','-A']);git(['commit','-qm','changed source']);await assert.rejects(m.readRevisionParent(out,git(['rev-parse','HEAD']),repo),/fingerprint/);
+  await writeFile(join(out,'bundle.json'),'{}');await assert.rejects(m.readRevisionParent(out,ref,repo),/checksum/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });

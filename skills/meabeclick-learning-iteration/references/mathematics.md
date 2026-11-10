@@ -21,3 +21,5 @@ The visual generator builds source-specific schema branches for exact official q
 Numeric±4 tail sentinels are internal model/check data only. Prompts, givens, hints, solutions and notes use the whole left/right tail or infinity notation matching the actual selectors. Never teach a finite z=4 as an infinite tail. A whole-population formula uses both infinite bounds. Tutor demonstrations must be achievable with the actual controls, including whole-tail selections when requested.
 
 Every prose field, including hints, feedback and worked solutions, uses supported TeX delimiters around commands. Bare commands such as `\mu`, `\frac` or `\cdot` belong only in equation blocks. The visual validator rejects unwrapped commands and reports their exact field paths; a formatting repair preserves mathematical values and reasoning.
+
+Keep mean notation consistent with the trusted diagrams: use μ in this profile, rather than alternating μ and a barred x. Count half-s bands against the actual bounds:−1..1 contains four bands (68%);−0.5..0.5 contains two (38%). The visible prompt, explanation and highlighted interval must describe the same bands.

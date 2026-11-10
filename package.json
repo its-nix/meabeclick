@@ -17,7 +17,7 @@
     "predev": "node scripts/vendor-learning.mjs",
     "prebuild": "node scripts/vendor-learning.mjs",
     "test:learning": "node --test tests/unit/learning-experience.test.mjs tests/unit/learning-lifecycle.test.mjs tests/characterization/learning-experience.test.mjs tests/unit/presenter-notes.test.mjs tests/characterization/presenter-notes.test.mjs",
-    "test:pilot:browser": "node tests/browser/visual-pilot.mjs",
+    "test:pilot:browser": "node tests/browser/visual-controls.mjs && node tests/browser/visual-pilot.mjs",
     "test:learning:browser": "node tests/browser/learning-experience.mjs",
     "test:workspace:browser": "node tests/browser/tutor-workspace.mjs",
     "learning:video": "node scripts/render-learning-video.mjs",

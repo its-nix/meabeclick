@@ -14,6 +14,8 @@ const object=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Arr
 const text=(v:unknown,max=600,empty=false)=>typeof v==='string'&&v.length<=max&&(empty||!!v.trim())&&!/(?<!\$)\$(?!\$)/.test(v)&&!mathText(v).includes('data-math-error');
 const id=(v:unknown)=>typeof v==='string'&&/^[a-z0-9-]{1,80}$/.test(v);
 const finite=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<=10000;
+const axisZ=(v:unknown)=>finite(v)&&Math.abs(Number(v))<=2.5&&Number.isInteger(Number(v)*2);
+const regionZ=(v:unknown)=>v===-4||v===4||axisZ(v);
 export function visualLessonProblems(raw:unknown,options:DeckValidation={}):string[]{
  const errors:string[]=[],need=(v:unknown,msg:string)=>{if(!v)errors.push(msg);};
  if(!object(raw))return ['חבילת המצגת אינה אובייקט'];const p=raw;
@@ -34,6 +36,8 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
    for(const k of ['lowerZ','upperZ','pointZ','hideZ'])need(s[k]===null||finite(s[k])&&Math.abs(s[k])<=4,'מיקום על ההתפלגות לא תקין');
    need((s.lowerZ===null&&s.upperZ===null)||(finite(s.lowerZ)&&finite(s.upperZ)&&s.lowerZ<s.upperZ),'תחום צביעה לא תקין');
    if(m.interactive==='region')need(finite(s.lowerZ)&&finite(s.upperZ)&&(m.mode!=='cumulative'||s.lowerZ===-4),'גבולות חקירה אינם תואמים לבקרים');
+   if(m.interactive==='position')need(finite(s.pointZ),'חקירת מיקום דורשת מיקום התחלתי');
+   if(m.mode==='axis'&&s.hideZ!==null)need(axisZ(s.hideZ),'מיקום תווית אינו סימון ציר נתמך');
   }
  };
  for(const s of slides){
@@ -66,7 +70,7 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
   need(Array.isArray(c.options)&&c.options.every((v:unknown)=>text(v,220)),'אפשרויות משימה לא תקינות');
   if(c.kind==='number')need(finite(c.answer),'מפתח מספרי לא תקין');
   else if(c.kind==='choice')need(Number.isInteger(c.answer)&&c.options?.length>=2&&c.options.length<=4&&c.answer>=0&&c.answer<c.options.length,'מפתח בחירה לא תקין');
-  else if(c.kind==='region')need(t.model&&Array.isArray(c.answer)&&c.answer.length===2&&c.answer.every((v:unknown)=>finite(v)&&Math.abs(Number(v))<=4)&&c.answer[0]<c.answer[1],'מפתח תחום לא תקין');
+  else if(c.kind==='region')need(t.model&&Array.isArray(c.answer)&&c.answer.length===2&&c.answer.every(regionZ)&&c.answer[0]<c.answer[1],'מפתח תחום אינו ניתן לבחירה בבקרים');
   else errors.push('סוג בדיקה לא נתמך');
   if(object(t.model)&&Array.isArray(t.model.states)&&object(t.model.states[0])&&object(c)){
    const s=t.model.states[0];
@@ -87,8 +91,8 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
  const explorations=slides.filter(object).flatMap(s=>Array.isArray(s.blocks)?s.blocks.filter(object).flatMap(b=>object(b.model)?[b.model]:[]):[]);
  need(explorations.some(m=>m.interactive==='spread')&&explorations.some(m=>m.interactive==='region'),'חסרה חקירה חיה של פיזור ושל שטח');
  const solutions=list(p.sourceSolutions,20,0);
- for(const s of solutions)need(object(s)&&slideIds.has(s.slideId)&&typeof s.answer==='string'&&options.sourceAnswers?.[s.questionId]?.[s.part]===s.answer,'פתרון מקור לא מאומת');
- for(const [qid,parts] of Object.entries(options.sourceAnswers??{})){need(sourceIds.has(qid),'השאלה הרשמית חסרה');for(const part of Object.keys(parts))need(solutions.some(s=>object(s)&&s.questionId===qid&&s.part===part),'סעיף מקור ללא פתרון');}
+ for(const s of solutions){const valid=object(s)&&slideIds.has(s.slideId)&&typeof s.answer==='string'&&options.sourceAnswers?.[s.questionId]?.[s.part]===s.answer;need(valid,'פתרון מקור לא מאומת'+(object(s)?`: ${String(s.questionId).slice(0,80)}/${String(s.part).slice(0,40)}; expected ${options.sourceAnswers?.[s.questionId]?.[s.part]??'unknown part'}, received ${String(s.answer).slice(0,100)}`:''));}
+ for(const [qid,parts] of Object.entries(options.sourceAnswers??{})){need(sourceIds.has(qid),'השאלה הרשמית חסרה');for(const part of Object.keys(parts))need(solutions.some(s=>object(s)&&s.questionId===qid&&s.part===part),`סעיף מקור ללא פתרון: ${qid}/${part}=${parts[part]}`);}
  return [...new Set(errors)];
 }
 

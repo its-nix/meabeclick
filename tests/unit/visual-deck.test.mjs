@@ -56,3 +56,8 @@ test('questions reject mean disclosure, mismatched missing labels and solution-s
  const wrong=visualDeckFixture();const a=wrong.homework[0];a.model.mode='axis';a.model.states[0].hideZ=1;a.check.answer=999;assert.ok(visualLessonProblems(wrong).some(x=>x.includes('תווית')));
  const dollar=visualDeckFixture();dollar.slides[0].prompt='מהו $s=10$?';assert.ok(visualLessonProblems(dollar).length,'unsupported inline delimiters cannot silently render as prose');
 });
+test('graded region bounds and missing ticks must be selectable by the actual controls',async()=>{
+ const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');
+ const region=visualDeckFixture();region.games[0].rounds[0].check.answer=[-1.75,.5];assert.ok(visualLessonProblems(region).length,'quarter-step region cannot be selected');
+ const axis=visualDeckFixture();const t=axis.homework[0];t.model.mode='axis';t.model.states[0].hideZ=1.75;t.check.answer=87.5;assert.ok(visualLessonProblems(axis).length,'axis has no quarter-step tick to hide');
+});

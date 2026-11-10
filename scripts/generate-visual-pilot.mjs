@@ -13,7 +13,7 @@ try{
  else manifest=await newManifest({model:opts['--model'],cliVersion});
  if(manifest.status!=='ready'){
   manifest.status='generating';await writeFile(join(dir,'manifest.json'),normalized(manifest));const started=Date.now();
-  const {generateVisualLesson}=await import('../src/lib/server/lesson/visual-generation.ts');const bundle=await generateVisualLesson({context:PILOT_CONTEXT,sourceIds:PILOT_SOURCES,model:opts['--model'],timeoutMs:minutes*60000});
+  const {generateVisualLesson}=await import('../src/lib/server/lesson/visual-generation.ts');const bundle=await generateVisualLesson({context:PILOT_CONTEXT,sourceIds:PILOT_SOURCES,model:opts['--model'],timeoutMs:minutes*60000,onRejected:async({attempt,issues,response})=>{const file=`rejected-${attempt}.txt`;await writeFile(join(dir,file),response);(manifest.rejections??=[]).push({attempt,issues,file});await writeFile(join(dir,'manifest.json'),normalized(manifest));console.log('Rejected attempt '+attempt+': '+issues.join('; '));}});
   await sealCandidate(dir,manifest,bundle,(Date.now()-started)/1000);console.log('Sealed visual pilot: '+dir+' ('+manifest.seconds+'s)');
  }
 }catch(e){if(manifest&&manifest.status!=='ready'){manifest.status='failed';manifest.failure={kind:e.kind??'candidate-failed',message:e.message};await writeFile(join(dir,'manifest.json'),normalized(manifest));}console.error(e);process.exitCode=1;}

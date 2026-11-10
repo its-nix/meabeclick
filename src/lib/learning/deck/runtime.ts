@@ -5,11 +5,15 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
  const bundle=config.bundle,slides=all('[data-slide]');
  const motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;
  const models=new WeakMap<HTMLElement,any>();let current=0,build=0,round=0;
+ function syncControls(node:HTMLElement,state:any){
+  for(const input of all('[data-live-param]',node) as HTMLInputElement[]){const value=state[input.dataset.liveParam!];if(typeof value!=='number')continue;input.value=String(value);const out=input.parentElement?.querySelector('output');if(out)out.textContent=Number(input.value).toFixed(2).replace(/\.?0+$/,'');}
+ }
  function paint(node:HTMLElement,stage=0,animate=false){
   const m=models.get(node);if(!m)return;m.stage=stage;m.seq++;
   const result=visual(m.model,stage,m.scope,m.override,m.comparison);
   const draw=(value:any)=>{$('.model-visual',node).innerHTML=value.svg;};
   const state={...m.model.states[Math.min(stage,m.model.states.length-1)],...m.override};
+  syncControls(node,state);
   const old=m.last;m.last=state;
   if(animate&&motion&&old){const seq=m.seq,start=performance.now();const frame=(at:number)=>{if(m.seq!==seq)return;const t=Math.min(1,(at-start)/220),ease=1-(1-t)**3,intermediate:any={...state};for(const k of ['mean','sd','lowerZ','upperZ','pointZ'])if(typeof old[k]==='number'&&typeof state[k]==='number')intermediate[k]=old[k]+(state[k]-old[k])*ease;draw(visual(m.model,stage,m.scope,intermediate,m.comparison));if(t<1)requestAnimationFrame(frame);else draw(result);};requestAnimationFrame(frame);}else draw(result);
   rich($('.model-formula',node),'\\('+result.formula+'\\)');$('.model-caption',node).textContent=result.caption;
@@ -51,7 +55,9 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
  for(const button of all('[data-source-open]'))button.addEventListener('click',()=>{const d=document.getElementById('source-'+button.dataset.sourceOpen) as HTMLDialogElement;d?.showModal();});
  for(const button of all('[data-close-source]'))button.addEventListener('click',()=>{(button.closest('dialog') as HTMLDialogElement).close();});
  for(const button of all('[data-print]'))button.addEventListener('click',()=>window.print());
- addEventListener('beforeprint',()=>{for(const node of all('[data-model]')){const m=models.get(node);m.override={};paint(node,m.model.states.length-1);}});
+ let printState:Map<HTMLElement,{stage:number;override:any}>|null=null;
+ addEventListener('beforeprint',()=>{if(printState)return;printState=new Map();for(const node of all('[data-model]')){const m=models.get(node);printState.set(node,{stage:m.stage,override:{...m.override}});m.override={};paint(node,m.model.states.length-1);}});
+ addEventListener('afterprint',()=>{if(!printState)return;for(const [node,saved]of printState){const m=models.get(node);m.override=saved.override;paint(node,saved.stage);}printState=null;});
  const taskList=[...bundle.tasks,...bundle.homework,...bundle.games.flatMap((g:any)=>g.rounds)];
  for(const article of all('[data-task]')){
   const task=taskList.find((t:any)=>t.id===article.dataset.task);let choice:number|null=null,pending=false;

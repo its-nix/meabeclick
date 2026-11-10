@@ -30,10 +30,14 @@
     "test:review:browser": "node tests/browser/learning-review.mjs",
     "test:ui:browser": "node tests/browser/apple-role-journeys.mjs",
     "test:auth:browser": "node tests/browser/google-onboarding.mjs",
+    "test:qa": "playwright test --config playwright.qa.config.mjs",
+    "test:qa:select": "node scripts/pr-qa/select.mjs",
+    "test:qa:report": "node scripts/pr-qa/report.mjs",
     "test:teaching:browser": "node tests/browser/teaching-v2.mjs",
     "test:review:v2:browser": "REVIEW_VERSION=v2 node tests/browser/learning-review.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",

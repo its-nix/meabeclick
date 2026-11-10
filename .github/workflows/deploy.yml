@@ -39,6 +39,15 @@ jobs:
       image: ${{ steps.image.outputs.name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Keep the merge checkout being built; compare its complete graph
+          # with the PR base, including deleted/renamed imports.
+          fetch-depth: 0
+
+      - name: Configure PR UI evidence directory
+        run: |
+          echo "PR_QA_DIR=$RUNNER_TEMP/pr-ui-verification" >> "$GITHUB_ENV"
+          echo "PR_QA_PLAN=$RUNNER_TEMP/pr-ui-verification/impact.json" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -47,6 +56,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Select affected pages and journeys
+        id: pr_qa_select
+        run: node scripts/pr-qa/select.mjs
+        env:
+          PR_QA_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_QA_EVENT: ${{ github.event_name }}
 
       # tests/characterization/harness.mjs spawns build/index.js (the
       # adapter-node production build) for every characterization test, so
@@ -75,17 +91,29 @@ jobs:
       # The learning runtime is serialized into standalone HTML. Only a real
       # browser exercises that runtime, offline recovery and the print view.
       - name: Install learning test browser
-        run: npx --no-install playwright-core install --with-deps chromium
+        if: steps.pr_qa_select.outputs.run_ui == 'true'
+        run: npx --no-install playwright install --with-deps chromium webkit
+
+      - name: Verify affected user journeys
+        id: pr_qa_run
+        if: steps.pr_qa_select.outputs.run_ui == 'true'
+        run: npm run test:qa
 
       - name: Check interactive learning in Chromium
+        id: qa_learning
+        if: steps.pr_qa_select.outputs.learning == 'true'
         run: npm run test:learning:browser
 
       - name: Check v2 lesson and homework in Chromium
+        id: qa_teaching_v2
+        if: steps.pr_qa_select.outputs.learning == 'true'
         run: npm run test:teaching:browser
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/teaching-v2
 
       - name: Check all v2 review cases in Chromium
+        id: qa_review_v2
+        if: steps.pr_qa_select.outputs.learning == 'true'
         run: npm run test:review:v2:browser
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/learning-review-v2
@@ -96,16 +124,22 @@ jobs:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/visual-pilot
 
       - name: Check synthetic teaching review in Chromium
+        id: qa_review
+        if: steps.pr_qa_select.outputs.learning == 'true'
         run: npm run test:review:browser
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/learning-review
 
       - name: Check tutor workspace in Chromium
+        id: qa_workspace
+        if: steps.pr_qa_select.outputs.workspace == 'true' || steps.pr_qa_select.outputs.tutor_create == 'true'
         run: npm run test:workspace:browser
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui
 
       - name: Check marketing charts in Chromium
+        id: qa_charts
+        if: steps.pr_qa_select.outputs.workspace == 'true'
         run: node tests/browser/marketing-trends.mjs
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/charts
@@ -120,11 +154,15 @@ jobs:
           retention-days: 7
 
       - name: Check Google sign-in and family onboarding in Chromium
+        id: qa_auth
+        if: steps.pr_qa_select.outputs.invitations == 'true'
         run: npm run test:auth:browser
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/apple-role-journeys/google-onboarding
 
       - name: Check role journeys, responsive UI and contrast in Chromium
+        id: qa_matrix
+        if: steps.pr_qa_select.outputs.run_ui == 'true'
         run: npm run test:ui:browser
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/apple-role-journeys
@@ -137,6 +175,30 @@ jobs:
           path: ${{ runner.temp }}/apple-role-journeys
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Report PR UI verification
+        if: always()
+        run: node scripts/pr-qa/report.mjs
+        env:
+          QA_SELECTION_OUTCOME: ${{ steps.pr_qa_select.outcome }}
+          QA_RUN_OUTCOME: ${{ steps.pr_qa_run.outcome }}
+          QA_LEARNING_OUTCOME: ${{ steps.qa_learning.outcome }}
+          QA_REVIEW_OUTCOME: ${{ steps.qa_review.outcome }}
+          QA_TEACHING_V2_OUTCOME: ${{ steps.qa_teaching_v2.outcome }}
+          QA_REVIEW_V2_OUTCOME: ${{ steps.qa_review_v2.outcome }}
+          QA_WORKSPACE_OUTCOME: ${{ steps.qa_workspace.outcome }}
+          QA_CHARTS_OUTCOME: ${{ steps.qa_charts.outcome }}
+          QA_AUTH_OUTCOME: ${{ steps.qa_auth.outcome }}
+          QA_MATRIX_OUTCOME: ${{ steps.qa_matrix.outcome }}
+
+      - name: Save PR UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-ui-verification
+          path: ${{ runner.temp }}/pr-ui-verification
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Compute lowercase image name
         id: image

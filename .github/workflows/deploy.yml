@@ -32,9 +32,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      PR_QA_DIR: ${{ runner.temp }}/pr-ui-verification
-      PR_QA_PLAN: ${{ runner.temp }}/pr-ui-verification/impact.json
     permissions:
       contents: read
       packages: write
@@ -46,6 +43,11 @@ jobs:
           # Keep the merge checkout being built; compare its complete graph
           # with the PR base, including deleted/renamed imports.
           fetch-depth: 0
+
+      - name: Configure PR UI evidence directory
+        run: |
+          echo "PR_QA_DIR=$RUNNER_TEMP/pr-ui-verification" >> "$GITHUB_ENV"
+          echo "PR_QA_PLAN=$RUNNER_TEMP/pr-ui-verification/impact.json" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:

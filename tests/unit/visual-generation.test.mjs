@@ -58,3 +58,17 @@ test('historical revision parents require their original source commit and exact
   await writeFile(join(out,'bundle.json'),'{}');await assert.rejects(m.readRevisionParent(out,ref,repo),/checksum/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+test('chained revision parents reject missing or changed lineage evidence',async()=>{
+ const m=await import('../../scripts/visual-pilot-validation.mjs'),{execFileSync}=await import('node:child_process');const dir=await mkdtemp(join(tmpdir(),'visual-revision-chain-')),repo=join(dir,'source'),out=join(dir,'child'),base=join(dir,'base');await mkdir(repo);await mkdir(out);await mkdir(base);
+ try{
+  for(const file of m.SOURCE_FILES){await mkdir(dirname(join(repo,file)),{recursive:true});await writeFile(join(repo,file),await readFile(file));}
+  const git=args=>execFileSync('git',['-C',repo,'-c','user.name=Test','-c','user.email=test@example.invalid','-c','commit.gpgsign=false','-c','core.hooksPath=/dev/null',...args],{encoding:'utf8'}).trim();git(['init','-q']);git(['add','-A']);git(['commit','-qm','source snapshot']);const ref=git(['rev-parse','HEAD']);
+  const b=visualDeckFixture(),id='moe-2025a-35372-3';b.slides[2].blocks.push({type:'source',sourceId:id,text:'מקור',model:null,reveal:0});b.sourceSolutions=Object.entries({a1:'72',a2:'52,56,60,64,68,72,76,80,84,88,92',b:'16',c:'200',d:'86'}).map(([part,answer])=>({questionId:id,part,answer,slideId:'slide-3'}));
+  const original=await m.newManifest({model:'stub',cliVersion:'stub'});await m.sealCandidate(base,original,b,1);const child=structuredClone(b),field='/slides/0/prompt';child.slides[0].prompt='איפה נמצא רוב הקבוצה?';const feedback='הבהרת ניסוח',patch=m.normalized([{path:field,before:b.slides[0].prompt,value:child.slides[0].prompt}]),manifest=await m.newManifest({model:'stub',cliVersion:'stub'});
+  manifest.revision={mode:'targeted-text-1',fields:[field],parentBundleSha256:original.bundleSha256,parentManifestSha256:m.bytesHash(m.normalized(original)),parentSourceFingerprint:original.config.sourceFingerprint,parentSourceRevision:ref,feedbackSha256:m.bytesHash(feedback),patchSha256:m.bytesHash(patch)};
+  for(const[file,bytes]of Object.entries({'parent-bundle.json':m.normalized(b),'parent-manifest.json':m.normalized(original),'revision-feedback.txt':feedback,'revision-patch.json':patch}))await writeFile(join(out,file),bytes);
+  await m.sealCandidate(out,manifest,child,1);await m.readCandidate(out);await m.readRevisionParent(out,ref,repo);
+  await rm(join(out,'revision-feedback.txt'));await assert.rejects(m.readCandidate(out));await assert.rejects(m.readRevisionParent(out,ref,repo),'historical reader must not bypass missing evidence');
+  await writeFile(join(out,'revision-feedback.txt'),'changed');await assert.rejects(m.readRevisionParent(out,ref,repo),/checksum/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});

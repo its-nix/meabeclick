@@ -23,11 +23,11 @@ test('roles-smoke: anonymous guards and three authenticated dashboards', async (
     await expect(page.getByRole('heading', heading ? { name: heading, exact: true } : { level: 1 }).first()).toBeVisible();
     await qa.evidence(page, role);
     await page.getByRole('button', { name: role === 'tutor' ? 'יציאה מהחשבון' : 'יציאה', exact: true }).click();
-    if (role === 'tutor') {
-      await expect(page).toHaveURL(qa.browserUrl + '/');
-      await page.goto('/app/dashboard');
-      await expect(page).toHaveURL(/\/login/);
-    } else await expect(page).toHaveURL(/\/portal/);
+    await expect(page).toHaveURL(qa.browserUrl + '/');
+    await page.waitForLoadState('load');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.goto(path);
+    await expect(page).toHaveURL(role === 'tutor' ? /\/login/ : /\/portal/);
   }
 });
 

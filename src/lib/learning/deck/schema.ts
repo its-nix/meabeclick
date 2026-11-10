@@ -1,9 +1,10 @@
 import {DECK_LAYOUTS,VISUAL_RULE_VERSION} from './model.ts';
+import type {OutputSchema} from '../../server/lesson/structured-output.ts';
 const text={type:'string'},number={type:'number'},nullableNumber={anyOf:[number,{type:'null'}]};
 const en=(...values:string[])=>({type:'string',enum:values});
-const object=(properties:Record<string,unknown>)=>({type:'object',required:Object.keys(properties),properties});
-const array=(items:unknown)=>({type:'array',items});
-const nullable=(s:unknown)=>({anyOf:[{type:'null'},s]});
+const object=(properties:Record<string,OutputSchema>):OutputSchema=>({type:'object',required:Object.keys(properties),properties});
+const array=(items:OutputSchema):OutputSchema=>({type:'array',items});
+const nullable=(s:OutputSchema):OutputSchema=>({anyOf:[{type:'null'},s]});
 const model=object({mode:en('population','curve','spread','bands','cumulative','axis','position'),interactive:en('none','spread','region','position'),showProbability:{type:'boolean'},states:array(object({mean:number,sd:number,lowerZ:nullableNumber,upperZ:nullableNumber,pointZ:nullableNumber,hideZ:nullableNumber}))});
 const check=object({kind:en('number','choice','region'),answer:{anyOf:[number,array(number)]},options:array(text)});
 const task=object({id:text,title:text,prompt:text,givens:text,objectiveId:text,support:en('guided','independent'),grading:en('checked','tutor-review'),model:nullable(model),check:nullable(check),hints:array(text),solution:text,success:text,retry:text});

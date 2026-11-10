@@ -40,11 +40,12 @@ export function previewAction(id:string,version:string,task:DeckTask,action:stri
 let checked:ReturnType<typeof getPilot>|undefined;
 export function getPilot():{bundle:VisualLesson;version:string}|null{
  if(checked!==undefined)return checked;
- const data=corpus as unknown as {manifest:{status:string;bundleSha256?:string};bundle:VisualLesson|null};
+ const data=corpus as unknown as {manifest:{status:string;bundleSha256?:string;sourceIds?:string[]};bundle:VisualLesson|null};
  if(data.manifest.status!=='ready'||!data.bundle)return checked=null;
  const version=createHash('sha256').update(JSON.stringify(data.bundle,null,2)+'\n').digest('hex');
  if(version!==data.manifest.bundleSha256)throw Error('pilot checksum mismatch');
- const sourceAnswers=Object.fromEntries([...new Set(data.bundle.sourceSolutions.map(s=>s.questionId))].map(id=>[id,officialQuestion(id)?.answers??{}]));
+ if(!data.manifest.sourceIds?.length)throw Error('pilot source manifest missing');
+ const sourceAnswers=Object.fromEntries(data.manifest.sourceIds.map(id=>{const q=officialQuestion(id);if(!q?.answers)throw Error('unknown pilot source');return[id,q.answers];}));
  const problems=visualLessonProblems(data.bundle,{sourceAnswers});if(problems.length)throw Error('invalid pilot: '+problems.join('; '));
  return checked={bundle:data.bundle,version};
 }

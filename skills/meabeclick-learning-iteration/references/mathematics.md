@@ -1,5 +1,7 @@
 # Mathematical and source conventions
 
+For35372 normal distribution use its school half-s diagram. Printed band percentages are approximate; do not mix them with exact Gaussian CDF values. Position1.75 supports calculating a score, not reading an invented school-band probability. Keep original question image/transcript separate from annotations and staged solutions, and independently recompute every subpart. Trusted multi-part record `moe-2025a-35372-3` is visual-only; exclude it from legacy single-number resolution. The catalogue checks source/document hashes. Generated variations remain labelled original practice.
+
 Check arithmetic/algebra, allowed transformations, original-equation solutions, domains, units and rounding. Preserve exact values until approximation is required. Match diagrams, formulas, labels and answers, including after manipulation. Distinguish radius/diameter, vertical/slant height, area/volume, interval/cumulative probability and algebraic/contextually feasible roots. Read fractional units as fractions in Hebrew.
 
 Keep grade, unit track, curriculum, target questionnaire and readiness separate. Preserve appropriate notation across all linked materials. Existing function controls use a,h,k and m,b by default; use an explicit supported mapping when a source differs. Nikol's s and half-standard-deviation school bands are profile-specific approximations, not a universal probability calculator.

@@ -1,15 +1,16 @@
 import type {NormalModel,NormalState} from './model.ts';
 
 /** Self-contained: the exact same mathematical recipe runs in rendered HTML and in browser interaction. */
-export function normalVisual(model:NormalModel,stage=0,scope='normal',override:Partial<NormalState>={}){
+export function normalVisual(model:NormalModel,stage=0,scope='normal',override:Partial<NormalState>={},comparison:NormalModel[]=[]){
  const base=model.states[0],s={...model.states[Math.min(stage,model.states.length-1)],...override};
  const fmt=(n:number)=>Number(n.toFixed(2)).toString();
  const bounds=[-4,-2.5,-2,-1.5,-1,-.5,0,.5,1,1.5,2,2.5,4],cumulative=[0,.5,2,7,16,31,50,69,84,93,98,99.5,100];
  const index=(n:number|null)=>n===null?-1:bounds.findIndex(v=>Math.abs(v-n)<1e-7);
  const li=index(s.lowerZ),ui=index(s.upperZ),percent=li>=0&&ui>=li?cumulative[ui]-cumulative[li]:null;
  const mean=fmt(s.mean),sd=fmt(s.sd),value=(z:number)=>s.mean+z*s.sd;
- const maxSd=model.interactive==='spread'?base.sd*1.75:Math.max(...model.states.map(v=>v.sd)),minSd=model.interactive==='spread'?base.sd*.65:Math.min(...model.states.map(v=>v.sd));
- const xmin=Math.min(...model.states.map(v=>v.mean))-3.4*maxSd,xmax=Math.max(...model.states.map(v=>v.mean))+3.4*maxSd;
+ const pool=[model,...comparison].flatMap(m=>m.states);
+ const maxSd=model.interactive==='spread'?base.sd*1.75:Math.max(...pool.map(v=>v.sd)),minSd=model.interactive==='spread'?base.sd*.65:Math.min(...pool.map(v=>v.sd));
+ const xmin=Math.min(...pool.map(v=>v.mean))-3.4*maxSd,xmax=Math.max(...pool.map(v=>v.mean))+3.4*maxSd;
  const x=(v:number)=>62+(v-xmin)/(xmax-xmin)*776;
  const y=(v:number)=>270-165*(minSd/s.sd)*Math.exp(-.5*((v-s.mean)/s.sd)**2);
  const points=Array.from({length:181},(_,i)=>{const v=xmin+(xmax-xmin)*i/180;return [x(v),Math.max(8,y(v))];});

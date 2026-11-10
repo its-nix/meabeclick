@@ -7,16 +7,16 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
  const models=new WeakMap<HTMLElement,any>();let current=0,build=0,round=0;
  function paint(node:HTMLElement,stage=0,animate=false){
   const m=models.get(node);if(!m)return;m.stage=stage;m.seq++;
-  const result=visual(m.model,stage,m.scope,m.override);
+  const result=visual(m.model,stage,m.scope,m.override,m.comparison);
   const draw=(value:any)=>{$('.model-visual',node).innerHTML=value.svg;};
   const state={...m.model.states[Math.min(stage,m.model.states.length-1)],...m.override};
   const old=m.last;m.last=state;
-  if(animate&&motion&&old){const seq=m.seq,start=performance.now();const frame=(at:number)=>{if(m.seq!==seq)return;const t=Math.min(1,(at-start)/220),ease=1-(1-t)**3,intermediate:any={...state};for(const k of ['mean','sd','lowerZ','upperZ','pointZ'])if(typeof old[k]==='number'&&typeof state[k]==='number')intermediate[k]=old[k]+(state[k]-old[k])*ease;draw(visual(m.model,stage,m.scope,intermediate));if(t<1)requestAnimationFrame(frame);else draw(result);};requestAnimationFrame(frame);}else draw(result);
+  if(animate&&motion&&old){const seq=m.seq,start=performance.now();const frame=(at:number)=>{if(m.seq!==seq)return;const t=Math.min(1,(at-start)/220),ease=1-(1-t)**3,intermediate:any={...state};for(const k of ['mean','sd','lowerZ','upperZ','pointZ'])if(typeof old[k]==='number'&&typeof state[k]==='number')intermediate[k]=old[k]+(state[k]-old[k])*ease;draw(visual(m.model,stage,m.scope,intermediate,m.comparison));if(t<1)requestAnimationFrame(frame);else draw(result);};requestAnimationFrame(frame);}else draw(result);
   rich($('.model-formula',node),'\\('+result.formula+'\\)');$('.model-caption',node).textContent=result.caption;
  }
  for(const node of all('[data-model]')){
   const model=JSON.parse(node.dataset.model!),scope=node.dataset.modelScope!;
-  models.set(node,{model,scope,override:{},stage:0,last:null,seq:0});
+  models.set(node,{model,scope,comparison:JSON.parse(node.dataset.modelComparison??'[]'),override:{},stage:0,last:null,seq:0});
   if(model.interactive!=='none'){
    const controls=document.createElement('div');controls.className='model-controls';node.append(controls);
    const slider=(name:string,label:string,min:number,max:number,step:number,value:number)=>{const wrap=document.createElement('label');const text=document.createElement('span');text.textContent=label;const input=document.createElement('input');input.type='range';input.min=String(min);input.max=String(max);input.step=String(step);input.value=String(value);input.setAttribute('aria-label',label);input.dataset.liveParam=name;const out=document.createElement('output');out.dir='ltr';out.textContent=String(value);input.addEventListener('input',()=>{const m=models.get(node);m.override[name]=Number(input.value);out.textContent=Number(input.value).toFixed(2).replace(/\.?0+$/,'');if(name==='upperZ'&&model.mode==='cumulative')m.override.lowerZ=-4;const l=m.override.lowerZ??model.states[0].lowerZ,u=m.override.upperZ??model.states[0].upperZ;if(l!==null&&u!==null&&l>=u){if(name==='lowerZ')m.override.upperZ=l+.5;else m.override.lowerZ=u-.5;}paint(node);});wrap.append(text,input,out);controls.append(wrap);};

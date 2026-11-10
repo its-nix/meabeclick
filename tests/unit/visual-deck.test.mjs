@@ -43,3 +43,8 @@ test('school bands, changed spread and non-half standard scores remain mathemati
  assert.match(hidden.svg,/data-standard-distance/);
  model.mode='axis';assert.match(m.normalVisual(model).caption,/חצי/);
 });
+test('side-by-side spreads share axes so their visible widths actually differ',async()=>{
+ const {normalVisual}=await import('../../src/lib/learning/deck/normal.ts');const small={mode:'spread',interactive:'none',showProbability:false,states:[{mean:70,sd:4,lowerZ:null,upperZ:null,pointZ:null,hideZ:null}]},large=structuredClone(small);large.states[0].sd=12;
+ const peers=[small,large],a=normalVisual(small,0,'one',{},peers),b=normalVisual(large,0,'two',{},peers);
+ const path=s=>s.match(/<polyline[^>]*points="([^"]*)"/)[1];assert.notEqual(path(a.svg),path(b.svg));
+});

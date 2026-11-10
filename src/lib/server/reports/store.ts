@@ -10,6 +10,7 @@
  * a lesson marked reported without the events it claims to have produced is
  * a record that lies.
  */
+import {validateTeachingCoverage,type TeachingCoverage} from './teaching-coverage.ts';
 import { handle } from '../db.ts';
 import { nodeInPlan, planForEnrollment } from '../plans/store.ts';
 import type { SkillStatus } from '../../plan-status.ts';
@@ -129,7 +130,7 @@ export function notesForReport(reportId: number): ReportNoteRow[] {
  * no plan to check them against.
  */
 export function fileReport(input: {
-  bookingId: number; note: string | null;
+  bookingId: number; note: string | null;coverage?:TeachingCoverage|null;
   entries: { nodeId: number; status: SkillStatus }[];
 }): number {
   const db = handle();
@@ -139,6 +140,7 @@ export function fileReport(input: {
   db.exec('BEGIN');
   try {
     const at = now();
+    const coverage=validateTeachingCoverage(input.bookingId,input.coverage);
 
     // If entries are provided, enrollment must exist and have a plan.
     // A note-only report (entries.length === 0) needs neither.
@@ -170,8 +172,8 @@ export function fileReport(input: {
     // The note's own history — a row per filing, appended never rewritten
     // (spec §4/§3 apply to the note the same way they apply to skill status).
     db.prepare(
-      `INSERT INTO lesson_report_notes (report_id, note, at) VALUES (?, ?, ?)`
-    ).run(reportId, input.note, at);
+      `INSERT INTO lesson_report_notes (report_id, note, at, teaching_coverage) VALUES (?, ?, ?, ?)`
+    ).run(reportId, input.note, at, coverage?JSON.stringify(coverage):null);
 
     // For each entry, verify it belongs to this lesson's plan before writing.
     // plan is guaranteed non-null here because we only reach this if entries is non-empty

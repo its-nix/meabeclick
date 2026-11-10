@@ -5,6 +5,10 @@
  */
 import { handle } from '../db.ts';
 import { latestPublished } from '../materials.ts';
+import {generationVersion} from '../../learning/teaching-rules.ts';
+import {canReuseTeachingPlan} from '../lesson/teaching-context.ts';
+import {teachingProblems}from'../../learning/teaching.ts';
+import type {LessonRequest} from '../lesson/prep.ts';
 import type { LessonPlan } from '../lesson/prep.ts';
 import { itemFor } from './store.ts';
 
@@ -17,13 +21,17 @@ export function readyMaster(templateId: string, skillKey: string): { slug: strin
 /** What a booking on this skill gets: the master's PUBLISHED plan — so the
  *  tutor's published edits are in it, and an unpublished draft is not.
  *  Null when there is no ready master, or its plan does not parse. */
-export function libraryPlanFor(templateId: string, skillKey: string): { masterSlug: string; plan: LessonPlan } | null {
+export function libraryPlanFor(templateId: string, skillKey: string, request?:LessonRequest): { masterSlug: string; plan: LessonPlan } | null {
   const master = readyMaster(templateId, skillKey);
   if (!master) return null;
   const row = latestPublished(master.slug, 'plan');
   if (!row) return null;
   try {
-    return { masterSlug: master.slug, plan: JSON.parse(row.content) as LessonPlan };
+    const plan=JSON.parse(row.content) as LessonPlan;
+    if(plan.teaching?.context?.purpose==='review'||generationVersion()===1&&plan.teaching?.version===2)return null;
+    if(generationVersion()===2&&(!plan.teaching||teachingProblems(plan.teaching,plan).length))return null;
+    if(request&&generationVersion()===2&&!canReuseTeachingPlan(plan,request))return null;
+    return {masterSlug:master.slug,plan};
   } catch {
     return null;
   }

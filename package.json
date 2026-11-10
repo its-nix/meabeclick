@@ -28,7 +28,9 @@
     "check:ci": "node scripts/check-warnings.mjs",
     "test:review:browser": "node tests/browser/learning-review.mjs",
     "test:ui:browser": "node tests/browser/apple-role-journeys.mjs",
-    "test:auth:browser": "node tests/browser/google-onboarding.mjs"
+    "test:auth:browser": "node tests/browser/google-onboarding.mjs",
+    "test:teaching:browser": "node tests/browser/teaching-v2.mjs",
+    "test:review:v2:browser": "REVIEW_VERSION=v2 node tests/browser/learning-review.mjs"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.7",

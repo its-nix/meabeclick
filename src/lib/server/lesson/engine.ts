@@ -64,7 +64,8 @@ export type LessonFailureKind =
   /** Clean exit, but nothing came back. */
   | 'no-output'
   /** Something came back, in the wrong shape. */
-  | 'bad-output';
+  | 'bad-output'
+  | 'source-unresolved';
 
 /**
  * What the tutor reads when the engine itself is unavailable — not this

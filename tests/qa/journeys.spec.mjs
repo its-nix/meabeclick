@@ -243,6 +243,19 @@ test('learning: wrong answer, correction and reload preserve independent progres
   await page.reload();
   await expect(page.locator('[data-scene-link]').nth(5)).toHaveClass(/is-complete/);
   await qa.evidence(page, 'progress-reloaded');
+  const previewPlan = { title: 'תצוגת בדיקה', gradeContext: 'כיתה ט',
+    slides: [{ heading: 'שקף בדיקה מקדימה', bullets: ['בדיקת מסמך נפרד'] }],
+    examples: [], homework: [], games: {} };
+  expect((await qa.request(`/api/lessons/${qa.learner.slug}/materials`, { method: 'POST', json: {
+    type: 'save', kind: 'plan', content: JSON.stringify(previewPlan), publish: true,
+  } })).status).toBe(200);
+  const tutor = await qa.page('tutor');
+  await tutor.goto(`/app/lessons/${qa.learner.slug}/edit`);
+  const preview = tutor.waitForResponse(r => r.url().endsWith(`/app/lessons/${qa.learner.slug}/preview`) && r.request().method() === 'POST');
+  await tutor.getByRole('button', { name: 'תצוגה מקדימה', exact: true }).first().click();
+  expect((await preview).status()).toBe(200);
+  await expect(tutor.frameLocator('iframe[name="lesson-preview"]').getByText('שקף בדיקה מקדימה', { exact: true })).toBeVisible();
+  await qa.evidence(tutor, 'unsaved-preview-document');
 });
 
 test('workspace: library empty search recovers and tutor sections remain reachable', async ({ qa }) => {

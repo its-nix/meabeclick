@@ -1,5 +1,7 @@
 # Games that teach
 
+The visual normal-distribution pilot uses region construction and missing half-s axis labels. Each has3–5 escalating rounds, fresh data, complete givens and server-checked keys. Region tasks start unshaded; axis tasks hide the target tick and have no solution marker. Support touch and keyboard. Completion indicates practice, with no mastery claim; requested private solutions follow an attempt.
+
 Choose an interaction for a named objective and thinking move: predict, construct, compare, sequence, diagnose, repair or justify. Link it to the lesson's problem/objective/misconception rather than generate an unrelated reward screen. Use new instances for transfer, and vary plausible wrong answers and correct-answer positions.
 
 A wrong answer gets a useful explanation and another attempt. Hints guide the method without exposing the answer. Supported success and independent evidence remain distinct. Speed is a goal only for explicit fluency practice; elapsed time alone does not establish understanding. Keep rewards and contexts respectful of age/readiness; no compulsory competitive economy.

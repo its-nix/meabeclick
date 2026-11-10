@@ -1,5 +1,7 @@
 # Mathematical and source conventions
 
+For35372 normal distribution use its school half-s diagram. Printed band percentages are approximate; do not mix them with exact Gaussian CDF values. Position1.75 supports calculating a score, not reading an invented school-band probability. Keep original question image/transcript separate from annotations and staged solutions, and independently recompute every subpart. Trusted multi-part record `moe-2025a-35372-3` is visual-only; exclude it from legacy single-number resolution. The catalogue checks source/document hashes. Generated variations remain labelled original practice.
+
 Check arithmetic/algebra, allowed transformations, original-equation solutions, domains, units and rounding. Preserve exact values until approximation is required. Match diagrams, formulas, labels and answers, including after manipulation. Distinguish radius/diameter, vertical/slant height, area/volume, interval/cumulative probability and algebraic/contextually feasible roots. Read fractional units as fractions in Hebrew.
 
 Keep grade, unit track, curriculum, target questionnaire and readiness separate. Preserve appropriate notation across all linked materials. Existing function controls use a,h,k and m,b by default; use an explicit supported mapping when a source differs. Nikol's s and half-standard-deviation school bands are profile-specific approximations, not a universal probability calculator.
@@ -11,3 +13,13 @@ Use cached verified sources; optional unavailable sources fall back to clearly l
 The initial catalogue contains one code-reviewed, byte-hashed MoE subpart, not a general PDF importer. The exponent was checked against the rendered page, not inferred from a scrambled text layer. Never extend trust by accepting model-authored `verified` flags. Optional inspiration links may fall back; mandatory supplied questions require exact resolution. Normal diagrams reject precision their labels cannot display truthfully; use staged TeX for unsupported cases.
 
 Never equate a whole price/quantity numerically with100% (200=100% is false); describe the correspondence in prose. Numerical percentage equivalences such as15%=0.15 remain valid. Graph comparisons share axes; v2 graphMatch rounds carry explicit equally spaced xValues matching every y sample. Normal-probability frames must shade the boundaries their explanation names; staged sums use typeset steps rather than a graph whose formula already computes the final result.
+
+If a task asks for an unknown mean, omit its model: hiding only the center tick still reveals the solved mean in captions and neighboring labels. Numeric solution coordinates must be hidden, region construction starts unshaded, and hidden-axis keys must match the actual requested tick. Do not attach a placeholder distribution whose parameters disagree with the givens.
+
+The visual generator builds source-specific schema branches for exact official question IDs, part IDs and canonical answer strings. This prevents metadata formatting drift; it does not establish that the visible solution or its slide mapping is correct. Inspect that separately. Rejected attempts are retained only in the isolated candidate directory, with precise per-part diagnostics, for diagnosis before explicit retries.
+
+Numeric±4 tail sentinels are internal model/check data only. Prompts, givens, hints, solutions and notes use the whole left/right tail or infinity notation matching the actual selectors. Never teach a finite z=4 as an infinite tail. A whole-population formula uses both infinite bounds. Tutor demonstrations must be achievable with the actual controls, including whole-tail selections when requested.
+
+Every prose field, including hints, feedback and worked solutions, uses supported TeX delimiters around commands. Bare commands such as `\mu`, `\frac` or `\cdot` belong only in equation blocks. The visual validator rejects unwrapped commands and reports their exact field paths; a formatting repair preserves mathematical values and reasoning.
+
+Keep mean notation consistent with the trusted diagrams: use μ in this profile, rather than alternating μ and a barred x. Count half-s bands against the actual bounds:−1..1 contains four bands (68%);−0.5..0.5 contains two (38%). The visible prompt, explanation and highlighted interval must describe the same bands.

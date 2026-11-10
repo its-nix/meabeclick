@@ -1,0 +1,33 @@
+import {createHash} from 'node:crypto';
+import {readFile,writeFile} from 'node:fs/promises';
+import {join} from 'node:path';
+import {isDeepStrictEqual} from 'node:util';
+import {execFileSync,spawnSync} from 'node:child_process';
+import {VISUAL_RULE_VERSION,visualLessonProblems} from '../src/lib/learning/deck/model.ts';
+import {officialQuestion,officialQuestionAsset} from '../src/lib/server/lesson/official-questions.ts';
+export const PILOT_CONTEXT={purpose:'review',skill:'התפלגות נורמלית',request:'שיעור היכרות חזותי: התלמיד מבין אחוזים וממוצע, אך חדש בהתפלגות נורמלית. 90 דקות לקראת בגרות 3 יחידות 35372. השאלה המודרכת: קיץ 2025 שאלה 3. תרגול עצמאי, בית ומשחקים עם נתונים חדשים.',track:'3',questionnaire:'35372',durationMin:90,history:[],notation:'school-normal-s'};
+export const PILOT_SOURCES=['moe-2025a-35372-3'];
+export const SOURCE_FILES=[...['model','normal','schema','rules','runtime','styles'].map(n=>`src/lib/learning/deck/${n}.ts`),...['visual-generation','official-questions','prompt','spawn','engine','engine-health','structured-output'].map(n=>`src/lib/server/lesson/${n}.ts`),'src/lib/server/lesson/official-question-assets.json','src/lib/server/visual-deck-render.ts','src/lib/server/visual-pilot.ts','src/lib/learning/math.ts','src/lib/learning/model.ts','src/lib/brand.ts','src/lib/bidi.ts','package-lock.json','scripts/visual-pilot-validation.mjs','scripts/generate-visual-pilot.mjs','scripts/package-visual-pilot.mjs',...['SKILL.md','references/presentation.md','references/games.md','references/homework.md','references/mathematics.md'].map(n=>'skills/meabeclick-learning-iteration/'+n)];
+export const bytesHash=bytes=>createHash('sha256').update(bytes).digest('hex');
+export const normalized=bundle=>JSON.stringify(bundle,null,2)+'\n';
+export async function sourceFingerprint(){const hash=createHash('sha256');for(const file of SOURCE_FILES)hash.update(file).update(await readFile(file));return hash.digest('hex');}
+export async function newManifest({model,cliVersion}){if(!model||!cliVersion)throw Error('explicit model and CLI version required');const git=spawnSync('git',['rev-parse','HEAD'],{encoding:'utf8'});return {version:1,status:'pending',syntheticOnly:true,approval:'needs-human-review',context:PILOT_CONTEXT,sourceIds:PILOT_SOURCES,ruleVersion:VISUAL_RULE_VERSION,schemaVersion:'visual-lesson-1',config:{model,effort:'high',cli:'codex',cliVersion,sourceFiles:SOURCE_FILES,sourceFingerprint:await sourceFingerprint(),...(git.status===0?{gitRevision:git.stdout.trim()}:{})},createdAt:new Date().toISOString()};}
+export function validateManifest(m){
+ if(m?.version!==1||m.syntheticOnly!==true||m.approval!=='needs-human-review'||!['pending','generating','failed','ready'].includes(m.status)||m.ruleVersion!==VISUAL_RULE_VERSION||m.schemaVersion!=='visual-lesson-1'||!isDeepStrictEqual(m.context,PILOT_CONTEXT)||!isDeepStrictEqual(m.sourceIds,PILOT_SOURCES)||!isDeepStrictEqual(m.config?.sourceFiles,SOURCE_FILES)||m.config?.cli!=='codex'||m.config?.effort!=='high'||!m.config?.model||!m.config?.cliVersion||!/^[a-f0-9]{64}$/.test(m.config?.sourceFingerprint))throw Error('invalid pilot manifest/provenance');
+}
+export function validateBundle(bundle){const sourceAnswers=Object.fromEntries(PILOT_SOURCES.map(id=>{const q=officialQuestion(id);if(!q?.answers||!officialQuestionAsset(id))throw Error('unverified source asset');return[id,q.answers];}));const issues=visualLessonProblems(bundle,{durationMin:90,sourceAnswers});if(issues.length)throw Error('invalid pilot: '+issues.join('; '));}
+export async function sealCandidate(dir,manifest,bundle,seconds){validateManifest(manifest);validateBundle(bundle);const fingerprint=await sourceFingerprint();if(fingerprint!==manifest.config.sourceFingerprint)throw Error('source integrity drift during generation');const bytes=normalized(bundle);await writeFile(join(dir,'bundle.json'),bytes);Object.assign(manifest,{status:'ready',bundleSha256:bytesHash(bytes),seconds,finishedAt:new Date().toISOString(),sourceVerification:{status:'verified',fingerprint}});await writeFile(join(dir,'manifest.json'),normalized(manifest));}
+async function verifyRevisionEvidence(dir,manifest){if(!manifest.revision)return;if(manifest.revision.mode!=='targeted-text-1')throw Error('unknown revision mode');for(const [file,key]of [['parent-bundle.json','parentBundleSha256'],['parent-manifest.json','parentManifestSha256'],['revision-feedback.txt','feedbackSha256'],['revision-patch.json','patchSha256']])if(bytesHash(await readFile(join(dir,file)))!==manifest.revision[key])throw Error('revision evidence checksum mismatch: '+file);}
+export async function readCandidate(dir){const manifest=JSON.parse(await readFile(join(dir,'manifest.json'),'utf8'));validateManifest(manifest);if(manifest.status!=='ready'||manifest.sourceVerification?.status!=='verified'||manifest.sourceVerification.fingerprint!==manifest.config.sourceFingerprint||await sourceFingerprint()!==manifest.config.sourceFingerprint)throw Error('pilot source integrity not verified');const bytes=await readFile(join(dir,'bundle.json'),'utf8');if(bytesHash(bytes)!==manifest.bundleSha256)throw Error('pilot artifact checksum mismatch');await verifyRevisionEvidence(dir,manifest);const bundle=JSON.parse(bytes);validateBundle(bundle);return{manifest,bundle};}
+/** A revision consumes historical DATA, never historical code. Verify that data and the recorded source commit before asking the current engine for a bounded patch. */
+export async function readRevisionParent(dir,sourceRef,cwd=process.cwd()){
+ const manifest=JSON.parse(await readFile(join(dir,'manifest.json'),'utf8'));validateManifest(manifest);
+ if(manifest.status!=='ready'||manifest.sourceVerification?.status!=='verified'||manifest.sourceVerification.fingerprint!==manifest.config.sourceFingerprint)throw Error('parent source integrity not verified');
+ const ref=sourceRef??manifest.config.gitRevision;if(typeof ref!=='string'||!/^[a-f0-9]{7,40}$/.test(ref))throw Error('explicit parent source revision required');
+ const revision=execFileSync('git',['-C',cwd,'rev-parse',ref],{encoding:'utf8'}).trim(),hash=createHash('sha256');
+ for(const file of SOURCE_FILES)hash.update(file).update(execFileSync('git',['-C',cwd,'show',`${revision}:${file}`],{maxBuffer:4*1024*1024}));
+ if(hash.digest('hex')!==manifest.config.sourceFingerprint)throw Error('parent source revision fingerprint mismatch');
+ const bytes=await readFile(join(dir,'bundle.json'),'utf8');if(bytesHash(bytes)!==manifest.bundleSha256)throw Error('parent artifact checksum mismatch');
+ await verifyRevisionEvidence(dir,manifest);
+ return{manifest,bundle:JSON.parse(bytes),sourceRevision:revision};
+}

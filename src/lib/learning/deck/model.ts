@@ -95,6 +95,17 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
  const solutions=list(p.sourceSolutions,20,0);
  for(const s of solutions){const valid=object(s)&&slideIds.has(s.slideId)&&typeof s.answer==='string'&&options.sourceAnswers?.[s.questionId]?.[s.part]===s.answer;need(valid,'פתרון מקור לא מאומת'+(object(s)?`: ${String(s.questionId).slice(0,80)}/${String(s.part).slice(0,40)}; expected ${options.sourceAnswers?.[s.questionId]?.[s.part]??'unknown part'}, received ${String(s.answer).slice(0,100)}`:''));}
  for(const [qid,parts] of Object.entries(options.sourceAnswers??{})){need(sourceIds.has(qid),'השאלה הרשמית חסרה');for(const part of Object.keys(parts))need(solutions.some(s=>object(s)&&s.questionId===qid&&s.part===part),`סעיף מקור ללא פתרון: ${qid}/${part}=${parts[part]}`);}
+ // Prose must not quietly display commands as ordinary text; equation blocks intentionally contain bare TeX.
+ let formatIssues=0;
+ const proseMath=(value:unknown,path:string,depth=0):void=>{
+  if(depth>10||formatIssues>=32)return;
+  if(typeof value==='string'){
+   const plain=value.replace(/\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$/g,'');
+   if(/\\[a-zA-Z]+/.test(plain)||/(?<!\$)\$(?!\$)/.test(plain)){formatIssues++;errors.push(`TeX בפרוזה דורש delimiters \\( ... \\): ${path}`);}
+  }else if(Array.isArray(value))value.slice(0,80).forEach((v,i)=>proseMath(v,path+'.'+i,depth+1));
+  else if(object(value))for(const [key,v]of Object.entries(value).slice(0,80))if(!(value.type==='equation'&&key==='text'))proseMath(v,path+'.'+key,depth+1);
+ };
+ proseMath(p,'lesson');
  return [...new Set(errors)];
 }
 

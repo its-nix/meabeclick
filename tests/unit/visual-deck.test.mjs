@@ -66,3 +66,7 @@ test('a band and accumulation ending at the same boundary must actually be compa
  const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();for(const s of p.slides)for(const b of s.blocks)if(b.model?.mode==='cumulative')b.model.states=b.model.states.slice(0,1).map(s=>({...s,lowerZ:0}));
  assert.ok(visualLessonProblems(p).some(x=>x.includes('מצטבר')));
 });
+test('prose rejects bare TeX commands while delimited prose and raw equation blocks remain valid',async()=>{
+ const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();p.tasks[0].solution='משתמשים ב־x=\\mu+zs';assert.ok(visualLessonProblems(p).some(s=>s.includes('tasks.0.solution')),'diagnostic identifies the malformed solution field');
+ p.tasks[0].solution='משתמשים ב־\\(x=\\mu+zs\\)';p.slides[0].blocks.push({type:'equation',text:'\\frac{1}{2}',model:null,sourceId:null,reveal:1});assert.deepEqual(visualLessonProblems(p),[]);
+});

@@ -69,7 +69,7 @@ try{
     const projected=await projection;
     if(projected){await projected.waitForLoadState();assert.equal(await projected.locator('.notes-section').count(),0);await projected.close();}
     await page.goto(base+'&view=homework');
-    if(version==='v2'){assert.equal(await page.locator('[data-scene]').count(),item.plan.homework.length);for(let i=0;i<item.plan.homework.length;i++){await page.locator('[data-scene-link]').nth(i).click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${item.brief.id} homework ${i+1}`);}}
+    if(version==='v2'){assert.equal(await page.locator('[data-scene]').count(),item.plan.homework.length);for(let i=0;i<item.plan.homework.length;i++){await page.locator('[data-scene-link]').nth(i).click();const h=item.plan.homework[i];if(h.check&&h.task.trim()!==h.check.question.trim())assert.equal(await page.locator(`[data-scene="homework-${i+1}"] [data-homework-stimulus]`).isVisible(),true,'homework givens remain visible');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${item.brief.id} homework ${i+1}`);}}
     else assert.equal(await page.locator('article').count(),item.plan.homework.length);
     assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0);
     for(const [key,body]of Object.entries(item.plan.games))if(body){
@@ -77,11 +77,11 @@ try{
       await page.locator('.preview-banner').waitFor();
       assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0,'valid game math');
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`${item.brief.id}/${key} overflow`);
-      if(key==='quiz'||key==='twoTruths'){
+      if(key==='quiz'||key==='twoTruths'||key==='graphMatch'){
         const rounds=key==='quiz'?body.questions:body.rounds;
         for(let i=0;i<rounds.length;i++){
           assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0,'valid round math');
-          await page.locator('.opt').first().click();
+          if(key==='graphMatch'){if(version==='v2')assert.deepEqual(await page.locator('.main-graph [data-sample-x]').evaluateAll(es=>es.map(e=>Number(e.getAttribute('data-sample-x')))),rounds[i].xValues);await page.locator('.gopt').first().click();}else await page.locator('.opt').first().click();
           await page.getByRole('button',{name:i+1<rounds.length?'הבא ←':'סיום 🏁',exact:true}).click();
         }
         await page.locator('#done').waitFor();

@@ -46,6 +46,7 @@ node --test tests/unit/learning-review-batch.test.mjs tests/characterization/lea
 npm run test:learning:browser
 npm run test:review:browser
 npm run test:teaching:browser
+npm run test:review:v2:browser
 ```
 
 The review browser check visits every stage at desktop/mobile sizes, checks math and overflow, opens projection separately from notes, visits all games, completes supported choice games and verifies no customer score/progress writes. CI runs this alongside the full suite and image build. Screenshots are included in the synthetic workspace artifact.

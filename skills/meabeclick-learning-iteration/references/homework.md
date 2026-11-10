@@ -7,3 +7,5 @@ Prefer reliable numeric/fraction, graph-construction and structured reasoning ch
 Use the shared lesson/objective/problem IDs and notation. Keep answer keys private; solutions are disclosed only under the appropriate support policy. Print provides static truthful diagrams and writing space; it does not pretend to retain interaction. Completion, submission, supported success and mastery are different facts.
 
 V2 reports persist the selected objective IDs against the exact published lesson version. Reject stale or forged selection through the real API. Prepared no-selection fallback is not evidence that every goal was taught. Recheck the clock after asynchronous generation, preserve released/submitted work, and keep the original lesson/editor reachable beside replacement homework.
+
+Render the shared task stimulus for checked homework on screen and in print. The check question may contain only the final ask; hiding task can remove prices, temperatures, distribution parameters or other essential givens. Verify solvability without opening a hint. Preserve open reasoning as explicitly tutor-reviewed, with truthful local draft/submission wording.

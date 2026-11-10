@@ -27,14 +27,14 @@ export function experienceProblems(raw: unknown, options: { requirePresenterNote
   return [...new Set(problems)];
 }
 
-function controls(scene: LearningScene,independent=false): string {
+function controls(scene: LearningScene,independent=false,fullQuadratic=false): string {
   if(independent&&scene.check?.kind!=='graph-target')return '';
   if (scene.phase !== 'explore' && scene.check?.kind !== 'graph-target') return '';
   if (scene.phase === 'explore' && scene.frames.length > 1) return '';
   const v=scene.frames[0].values;
   const definitions:Array<{index:number;name:string;label:string;min?:number;max?:number;step?:number}> = scene.visual === 'quadratic'
     ? [{ index: 1, name: 'h', label: 'ימינה ושמאלה' }, { index: 2, name: 'k', label: 'למעלה ולמטה' },
-      ...(scene.check?.kind === 'graph-target' ? [{ index: 0, name: 'a', label: 'פתיחה וכיוון' }] : [])]
+      ...(scene.check?.kind === 'graph-target'||fullQuadratic ? [{ index: 0, name: 'a', label: 'פתיחה וכיוון',step:scene.check?.kind==='graph-target'?1:.5 }] : [])]
     : scene.visual === 'linear' ? [{ index: 0, name: 'm', label: 'שיפוע' }, { index: 1, name: 'b', label: 'חיתוך עם הציר' }]
     : scene.visual === 'number-line' ? [{ index: 0, name: 'x', label: 'מיקום על הציר' }]
     : scene.visual==='fraction'?[{index:0,name:'n',label:'חלקים צבועים',min:0,max:v[1],step:1},{index:2,name:'k',label:'חלוקת כל חלק',min:1,max:4,step:1}]
@@ -80,7 +80,7 @@ export function renderLearningDocument(e: LearningExperience, options: {
         <p class="scene-caption" data-caption ${s.visual === 'steps' ? 'hidden' : ''}>${mathText(s.frames[0].caption)}</p>
         <div class="frame-dots" ${s.frames.length < 2 ? 'hidden' : ''}>${s.frames.map((_, n) => `<button class="frame-dot" data-frame-dot aria-label="שלב המחשה ${n+1}" aria-pressed="${n === 0}"></button>`).join('')}</div>
         <div class="playback" ${s.frames.length < 2 || s.phase === 'challenge' ? 'hidden' : ''}><button class="round-button" data-play aria-label="הפעלת ההסבר">▶</button><span class="clock" data-clock>0:00</span><input class="timeline" data-timeline type="range" min="0" max="${duration}" step=".05" value="0" aria-label="מיקום בהסבר המונפש"><button class="speed" data-speed aria-label="שינוי מהירות ההסבר">1×</button></div>
-        ${controls(s,independent)}
+        ${controls(s,independent,!!options.teaching)}
       </div>
       ${s.phase === 'explore' ? '<p class="exploration-note">אפשר לשחק עם הערכים, לטעות ולגלות. אין כאן ציון.</p>' : ''}
       ${check ? `<div class="check-card"><span class="check-kicker">${independent ? 'מנסים לבד' : 'תורכם לנסות'}</span>${homeworkStimulus(s)}<h2 class="check-question">${mathText(check.question)}</h2>

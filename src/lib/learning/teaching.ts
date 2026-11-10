@@ -1,3 +1,4 @@
+import {isCanonicalLabelling} from '../games/diagrams.ts';
 import type {LessonPlan} from '../server/lesson/prep.ts';
 import {TEACHING_RULE_VERSION,type TeachingProfile} from './teaching-rules.ts';
 export interface TeachingContext extends TeachingProfile {
@@ -30,6 +31,7 @@ export function teachingProblems(raw:unknown,plan:LessonPlan,context?:TeachingCo
  need(!t.context||t.durationMin===t.context.durationMin,'זמן המתווה אינו תואם להזמנה');
  if(!Array.isArray(t.objectives)||t.objectives.length<1||t.objectives.length>4)return [...errors,'נדרשים 1–4 יעדים'];
  const objectives=new Set<string>();for(const o of t.objectives){need(o&&id(o.id)&&!objectives.has(o.id)&&text(o.title,160)&&text(o.evidence,350),'יעד לא תקין');if(o)objectives.add(o.id);}
+ if(plan.games?.labelling)need(isCanonicalLabelling(plan.games.labelling),'משחק תיוג אוטומטי דורש תרשים מקטלוג הגאומטריה המבוקר');
  const scenes=new Map(plan.learning?.scenes?.map(s=>[s.id,s])??[]);
  const exists=(kind:string,ref:string)=>kind==='scene'?scenes.has(ref):kind==='game'?!!plan.games?.[ref as keyof typeof plan.games]:kind==='homework'?/^homework-[1-9]\d*$/.test(ref)&&Number(ref.slice(9))<=homework.length:kind==='discussion'&&ref==='';
  const validateRef=(kind:string,ref:string)=>need(exists(kind,ref),'הפניה לפעילות חסרה');

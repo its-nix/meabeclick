@@ -295,7 +295,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       feedback('');
       const index = Number(input.dataset.param), previous = params[index];
       params[index] = Number(input.value);
-      if (scene.visual === 'quadratic' && index === 0 && params[0] === 0) params[0] = previous > 0 ? -1 : 1;
+      if (scene.visual === 'quadratic' && index === 0 && params[0] === 0) params[0] = previous > 0 ? -(Number(input.step)||1) : (Number(input.step)||1);
       if((scene.visual==='normal'||scene.visual==='normal-school')&&params[2]>=params[3])params[index]=previous;
       if(scene.visual==='data-bars'&&params.reduce((a,b)=>a+b,0)===0)params[index]=previous;
       render();

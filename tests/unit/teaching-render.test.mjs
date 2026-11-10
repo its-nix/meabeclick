@@ -42,3 +42,9 @@ test('normal teaching frames must describe the plotted cumulative boundary',asyn
  const{teachingProblems}=await import('../../src/lib/learning/teaching.ts'),p=teachingFixture(),s=p.learning.scenes[0];Object.assign(s,{visual:'normal-school',frames:[{values:[70,10,40,75],tex:'P(X<70)\\approx50\\%',caption:'עד הממוצע'}]});
  assert.ok(teachingProblems(p.teaching,p).some(e=>e.includes('גבול ההסתברות')));s.frames[0].values[3]=70;assert.deepEqual(teachingProblems(p.teaching,p),[]);
 });
+test('v2 parabola exploration exposes a alongside h and k while legacy exploration stays familiar',async()=>{
+ const{teachingDisplay}=await import('../../src/lib/server/teaching-display.ts'),p=teachingFixture(),s=p.learning.scenes.find(s=>s.phase==='explore');
+ const section=html=>html.split(`data-scene="${s.id}"`)[1].split('</section>')[0];
+ assert.match(section(renderLearningDocument(p.learning,{teaching:teachingDisplay(p,'example')})),/data-param="0"/);
+ assert.doesNotMatch(section(renderLearningDocument(p.learning,{demo:true})),/data-param="0"/);
+});

@@ -366,7 +366,8 @@
               ]
             ],
             "answer": "number — index of the correct option",
-            "why": "string"
+            "why": "string",
+            "xValues": "number[] — optional explicit equally spaced x coordinates, one for each y sample"
           }
         ]
       },

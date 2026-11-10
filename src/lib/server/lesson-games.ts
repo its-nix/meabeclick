@@ -260,6 +260,7 @@ function validateSemantics(template: string, body: Record<string, unknown>): voi
       asList(body.rounds).map(asObject).forEach((round, index) => {
         const main = asList(round.main);
         if(round.xValues!==undefined){
+          if(!Array.isArray(round.xValues))invalid(`rounds.${index}.xValues`,'נדרש מערך קואורדינטות.');
           const xs=asList(round.xValues);
           if(xs.length!==main.length||xs.some((v,i)=>typeof v!=='number'||!Number.isFinite(v)||Math.abs(v)>1000||Math.abs(v*100-Math.round(v*100))>1e-7||i>0&&Number(v)<=Number(xs[i-1]))||xs.some((v,i)=>i>1&&Math.abs((Number(v)-Number(xs[i-1]))-(Number(xs[1])-Number(xs[0])))>1e-8))invalid(`rounds.${index}.xValues`,'נדרשות קואורדינטות מספריות עולות במרווחים אחידים, אחת לכל דגימה.');
         }

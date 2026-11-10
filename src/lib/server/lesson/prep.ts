@@ -22,6 +22,7 @@
  * tutor to review. It goes out under her name.
  */
 
+import {canonicalLabelling,LABELLING_DIAGRAM_IDS} from '../../games/diagrams.ts';
 import { formulaRuns } from '../../bidi.ts';
 import {resolveOfficialQuestions,officialQuestion,suppliedQuestionId,suppliedSourceIntent,type OfficialQuestion} from './official-questions.ts';
 import {teachingDisplay,homeworkExperience} from '../teaching-display.ts';
@@ -143,6 +144,7 @@ export interface SpeedDrillGame {
 }
 
 export interface LabellingGame {
+  diagram?:string;
   title: string;
   subject: string;
   svg: string;
@@ -478,6 +480,7 @@ export function lessonOutputSchema(){
  if(generationVersion()!==2)return LESSON_SCHEMA;
  const schema=structuredClone(LESSON_SCHEMA) as Record<string,any>;
  for(const legacy of ['slides','examples']){delete schema.properties[legacy];schema.required=schema.required.filter((key:string)=>key!==legacy);}
+ schema.properties.games.properties.labelling={type:'object',required:['title','subject','diagram'],properties:{title:{type:'string'},subject:{type:'string'},diagram:{type:'string',enum:[...LABELLING_DIAGRAM_IDS]}}};
  const graph=schema.properties.games.properties.graphMatch.properties.rounds.items;
  graph.required.push('xValues');graph.properties.xValues={type:'array',items:{type:'number'},description:'Explicit equally spaced x coordinates shared by main and every option; same length as y samples.'};
  schema.required.push('teaching');schema.properties.teaching=TEACHING_SCHEMA;
@@ -563,8 +566,8 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
     '- twoTruths: איתור תפיסות שגויות. השקר חייב להיות טעות שתלמידים באמת עושים, לא שטות ברורה. בדיוק 3 משפטים בכל סבב.',
     '- errorHunt: פתרון שנראה סביר עם שגיאה אחת בדיוק. badStep הוא האינדקס שלה (מ-0).',
     '- speedDrill: שליפה מהירה של כלל שכבר הובן. a חייב להופיע גם ב-options.',
-    '- labelling: תיוג חלקים בתרשים או בגרף. svg הוא SVG קטן ופשוט (קווים/עיגולים/טקסט בלבד, viewBox סביר),',
-    '  עם id="..." על כל אלמנט שמתויג. targets מכיל את אותם id-ים בדיוק, עם התווית הנכונה לכל אחד. עד 6 תוויות.',
+    generationVersion()===2?'- labelling: title,subject,diagram בלבד; diagram הוא right-triangle או cylinder, מתוך קטלוג תרשימים מבוקרים.':'- labelling: תיוג חלקים בתרשים או בגרף. svg הוא SVG קטן ופשוט (קווים/עיגולים/טקסט בלבד, viewBox סביר),',
+    generationVersion()===2?'  אין ליצור SVG או targets: הם נבנים מקוד מאומת. אם אין תרשים מתאים לחומר, בוחרים משחק אחר.':'  עם id="..." על כל אלמנט שמתויג. targets מכיל את אותם id-ים בדיוק, עם התווית הנכונה לכל אחד. עד 6 תוויות.',
     '- graphMatch: התאמת פונקציה לגרף שלה (או לנגזרת שלה) — רק לרמות שכבר למדו את הנושא. main וכל איבר ב-options',
     '  הם מערכי y באותו האורך בדיוק, נדגמים במרווחים שווים לאורך x. answer הוא האינדקס (מ-0) של האפשרות הנכונה.',
     '- numberLine: מיקום וגודל על ציר מספרים — שברים, עשרוניים, מספרים שליליים; לרמות יסוד/חטיבה. target',
@@ -725,6 +728,7 @@ async function generateOnce(req: LessonRequest,repair?:LessonGenerationError): P
       );
     }
     const plan = omitOptionalNulls(parsed, lessonOutputSchema()) as Record<string, unknown>;
+    if(generationVersion()===2){const games=plan.games as Record<string,unknown>|undefined;if(games?.labelling){const resolved=canonicalLabelling(games.labelling);if(!resolved)throw new LessonGenerationError('bad-output','labelling דורש diagram מאומת: right-triangle או cylinder',raw);games.labelling=resolved;}}
     if (!plan.learning) {
       throw new LessonGenerationError('bad-output', 'lesson output omitted the interactive learning experience');
     }

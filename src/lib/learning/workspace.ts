@@ -16,6 +16,8 @@ export type WorkspaceTable=keyof typeof workspaceTables;
 export interface WorkspaceSnapshot {version:1;Students:WorkspaceRow[];Materials:WorkspaceRow[];Lessons:WorkspaceRow[];Assignments:WorkspaceRow[];Progress:WorkspaceRow[]}
 const names=Object.keys(workspaceTables) as (keyof Omit<WorkspaceSnapshot,'version'>)[];
 export const workspaceHeader=(column:WorkspaceColumn)=>`${column.label} [${column.key}]`;
+/** Sheets DATE cells are civil calendar fields, not instants for display in Israel. */
+function sheetCivilDate(date:Date){return [String(date.getUTCFullYear()).padStart(4,'0'),String(date.getUTCMonth()+1).padStart(2,'0'),String(date.getUTCDate()).padStart(2,'0')].join('-');}
 export function decodeWorkspace(grids:Record<string,WorkspaceCell[][]>,version:number):WorkspaceSnapshot {
  if(version!==1)throw Error('unsupported workspace schema version');
  const snapshot={version:1} as WorkspaceSnapshot;
@@ -27,12 +29,12 @@ export function decodeWorkspace(grids:Record<string,WorkspaceCell[][]>,version:n
   for(const key of keys)if(key&&!expected.includes(key))throw Error(`${name}: unknown column ${key}`);
   snapshot[name]=grid.slice(1).filter(row=>row.some(v=>v!==null&&String(v).trim()!=='')).map((row,i)=>{
    if(row.some((value,index)=>!keys[index]&&value!==null&&value!==undefined&&String(value).trim()!==''))throw Error(`${name} row ${i+2}: populated column has no key`);
-   const record:WorkspaceRow={};for(const c of workspaceTables[name]){const raw=row[keys.indexOf(c.key)];if(c.kind==='boolean'){const v=String(raw??'').toLowerCase();if(!['true','false'].includes(v))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=v==='true';}else if(typeof raw==='number'&&(c.kind==='date'||c.kind==='instant')){const date=new Date(Date.UTC(1899,11,30)+Math.round(raw*86400000));if(!Number.isFinite(date.getTime()))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=c.kind==='date'?date.toISOString().slice(0,10):date.toISOString();}else record[c.key]=String(raw??'').trim();}return record;
+   const record:WorkspaceRow={};for(const c of workspaceTables[name]){const raw=row[keys.indexOf(c.key)];if(c.kind==='boolean'){const v=String(raw??'').toLowerCase();if(!['true','false'].includes(v))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=v==='true';}else if(typeof raw==='number'&&(c.kind==='date'||c.kind==='instant')){const date=new Date(Date.UTC(1899,11,30)+Math.round(raw*86400000));if(!Number.isFinite(date.getTime()))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=c.kind==='date'?sheetCivilDate(date):date.toISOString();}else record[c.key]=String(raw??'').trim();}return record;
   });
  }
  const problems=workspaceProblems(snapshot);if(problems.length)throw Error(problems.join('; '));return snapshot;
 }
-function validDate(value:string){return /^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value;}
+function validDate(value:string){return /^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&sheetCivilDate(new Date(value))===value;}
 function safeUrl(value:string){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}}
 function googleUrl(value:string,kind:'profile'|'folder'|'google_docs'|'google_slides'){
  try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&(kind==='folder'?u.hostname==='drive.google.com'&&/^\/drive\/folders\/[\w-]+\/?$/.test(u.pathname):u.hostname==='docs.google.com'&&new RegExp(`^/${kind==='google_slides'?'presentation':'document'}/d/[\\w-]+(?:/|$)`).test(u.pathname));}catch{return false;}

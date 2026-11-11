@@ -9,6 +9,7 @@ test('workspace schema parses bilingual headers after column reordering and reje
  dates.Lessons[1][dateColumn]=46337;dates.Progress[1][timeColumn]=46337+8/24;
  assert.equal(m.decodeWorkspace(dates,1).Lessons[0].date,'2026-11-11');
  assert.equal(m.decodeWorkspace(dates,1).Progress[0].observed_at,'2026-11-11T08:00:00.000Z');
+ dates.Lessons[1][dateColumn]=46337+23.5/24;assert.equal(m.decodeWorkspace(dates,1).Lessons[0].date,'2026-11-11','a Sheets civil date keeps its calendar fields even near UTC midnight');
  grids.Students[0][1]=grids.Students[0][0];assert.throws(()=>m.decodeWorkspace(grids,1),/Students.*duplicate|Students.*missing/);
  assert.throws(()=>m.decodeWorkspace({},2),/version/);
 });

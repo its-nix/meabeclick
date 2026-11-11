@@ -5,6 +5,10 @@ import {workspaceFixture as base} from '../learning-workspace-fixture.mjs';
 test('workspace schema parses bilingual headers after column reordering and rejects ambiguous keys',async()=>{
  const m=await import(modulePath);const source=base(),grids={};for(const [name,columns]of Object.entries(m.workspaceTables)){const order=[...columns].reverse();grids[name]=[order.map(c=>m.workspaceHeader(c)),...source[name].map(row=>order.map(c=>row[c.key]??''))];}
  assert.deepEqual(m.decodeWorkspace(grids,1),source);
+ const dates=structuredClone(grids),dateColumn=dates.Lessons[0].findIndex(h=>h.endsWith('[date]')),timeColumn=dates.Progress[0].findIndex(h=>h.endsWith('[observed_at]'));
+ dates.Lessons[1][dateColumn]=46337;dates.Progress[1][timeColumn]=46337+8/24;
+ assert.equal(m.decodeWorkspace(dates,1).Lessons[0].date,'2026-11-11');
+ assert.equal(m.decodeWorkspace(dates,1).Progress[0].observed_at,'2026-11-11T08:00:00.000Z');
  grids.Students[0][1]=grids.Students[0][0];assert.throws(()=>m.decodeWorkspace(grids,1),/Students.*duplicate|Students.*missing/);
  assert.throws(()=>m.decodeWorkspace({},2),/version/);
 });

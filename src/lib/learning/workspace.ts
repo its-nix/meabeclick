@@ -27,7 +27,7 @@ export function decodeWorkspace(grids:Record<string,WorkspaceCell[][]>,version:n
   for(const key of keys)if(key&&!expected.includes(key))throw Error(`${name}: unknown column ${key}`);
   snapshot[name]=grid.slice(1).filter(row=>row.some(v=>v!==null&&String(v).trim()!=='')).map((row,i)=>{
    if(row.some((value,index)=>!keys[index]&&value!==null&&value!==undefined&&String(value).trim()!==''))throw Error(`${name} row ${i+2}: populated column has no key`);
-   const record:WorkspaceRow={};for(const c of workspaceTables[name]){const raw=row[keys.indexOf(c.key)];if(c.kind==='boolean'){const v=String(raw??'').toLowerCase();if(!['true','false'].includes(v))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=v==='true';}else record[c.key]=String(raw??'').trim();}return record;
+   const record:WorkspaceRow={};for(const c of workspaceTables[name]){const raw=row[keys.indexOf(c.key)];if(c.kind==='boolean'){const v=String(raw??'').toLowerCase();if(!['true','false'].includes(v))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=v==='true';}else if(typeof raw==='number'&&(c.kind==='date'||c.kind==='instant')){const date=new Date(Date.UTC(1899,11,30)+Math.round(raw*86400000));if(!Number.isFinite(date.getTime()))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=c.kind==='date'?date.toISOString().slice(0,10):date.toISOString();}else record[c.key]=String(raw??'').trim();}return record;
   });
  }
  const problems=workspaceProblems(snapshot);if(problems.length)throw Error(problems.join('; '));return snapshot;

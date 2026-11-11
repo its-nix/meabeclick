@@ -38,6 +38,7 @@ export function workspaceClient(options:{config:LearningWorkspaceConfig;credenti
   await file(config.spreadsheetId,'application/vnd.google-apps.spreadsheet',config.learningFolderId);
   const metadata=await get(endpoint(`https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}`,{fields:'spreadsheetId,properties(title,locale,timeZone),sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)))'}));
   if(metadata.spreadsheetId!==config.spreadsheetId||!Array.isArray(metadata.sheets))throw Error('learning register metadata is incomplete');
+  if(!['Etc/UTC','UTC'].includes(metadata.properties?.timeZone))throw Error('learning register timezone must remain UTC for observation timestamps');
   const names=[...Object.keys(workspaceTables),'Config'],ranges:string[]=[];
   for(const name of names){
    const sheets=metadata.sheets.filter((s:{properties?:{title?:string}})=>s.properties?.title===name);
@@ -47,7 +48,7 @@ export function workspaceClient(options:{config:LearningWorkspaceConfig;credenti
    let column='',n=cols;while(n){n--;column=String.fromCharCode(65+n%26)+column;n=Math.floor(n/26);}
    ranges.push(`'${name}'!A1:${column}${rows}`);
   }
-  const url=endpoint(`https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values:batchGet`,{valueRenderOption:'UNFORMATTED_VALUE',dateTimeRenderOption:'FORMATTED_STRING'});for(const range of ranges)url.searchParams.append('ranges',range);
+  const url=endpoint(`https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values:batchGet`,{valueRenderOption:'UNFORMATTED_VALUE',dateTimeRenderOption:'SERIAL_NUMBER'});for(const range of ranges)url.searchParams.append('ranges',range);
   const data=await get(url);if(!Array.isArray(data.valueRanges)||data.valueRanges.length!==names.length)throw Error('learning register read is incomplete');
   const grids:Record<string,WorkspaceCell[][]>={};
   for(const entry of data.valueRanges){

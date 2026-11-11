@@ -22,7 +22,11 @@ Headers are bilingual and retain a stable machine key. Tabs and schema keys are 
 
 ## Automation and code boundary
 
-The present connection in this chat is the personal account; the website's existing OAuth implementation is a separate connection used by the older business workflow. New workspace credentials use a dedicated namespace. An explicit owner check and folder ownership checks prevent a business-token fallback. Store no tokens or customer records in Git or the register.
+The present connection in this chat is the personal account; the website's existing OAuth implementation is a separate connection used by the older business workflow. New workspace credentials use a dedicated namespace. An explicit owner check and folder ownership checks prevent a business-token fallback. Store no tokens in Git or the register, and no customer records in Git. This bootstrap contains synthetic records only; future authorized teaching records belong in the restricted register.
+
+Foreign keys enforce same-student and matching demo ownership across lessons, assignments, student-specific materials and observations. Demo access permits only the requested learner and never disables isolation. Demo assignments remain draft. Approval, audience and publication are separate fields. A published material record requires a release ID and content fingerprint, but these describe a declared release: the first reader reports that physical publication is unverified. Immutable snapshot creation and verification belong to the later publisher, and this bootstrap creates no published records.
+
+Observations require a skill key, timestamp, lesson/source reference, support level and a description of the evidence. They are returned as observations, without an automatic mastery model. Independently demonstrated performance requires an actual assessment observation. API reads fail explicitly at their safe row/column/response-size limit rather than returning a partial register.
 
 The first adapter is intentionally read-only. Production automated writes require one dedicated personal-account authorization plus a serialized, idempotent publishing/event path. That boundary is explicit: this skeleton does not claim that the new workbook is already connected to booking-time generation. The bootstrap itself is created and read back through the connected Drive tools.
 

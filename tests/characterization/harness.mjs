@@ -49,6 +49,8 @@ const BLOCKED = [
   // The tutor-setup web client: a test that wants it passes made-up values.
   'GOOGLE_WEB_CLIENT_ID', 'GOOGLE_WEB_CLIENT_SECRET',
   'GOOGLE_LOGIN_CLIENT_ID', 'GOOGLE_LOGIN_CLIENT_SECRET', 'GOOGLE_TUTOR_EMAILS',
+  'LEARNING_GOOGLE_CLIENT_ID', 'LEARNING_GOOGLE_CLIENT_SECRET', 'LEARNING_GOOGLE_REFRESH_TOKEN',
+  'LEARNING_GOOGLE_TOKEN_KEY', 'LEARNING_GOOGLE_WORKSPACE_FILE',
 ];
 
 /* Nikol's busy times, for every test: a feed that answers with an empty

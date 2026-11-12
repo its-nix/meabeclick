@@ -9,11 +9,12 @@
 import { appendFileSync } from 'node:fs';
 import { generateKeyPairSync } from 'node:crypto';
 import { SignJWT, exportJWK } from 'jose';
+import {fakeLearningGoogle} from './fake-learning-google.mjs';
 const loginKey = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const loginJwk = { ...await exportJWK(loginKey.publicKey), kid: 'login-test', alg: 'RS256', use: 'sig' };
 
 const realFetch = globalThis.fetch;
-const GOOGLE = new Set(['oauth2.googleapis.com', 'www.googleapis.com']);
+const GOOGLE = new Set(['oauth2.googleapis.com', 'www.googleapis.com','sheets.googleapis.com']);
 let events = 0;
 
 globalThis.fetch = async (input, init = {}) => {
@@ -26,6 +27,8 @@ globalThis.fetch = async (input, init = {}) => {
   }) + '\n');
 
   const answer = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  const learning=fakeLearningGoogle(url,init);
+  if(learning)return answer(200,learning);
   if (url.pathname === '/oauth2/v3/certs') return answer(200, { keys: [loginJwk] });
   if (url.hostname === 'oauth2.googleapis.com' && url.pathname === '/token') {
     const form = new URLSearchParams(String(init.body ?? ''));

@@ -271,3 +271,49 @@ test('workspace: library empty search recovers and tutor sections remain reachab
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
   }
 });
+
+test('workspace: personal Google connection stays tutor-only and explains missing setup',async({qa})=>{
+ const tutor=await qa.page('tutor');
+ await tutor.goto('/app/library');
+ await tutor.getByRole('link',{name:'מרחב Google',exact:true}).click();
+ await expect(tutor.getByRole('heading',{name:'מרחב הלמידה ב־Google',exact:true})).toBeVisible();
+ await expect(tutor.getByRole('heading',{name:'החיבור עדיין לא הוגדר',exact:true})).toBeVisible();
+ await expect(tutor.getByRole('button',{name:'חיבור עם Google',exact:true})).toHaveCount(0);
+ await qa.evidence(tutor,'personal-google-setup');
+ for(const role of ['student','anonymous']){
+  const page=await qa.page(role);await page.goto('/app/library/connection');
+  await expect(page).toHaveURL(/\/login\?next=/);
+  await expect(page.getByRole('heading',{name:'מרחב הלמידה ב־Google',exact:true})).toHaveCount(0);
+ }
+});
+
+test.describe('personal learning Google forms',()=>{
+ test.use({learningConnection:true});
+ test('workspace: personal Google connects and verifies with native browser forms',async({qa})=>{
+  const page=await qa.page('tutor');
+  await page.context().route(/\/app\/library\/connection\?\/connect$/,async route=>{
+   if(!route.request().url().endsWith('?/connect'))return route.continue();
+   // Redirected requests bypass Playwright routing. Preserve the real native
+   // form request/response, replacing only Google's external navigation.
+   const response=await route.fetch({maxRedirects:0});
+   expect(response.status()).toBe(303);
+   const provider=new URL(response.headers().location);
+   expect(provider.origin).toBe('https://accounts.google.com');
+   expect(provider.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/drive.file');
+   const query=new URLSearchParams({state:provider.searchParams.get('state'),picked_file_ids:provider.searchParams.get('file_ids'),code:'learning.synthetic-code'});
+   // WebKit cannot fulfill intercepted 3xx responses. Keep the real server's
+   // 303 assertion and cookies, then simulate Google's return with local HTML.
+   const headers={...response.headers(),'content-type':'text/html'};
+   delete headers.location;delete headers['content-length'];
+   const callback=(qa.browserUrl+'/auth/google/callback?'+query).replaceAll('&','&amp;');
+   await route.fulfill({response,status:200,headers,body:`<!doctype html><meta http-equiv="refresh" content="0;url=${callback}">`});
+  });
+  await page.goto('/app/library/connection');
+  await page.getByRole('button',{name:'חיבור עם Google',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'מרחב הלמידה עבר בדיקה',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'בדיקת החיבור עכשיו',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'מרחב הלמידה עבר בדיקה',exact:true})).toBeVisible();
+  await expect(page).toHaveURL(qa.browserUrl+'/app/library/connection');
+  await qa.evidence(page,'personal-google-verified');
+ });
+});

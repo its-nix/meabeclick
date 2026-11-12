@@ -88,7 +88,7 @@
 
 <main class="workspace-page" id="workspace-content" tabindex="-1">
   <TutorPageHeader title="ספריית תוכן" description="שיעורים, תרגול ומשחקים לפי תכנית הלימוד.">
-    {#snippet actions()}<a class="workspace-button" href="/app/games">משחקי תרגול</a><a class="workspace-button workspace-button-primary" href="#library-catalog">בחירת נושא להכנה</a>{/snippet}
+    {#snippet actions()}<a class="workspace-button workspace-button-quiet" href="/app/library/connection">מרחב Google</a><a class="workspace-button" href="/app/games">משחקי תרגול</a><a class="workspace-button workspace-button-primary" href="#library-catalog">בחירת נושא להכנה</a>{/snippet}
   </TutorPageHeader>
   <details class="due" open>
     <summary>הבאים בתור אצל התלמידים <span>({view.due.length} מיומנויות)</span></summary>

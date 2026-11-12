@@ -43,6 +43,7 @@ import type { LessonPlan } from '../lesson/prep.ts';
 import type { DriveApi } from './api.ts';
 import { planToHtml, indexHtml, parseDriveMarkdown } from './format.ts';
 import { getItem, putItem, type DriveKind } from './store.ts';
+import {centralStorageSelected} from '../central-drive/sync.ts';
 
 const ROOT_NAME = 'מאה בקליק — תלמידים';
 /** Google Docs saves every keystroke, so a document edited less than this
@@ -54,6 +55,7 @@ export interface SyncResult {
 }
 
 let running = false;
+class CentralStorageSelected extends Error {}
 
 export async function syncDrive(deps: {
   api: DriveApi | null;
@@ -63,14 +65,21 @@ export async function syncDrive(deps: {
   rootName?: string;
   /** The clock, for tests. */
   now?: () => number;
+  isCentralSelected?:()=>boolean;
 }): Promise<SyncResult | { skipped: string }> {
+  const selected=deps.isCentralSelected??centralStorageSelected;
+  if(selected())return {skipped:'central storage selected'};
   if (!deps.api) return { skipped: 'not configured' };
   /* A timer run and a manual one overlapping would each create the same
      folders — the check-then-create below is not atomic across runs. */
   if (running) return { skipped: 'already running' };
   running = true;
   try {
-    return await pass(deps.api, deps.notify, deps.rootName ?? ROOT_NAME, deps.now ?? Date.now);
+    const check=()=>{if(selected())throw new CentralStorageSelected();};
+    const guarded=Object.fromEntries(Object.entries(deps.api).map(([name,method])=>[name,async(...args:unknown[])=>{check();const result=await method(...args);check();return result;}])) as unknown as DriveApi;
+    return await pass(guarded,(text)=>{check();return deps.notify(text);},deps.rootName ?? ROOT_NAME,deps.now ?? Date.now);
+  } catch(e){
+    if(e instanceof CentralStorageSelected)return{skipped:'central storage selected'};throw e;
   } finally {
     running = false;
   }
@@ -216,6 +225,7 @@ async function pass(
           indexStale = true;
         }
       } catch (err) {
+        if(err instanceof CentralStorageSelected)throw err;
         result.failed += 1;
         console.error(`[drive-sync] ${key}: ${(err as Error).message}`);
       }
@@ -236,6 +246,7 @@ async function pass(
           putItem({ key: `index:${student.id}`, fileId: made.id, kind: 'index', syncedVersion: null, syncedModified: made.modifiedTime });
         }
       } catch (err) {
+        if(err instanceof CentralStorageSelected)throw err;
         result.failed += 1;
         console.error(`[drive-sync] index:${student.id}: ${(err as Error).message}`);
       }

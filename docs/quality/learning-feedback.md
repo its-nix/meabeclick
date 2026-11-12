@@ -1,5 +1,9 @@
 # Learning feedback history
 
+## 2026-11-12 — One personal storage connection for the business
+
+The owner clarified that central storage must be authorized once from the tutor dashboard and keep syncing all existing/future learning content automatically. A read-only nine-resource setup did not satisfy that workflow. The revised connection selects one Learning folder, creates an isolated Website sync subtree, backfills immutable source snapshots, creates editable student Docs and maintains a native three-view index. Shared dashboard controls and a five-minute worker handle retries and pauses; activation latches off legacy business learning transfers. Customer lessons/versions/links and teacher Drive edits are preserved. See `google-learning-workspace.md` and the central-sync design/plan. Synthetic source, interruption, privacy, managed-tab, policy and browser checks exercise this contract; actual owner consent/backfill remain an external acceptance gate.
+
 Give feedback in conversation; no new UI or form is needed. A useful message is: “Example 04, stage 2: the jump from 15% to 0.15 is confusing; show why we divide by 100.” Case/stage details help but are optional.
 
 The reusable workflow is [meabeclick-learning-iteration](../../skills/meabeclick-learning-iteration/SKILL.md). Keep entries sanitized: this repository is public.

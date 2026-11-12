@@ -1,5 +1,6 @@
 <script lang="ts">
  import TutorPageHeader from '$lib/components/TutorPageHeader.svelte';
+ import CentralDriveCard from '$lib/components/CentralDriveCard.svelte';
  import type {PageData,ActionData} from './$types';
  let {data,form}:{data:PageData;form:ActionData}=$props();
  const checkedAt=$derived(data.status?.checkedAt?new Date(data.status.checkedAt).toLocaleString('he-IL',{timeZone:'Asia/Jerusalem',dateStyle:'medium',timeStyle:'short'}):null);
@@ -8,7 +9,7 @@
 <svelte:head><title>חיבור Google ללמידה — מאה בקליק</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
 <main class="workspace-page connection-page" id="workspace-content" tabindex="-1">
  <TutorPageHeader title="מרחב הלמידה ב־Google" description="הפרופילים, התכנון והחומרים במקום אחד בחשבון האישי.">
-  {#snippet actions()}<a class="workspace-button workspace-button-quiet" href="/app/library">חזרה לספרייה</a>{/snippet}
+  {#snippet actions()}<a class="workspace-button workspace-button-quiet" href="/app/dashboard">חזרה ללוח המורים</a>{/snippet}
  </TutorPageHeader>
  {#if form?.message||data.message}<p class="notice" role="alert">{form?.message??data.message}</p>{/if}
  <section class="connection-card" aria-labelledby="connection-title">
@@ -19,23 +20,24 @@
    <span class="eyebrow">החשבון האישי</span><p class="account"><bdi dir="ltr">{data.account}</bdi></p>
    <h2 id="connection-title">{data.status?.state==='verified'?'מרחב הלמידה עבר בדיקה':data.status?.state==='failed'?'החיבור צריך בדיקה מחדש':'מחברים את מרחב הלמידה'}</h2>
    {#if checkedAt}
-    <p>הבדיקה האחרונה: <bdi>{checkedAt}</bdi>. {data.status?.state==='verified'?'הבעלות, הגישה ומבנה הרישום אומתו.':'הבדיקה האחרונה לא הושלמה. בדקו שוב או התחברו מחדש.'}</p>
+    <p>הבדיקה האחרונה: <bdi>{checkedAt}</bdi>. {data.status?.state==='verified'?'החשבון, הבעלות והגישה לתיקייה אומתו.':'הבדיקה האחרונה לא הושלמה. בדקו שוב או התחברו מחדש.'}</p>
    {:else}
-    <p>בוחרים את החשבון האישי ומאשרים את תשעת הפריטים שמוצגים בחלון Google. האתר יבדוק שהכול שייך למרחב הנכון לפני שמירת החיבור.</p>
+    <p>מחברים פעם אחת את החשבון האישי ובוחרים את תיקיית Learning. האתר ייצור בתוכה מרחב Website sync ויעתיק אליו את חומרי הלמידה של כל התלמידים. חומרים חדשים ושינויים יסתנכרנו אוטומטית כל חמש דקות.</p>
    {/if}
    <div class="connection-actions">
     <form method="POST" action="?/connect"><button class="workspace-button workspace-button-primary" type="submit">{data.status?.checkedAt?'חיבור מחדש עם Google':'חיבור עם Google'}</button></form>
     {#if data.status?.checkedAt}<form method="POST" action="?/verify"><button class="workspace-button" type="submit">בדיקת החיבור עכשיו</button></form>{/if}
    </div>
-   <details><summary>מה מחברים?</summary><p>הגישה מוגבלת לפריטים שנבחרים. יש לבחור את כל תשעת הפריטים כדי שהבדיקה תצליח.</p>
+   <details><summary>מה מחברים?</summary><p>בוחרים תיקייה מרכזית אחת לכל העסק. הגישה מוגבלת לתיקייה שנבחרה ולקבצים שהאתר יוצר. אין צורך בחיבור נוסף לכל מורה או תלמיד/ה.</p>
     <ul>{#each data.files as file}<li><span dir="auto">{file.name}</span></li>{/each}</ul>
    </details>
   {/if}
  </section>
+ {#if data.status?.checkedAt}<CentralDriveCard initial={data.sync} showManage={false}/>{/if}
  <section class="connection-card quiet-card" aria-labelledby="next-title">
-  <h2 id="next-title">מה אפשר לעשות אחרי החיבור?</h2>
-  <p>לבדוק את הרישום ולקרוא ממנו מידע לתכנון הלמידה. יצירת חומרים אוטומטית ופרסום לתלמידים יופעלו בהמשך, אחרי בדיקת התהליך המלא.</p>
-  <p class="scope-note">כרגע החיבור קורא מידע בלבד. הרשאת Google מאפשרת גם עריכת קבצים נבחרים לצורך שלבי ההמשך.</p>
+  <h2 id="next-title">מה נשמר במרחב המרכזי?</h2>
+  <p>המצגות, הגרסאות, שיעורי הבית, המשחקים ונתוני הלמידה הקיימים באתר. לכל תלמיד/ה נוצר פרופיל ב־Docs לעריכה חופשית. רישום ב־Sheets מרכז קישורים לחומרים ולהתקדמות שנשמרה באתר.</p>
+  <p class="scope-note">לשוניות האתר ברישום מתעדכנות אוטומטית; הערות חופשיות שומרים בפרופיל או בלשונית נפרדת. תיקיות ומסמכים קודמים נשארים כפי שהם. אפשר להשהות את הסנכרון בלי למחוק חומרים.</p>
  </section>
 </main>
 

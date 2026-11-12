@@ -300,6 +300,8 @@ test.describe('personal learning Google forms',()=>{
    const provider=new URL(response.headers().location);
    expect(provider.origin).toBe('https://accounts.google.com');
    expect(provider.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/drive.file');
+   expect(provider.searchParams.get('file_ids')).toBe('learning12345');
+   expect(provider.searchParams.get('allow_multiple')).toBe('false');
    const query=new URLSearchParams({state:provider.searchParams.get('state'),picked_file_ids:provider.searchParams.get('file_ids'),code:'learning.synthetic-code'});
    // WebKit cannot fulfill intercepted 3xx responses. Keep the real server's
    // 303 assertion and cookies, then simulate Google's return with local HTML.
@@ -315,5 +317,16 @@ test.describe('personal learning Google forms',()=>{
   await expect(page.getByRole('heading',{name:'מרחב הלמידה עבר בדיקה',exact:true})).toBeVisible();
   await expect(page).toHaveURL(qa.browserUrl+'/app/library/connection');
   await qa.evidence(page,'personal-google-verified');
+  await page.getByRole('link',{name:'חזרה ללוח המורים',exact:true}).click();
+  const card=page.locator('[data-central-drive]');
+  await expect(card.getByRole('heading',{name:'האחסון המרכזי ב־Google Drive'})).toBeVisible();
+  await expect(card.getByRole('link',{name:'פתיחת רישום הלמידה',exact:true})).toBeVisible({timeout:20000});
+  await card.getByRole('button',{name:'השהיית הסנכרון',exact:true}).click();
+  await expect(card.getByRole('status')).toHaveText('מושהה');
+  const second=await qa.page('tutor');await second.goto('/app/dashboard');
+  await expect(second.locator('[data-central-drive]').getByRole('status')).toHaveText('מושהה');
+  await card.getByRole('button',{name:'המשך סנכרון אוטומטי',exact:true}).click();
+  await expect(card.getByRole('button',{name:'סנכרון עכשיו',exact:true})).toBeEnabled({timeout:20000});
+  await qa.evidence(page,'central-drive-dashboard');
  });
 });

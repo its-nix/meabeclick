@@ -224,6 +224,12 @@ test('one lesson failing does not stop the others', async () => {
   assert.ok(S.getItem(`lesson:${b.slug}`));
   assert.ok(r.failed >= 1);
 });
+test('central activation stops an already-running business sync before another write or publication',async()=>{
+ const d=fakeDrive();lesson();let selected=false,docs=0;
+ const createFolder=d.api.createFolder;d.api.createFolder=async(...args)=>{const folder=await createFolder(...args);selected=true;return folder;};
+ const createDoc=d.api.createDoc;d.api.createDoc=async(...args)=>{docs++;return createDoc(...args);};
+ const{r,told}=await run(d,{isCentralSelected:()=>selected});assert.deepEqual(r,{skipped:'central storage selected'});assert.equal(docs,0);assert.equal(told.length,0);
+});
 
 test('Google bumping modifiedTime after our own write is not her edit', async () => {
   // Seen on production 2026-09-25: a freshly converted document's

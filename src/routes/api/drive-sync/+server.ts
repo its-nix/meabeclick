@@ -11,11 +11,13 @@ import { authorizedCronRequest } from '$server/cron-auth.ts';
 import { driveApiFromEnv } from '$server/drive/api.ts';
 import { syncDrive } from '$server/drive/sync.ts';
 import { sendWhatsApp } from '$server/lesson/queue.ts';
+import {centralStorageSelected} from '$server/central-drive/sync.ts';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ request }) => {
   if (!authorizedCronRequest(request.headers.get('x-cron-key'))) {
     return json({ error: 'unauthorized' }, { status: 401 });
   }
+  if(centralStorageSelected())return json({skipped:'central storage selected'});
   return json(await syncDrive({ api: driveApiFromEnv(), notify: sendWhatsApp }));
 };

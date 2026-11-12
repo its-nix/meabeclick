@@ -1,6 +1,7 @@
 import {fail,redirect,error} from '@sveltejs/kit';
 import {requireAuth,COOKIE_NAME} from '$server/auth.ts';
 import {learningGoogleConfig,learningService,learningFiles,LEARNING_FLOW_COOKIE,LEARNING_GOOGLE_ERRORS} from '$server/learning-google.ts';
+import {centralLearningSync} from '$server/central-drive/sync.ts';
 import type {Actions,PageServerLoad} from './$types';
 
 export const load:PageServerLoad=event=>{
@@ -9,10 +10,10 @@ export const load:PageServerLoad=event=>{
  event.setHeaders({'Cache-Control':'private, no-store','Referrer-Policy':'same-origin'});
  const reason=event.url.searchParams.get('connectionError')??'';
  let config:ReturnType<typeof learningGoogleConfig>;
- try{config=learningGoogleConfig();}catch{return {configured:false,account:null,files:[],status:null,message:LEARNING_GOOGLE_ERRORS.setup};}
+ try{config=learningGoogleConfig();}catch{return {configured:false,account:null,files:[],status:null,sync:centralLearningSync().view(),message:LEARNING_GOOGLE_ERRORS.setup};}
  let status:ReturnType<ReturnType<typeof learningService>['status']>|null=null,message=LEARNING_GOOGLE_ERRORS[reason]??null;
  try{status=learningService().status();}catch{message=LEARNING_GOOGLE_ERRORS.storage;}
- return {configured:true,account:config.workspace.ownerEmail,files:learningFiles(config.workspace).map(f=>({id:f.id,name:f.name})),status,message};
+ return {configured:true,account:config.workspace.ownerEmail,files:learningFiles(config.workspace).filter(f=>f.id===config.workspace.learningFolderId).map(f=>({id:f.id,name:f.name})),status,sync:centralLearningSync().view(),message};
 };
 
 export const actions:Actions={

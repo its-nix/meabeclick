@@ -50,3 +50,9 @@ test('all material revisions, private notes and database-only game bodies are ac
  assert.equal((await inventory.artifacts.find(a=>a.key==='game-drafts/sample-assignment').read()).toString(),'{"draft":true}');
  assert.equal((await inventory.artifacts.find(a=>a.key==='game-revisions/sample-revision').read()).toString(),'{"published":true}');
 });
+test('review presentations and media are included without requiring all media in memory',async()=>{
+ await mkdir(join(root,'static','learning-media'),{recursive:true});const bytes=Buffer.alloc(20000,17);await writeFile(join(root,'static','learning-media','sample.mp4'),bytes);
+ const inventory=await source.learningInventory({db,dataRoot:root,staticRoot:join(root,'static'),templatesRoot:join(root,'templates'),gamesRoot:join(root,'games')});
+ const media=inventory.artifacts.find(a=>a.key==='resources/learning-media/sample.mp4');assert.equal(media.mimeType,'video/mp4');assert.deepEqual(await media.read(9000,1000),bytes.subarray(9000,10000));
+ for(const key of ['review/baseline','review/v2','review/visual-pilot'])assert.ok(inventory.artifacts.some(a=>a.key===key),key);
+});

@@ -81,6 +81,9 @@ export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:stri
  for(const row of db.prepare('SELECT r.data_id,r.body,l.slug FROM lesson_game_revisions r JOIN lesson_game_assignments a ON a.id=r.assignment_id JOIN lessons l ON l.id=a.lesson_id ORDER BY r.data_id').iterate() as Iterable<{data_id:string;body:string;slug:string}>){
   inline(`game-revisions/${row.data_id}`,`${row.data_id}.json`,['Games','Published',row.slug],'application/json',row.body,'game',row.slug);
  }
+ // These examples live in the build, not the runtime database/filesystem.
+ const corpora=[['baseline',(await import('../learning-review-corpus.json',{with:{type:'json'}})).default],['v2',(await import('../learning-review-v2-corpus.json',{with:{type:'json'}})).default],['visual-pilot',(await import('../learning-pilot-corpus.json',{with:{type:'json'}})).default]] as const;
+ for(const[key,corpus]of corpora)inline(`review/${key}`,`${key}.json`,['Review'],'application/json',JSON.stringify(corpus),'review');
  const root=resolve(options.dataRoot??dataDir()),staticRoot=resolve(options.staticRoot??'static');
  const sources=[
   {root:join(root,'lessons'),key:'files/lessons',folders:['Lessons files'],role:'presentation'},

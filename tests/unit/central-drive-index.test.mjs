@@ -1,0 +1,20 @@
+import{test}from'node:test';import assert from'node:assert/strict';
+test('managed views are claimed atomically, escape formulas and leave human tabs untouched',async()=>{
+ const{writeCentralIndex}=await import('../../src/lib/server/central-drive/index.ts');
+ const calls=[],sheets=[{properties:{sheetId:0,title:'Sheet1'}},{properties:{sheetId:17,title:'Teacher notes'}}];
+ const api={scope:'scope',json:async(url,init)=>{calls.push({url,init});return{spreadsheetId:'spreadsheet12345',sheets};}};
+ await writeCentralIndex(api,'spreadsheet12345',{students:[['=IMPORTDATA("private")',12,{text:'Profile',url:'https://docs.google.com/document/d/profile12345/edit'}]],materials:[],progress:[]});
+ assert.equal(calls.length,2);const requests=JSON.parse(calls[1].init.body).requests;
+ assert.equal(requests.filter(r=>r.addSheet).length,3);assert.equal(requests.filter(r=>r.createDeveloperMetadata).length,3);
+ const updates=requests.filter(r=>r.updateCells);assert.equal(updates.length,3);
+ assert.ok(updates.every(r=>![0,17].includes(r.updateCells.range.sheetId)));
+ assert.equal(updates[0].updateCells.rows[1].values[0].userEnteredValue.stringValue,'=IMPORTDATA("private")');
+ assert.equal(updates[0].updateCells.rows[1].values[1].userEnteredValue.numberValue,12);
+ assert.match(updates[0].updateCells.rows[1].values[2].userEnteredFormat.textFormat.link.uri,/profile12345/);
+ assert.ok(!requests.some(r=>r.deleteSheet||r.deleteRange));
+ sheets.push(...requests.filter(r=>r.addSheet).map(r=>({properties:r.addSheet.properties,developerMetadata:requests.filter(m=>m.createDeveloperMetadata?.developerMetadata.location.sheetId===r.addSheet.properties.sheetId).map(m=>m.createDeveloperMetadata.developerMetadata)})));
+ await writeCentralIndex(api,'spreadsheet12345',{students:[],materials:[],progress:[]});
+ assert.equal(JSON.parse(calls.at(-1).init.body).requests.filter(r=>r.addSheet).length,0);
+ const conflict={scope:'scope',json:async()=>({sheets:[{properties:{sheetId:1,title:'Site Students'}}]})};
+ await assert.rejects(writeCentralIndex(conflict,'spreadsheet12345',{students:[],materials:[],progress:[]}),/conflict/);
+});

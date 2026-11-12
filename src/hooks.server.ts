@@ -58,6 +58,8 @@ if (!dev) {
   const { resetInterrupted } = await import('$server/library/store.ts');
   const cut = resetInterrupted();
   if (cut) console.warn(`[library] ${cut} preparation(s) cut short by the restart, marked failed`);
+  const {queueCentralSync}=await import('$server/central-drive/sync.ts');
+  queueCentralSync();
 }
 
 const { PERMISSIONS_POLICY } = await import('$server/document-policy.ts');

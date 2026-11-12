@@ -4,6 +4,7 @@ import { claimGoogleFlow, exchangeGoogleCode, completeGoogleIdentity, familyDest
 import { setFamilySession } from '$server/family-auth.ts';
 import { COOKIE_NAME, makeToken } from '$server/auth.ts';
 import {learningService,LEARNING_FLOW_COOKIE,LEARNING_CONNECTION_PATH,LEARNING_GOOGLE_ERRORS} from '$server/learning-google.ts';
+import {queueCentralSync} from '$server/central-drive/sync.ts';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, cookies, locals, setHeaders }) => {
@@ -18,6 +19,7 @@ export const GET: RequestHandler = async ({ url, cookies, locals, setHeaders }) 
       const reason=e instanceof Error&&LEARNING_GOOGLE_ERRORS[e.message]?e.message:'google';
       redirect(303,`${LEARNING_CONNECTION_PATH}?connectionError=${reason}`);
     }
+    queueCentralSync();
     redirect(303,LEARNING_CONNECTION_PATH);
   }
   const flow = claimGoogleFlow(url.searchParams.get('state') ?? '', cookies.get(GOOGLE_FLOW_COOKIE) ?? '');

@@ -40,7 +40,15 @@ test('a complete personal callback persists a server-only connection and can ver
   assert.equal(complete.status,303);assert.equal(complete.headers.get('location'),path);
   const page=await fetch(s.baseUrl+path,{headers:{Cookie:cookie}}),html=await page.text();
   assert.match(html,/מרחב הלמידה עבר בדיקה/);assert.ok(!html.includes('fake-learning-refresh'));assert.ok(!html.includes('fake-learning-access'));
+  const status=await fetch(s.baseUrl+'/api/central-drive',{headers:{Cookie:cookie}});assert.equal(status.status,200);assert.equal((await status.json()).enabled,true);
+  let synced;for(let i=0;i<500;i++){synced=await(await fetch(s.baseUrl+'/api/central-drive',{headers:{Cookie:cookie}})).json();if(synced.phase!=='running')break;await new Promise(r=>setTimeout(r,20));}
+  assert.equal(synced.phase,'complete',JSON.stringify(synced));assert.ok(synced.total>0);assert.equal(synced.done,synced.total);assert.match(synced.indexUrl,/docs.google.com\/spreadsheets/);
+  const dashboard=await(await fetch(s.baseUrl+'/app/dashboard',{headers:{Cookie:await login(s.baseUrl)}})).text();assert.match(dashboard,/האחסון המרכזי ב־Google Drive/);assert.match(dashboard,/owner@example.com/);
+  const unauth=await fetch(s.baseUrl+'/api/central-drive');assert.equal(unauth.status,401);
+  const cross=await fetch(s.baseUrl+'/api/central-drive',{method:'POST',headers:{Cookie:cookie,Origin:'https://evil.test','Content-Type':'application/json'},body:JSON.stringify({action:'pause'})});assert.equal(cross.status,403);
+  const pause=await fetch(s.baseUrl+'/api/central-drive',{method:'POST',headers:{Cookie:cookie,Origin:s.baseUrl,'Content-Type':'application/json'},body:JSON.stringify({action:'pause'})});assert.equal(pause.status,200);assert.equal((await pause.json()).enabled,false);
+  const legacy=await fetch(s.baseUrl+'/api/drive-sync',{headers:{'x-cron-key':'test-cron-key'}});assert.equal(legacy.status,401);
   const verify=await fetch(s.baseUrl+path+'?/verify',{method:'POST',redirect:'manual',headers:{Cookie:cookie,Origin:s.baseUrl,Accept:'text/html'},body:new URLSearchParams()});assert.equal(verify.status,303);assert.equal(verify.headers.get('location'),path);
-  const requests=s.googleRequests();assert.ok(requests.some(r=>r.url.includes('values:batchGet')));assert.ok(requests.every(r=>r.method==='GET'||new URL(r.url).hostname==='oauth2.googleapis.com'));
+  const requests=s.googleRequests();assert.ok(requests.some(r=>r.url.includes('/drive/v3/files/learning12345')));assert.ok(!requests.some(r=>r.url.includes('values:batchGet')));
  }finally{await s.stop();await rm(dir,{recursive:true,force:true});}
 });

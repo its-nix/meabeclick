@@ -117,3 +117,18 @@ test('a verification started before a new consent cannot overwrite the newer cre
  await assert.rejects(checking,/superseded/);
  assert.equal(await readFile(config.storePath,'utf8'),latest);
 });
+test('reordering private configuration keys preserves identity while changing a file invalidates it',async()=>{
+ const reversed=Object.fromEntries(Object.entries(workspace).reverse());
+ const path=join(dir,'reordered.json');await writeFile(path,JSON.stringify(reversed));
+ const reordered=google.learningGoogleConfig({...env,LEARNING_GOOGLE_WORKSPACE_FILE:path});
+ assert.equal(google.learningConnectionService({config:reordered}).status().state,'verified');
+ assert.throws(()=>google.learningConnectionService({config:{...config,workspace:{...config.workspace,reviewFolderId:'changed12345'}}}).status(),/storage/);
+});
+test('a revoked connection reports a failed last check without exposing or deleting its credentials',async()=>{
+ const p=await provider({network:true}),service=google.learningConnectionService({config,fetch:p.fetch});
+ await assert.rejects(service.verify(),/google/);
+ assert.equal(service.status().state,'failed');assert.equal(service.status().automaticPublishing,false);
+ assert.ok(!JSON.stringify(service.status()).includes('sensitive'));
+ const good=await provider();await google.learningConnectionService({config,fetch:good.fetch}).verify();
+ assert.equal(service.status().state,'verified');
+});

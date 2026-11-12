@@ -60,9 +60,43 @@ node --env-file=/private/learning-google.env scripts/learning-workspace.mjs --co
 
 ## What remains to connect
 
-The Drive connector in this chat and the website's OAuth client are separate applications. The bootstrap files were created through the former. The website still needs dedicated personal-account authorization and API access to the selected existing root, Learning folder, register and templates. Per-file authorization does not automatically grant another application's files or all children of a selected folder.
+The Drive connector in this chat and the website's OAuth client are separate applications. The bootstrap files were created through the former. The website's tutor-only `/app/library/connection` page now supplies the personal-account consent and verification flow. It needs deployment configuration followed by the owner's actual consent. Per-file authorization does not automatically grant another application's files or all children of a selected folder.
 
-Enable Drive, Sheets, Docs and Slides APIs in the intended Cloud project and grant only the needed files to the website's client. Existing business backups/lesson sync retain their current credentials and ownership. This code does not obtain or expose a personal refresh token through the chat.
+Enable Drive, Sheets and Google Picker APIs in the intended Cloud project. Docs and Slides APIs will also be needed by their subsequent native generation paths. Existing business backups/lesson sync retain their current credentials and ownership. This code does not expose a personal refresh token through the chat.
+
+### Website authorization setup
+
+Configure a Web application client under the explicit `LEARNING_GOOGLE_CLIENT_ID` / `LEARNING_GOOGLE_CLIENT_SECRET` names. The operator may explicitly copy the existing Web-client pair, whose `/auth/google/callback` redirect is already registered; this is not an automatic fallback to business backup credentials. Keep the existing Meet/login redirects registered. The callback dispatches only `learning.` states into the new flow; normal sign-in still requests only its existing identity scopes.
+
+Place the private workspace JSON under the existing data mount, for example `data/.credentials/learning-workspace.json`, and set `LEARNING_GOOGLE_WORKSPACE_FILE=/app/data/.credentials/learning-workspace.json` in the server environment. Extend its existing five fields with these verified identifiers:
+
+```json
+{
+  "templatesFolderId": "VERIFIED_TEMPLATES_FOLDER_ID",
+  "libraryFolderId": "VERIFIED_LIBRARY_FOLDER_ID",
+  "studentsFolderId": "VERIFIED_STUDENTS_FOLDER_ID",
+  "reviewFolderId": "VERIFIED_REVIEW_FOLDER_ID",
+  "studentProfileTemplateId": "VERIFIED_PROFILE_TEMPLATE_ID",
+  "lessonBriefTemplateId": "VERIFIED_BRIEF_TEMPLATE_ID"
+}
+```
+
+Generate a dedicated 32-byte random key, represented as 64 hex characters, and save it as `LEARNING_GOOGLE_TOKEN_KEY` in the private server environment. Do not print it into logs or commit it. Recreate the app using the exact pinned-image environment-rotation procedure in `server/README.md`. An absent/incomplete configuration leaves the page visibly unavailable and does not affect customer flows.
+
+After deployment, open `https://meabeclick.com/app/library/connection`, sign into the tutor dashboard, then choose the personal Google account and all nine displayed items: project root, Learning, register, four functional folders and two templates. The hosted Google Picker uses `drive.file` only, filtered to those exact IDs; there are no external Picker scripts or new CSP exceptions. The token allows editing selected files, but this implementation performs read-only checks and keeps automatic publication off. There is no grant to unrelated personal files.
+
+The callback requires the initiating browser and current tutor session, S256 PKCE and an unexpired single-use flow. It verifies the selected IDs, actual Google account, file owner/type/parent and complete register before accepting credentials. A cancelled/partial/wrong-account/invalid-register reconnection preserves the previous saved connection. Simultaneous checks cannot overwrite a newer connection.
+
+Refresh credentials are AES-256-GCM encrypted in `DATA_DIR/.credentials/learning-google.json`, atomically replaced with mode 0600. Browser responses, URLs and public configuration contain no refresh/access tokens. Stored credentials are bound to the client and workspace identity; rotating the encryption key or changing these identities requires reauthorization. Preserve the key through ordinary deploys; losing it makes the saved token unreadable. Rotating only the same client's secret does not require a new token. Backups of encrypted credentials still need the separately retained key to restore them.
+
+The page shows the last dated verification, not a permanent assertion of access. Use its verification action after editing the register or changing Google permissions. The saved connection can also be tested inside the configured server environment with:
+
+```sh
+node scripts/learning-workspace.mjs --connected status
+node scripts/learning-workspace.mjs --connected context --student demo-001 --include-demo
+```
+
+The OAuth consent application's production/testing status and enabled APIs must be checked in Google Cloud; durable access is not proved by mocked tests. The owner performs the real Google authorization. Real generation/writes and migration remain separate acceptance gates.
 
 The next production step is one serialized, idempotent artifact-publication/event path, using the register as the educational record store. Bookings, payments, login and interactive event capture keep their existing operational persistence. Do not make student submissions depend synchronously on Drive availability.
 

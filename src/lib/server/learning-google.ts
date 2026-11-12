@@ -7,6 +7,22 @@ import {accessToken} from '../../../server/drive/client.mjs';
 
 export const LEARNING_CONNECTION_PATH='/app/library/connection';
 export const LEARNING_FLOW_COOKIE='maab_learning_google';
+export const LEARNING_GOOGLE_ERRORS:Record<string,string>={
+ cancelled:'החיבור בוטל. אפשר להתחיל שוב כשנוח לך.',
+ expired:'החיבור הזה כבר לא תקף. התחילו שוב מאותו דפדפן.',
+ selection:'צריך לבחור את כל תשעת הקבצים והתיקיות שמופיעים בחלון Google.',
+ account:'נבחר חשבון אחר. התחילו שוב ובחרו את החשבון האישי שמופיע כאן.',
+ files:'לא הצלחנו לאמת גישה לכל הקבצים. בדקו שכל תשעת הפריטים נבחרו ושלא הועברו לתיקייה אחרת.',
+ register:'הגישה התקבלה, אך הרישום לא עבר את בדיקת המבנה והנתונים. יש לבדוק את גיליון הרישום לפני חיבור מחדש.',
+ offline:'Google לא נתן הרשאה לחיבור מתמשך. התחילו שוב ואשרו את ההרשאה.',
+ scope:'ההרשאה שהתקבלה אינה מתאימה. התחילו שוב ואשרו גישה לקבצים שנבחרו.',
+ google:'לא הצלחנו להשלים את הבדיקה מול Google. אפשר לנסות שוב.',
+ storage:'לא הצלחנו לקרוא או לשמור את החיבור בצורה מאובטחת. יש לבדוק את הגדרות השרת.',
+ superseded:'החיבור עודכן בחלון אחר. רעננו את הדף כדי לראות את המצב החדש.',
+ busy:'יש כרגע כמה ניסיונות חיבור פתוחים. נסו שוב בעוד כמה דקות.',
+ setup:'החיבור עדיין לא הוגדר בשרת. יש להשלים את הגדרות Google לפני הכניסה.',
+ disconnected:'אין עדיין חיבור שמור. התחילו בחיבור לחשבון האישי.',
+};
 const SCOPE='https://www.googleapis.com/auth/drive.file';
 const TTL=10*60*1000;
 const hash=(s:string)=>createHash('sha256').update(s).digest('base64url');
@@ -31,7 +47,10 @@ export function learningGoogleConfig(env:Record<string,string|undefined>=process
   if(!env.LEARNING_GOOGLE_CLIENT_ID||!env.LEARNING_GOOGLE_CLIENT_SECRET||!env.LEARNING_GOOGLE_WORKSPACE_FILE||!env.DATA_DIR||!/^([a-f\d]{64})$/i.test(env.LEARNING_GOOGLE_TOKEN_KEY??''))throw Error();
   const site=new URL(env.SITE_URL??'');
   if(site.pathname!=='/'||site.search||site.hash||site.username||site.password||(site.protocol!=='https:'&&!(site.protocol==='http:'&&['localhost','127.0.0.1'].includes(site.hostname))))throw Error();
-  const workspace=JSON.parse(readFileSync(env.LEARNING_GOOGLE_WORKSPACE_FILE,'utf8')) as Workspace;
+  const raw=readFileSync(env.LEARNING_GOOGLE_WORKSPACE_FILE,'utf8');if(raw.length>128*1024)throw Error();
+  const source=JSON.parse(raw);
+  const keys=['version','ownerEmail','projectFolderId','learningFolderId','spreadsheetId','templatesFolderId','libraryFolderId','studentsFolderId','reviewFolderId','studentProfileTemplateId','lessonBriefTemplateId'];
+  const workspace=Object.fromEntries(keys.map(key=>[key,source[key]])) as Workspace;
   if(workspace.version!==1||typeof workspace.ownerEmail!=='string'||!/^\S+@\S+\.\S+$/.test(workspace.ownerEmail))throw Error();
   const ids=learningFiles(workspace).map(f=>f.id);
   if(ids.some(id=>typeof id!=='string'||!/^[-\w]{10,}$/.test(id))||new Set(ids).size!==9)throw Error();

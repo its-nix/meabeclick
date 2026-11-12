@@ -43,7 +43,7 @@ import type { LessonPlan } from '../lesson/prep.ts';
 import type { DriveApi } from './api.ts';
 import { planToHtml, indexHtml, parseDriveMarkdown } from './format.ts';
 import { getItem, putItem, type DriveKind } from './store.ts';
-import {centralStorageSelected} from '../central-drive/sync.ts';
+import {centralStorageSelected,CentralStorageSelected} from '../central-drive/sync.ts';
 
 const ROOT_NAME = 'מאה בקליק — תלמידים';
 /** Google Docs saves every keystroke, so a document edited less than this
@@ -55,7 +55,6 @@ export interface SyncResult {
 }
 
 let running = false;
-class CentralStorageSelected extends Error {}
 
 export async function syncDrive(deps: {
   api: DriveApi | null;

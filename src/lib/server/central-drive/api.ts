@@ -36,6 +36,7 @@ export function centralDriveApi(options:{access:CentralAccess;fetch?:typeof fetc
    try{const value=await accessToken(access.credentials,(input,body)=>{access.assertCurrent();return fetchImpl(input,{...body,redirect:'manual',signal:AbortSignal.timeout(20000)});});if(typeof value!=='string'||!value||value.length>8192)fail('authorization');token={value,until:Date.now()+45*60*1000};}
    catch(e){if(e instanceof Error&&e.message==='paused')throw e;fail('authorization');}
   }
+  access.assertCurrent(); // Consent/policy may change while token renewal is awaited.
   let response:Response;
   try{response=await fetchImpl(url,{...init,redirect:'manual',headers:{...Object.fromEntries(new Headers(init.headers)),Authorization:`Bearer ${token.value}`},signal:AbortSignal.timeout(45000)});}catch{fail('google');}
   if(!response.ok&&!allowed.includes(response.status)){

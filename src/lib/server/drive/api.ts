@@ -10,6 +10,7 @@
  * echo request details into a log.
  */
 import { accessToken, readConfig } from '../../../../server/drive/client.mjs';
+import {centralStorageSelected,CentralStorageSelected} from '../central-drive/sync.ts';
 
 const API = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
@@ -38,13 +39,15 @@ export function driveApiFromEnv(env: Record<string, string | undefined> = proces
   return missing.length ? null : driveApi(cfg as Config);
 }
 
-export function driveApi(cfg: Config, fetchImpl: typeof fetch = fetch): DriveApi {
+export function driveApi(cfg: Config, fetchImpl: typeof fetch = fetch, isCentralSelected:()=>boolean=centralStorageSelected): DriveApi {
   let token: { value: string; until: number } | null = null;
 
   async function call(label: string, url: string, init: RequestInit = {}, allow404 = false): Promise<Response | null> {
+    if(isCentralSelected())throw new CentralStorageSelected();
     if (!token || Date.now() > token.until) {
       token = { value: await accessToken(cfg, fetchImpl), until: Date.now() + TOKEN_TTL_MS };
     }
+    if(isCentralSelected())throw new CentralStorageSelected();
     const res = await fetchImpl(url, {
       ...init, headers: { ...(init.headers as Record<string, string> ?? {}), Authorization: `Bearer ${token.value}` },
     });

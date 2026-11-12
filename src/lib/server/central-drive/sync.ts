@@ -17,6 +17,7 @@ export const SYNC_ERRORS:Record<string,string>={
  setup:'חיבור האחסון עדיין לא הוגדר בשרת.',disconnected:'יש לחבר פעם אחת את חשבון האחסון האישי.',
  google:'הסנכרון מול Google לא הושלם. חומרים שכבר נשמרו יישמרו לניסיון הבא.',
 };
+export class CentralStorageSelected extends Error {constructor(){super('central storage selected');}}
 type Phase='idle'|'running'|'complete'|'failed'|'paused';
 interface State {version:1;selected:boolean;scope?:string;runId?:string|null;phase:Phase;stage:string;startedAt?:string;lastSuccess?:string;done:number;total:number;uploaded:number;reused:number;students:number;error?:string|null;indexUrl?:string;fingerprint?:string;pending?:UploadCheckpoint|null}
 interface Service {status:()=>{state:string;account:string;folderUrl?:string;automaticSyncEnabled:boolean};syncAccess:()=>CentralAccess;setAutomaticSync:(enabled:boolean)=>Promise<unknown>}

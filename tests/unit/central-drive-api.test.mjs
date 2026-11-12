@@ -34,3 +34,14 @@ test('a publicly shared app folder stops uploads even when the selected root is 
  const folder=await api.folder('site','Website sync',config.learningFolderId);p.files.get(folder.id).permissions=[{type:'anyone'}];
  api=centralDriveApi({access:p.access,fetch:p.fetch,checkpoint:p.checkpoint});await api.prepare();await assert.rejects(api.folder('site','Website sync',config.learningFolderId),/privacy/);
 });
+test('pausing while an expired token renews prevents the pending content write',async()=>{
+ const{centralDriveApi}=await import('../../src/lib/server/central-drive/api.ts');const p=provider();let renewing=false,release,entered;
+ const gate=new Promise(r=>{release=r;}),started=new Promise(r=>{entered=r;});
+ const fetch=async(input,init)=>{if(renewing&&String(input).includes('oauth2.googleapis.com')){entered();await gate;}return p.fetch(input,init);};
+ const api=centralDriveApi({access:p.access,fetch,checkpoint:p.checkpoint});await api.prepare();
+ const now=Date.now;Date.now=()=>now()+46*60*1000;
+ try{
+  renewing=true;const write=api.register(config.learningFolderId);await started;p.pause();release();
+  await assert.rejects(write,/paused/);assert.equal(p.files.size,0);
+ }finally{Date.now=now;release();}
+});

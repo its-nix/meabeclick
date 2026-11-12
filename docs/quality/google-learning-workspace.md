@@ -89,12 +89,15 @@ The callback requires the initiating browser and current tutor session, S256 PKC
 
 Refresh credentials are AES-256-GCM encrypted in `DATA_DIR/.credentials/learning-google.json`, atomically replaced with mode 0600. Browser responses, URLs and public configuration contain no refresh/access tokens. Stored credentials are bound to the client and workspace identity; rotating the encryption key or changing these identities requires reauthorization. Preserve the key through ordinary deploys; losing it makes the saved token unreadable. Rotating only the same client's secret does not require a new token. Backups of encrypted credentials still need the separately retained key to restore them.
 
-The page shows the last dated verification, not a permanent assertion of access. Use its verification action after editing the register or changing Google permissions. The saved connection can also be tested inside the configured server environment with:
+The page shows the last dated verification, not a permanent assertion of access. Use its verification action after editing the register or changing Google permissions. The CLI runs from the server's Git checkout with Node22, not inside the minimal runtime image. Load the private environment and override its container paths with host paths:
 
 ```sh
-node scripts/learning-workspace.mjs --connected status
-node scripts/learning-workspace.mjs --connected context --student demo-001 --include-demo
+DATA_DIR=/home/meabeclick/mea-beclick/data \
+LEARNING_GOOGLE_WORKSPACE_FILE=/home/meabeclick/mea-beclick/data/.credentials/learning-workspace.json \
+node --env-file=.env scripts/learning-workspace.mjs --connected status
 ```
+
+The same invocation accepts `context --student demo-001 --include-demo` instead of `status`. No refresh token is printed by either command.
 
 The OAuth consent application's production/testing status and enabled APIs must be checked in Google Cloud; durable access is not proved by mocked tests. The owner performs the real Google authorization. Real generation/writes and migration remain separate acceptance gates.
 

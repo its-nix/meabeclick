@@ -301,7 +301,12 @@ test.describe('personal learning Google forms',()=>{
    expect(provider.origin).toBe('https://accounts.google.com');
    expect(provider.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/drive.file');
    const query=new URLSearchParams({state:provider.searchParams.get('state'),picked_file_ids:provider.searchParams.get('file_ids'),code:'learning.synthetic-code'});
-   await route.fulfill({response,headers:{...response.headers(),location:qa.browserUrl+'/auth/google/callback?'+query}});
+   // WebKit cannot fulfill intercepted 3xx responses. Keep the real server's
+   // 303 assertion and cookies, then simulate Google's return with local HTML.
+   const headers={...response.headers(),'content-type':'text/html'};
+   delete headers.location;delete headers['content-length'];
+   const callback=(qa.browserUrl+'/auth/google/callback?'+query).replaceAll('&','&amp;');
+   await route.fulfill({response,status:200,headers,body:`<!doctype html><meta http-equiv="refresh" content="0;url=${callback}">`});
   });
   await page.goto('/app/library/connection');
   await page.getByRole('button',{name:'חיבור עם Google',exact:true}).click();

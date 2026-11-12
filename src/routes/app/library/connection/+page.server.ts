@@ -5,7 +5,8 @@ import type {Actions,PageServerLoad} from './$types';
 
 export const load:PageServerLoad=event=>{
  requireAuth(event);
- event.setHeaders({'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer'});
+ // no-referrer makes native same-origin POSTs send Origin:null in Chromium.
+ event.setHeaders({'Cache-Control':'private, no-store','Referrer-Policy':'same-origin'});
  const reason=event.url.searchParams.get('connectionError')??'';
  let config:ReturnType<typeof learningGoogleConfig>;
  try{config=learningGoogleConfig();}catch{return {configured:false,account:null,files:[],status:null,message:LEARNING_GOOGLE_ERRORS.setup};}

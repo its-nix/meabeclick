@@ -5,12 +5,13 @@ import { seedLearning } from '../characterization/learning-fixture.mjs';
 import { createServer as createHttpsServer } from 'node:https';
 import { request as httpRequest } from 'node:http';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 export { expect };
 export const test = base.extend({
+  learningConnection:[false,{option:true}],
   tlsCredentials: [async ({}, use) => {
     const dir = mkdtempSync(join(tmpdir(), 'qa-local-tls-'));
     try {
@@ -18,8 +19,16 @@ export const test = base.extend({
       await use({ key: readFileSync(join(dir, 'key.pem')), cert: readFileSync(join(dir, 'cert.pem')) });
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }, { scope: 'worker' }],
-  qa: async ({ browser, tlsCredentials }, use, info) => {
+  qa: async ({ browser, tlsCredentials,learningConnection }, use, info) => {
     let server;
+    let learningDir;
+    const learningEnv={};
+    if(learningConnection){
+      learningDir=mkdtempSync(join(tmpdir(),'qa-learning-google-'));
+      const workspace={version:1,ownerEmail:'owner@example.com',projectFolderId:'project12345',learningFolderId:'learning12345',spreadsheetId:'spreadsheet12345',templatesFolderId:'templates12345',libraryFolderId:'library12345',studentsFolderId:'students12345',reviewFolderId:'review12345',studentProfileTemplateId:'profile12345',lessonBriefTemplateId:'brief12345'};
+      writeFileSync(join(learningDir,'workspace.json'),JSON.stringify(workspace));
+      Object.assign(learningEnv,{LEARNING_GOOGLE_CLIENT_ID:'synthetic-learning-client',LEARNING_GOOGLE_CLIENT_SECRET:'synthetic-learning-secret',LEARNING_GOOGLE_WORKSPACE_FILE:join(learningDir,'workspace.json'),LEARNING_GOOGLE_TOKEN_KEY:'ab'.repeat(32)});
+    }
     const proxy = createHttpsServer(tlsCredentials, (incoming, response) => {
       if (!server) { response.writeHead(503).end(); return; }
       const upstream = httpRequest(server.baseUrl + incoming.url, {
@@ -33,7 +42,7 @@ export const test = base.extend({
     const contexts = [];
     const errors = [];
     try {
-      server = await startServer({ env: { NODE_ENV: 'production', SITE_URL: browserUrl, ORIGIN: browserUrl } });
+      server = await startServer({ fakeGoogle:learningConnection,env: { NODE_ENV: 'production', SITE_URL: browserUrl, ORIGIN: browserUrl,...learningEnv } });
       // Seed helpers use HTTP on the private backend; browsers use the HTTPS
       // entry point, preserving the app's real production cookie semantics.
       const sessionForLink = link => familySession(link.replace(browserUrl, server.baseUrl));
@@ -102,6 +111,7 @@ export const test = base.extend({
       proxy.closeAllConnections();
       await new Promise(resolve => proxy.close(resolve));
       if (server) await server.stop();
+      if(learningDir)rmSync(learningDir,{recursive:true,force:true});
       const failed = teardown.find(result => result.status === 'rejected');
       if (failed) throw failed.reason;
     }

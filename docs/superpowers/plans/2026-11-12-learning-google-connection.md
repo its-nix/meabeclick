@@ -22,21 +22,21 @@
 ### Task 1: Connection boundary and durable credentials
 Files: create `src/lib/server/learning-google.ts`, `tests/unit/learning-google.test.mjs`.
 Interfaces: `learningGoogleConfig()`, `startLearningConnection(session)`, `finishLearningConnection(input)`, `learningConnectionStatus()`, `verifyLearningConnection()`, `connectedWorkspace()`.
-- [ ] Write and run a failing end-to-end synthetic authorization test.
-- [ ] Implement strict config, hosted Picker URL and bounded one-time browser/session state.
-- [ ] Add failing cases incrementally; implement token exchange, account/resource/register verification, atomic encrypted persistence and safe reconnect.
-- [ ] Verify focused tests and commit.
+- [x] Write and run a failing end-to-end synthetic authorization test.
+- [x] Implement strict config, hosted Picker URL and bounded one-time browser/session state.
+- [x] Add failing cases incrementally; implement token exchange, account/resource/register verification, atomic encrypted persistence and safe reconnect.
+- [x] Verify focused tests and commit.
 
 ### Task 2: Authenticated connection page and CLI
 Files: create `/app/library/connection/+page.server.ts`, `+page.svelte`; modify existing Google callback, library entry link, CLI, test harness blocked credentials and add route characterization/browser coverage.
-- [ ] Write failing protected-route/callback tests; implement authenticated POST actions and separate learning callback dispatch.
-- [ ] Add on-brand Hebrew connection/recovery/verification page and library entry link.
-- [ ] Add explicit CLI connected mode and synthetic coverage.
-- [ ] Run focused route/browser checks, RTL detector, build/typecheck/full suite; commit.
+- [x] Write failing protected-route/callback tests; implement authenticated POST actions and separate learning callback dispatch.
+- [x] Add on-brand Hebrew connection/recovery/verification page and library entry link.
+- [x] Add explicit CLI connected mode and synthetic coverage.
+- [x] Run focused route/browser checks, RTL detector, build/typecheck/full suite; commit.
 
 ### Task 3: Review and release handoff
 Files: `.env.example`, `docs/quality/google-learning-workspace.md`, deployment docs and task-private config/evidence.
-- [ ] Document exact private setup, API/client requirements, rotation and remaining personal-consent gate.
-- [ ] Obtain one fresh whole-diff review; fix material findings with regression tests.
+- [x] Document exact private setup, API/client requirements, rotation and remaining personal-consent gate.
+- [x] Obtain one fresh whole-diff review; fix material findings with regression tests.
 - [ ] Update existing PR, verify required CI gates; complete authorized merge/deploy if configuration/access permits.
 - [ ] Verify live guarded page and provider entry; provide full connection URL and precise owner-only remaining step.

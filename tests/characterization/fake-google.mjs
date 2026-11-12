@@ -27,8 +27,8 @@ globalThis.fetch = async (input, init = {}) => {
   }) + '\n');
 
   const answer = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-  const learning=fakeLearningGoogle(url,init);
-  if(learning)return answer(200,learning);
+  const learning=await fakeLearningGoogle(url,init);
+  if(learning)return learning instanceof Response?learning:answer(200,learning);
   if (url.pathname === '/oauth2/v3/certs') return answer(200, { keys: [loginJwk] });
   if (url.hostname === 'oauth2.googleapis.com' && url.pathname === '/token') {
     const form = new URLSearchParams(String(init.body ?? ''));

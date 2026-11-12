@@ -1066,6 +1066,8 @@ Two more `systemd --user` timers, the same shape as the backup timer above:
   login (`GOOGLE_OAUTH_*`); without it the route answers `{ skipped }`.
   Design: `docs/superpowers/specs/2026-09-25-drive-student-folders-design.md`.
 
+- `meabeclick-central-drive-sync.timer` — **every five minutes**, `GET /api/central-drive-sync`, queues the global personal learning-store worker. It returns aggregate status promptly; work continues in the app. Consent and app startup also queue a run. Install/enable this unit alongside the others. Once central storage is activated, the old business-account `/api/drive-sync` stands down, including while paused or disconnected; business backups remain separate. See `docs/quality/google-learning-workspace.md`.
+
 These endpoints are reachable from the internet and driven by a timer rather
 than a person, so both check a shared secret, `CRON_KEY`, rather than a
 session cookie (`src/lib/server/cron-auth.ts`; constant-time, and closed
@@ -1098,7 +1100,7 @@ Install once:
 ```bash
 cp server/meabeclick-*.{service,timer} ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now meabeclick-report-prompt.timer meabeclick-remind.timer meabeclick-remind-family.timer meabeclick-generation-health.timer meabeclick-ops-health.timer
+systemctl --user enable --now meabeclick-report-prompt.timer meabeclick-remind.timer meabeclick-remind-family.timer meabeclick-generation-health.timer meabeclick-ops-health.timer meabeclick-central-drive-sync.timer
 systemctl --user list-timers
 ```
 

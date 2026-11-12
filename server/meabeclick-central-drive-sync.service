@@ -1,0 +1,10 @@
+[Unit]
+Description=MeaBeclick central personal learning storage sync
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/mea-beclick/.cron-key.env
+ExecStart=/usr/bin/curl -sS --fail --max-time 30 \
+  -H "X-Cron-Key: ${CRON_KEY}" \
+  http://127.0.0.1:3000/api/central-drive-sync

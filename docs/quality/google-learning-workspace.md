@@ -2,9 +2,23 @@
 
 The new learning workspace lives inside the existing personal-owned MeaBeclick Drive folder. Google Sheets holds structured teaching records, Google Docs holds readable profiles and tutor narrative, and Drive owns the artifact files. Marketing, Skills, reference decks and the stale student folder are preserved.
 
-This first delivery is a staff-only skeleton with one labelled synthetic example. It has no real learner imports, published student assignments or automatic booking-time writes. The site's existing customer flows remain active.
+The initial staff-only skeleton and synthetic example remain intact. The central sync now connects once from the tutor dashboard and automatically copies existing and future educational content. The site's operational customer flows remain active; student publication is separate from staff storage.
 
-## Structure and ownership
+## Central automatic sync
+
+Open https://meabeclick.com/app/dashboard and use **האחסון המרכזי ב־Google Drive**. Connect the configured personal account once and select only its existing Learning folder. Consent enables automatic syncing and queues the initial backfill. Every tutor sees the same server connection; no student or individual tutor account is connected. An older read-only grant needs **הפעלת סנכרון אוטומטי** once.
+
+The app creates **Website sync** under Learning, with **Library**, **Students** and a native **MeaBeclick — Website sync index** spreadsheet. It does not overwrite or repurpose the existing manual register, templates or demo folders. Each student gets one editable native profile Doc linked to the new index. Later syncs preserve edits to that Doc. The index has three clearly managed views: **Site Students**, **Site Materials**, **Site Progress**. Put human narrative in the profile or a separate tab; the site refreshes only its tagged views, atomically. Unclaimed name collisions fail instead of replacing a human tab.
+
+The inventory includes current/historical lesson versions, private presenter notes, homework, games and revisions, library/curriculum, learning assets and observed progress. Original bytes and formats are preserved; historical interactive HTML is not converted to Slides. Content hashes/Drive markers reuse unchanged copies and preserve older revisions. Moved, edited, trashed or ambiguous managed artifacts stop the run; completed uploads are retained for retry. No automatic public sharing or student publication occurs. Credentials, contacts, payments, private calendars and database dumps are excluded.
+
+The dashboard shows aggregate progress, last full success, errors, pause/resume and retry. Successful consent, server startup and `meabeclick-central-drive-sync.timer` queue serialized background work. The timer calls the cron-key-only `/api/central-drive-sync` every five minutes; authenticated dashboard status/actions use `/api/central-drive`. Private operational retry state lives in `DATA_DIR/.credentials/central-learning-sync.json` (0600), with no learner content or OAuth secrets. Resumable upload URLs in that private file must also stay out of logs and Git.
+
+Once central storage is selected, `/api/drive-sync` and an already-running business sync stop learning transfers permanently, including during pause, revocation or misconfiguration. Business backup credentials and old Drive files remain intact. Bookings, payments, login, delivery links and interactive submissions continue using their existing persistence and never wait synchronously on Google.
+
+Actual owner consent and a successful real Google backfill are separate from synthetic verification. Inspect the dashboard's full-success timestamp after authorization; a successful connection check alone does not prove transfer completion.
+
+## Original manual structure and ownership
 
 Learning contains the register, a short native workspace guide and Templates, Library, Students and Review folders. Templates contains a student profile and a lesson brief. A demo folder under Students illustrates their linked copies. The connected personal account owns the created files, and the existing staff editor inherits access. Students are not granted the master register or teacher templates.
 
@@ -21,7 +35,7 @@ The native register has five linked record tables and a Config tab:
 
 Headers retain stable machine keys inside brackets. Reordering rows or columns is supported; IDs and keys must remain unique. Demo flags cannot cross-link with real records, and demo assignments stay draft. Viewing a presentation does not establish independently demonstrated learning. Progress rows are observations, not an automatic mastery model.
 
-Approval, audience and publication are distinct. Published material records require a release ID and content fingerprint. The first reader reports these as declared register state only: it does not prove physical immutability or publish a file. Snapshot creation, verified release access and the production writer remain a subsequent step.
+Approval, audience and publication are distinct. Published material records require a release ID and content fingerprint. The first reader reports these as declared register state only: it does not prove physical immutability or publish a file. The central snapshot writer is independent of these manually declared release records; student release/publication remains a separate step.
 
 ## Programmatic reader
 
@@ -58,11 +72,11 @@ node --env-file=/private/learning-google.env scripts/learning-workspace.mjs --co
 
 `status` excludes demo records from customer counts and explicitly reports read-only access and automatic publishing off. `context` requires explicit demo access and never broadens learner isolation.
 
-## What remains to connect
+## Google applications and permission scope
 
-The Drive connector in this chat and the website's OAuth client are separate applications. The bootstrap files were created through the former. The website's tutor-only `/app/library/connection` page now supplies the personal-account consent and verification flow. It needs deployment configuration followed by the owner's actual consent. Per-file authorization does not automatically grant another application's files or all children of a selected folder.
+The Drive connector in this chat and the website's OAuth client are separate applications. The bootstrap files were created through the former. The website's tutor-only `/app/library/connection` page now supplies the personal-account consent and verification flow. It needs deployment configuration followed by the owner's actual consent. Selecting a folder does not grant access to arbitrary pre-existing descendants. Central sync uses the selected root and app-created descendants, which are eligible under drive.file. The original manual-register CLI still requires its own eligible file grant or explicit-env reader credentials; the single-folder connection does not claim access to that register.
 
-Enable Drive, Sheets and Google Picker APIs in the intended Cloud project. Docs and Slides APIs will also be needed by their subsequent native generation paths. Existing business backups/lesson sync retain their current credentials and ownership. This code does not expose a personal refresh token through the chat.
+Enable Drive, Sheets and Google Picker APIs in the intended Cloud project. Docs and Slides APIs will also be needed by their subsequent native generation paths. Business backups retain their credentials and ownership. Legacy learning sync is suppressed after central activation. This code does not expose a personal refresh token through the chat.
 
 ### Website authorization setup
 
@@ -83,13 +97,13 @@ Place the private workspace JSON under the existing data mount, for example `dat
 
 Generate a dedicated 32-byte random key, represented as 64 hex characters, and save it as `LEARNING_GOOGLE_TOKEN_KEY` in the private server environment. Do not print it into logs or commit it. Recreate the app using the exact pinned-image environment-rotation procedure in `server/README.md`. An absent/incomplete configuration leaves the page visibly unavailable and does not affect customer flows.
 
-After deployment, open `https://meabeclick.com/app/library/connection`, sign into the tutor dashboard, then choose the personal Google account and all nine displayed items: project root, Learning, register, four functional folders and two templates. The hosted Google Picker uses `drive.file` only, filtered to those exact IDs; there are no external Picker scripts or new CSP exceptions. The token allows editing selected files, but this implementation performs read-only checks and keeps automatic publication off. There is no grant to unrelated personal files.
+After deployment, open `https://meabeclick.com/app/library/connection` from the dashboard and choose the configured personal Google account and the one displayed Learning folder. The hosted Google Picker requests `drive.file` only, filtered to that exact folder ID; there are no external Picker scripts or new CSP exceptions. Acceptance enables automatic staff-storage writes. No unrelated personal files or student publication are authorized.
 
-The callback requires the initiating browser and current tutor session, S256 PKCE and an unexpired single-use flow. It verifies the selected IDs, actual Google account, file owner/type/parent and complete register before accepting credentials. A cancelled/partial/wrong-account/invalid-register reconnection preserves the previous saved connection. Simultaneous checks cannot overwrite a newer connection.
+The callback requires the initiating browser and current tutor session, S256 PKCE and an unexpired single-use flow. It verifies the selected IDs, actual Google account, selected folder owner/type/parent and staff-only access before accepting credentials. A cancelled/partial/wrong-account/invalid-folder reconnection preserves the previous saved connection. Simultaneous checks cannot overwrite a newer connection.
 
 Refresh credentials are AES-256-GCM encrypted in `DATA_DIR/.credentials/learning-google.json`, atomically replaced with mode 0600. Browser responses, URLs and public configuration contain no refresh/access tokens. Stored credentials are bound to the client and workspace identity; rotating the encryption key or changing these identities requires reauthorization. Preserve the key through ordinary deploys; losing it makes the saved token unreadable. Rotating only the same client's secret does not require a new token. Backups of encrypted credentials still need the separately retained key to restore them.
 
-The page shows the last dated verification, not a permanent assertion of access. Use its verification action after editing the register or changing Google permissions. The CLI runs from the server's Git checkout with Node22, not inside the minimal runtime image. Load the private environment and override its container paths with host paths:
+The page shows the last dated verification, not a permanent assertion of access. Use its verification action after changing the selected folder or Google permissions. The CLI runs from the server's Git checkout with Node22, not inside the minimal runtime image. Load the private environment and override its container paths with host paths:
 
 ```sh
 DATA_DIR=/home/meabeclick/mea-beclick/data \
@@ -101,7 +115,7 @@ The same invocation accepts `context --student demo-001 --include-demo` instead 
 
 The OAuth consent application's production/testing status and enabled APIs must be checked in Google Cloud; durable access is not proved by mocked tests. The owner performs the real Google authorization. Real generation/writes and migration remain separate acceptance gates.
 
-The next production step is one serialized, idempotent artifact-publication/event path, using the register as the educational record store. Bookings, payments, login and interactive event capture keep their existing operational persistence. Do not make student submissions depend synchronously on Drive availability.
+The next native-authoring step can build on these central artifacts and observed progress; this sync does not migrate the operational database or make the original manual register the source of truth. Bookings, payments, login and interactive event capture keep their existing operational persistence. Do not make student submissions depend synchronously on Drive availability.
 
 ## Retiring duplicate code
 

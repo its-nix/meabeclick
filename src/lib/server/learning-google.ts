@@ -10,9 +10,9 @@ export const LEARNING_FLOW_COOKIE='maab_learning_google';
 export const LEARNING_GOOGLE_ERRORS:Record<string,string>={
  cancelled:'החיבור בוטל. אפשר להתחיל שוב כשנוח לך.',
  expired:'החיבור הזה כבר לא תקף. התחילו שוב מאותו דפדפן.',
- selection:'צריך לבחור את כל תשעת הקבצים והתיקיות שמופיעים בחלון Google.',
+ selection:'צריך לבחור את תיקיית Learning המרכזית שמופיעה בחלון Google.',
  account:'נבחר חשבון אחר. התחילו שוב ובחרו את החשבון האישי שמופיע כאן.',
- files:'לא הצלחנו לאמת גישה לכל הקבצים. בדקו שכל תשעת הפריטים נבחרו ושלא הועברו לתיקייה אחרת.',
+ files:'לא הצלחנו לאמת גישה לתיקייה. בדקו שנבחרה תיקיית Learning הנכונה, שהיא בחשבון האישי ושאינה ציבורית.',
  register:'הגישה התקבלה, אך הרישום לא עבר את בדיקת המבנה והנתונים. יש לבדוק את גיליון הרישום לפני חיבור מחדש.',
  offline:'Google לא נתן הרשאה לחיבור מתמשך. התחילו שוב ואשרו את ההרשאה.',
  scope:'ההרשאה שהתקבלה אינה מתאימה. התחילו שוב ואשרו גישה לקבצים שנבחרו.',
@@ -58,10 +58,10 @@ export function learningGoogleConfig(env:Record<string,string|undefined>=process
  }catch{throw Error('learning Google setup is incomplete or invalid');}
 }
 
-export function learningConnectionService(options:{config:LearningGoogleConfig;fetch?:typeof fetch;now?:()=>number}){
+export function learningConnectionService(options:{config:LearningGoogleConfig;fetch?:typeof fetch;now?:()=>number;assertConfiguration?:()=>void}){
  const {config}=options,now=options.now??Date.now,fetchImpl=options.fetch??fetch;
  const identity=hash(JSON.stringify([config.clientId,config.redirectUri,config.workspace]));
- type Record={refreshToken:string;checkedAt:string;verified:boolean;realRecords:Awaited<ReturnType<ReturnType<typeof workspaceClient>['status']>>['realRecords']};
+ type Record={refreshToken:string;checkedAt:string;verified:boolean;realRecords:Awaited<ReturnType<ReturnType<typeof workspaceClient>['status']>>['realRecords']|null;syncEnabled?:boolean;syncEpoch?:string;centralSelected?:boolean};
  function read():Record|null{
   let raw:string;
   try{raw=readFileSync(config.storePath,'utf8');}catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return null;throw Error('storage');}
@@ -72,7 +72,7 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
    const decipher=createDecipheriv('aes-256-gcm',Buffer.from(config.tokenKey,'hex'),Buffer.from(sealed.iv,'base64url'));
    decipher.setAAD(Buffer.from(identity));decipher.setAuthTag(Buffer.from(sealed.tag,'base64url'));
    const record=JSON.parse(Buffer.concat([decipher.update(Buffer.from(sealed.data,'base64url')),decipher.final()]).toString('utf8'));
-   if(typeof record.refreshToken!=='string'||!record.refreshToken||typeof record.checkedAt!=='string'||typeof record.verified!=='boolean'||!record.realRecords)throw Error();
+   if(typeof record.refreshToken!=='string'||!record.refreshToken||typeof record.checkedAt!=='string'||typeof record.verified!=='boolean'||record.realRecords!==null&&!record.realRecords)throw Error();
    return record;
   }catch{throw Error('storage');}
  }
@@ -106,12 +106,14 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
   const headers={Authorization:`Bearer ${access}`};
   const account=await json('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers});
   if(account.user?.emailAddress?.toLowerCase()!==config.workspace.ownerEmail.toLowerCase())throw Error('account');
-  for(const file of learningFiles(config.workspace)){
+  // Central storage needs one selected folder. Its app-created descendants
+  // are eligible under drive.file without granting unrelated existing files.
+  for(const file of learningFiles(config.workspace).filter(f=>f.id===config.workspace.learningFolderId)){
    let actual:any;
-   try{actual=await json(`https://www.googleapis.com/drive/v3/files/${file.id}?fields=id,mimeType,parents,owners(emailAddress),trashed`,{headers});}catch{throw Error('files');}
+   try{actual=await json(`https://www.googleapis.com/drive/v3/files/${file.id}?fields=id,mimeType,parents,owners(emailAddress),permissions(type),trashed`,{headers});}catch{throw Error('files');}
    if(actual.id!==file.id||actual.mimeType!==file.type||actual.trashed||!actual.owners?.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===config.workspace.ownerEmail.toLowerCase())||(file.parent&&!actual.parents?.includes(file.parent)))throw Error('files');
+   if(!Array.isArray(actual.permissions)||actual.permissions.some((p:{type?:string})=>!['user','group'].includes(p.type??'')))throw Error('files');
   }
-  try{return await workspaceClient({config:config.workspace,credentials:credentials(refreshToken),fetch:fetchImpl}).status();}catch{throw Error('register');}
  }
  const flows=new Map<string,{browserHash:string;sessionHash:string;verifier:string;expires:number}>();
  function start(session:string){
@@ -120,7 +122,7 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
   if(flows.size>=50)throw Error('busy');
   const state=`learning.${secret()}`,browser=secret(),verifier=secret();
   flows.set(state,{browserHash:hash(browser),sessionHash:hash(session),verifier,expires:now()+TTL});
-  const query=new URLSearchParams({client_id:config.clientId,redirect_uri:config.redirectUri,response_type:'code',scope:SCOPE,access_type:'offline',prompt:'select_account consent',include_granted_scopes:'false',state,code_challenge:hash(verifier),code_challenge_method:'S256',trigger_onepick:'true',allow_multiple:'true',allow_folder_selection:'true',file_ids:learningFiles(config.workspace).map(f=>f.id).join(','),login_hint:config.workspace.ownerEmail});
+  const query=new URLSearchParams({client_id:config.clientId,redirect_uri:config.redirectUri,response_type:'code',scope:SCOPE,access_type:'offline',prompt:'select_account consent',include_granted_scopes:'false',state,code_challenge:hash(verifier),code_challenge_method:'S256',trigger_onepick:'true',allow_multiple:'false',allow_folder_selection:'true',mimetypes:'application/vnd.google-apps.folder',file_ids:config.workspace.learningFolderId,login_hint:config.workspace.ownerEmail});
   return {url:`https://accounts.google.com/o/oauth2/v2/auth?${query}`,browser};
  }
  async function finish(input:{state:string;browser:string;session:string;authCode:string|null;pickedFileIds:string|null;error:string|null}){
@@ -129,18 +131,18 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
   flows.delete(input.state); // Claim before the first network await.
   const previous=storedVersion();
   if(input.error)throw Error('cancelled');
-  const picked=(input.pickedFileIds??'').split(','),required=learningFiles(config.workspace).map(f=>f.id);
+  const picked=(input.pickedFileIds??'').split(','),required=[config.workspace.learningFolderId];
   if(picked.length!==required.length||new Set(picked).size!==required.length||required.some(id=>!picked.includes(id)))throw Error('selection');
   if(!input.authCode||input.authCode.length>4096)throw Error('google');
   const token=await json('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:config.clientId,client_secret:config.clientSecret,redirect_uri:config.redirectUri,code:input.authCode,code_verifier:flow.verifier,grant_type:'authorization_code'})});
   if(typeof token.access_token!=='string'||!token.access_token||token.access_token.length>8192||typeof token.refresh_token!=='string'||!token.refresh_token||token.refresh_token.length>8192)throw Error('offline');
   if(typeof token.scope!=='string'||token.scope.trim()!==SCOPE)throw Error('scope');
-  const status=await validate(token.refresh_token,token.access_token);
-  write({refreshToken:token.refresh_token,checkedAt:new Date(now()).toISOString(),verified:true,realRecords:status.realRecords},previous);
+  await validate(token.refresh_token,token.access_token);
+  write({refreshToken:token.refresh_token,checkedAt:new Date(now()).toISOString(),verified:true,realRecords:null,syncEnabled:true,syncEpoch:secret(),centralSelected:true},previous);
  }
  function status(){
   const record=read();
-  return {state:record?(record.verified?'verified':'failed'):'disconnected',account:config.workspace.ownerEmail,checkedAt:record?.checkedAt??null,realRecords:record?.realRecords??null,readOnly:true,automaticPublishing:false};
+  return {state:record?(record.verified?'verified':'failed'):'disconnected',account:config.workspace.ownerEmail,folderUrl:`https://drive.google.com/drive/folders/${config.workspace.learningFolderId}`,checkedAt:record?.checkedAt??null,realRecords:record?.realRecords??null,readOnly:!record?.syncEnabled,automaticSyncEnabled:record?.syncEnabled===true,automaticPublishing:false};
  }
  function connected(){
   const record=read();if(!record)throw Error('disconnected');
@@ -148,19 +150,33 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
  }
  async function verify(){
   const previous=storedVersion(),record=read();if(!record)throw Error('disconnected');
-  let checked:Awaited<ReturnType<typeof validate>>;
-  try{checked=await validate(record.refreshToken);}
+  try{await validate(record.refreshToken);}
   catch(e){write({...record,checkedAt:new Date(now()).toISOString(),verified:false},previous);throw e;}
-  write({...record,checkedAt:new Date(now()).toISOString(),verified:true,realRecords:checked.realRecords},previous);
+  write({...record,checkedAt:new Date(now()).toISOString(),verified:true,realRecords:null},previous);
   return status();
  }
- return {start,finish,status,verify,connected};
+ function centralSelected(){return read()?.centralSelected===true;}
+ function syncAccess(){
+  const record=read();if(record?.syncEnabled!==true||!record.syncEpoch)throw Error('disabled');
+  const epoch=record.syncEpoch;
+  return {config:config.workspace,credentials:credentials(record.refreshToken),epoch,assertCurrent(){
+   options.assertConfiguration?.();
+   const current=read();if(current?.syncEnabled!==true||current.syncEpoch!==epoch)throw Error('paused');
+  }};
+ }
+ async function setAutomaticSync(enabled:boolean){
+  const previous=storedVersion(),record=read();if(!record)throw Error('disconnected');
+  if(enabled)await validate(record.refreshToken);
+  write({...record,syncEnabled:enabled,syncEpoch:secret(),centralSelected:true},previous);
+  return status();
+ }
+ return {start,finish,status,verify,connected,centralSelected,syncAccess,setAutomaticSync};
 }
 
 let active:{identity:string;service:ReturnType<typeof learningConnectionService>}|undefined;
 /** Preserve short-lived flows across requests; config rotation invalidates them. */
 export function learningService(){
  const config=learningGoogleConfig(),identity=hash(JSON.stringify(config));
- if(!active||active.identity!==identity)active={identity,service:learningConnectionService({config})};
+ if(!active||active.identity!==identity)active={identity,service:learningConnectionService({config,assertConfiguration(){if(hash(JSON.stringify(learningGoogleConfig()))!==identity)throw Error('paused');}})};
  return active.service;
 }

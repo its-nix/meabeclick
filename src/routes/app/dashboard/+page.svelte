@@ -5,6 +5,7 @@
   import ReportQueue from '$lib/components/ReportQueue.svelte';
   import EngineNotice from '$lib/components/EngineNotice.svelte';
   import TutorsCard from '$lib/components/TutorsCard.svelte';
+  import CentralDriveCard from '$lib/components/CentralDriveCard.svelte';
   import LearningPlanTree from '$lib/components/LearningPlanTree.svelte';
   import { lockScroll } from '$lib/scroll-lock.ts';
   import type { TutorHomework } from '$lib/tutor-homework.ts';
@@ -1184,6 +1185,7 @@
       </tbody>
     </table>
   </div>
+  <CentralDriveCard initial={pageData.centralDrive}/>
   <details class="workspace-settings"><summary><span>מורים</span> ויומנים</summary>
   <TutorsCard tutors={pageData.tutors} googleReady={pageData.googleReady}
     onsaved={(t) => { tutors = tutors.map(x => (x.id === t.id ? { ...x, ...t } : x)); }} />

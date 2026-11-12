@@ -66,3 +66,9 @@ test('export asks for Markdown; update replaces the content in place', async () 
   const upd = f.calls.find(c => c.url.includes('uploadType=media'));
   assert.equal(upd.method, 'PATCH');
 });
+test('central activation during token renewal prevents a business-account content write',async()=>{
+ let selected=false,release,entered,writes=0;const gate=new Promise(r=>{release=r;}),started=new Promise(r=>{entered=r;});
+ const fetchImpl=async(url)=>{if(String(url).includes('oauth2.googleapis.com')){entered();await gate;return Response.json({access_token:'synthetic-token'});}writes++;return Response.json({id:'D1',modifiedTime:'t1'});};
+ const api=driveApi(cfg,fetchImpl,()=>selected),pending=api.createDoc('Synthetic','<html>test</html>','P1');await started;selected=true;release();
+ await assert.rejects(pending,/central storage selected/);assert.equal(writes,0);
+});

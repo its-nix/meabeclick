@@ -20,6 +20,7 @@ import { planForEnrollment, planData, lastLessonAt } from '$server/plans/store.t
 import { buildTree } from '$server/plans/view.ts';
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { engineAlert } from '$server/lesson/engine-health.ts';
+import {centralLearningSync} from '$server/central-drive/sync.ts';
 
 /** One guarded loader for the overview and the tutor's student detail page. */
 export async function loadTutorWorkspace(event: RequestEvent, selectedStudentCode: string | null = null) {
@@ -63,5 +64,6 @@ export async function loadTutorWorkspace(event: RequestEvent, selectedStudentCod
        addresses only as a count (tutorCardView). Never setup_hash. */
     tutors: listTeachers().filter(t => t.active).map(tutorCardView),
     googleReady: webClientFromEnv() !== null,
+    centralDrive:centralLearningSync().view(),
   };
 }

@@ -3,7 +3,7 @@ import { claimGoogleFlow, exchangeGoogleCode, completeGoogleIdentity, familyDest
   savePendingProfile, GOOGLE_FLOW_COOKIE, GOOGLE_PENDING_COOKIE, GOOGLE_ERRORS } from '$server/google-login.ts';
 import { setFamilySession } from '$server/family-auth.ts';
 import { COOKIE_NAME, makeToken } from '$server/auth.ts';
-import {learningService,LEARNING_FLOW_COOKIE,LEARNING_CONNECTION_PATH,LEARNING_GOOGLE_ERRORS} from '$server/learning-google.ts';
+import {learningService,LearningGoogleFailure,LEARNING_FLOW_COOKIE,LEARNING_CONNECTION_PATH,LEARNING_GOOGLE_ERRORS} from '$server/learning-google.ts';
 import {queueCentralSync} from '$server/central-drive/sync.ts';
 import type { RequestHandler } from './$types';
 
@@ -16,6 +16,7 @@ export const GET: RequestHandler = async ({ url, cookies, locals, setHeaders }) 
     try{
       await learningService().finish({state:url.searchParams.get('state')??'',browser,session:cookies.get(COOKIE_NAME)??'',authCode:url.searchParams.get('code'),pickedFileIds:url.searchParams.get('picked_file_ids'),error:url.searchParams.get('error')});
     }catch(e){
+      if(e instanceof LearningGoogleFailure)console.warn('[learning-google] verification failed',JSON.stringify(e.diagnostic));
       const reason=e instanceof Error&&LEARNING_GOOGLE_ERRORS[e.message]?e.message:'google';
       redirect(303,`${LEARNING_CONNECTION_PATH}?connectionError=${reason}`);
     }

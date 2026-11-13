@@ -10,10 +10,12 @@ export const load:PageServerLoad=event=>{
  event.setHeaders({'Cache-Control':'private, no-store','Referrer-Policy':'same-origin'});
  const reason=event.url.searchParams.get('connectionError')??'';
  let config:ReturnType<typeof learningGoogleConfig>;
- try{config=learningGoogleConfig();}catch{return {configured:false,account:null,files:[],status:null,sync:centralLearningSync().view(),message:LEARNING_GOOGLE_ERRORS.setup};}
+ try{config=learningGoogleConfig();}catch{return {configured:false,account:null,files:[],status:null,sync:centralLearningSync().view(),apiSetupUrl:null,message:LEARNING_GOOGLE_ERRORS.setup};}
  let status:ReturnType<ReturnType<typeof learningService>['status']>|null=null,message=LEARNING_GOOGLE_ERRORS[reason]??null;
  try{status=learningService().status();}catch{message=LEARNING_GOOGLE_ERRORS.storage;}
- return {configured:true,account:config.workspace.ownerEmail,files:learningFiles(config.workspace).filter(f=>f.id===config.workspace.learningFolderId).map(f=>({id:f.id,name:f.name})),status,sync:centralLearningSync().view(),message};
+ const project=config.clientId.match(/^(\d+)-/)?.[1];
+ const apiSetupUrl=reason==='api_setup'&&project?`https://console.cloud.google.com/apis/library/drive.googleapis.com?project=${project}`:null;
+ return {configured:true,account:config.workspace.ownerEmail,files:learningFiles(config.workspace).filter(f=>f.id===config.workspace.learningFolderId).map(f=>({id:f.id,name:f.name})),status,sync:centralLearningSync().view(),apiSetupUrl,message};
 };
 
 export const actions:Actions={

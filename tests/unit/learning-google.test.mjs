@@ -43,6 +43,8 @@ async function provider(options={}){
   const url=new URL(input);calls.push({url:String(url),init});
   if(options.network)throw Error('provider-secret-body');
   let data;
+  if(url.hostname==='oauth2.googleapis.com'&&options.tokenError)return Response.json({error:options.tokenError,error_description:'sensitive-access sensitive-refresh personal-secret private-provider-detail'},{status:401});
+  if(url.pathname.endsWith('/about')&&options.disabledDrive)return Response.json({error:{message:'private-provider-detail',details:[{reason:'SERVICE_DISABLED',metadata:{service:'drive.googleapis.com'}}]}},{status:403});
   if(url.hostname==='oauth2.googleapis.com')data={access_token:'sensitive-access',refresh_token:options.noRefresh?undefined:'sensitive-refresh',scope:'https://www.googleapis.com/auth/drive.file'};
   else if(url.pathname.endsWith('/about'))data={user:{emailAddress:options.wrongOwner?'wrong@example.com':workspace.ownerEmail}};
   else if(url.hostname==='www.googleapis.com'){
@@ -161,4 +163,26 @@ test('existing encrypted read-only credentials retain their original workspace b
  const p=await provider(),service=google.learningConnectionService({config,fetch:p.fetch});
  assert.equal(service.status().state,'verified');assert.equal(service.status().automaticSyncEnabled,false);assert.equal(service.centralSelected(),false);assert.throws(()=>service.syncAccess(),/disabled/);
  await service.setAutomaticSync(true);assert.equal(service.syncAccess().credentials.refreshToken,'legacy-refresh');assert.equal(service.centralSelected(),true);
+});
+test('disabled Drive API is actionable and preserves the previous connection without exposing provider data',async()=>{
+ const before=await readFile(config.storePath,'utf8'),p=await provider({disabledDrive:true}),service=google.learningConnectionService({config,fetch:p.fetch});
+ await assert.rejects(service.finish(callback(service).input),e=>{
+  assert.equal(e.message,'api_setup');assert.deepEqual(e.diagnostic,{code:'api_setup',stage:'account',status:403,reason:'SERVICE_DISABLED'});
+  assert.ok(!JSON.stringify(e).includes('private-provider-detail'));assert.ok(!JSON.stringify(e).includes('sensitive-access'));return true;
+ });
+ assert.equal(await readFile(config.storePath,'utf8'),before);
+});
+test('rejected OAuth client and code have distinct safe diagnostics without retaining Google descriptions',async()=>{
+ for(const[providerError,code,reason]of [['invalid_client','client','invalid_client'],['invalid_grant','authorization','invalid_grant'],['sensitive-provider-error-code','google','rejected']]){
+  const before=await readFile(config.storePath,'utf8'),p=await provider({tokenError:providerError}),service=google.learningConnectionService({config,fetch:p.fetch});
+  await assert.rejects(service.finish(callback(service).input),e=>{
+   assert.equal(e.message,code);assert.deepEqual(e.diagnostic,{code,stage:'token',status:401,reason});
+   for(const secret of ['sensitive-access','sensitive-refresh','personal-secret','private-provider-detail'])assert.ok(!JSON.stringify(e.diagnostic).includes(secret));return true;
+  });
+  assert.equal(await readFile(config.storePath,'utf8'),before);
+ }
+});
+test('a missing authorization code is diagnosed before making any Google request',async()=>{
+ const p=await provider(),service=google.learningConnectionService({config,fetch:p.fetch}),input=callback(service).input;input.authCode=null;
+ await assert.rejects(service.finish(input),e=>{assert.deepEqual(e.diagnostic,{code:'authorization',stage:'callback',status:0,reason:'response'});return true;});assert.equal(p.calls.length,0);
 });

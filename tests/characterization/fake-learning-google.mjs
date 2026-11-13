@@ -5,6 +5,7 @@ import {workspaceTables,workspaceHeader} from '../../src/lib/learning/workspace.
 import {learningFiles} from '../../src/lib/server/learning-google.ts';
 import {provider} from '../central-drive-fixture.mjs';
 const central=provider();
+let disabledDrive=false;
 
 export async function fakeLearningGoogle(url,init){
  if(process.env.LEARNING_GOOGLE_CLIENT_ID!=='synthetic-learning-client')return null;
@@ -12,9 +13,10 @@ export async function fakeLearningGoogle(url,init){
  if(url.hostname==='oauth2.googleapis.com'&&url.pathname==='/token'){
   const form=new URLSearchParams(String(init.body??''));
   if(form.get('client_id')!=='synthetic-learning-client')return null;
+  if(form.get('grant_type')==='authorization_code')disabledDrive=form.get('code')==='learning.api-disabled';
   return {access_token:'fake-learning-access',refresh_token:'fake-learning-refresh',scope:'https://www.googleapis.com/auth/drive.file'};
  }
- if(url.pathname==='/drive/v3/about')return {user:{emailAddress:workspace.ownerEmail}};
+ if(url.pathname==='/drive/v3/about')return disabledDrive?Response.json({error:{message:'private-provider-detail',details:[{reason:'SERVICE_DISABLED',metadata:{service:'drive.googleapis.com'}}]}},{status:403}):{user:{emailAddress:workspace.ownerEmail}};
  if(url.pathname.startsWith('/drive/v3/files/')){
   const file=learningFiles(workspace).find(f=>f.id===url.pathname.split('/').at(-1));
   if(file)return {id:file.id,mimeType:file.type,parents:file.parent?[file.parent]:[],owners:[{emailAddress:workspace.ownerEmail}],permissions:[{type:'user'}],trashed:false};

@@ -11,7 +11,9 @@
  <TutorPageHeader title="מרחב הלמידה ב־Google" description="הפרופילים, התכנון והחומרים במקום אחד בחשבון האישי.">
   {#snippet actions()}<a class="workspace-button workspace-button-quiet" href="/app/dashboard">חזרה ללוח המורים</a>{/snippet}
  </TutorPageHeader>
- {#if form?.message||data.message}<p class="notice" role="alert">{form?.message??data.message}</p>{/if}
+ {#if form?.message||data.message}<div class="notice" role="alert"><p>{form?.message??data.message}</p>
+  {#if data.apiSetupUrl}<p><a href={data.apiSetupUrl} target="_blank" rel="noopener noreferrer">הגדרות Google Drive API בפרויקט האתר</a> — יש לפתוח בחשבון שמנהל את פרויקט Google Cloud.</p>{/if}
+ </div>{/if}
  <section class="connection-card" aria-labelledby="connection-title">
   {#if !data.configured}
    <span class="eyebrow">הכנת החיבור</span><h2 id="connection-title">החיבור עדיין לא הוגדר</h2>
@@ -54,6 +56,7 @@
  summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:4px}
  ul{padding-inline-start:24px;color:var(--text-muted-strong);line-height:2}
  .notice{padding:16px 20px;border:1px solid var(--border-strong);border-radius:12px;background:var(--control-bg);color:var(--text-primary);line-height:1.8;margin-block-end:20px}
+ .notice p{margin:0}.notice p+p{margin-block-start:8px}
  .quiet-card{background:transparent}.connection-card .scope-note{font-size:.85rem;margin-block-end:0}
  @media(max-width:600px){.connection-card{padding:22px 20px;border-radius:14px}.connection-actions form,.connection-actions button{width:100%}}
 </style>

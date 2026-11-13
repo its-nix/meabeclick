@@ -1,5 +1,9 @@
 # Learning feedback history
 
+## 2026-11-13 — Preserve safe reasons for Google verification failures
+
+The owner reached the generic Google-check failure after folder selection. The old helper discarded the HTTP stage/status/reason, making token exchange indistinguishable from Drive account verification. Normalize fixed failure codes and log only a fixed code, stage, numeric status and allowlisted provider reason. Never retain or echo response descriptions, bodies, URLs, tokens or credentials. A disabled Drive API gets a specific setup message and a Cloud link derived from the public OAuth project number; rejected clients, codes and malformed callbacks have distinct guidance. Failures preserve saved credentials and do not activate sync. Regression cases cover SERVICE_DISABLED, rejected client/code, unknown sensitive descriptions, missing code and the real callback failure path. This improves diagnosis; the owner's specific provider rejection and real Google completion still require confirmation.
+
 ## 2026-11-13 — Allow browsing to the central Drive folder
 
 The owner could not select the Learning folder in Google's authorization picker. The outgoing URL restricted results to a single folder ID, excluding the parent hierarchy. Remove that browsing filter, retain folder-only single selection and the narrow drive.file scope, and keep exact configured-root, personal-owner, parent and privacy validation on the server. The connection page now explains how to reach or search for Learning. A failing URL regression covers the removed restriction; callback fixtures supply an independent user selection instead of echoing the request's filter. Browser cases reject selecting the project parent before retrying the correct Learning folder. Real Google picker completion remains an owner-consent check.

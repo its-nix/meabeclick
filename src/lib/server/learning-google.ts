@@ -17,6 +17,9 @@ export const LEARNING_GOOGLE_ERRORS:Record<string,string>={
  offline:'Google לא נתן הרשאה לחיבור מתמשך. התחילו שוב ואשרו את ההרשאה.',
  scope:'ההרשאה שהתקבלה אינה מתאימה. התחילו שוב ואשרו גישה לקבצים שנבחרו.',
  google:'לא הצלחנו להשלים את הבדיקה מול Google. אפשר לנסות שוב.',
+ api_setup:'Google Drive API אינו פעיל בפרויקט Google של האתר. יש להפעיל אותו בהגדרות הפרויקט ואז להתחיל חיבור חדש.',
+ client:'Google דחה את פרטי החיבור של האתר. יש לבדוק את הגדרות הלקוח בשרת לפני ניסיון נוסף.',
+ authorization:'Google דחה את קוד החיבור. התחילו חיבור חדש; אם זה חוזר, יש לבדוק את חיבור Google באתר.',
  storage:'לא הצלחנו לקרוא או לשמור את החיבור בצורה מאובטחת. יש לבדוק את הגדרות השרת.',
  superseded:'החיבור עודכן בחלון אחר. רעננו את הדף כדי לראות את המצב החדש.',
  busy:'יש כרגע כמה ניסיונות חיבור פתוחים. נסו שוב בעוד כמה דקות.',
@@ -27,6 +30,16 @@ const SCOPE='https://www.googleapis.com/auth/drive.file';
 const TTL=10*60*1000;
 const hash=(s:string)=>createHash('sha256').update(s).digest('base64url');
 const secret=()=>randomBytes(32).toString('base64url');
+type GoogleStage='callback'|'token'|'account'|'folder';
+type FailureCode='google'|'api_setup'|'files'|'client'|'authorization'|'scope';
+const providerReasons=['SERVICE_DISABLED','accessNotConfigured','invalid_client','unauthorized_client','invalid_grant','invalid_scope','ACCESS_TOKEN_SCOPE_INSUFFICIENT','insufficientPermissions'] as const;
+type ProviderReason=typeof providerReasons[number]|'rejected'|'network'|'response';
+/** Only fixed diagnostic values; never retain Google bodies, URLs or credentials. */
+export class LearningGoogleFailure extends Error {
+ readonly stage:GoogleStage;readonly status:number;readonly reason:ProviderReason;
+ constructor(code:FailureCode,stage:GoogleStage,status:number,reason:ProviderReason){super(code);this.stage=stage;this.status=status;this.reason=reason;}
+ get diagnostic(){return{code:this.message,stage:this.stage,status:this.status,reason:this.reason};}
+}
 type Workspace=LearningWorkspaceConfig & {templatesFolderId:string;libraryFolderId:string;studentsFolderId:string;reviewFolderId:string;studentProfileTemplateId:string;lessonBriefTemplateId:string};
 export interface LearningGoogleConfig {workspace:Workspace;clientId:string;clientSecret:string;redirectUri:string;tokenKey:string;storePath:string}
 
@@ -93,24 +106,29 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
   }catch{try{unlinkSync(temporary);}catch{}throw Error('storage');}
  }
  const credentials=(refreshToken:string)=>({clientId:config.clientId,clientSecret:config.clientSecret,refreshToken});
- async function json(url:string,init?:RequestInit):Promise<any>{
-  try{
-   const response=await fetchImpl(url,{...init,signal:AbortSignal.timeout(20000)});
-   if(!response.ok)throw Error();
-   const body=await response.text();if(body.length>1024*1024)throw Error();
-   return JSON.parse(body);
-  }catch{throw Error('google');}
+ async function json(stage:GoogleStage,url:string,init?:RequestInit):Promise<any>{
+  let response:Response;
+  try{response=await fetchImpl(url,{...init,signal:AbortSignal.timeout(20000),redirect:'manual'});}catch{throw new LearningGoogleFailure('google',stage,0,'network');}
+  let data:any;
+  try{const body=await response.text();if(body.length>1024*1024)throw Error();data=JSON.parse(body);}catch{throw new LearningGoogleFailure('google',stage,response.status,'response');}
+  if(!response.ok){
+   const reasons=[typeof data?.error==='string'?data.error:null,...(Array.isArray(data?.error?.details)?data.error.details.map((d:{reason?:string})=>d?.reason):[]),...(Array.isArray(data?.error?.errors)?data.error.errors.map((d:{reason?:string})=>d?.reason):[])];
+   const reason=providerReasons.find(r=>reasons.includes(r))??'rejected';
+   const code:FailureCode=stage!=='token'&&(reason==='SERVICE_DISABLED'||reason==='accessNotConfigured')?'api_setup':stage==='token'&&(reason==='invalid_client'||reason==='unauthorized_client')?'client':stage==='token'&&reason==='invalid_grant'?'authorization':stage==='token'&&reason==='invalid_scope'?'scope':'google';
+   throw new LearningGoogleFailure(code,stage,response.status,reason);
+  }
+  return data;
  }
  async function validate(refreshToken:string,access?:string){
   if(!access){try{access=await accessToken(credentials(refreshToken),(input,init)=>fetchImpl(input,{...init,signal:AbortSignal.timeout(20000)}));}catch{throw Error('google');}}
   const headers={Authorization:`Bearer ${access}`};
-  const account=await json('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers});
+  const account=await json('account','https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers});
   if(account.user?.emailAddress?.toLowerCase()!==config.workspace.ownerEmail.toLowerCase())throw Error('account');
   // Central storage needs one selected folder. Its app-created descendants
   // are eligible under drive.file without granting unrelated existing files.
   for(const file of learningFiles(config.workspace).filter(f=>f.id===config.workspace.learningFolderId)){
    let actual:any;
-   try{actual=await json(`https://www.googleapis.com/drive/v3/files/${file.id}?fields=id,mimeType,parents,owners(emailAddress),permissions(type),trashed`,{headers});}catch{throw Error('files');}
+   try{actual=await json('folder',`https://www.googleapis.com/drive/v3/files/${file.id}?fields=id,mimeType,parents,owners(emailAddress),permissions(type),trashed`,{headers});}catch(e){if(e instanceof LearningGoogleFailure){if(e.message==='api_setup')throw e;throw new LearningGoogleFailure('files',e.stage,e.status,e.reason);}throw Error('files');}
    if(actual.id!==file.id||actual.mimeType!==file.type||actual.trashed||!actual.owners?.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===config.workspace.ownerEmail.toLowerCase())||(file.parent&&!actual.parents?.includes(file.parent)))throw Error('files');
    if(!Array.isArray(actual.permissions)||actual.permissions.some((p:{type?:string})=>!['user','group'].includes(p.type??'')))throw Error('files');
   }
@@ -134,8 +152,8 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
   if(input.error)throw Error('cancelled');
   const picked=(input.pickedFileIds??'').split(','),required=[config.workspace.learningFolderId];
   if(picked.length!==required.length||new Set(picked).size!==required.length||required.some(id=>!picked.includes(id)))throw Error('selection');
-  if(!input.authCode||input.authCode.length>4096)throw Error('google');
-  const token=await json('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:config.clientId,client_secret:config.clientSecret,redirect_uri:config.redirectUri,code:input.authCode,code_verifier:flow.verifier,grant_type:'authorization_code'})});
+  if(!input.authCode||input.authCode.length>4096)throw new LearningGoogleFailure('authorization','callback',0,'response');
+  const token=await json('token','https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:config.clientId,client_secret:config.clientSecret,redirect_uri:config.redirectUri,code:input.authCode,code_verifier:flow.verifier,grant_type:'authorization_code'})});
   if(typeof token.access_token!=='string'||!token.access_token||token.access_token.length>8192||typeof token.refresh_token!=='string'||!token.refresh_token||token.refresh_token.length>8192)throw Error('offline');
   if(typeof token.scope!=='string'||token.scope.trim()!==SCOPE)throw Error('scope');
   await validate(token.refresh_token,token.access_token);

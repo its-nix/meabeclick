@@ -291,6 +291,7 @@ test.describe('personal learning Google forms',()=>{
  test.use({learningConnection:true});
  test('workspace: personal Google connects and verifies with native browser forms',async({qa})=>{
   const page=await qa.page('tutor');
+  let selections=0;
   await page.context().route(/\/app\/library\/connection\?\/connect$/,async route=>{
    if(!route.request().url().endsWith('?/connect'))return route.continue();
    // Redirected requests bypass Playwright routing. Preserve the real native
@@ -300,9 +301,9 @@ test.describe('personal learning Google forms',()=>{
    const provider=new URL(response.headers().location);
    expect(provider.origin).toBe('https://accounts.google.com');
    expect(provider.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/drive.file');
-   expect(provider.searchParams.get('file_ids')).toBe('learning12345');
+   expect(provider.searchParams.has('file_ids')).toBe(false);
    expect(provider.searchParams.get('allow_multiple')).toBe('false');
-   const query=new URLSearchParams({state:provider.searchParams.get('state'),picked_file_ids:provider.searchParams.get('file_ids'),code:'learning.synthetic-code'});
+   const query=new URLSearchParams({state:provider.searchParams.get('state'),picked_file_ids:selections++===0?'project12345':'learning12345',code:'learning.synthetic-code'});
    // WebKit cannot fulfill intercepted 3xx responses. Keep the real server's
    // 303 assertion and cookies, then simulate Google's return with local HTML.
    const headers={...response.headers(),'content-type':'text/html'};
@@ -311,6 +312,9 @@ test.describe('personal learning Google forms',()=>{
    await route.fulfill({response,status:200,headers,body:`<!doctype html><meta http-equiv="refresh" content="0;url=${callback}">`});
   });
   await page.goto('/app/library/connection');
+  await page.getByRole('button',{name:'חיבור עם Google',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('Learning');
+  await expect(page.getByRole('button',{name:'חיבור עם Google',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'חיבור עם Google',exact:true}).click();
   await expect(page.getByRole('heading',{name:'מרחב הלמידה עבר בדיקה',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'בדיקת החיבור עכשיו',exact:true}).click();

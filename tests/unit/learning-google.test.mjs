@@ -13,7 +13,7 @@ before(async()=>{
  google=await import('../../src/lib/server/learning-google.ts');config=google.learningGoogleConfig(env);
 });
 after(async()=>{if(dir)await rm(dir,{recursive:true,force:true});});
-test('dedicated personal setup starts a browser/session bound hosted Picker without broader Drive scope',()=>{
+test('owner can browse parent folders in the bound Picker without broader Drive scope',()=>{
  const service=google.learningConnectionService({config});
  const started=service.start('admin-session'),url=new URL(started.url);
  assert.equal(url.origin,'https://accounts.google.com');
@@ -24,7 +24,7 @@ test('dedicated personal setup starts a browser/session bound hosted Picker with
  assert.equal(url.searchParams.get('trigger_onepick'),'true');
  assert.equal(url.searchParams.get('allow_folder_selection'),'true');
  assert.equal(url.searchParams.get('allow_multiple'),'false');
- assert.equal(url.searchParams.get('file_ids'),workspace.learningFolderId);
+ assert.equal(url.searchParams.has('file_ids'),false,'a single-ID filter hides the parent folders needed to navigate to Learning');
  assert.equal(url.searchParams.get('code_challenge_method'),'S256');
  assert.match(url.searchParams.get('state'),/^learning\.[\w-]{43}$/);assert.match(started.browser,/^[\w-]{43}$/);
  assert.ok(!url.href.includes('personal-secret'));
@@ -56,7 +56,7 @@ async function provider(options={}){
 }
 function callback(service,session='admin-session'){
  const start=service.start(session),url=new URL(start.url);
- return{input:{state:url.searchParams.get('state'),browser:start.browser,session,authCode:'single-use-code',pickedFileIds:url.searchParams.get('file_ids'),error:null},url};
+ return{input:{state:url.searchParams.get('state'),browser:start.browser,session,authCode:'single-use-code',pickedFileIds:workspace.learningFolderId,error:null},url};
 }
 test('successful consent verifies live ownership/register then saves only encrypted private credentials',async()=>{
  const p=await provider(),service=google.learningConnectionService({config,fetch:p.fetch});

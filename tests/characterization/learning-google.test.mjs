@@ -15,7 +15,7 @@ test('personal connection page is tutor-only, unconfigured setup is explicit and
 });
 test('hosted consent uses its own cookie and a same-session callback; normal login remains separate',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'learning-route-'));await writeFile(join(dir,'workspace.json'),JSON.stringify(workspace));
- const s=await startServer({env:{LEARNING_GOOGLE_CLIENT_ID:'synthetic-learning-client',LEARNING_GOOGLE_CLIENT_SECRET:'synthetic-learning-secret',LEARNING_GOOGLE_WORKSPACE_FILE:join(dir,'workspace.json'),LEARNING_GOOGLE_TOKEN_KEY:'ab'.repeat(32)}});
+ const s=await startServer({env:{LEARNING_GOOGLE_CLIENT_ID:'123456789012-synthetic.apps.googleusercontent.com',LEARNING_GOOGLE_CLIENT_SECRET:'synthetic-learning-secret',LEARNING_GOOGLE_WORKSPACE_FILE:join(dir,'workspace.json'),LEARNING_GOOGLE_TOKEN_KEY:'ab'.repeat(32)}});
  try{
   const cookie=await login(s.baseUrl);
   const start=await fetch(s.baseUrl+path+'?/connect',{method:'POST',redirect:'manual',headers:{Cookie:cookie,Origin:s.baseUrl,Accept:'text/html'},body:new URLSearchParams()});
@@ -28,6 +28,7 @@ test('hosted consent uses its own cookie and a same-session callback; normal log
   const noSession=await fetch(s.baseUrl+'/auth/google/callback?state=learning.not-a-state&code=secret-code',{redirect:'manual',headers:{Cookie:browser}});assert.match(noSession.headers.get('location'),/^\/login\?next=%2Fapp%2Flibrary%2Fconnection/);assert.ok(!noSession.headers.get('location').includes('secret-code'));
   const cross=await fetch(s.baseUrl+path+'?/connect',{method:'POST',redirect:'manual',headers:{Cookie:cookie,Origin:'https://evil.test',Accept:'text/html'},body:new URLSearchParams()});assert.equal(cross.status,403);
   const page=await fetch(s.baseUrl+path+'?connectionError=arbitrary-secret',{headers:{Cookie:cookie}});const html=await page.text();assert.ok(!html.includes('synthetic-learning-secret'));assert.ok(!html.includes('arbitrary-secret'));
+  const setup=await(await fetch(s.baseUrl+path+'?connectionError=api_setup',{headers:{Cookie:cookie}})).text();assert.match(setup,/https:\/\/console.cloud.google.com\/apis\/library\/drive.googleapis.com\?project=123456789012/);
  }finally{await s.stop();await rm(dir,{recursive:true,force:true});}
 });
 test('a complete personal callback persists a server-only connection and can verify it again',async()=>{
@@ -53,5 +54,17 @@ test('a complete personal callback persists a server-only connection and can ver
   const cron=await(await fetch(s.baseUrl+'/api/central-drive-sync',{headers:{'x-cron-key':'synthetic-central-cron'}})).json();assert.equal(cron.enabled,false);assert.equal(cron.phase,'paused');assert.ok(!JSON.stringify(cron).includes('owner@example.com'));
   const verify=await fetch(s.baseUrl+path+'?/verify',{method:'POST',redirect:'manual',headers:{Cookie:cookie,Origin:s.baseUrl,Accept:'text/html'},body:new URLSearchParams()});assert.equal(verify.status,303);assert.equal(verify.headers.get('location'),path);
   const requests=s.googleRequests();assert.ok(requests.some(r=>r.url.includes('/drive/v3/files/learning12345')));assert.ok(!requests.some(r=>r.url.includes('values:batchGet')));
+ }finally{await s.stop();await rm(dir,{recursive:true,force:true});}
+});
+test('a disabled Drive API returns an actionable setup error without saving or activating the connection',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'learning-disabled-'));await writeFile(join(dir,'workspace.json'),JSON.stringify(workspace));
+ const s=await startServer({fakeGoogle:true,env:{LEARNING_GOOGLE_CLIENT_ID:'synthetic-learning-client',LEARNING_GOOGLE_CLIENT_SECRET:'synthetic-learning-secret',LEARNING_GOOGLE_WORKSPACE_FILE:join(dir,'workspace.json'),LEARNING_GOOGLE_TOKEN_KEY:'ab'.repeat(32)}});
+ try{
+  const cookie=await login(s.baseUrl),start=await fetch(s.baseUrl+path+'?/connect',{method:'POST',redirect:'manual',headers:{Cookie:cookie,Origin:s.baseUrl,Accept:'text/html'},body:new URLSearchParams()}),provider=new URL(start.headers.get('location')),browser=start.headers.getSetCookie()[0].split(';')[0];
+  const complete=await fetch(s.baseUrl+'/auth/google/callback?'+new URLSearchParams({state:provider.searchParams.get('state'),code:'learning.api-disabled',picked_file_ids:workspace.learningFolderId}),{redirect:'manual',headers:{Cookie:cookie+'; '+browser}});
+  assert.equal(complete.status,303);assert.equal(complete.headers.get('location'),path+'?connectionError=api_setup');
+  const html=await(await fetch(s.baseUrl+complete.headers.get('location'),{headers:{Cookie:cookie}})).text();assert.match(html,/Google Drive API אינו פעיל/);
+  for(const secret of ['fake-learning-access','fake-learning-refresh','synthetic-learning-secret','private-provider-detail'])assert.ok(!html.includes(secret));
+  const status=await(await fetch(s.baseUrl+'/api/central-drive',{headers:{Cookie:cookie}})).json();assert.equal(status.connected,false);assert.equal(status.enabled,false);
  }finally{await s.stop();await rm(dir,{recursive:true,force:true});}
 });

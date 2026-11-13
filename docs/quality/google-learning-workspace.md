@@ -103,6 +103,8 @@ The callback requires the initiating browser and current tutor session, S256 PKC
 
 Refresh credentials are AES-256-GCM encrypted in `DATA_DIR/.credentials/learning-google.json`, atomically replaced with mode 0600. Browser responses, URLs and public configuration contain no refresh/access tokens. Stored credentials are bound to the client and workspace identity; rotating the encryption key or changing these identities requires reauthorization. Preserve the key through ordinary deploys; losing it makes the saved token unreadable. Rotating only the same client's secret does not require a new token. Backups of encrypted credentials still need the separately retained key to restore them.
 
+Verification failures record only `[learning-google]` plus a fixed error code, stage (`callback`, `token`, `account`, `folder`), HTTP status and allowlisted provider reason in the server log. Raw Google descriptions, response bodies, callback URLs and credentials are excluded. A disabled Drive API is shown as a setup error with a link to the OAuth client’s Cloud project; the project administrator must enable it before a fresh connection attempt. Client-credential rejection and authorization-code rejection have distinct messages. A passing synthetic callback is not proof that real Google consent or transfer succeeded.
+
 The page shows the last dated verification, not a permanent assertion of access. Use its verification action after changing the selected folder or Google permissions. The CLI runs from the server's Git checkout with Node22, not inside the minimal runtime image. Load the private environment and override its container paths with host paths:
 
 ```sh

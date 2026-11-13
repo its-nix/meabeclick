@@ -10,7 +10,7 @@ export const LEARNING_FLOW_COOKIE='maab_learning_google';
 export const LEARNING_GOOGLE_ERRORS:Record<string,string>={
  cancelled:'החיבור בוטל. אפשר להתחיל שוב כשנוח לך.',
  expired:'החיבור הזה כבר לא תקף. התחילו שוב מאותו דפדפן.',
- selection:'צריך לבחור את תיקיית Learning המרכזית שמופיעה בחלון Google.',
+ selection:'יש לבחור את התיקייה Learning שבתוך MeaBeclick. התחילו שוב ובחרו אותה בחלון Google.',
  account:'נבחר חשבון אחר. התחילו שוב ובחרו את החשבון האישי שמופיע כאן.',
  files:'לא הצלחנו לאמת גישה לתיקייה. בדקו שנבחרה תיקיית Learning הנכונה, שהיא בחשבון האישי ושאינה ציבורית.',
  register:'הגישה התקבלה, אך הרישום לא עבר את בדיקת המבנה והנתונים. יש לבדוק את גיליון הרישום לפני חיבור מחדש.',
@@ -122,7 +122,8 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
   if(flows.size>=50)throw Error('busy');
   const state=`learning.${secret()}`,browser=secret(),verifier=secret();
   flows.set(state,{browserHash:hash(browser),sessionHash:hash(session),verifier,expires:now()+TTL});
-  const query=new URLSearchParams({client_id:config.clientId,redirect_uri:config.redirectUri,response_type:'code',scope:SCOPE,access_type:'offline',prompt:'select_account consent',include_granted_scopes:'false',state,code_challenge:hash(verifier),code_challenge_method:'S256',trigger_onepick:'true',allow_multiple:'false',allow_folder_selection:'true',mimetypes:'application/vnd.google-apps.folder',file_ids:config.workspace.learningFolderId,login_hint:config.workspace.ownerEmail});
+  // Keep parent folders visible for browsing; finish() validates the exact selected root.
+  const query=new URLSearchParams({client_id:config.clientId,redirect_uri:config.redirectUri,response_type:'code',scope:SCOPE,access_type:'offline',prompt:'select_account consent',include_granted_scopes:'false',state,code_challenge:hash(verifier),code_challenge_method:'S256',trigger_onepick:'true',allow_multiple:'false',allow_folder_selection:'true',mimetypes:'application/vnd.google-apps.folder',login_hint:config.workspace.ownerEmail});
   return {url:`https://accounts.google.com/o/oauth2/v2/auth?${query}`,browser};
  }
  async function finish(input:{state:string;browser:string;session:string;authCode:string|null;pickedFileIds:string|null;error:string|null}){

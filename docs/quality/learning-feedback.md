@@ -1,5 +1,9 @@
 # Learning feedback history
 
+## 2026-11-13 — Allow browsing to the central Drive folder
+
+The owner could not select the Learning folder in Google's authorization picker. The outgoing URL restricted results to a single folder ID, excluding the parent hierarchy. Remove that browsing filter, retain folder-only single selection and the narrow drive.file scope, and keep exact configured-root, personal-owner, parent and privacy validation on the server. The connection page now explains how to reach or search for Learning. A failing URL regression covers the removed restriction; callback fixtures supply an independent user selection instead of echoing the request's filter. Browser cases reject selecting the project parent before retrying the correct Learning folder. Real Google picker completion remains an owner-consent check.
+
 ## 2026-11-12 — One personal storage connection for the business
 
 The owner clarified that central storage must be authorized once from the tutor dashboard and keep syncing all existing/future learning content automatically. A read-only nine-resource setup did not satisfy that workflow. The revised connection selects one Learning folder, creates an isolated Website sync subtree, backfills immutable source snapshots, creates editable student Docs and maintains a native three-view index. Shared dashboard controls and a five-minute worker handle retries and pauses; activation latches off legacy business learning transfers. Customer lessons/versions/links and teacher Drive edits are preserved. See `google-learning-workspace.md` and the central-sync design/plan. Synthetic source, interruption, privacy, managed-tab, policy and browser checks exercise this contract; actual owner consent/backfill remain an external acceptance gate.

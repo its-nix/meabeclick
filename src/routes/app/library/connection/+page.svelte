@@ -22,7 +22,7 @@
    {#if checkedAt}
     <p>הבדיקה האחרונה: <bdi>{checkedAt}</bdi>. {data.status?.state==='verified'?'החשבון, הבעלות והגישה לתיקייה אומתו.':'הבדיקה האחרונה לא הושלמה. בדקו שוב או התחברו מחדש.'}</p>
    {:else}
-    <p>מחברים פעם אחת את החשבון האישי ובוחרים את תיקיית Learning. האתר ייצור בתוכה מרחב Website sync ויעתיק אליו את חומרי הלמידה של כל התלמידים. חומרים חדשים ושינויים יסתנכרנו אוטומטית כל חמש דקות.</p>
+    <p>מחברים פעם אחת את החשבון האישי. בחלון Google פותחים את <bdi dir="ltr">MeaBeclick → Learning</bdi> ובוחרים בתיקייה Learning עצמה. אפשר גם לחפש <bdi dir="ltr">Learning</bdi> בשורת החיפוש של Google. האתר ייצור בתוכה מרחב Website sync ויעתיק אליו את חומרי הלמידה של כל התלמידים. חומרים חדשים ושינויים יסתנכרנו אוטומטית כל חמש דקות.</p>
    {/if}
    <div class="connection-actions">
     <form method="POST" action="?/connect"><button class="workspace-button workspace-button-primary" type="submit">{data.status?.checkedAt?'חיבור מחדש עם Google':'חיבור עם Google'}</button></form>

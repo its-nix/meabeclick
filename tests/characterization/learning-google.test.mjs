@@ -36,7 +36,8 @@ test('a complete personal callback persists a server-only connection and can ver
  try{
   const cookie=await login(s.baseUrl),start=await fetch(s.baseUrl+path+'?/connect',{method:'POST',redirect:'manual',headers:{Cookie:cookie,Origin:s.baseUrl,Accept:'text/html'},body:new URLSearchParams()});
   const provider=new URL(start.headers.get('location')),browser=start.headers.getSetCookie()[0].split(';')[0];
-  const complete=await fetch(s.baseUrl+'/auth/google/callback?'+new URLSearchParams({state:provider.searchParams.get('state'),code:'learning.synthetic-code',picked_file_ids:provider.searchParams.get('file_ids')}),{redirect:'manual',headers:{Cookie:cookie+'; '+browser}});
+  assert.equal(provider.searchParams.has('file_ids'),false);
+  const complete=await fetch(s.baseUrl+'/auth/google/callback?'+new URLSearchParams({state:provider.searchParams.get('state'),code:'learning.synthetic-code',picked_file_ids:workspace.learningFolderId}),{redirect:'manual',headers:{Cookie:cookie+'; '+browser}});
   assert.equal(complete.status,303);assert.equal(complete.headers.get('location'),path);
   const page=await fetch(s.baseUrl+path,{headers:{Cookie:cookie}}),html=await page.text();
   assert.match(html,/מרחב הלמידה עבר בדיקה/);assert.ok(!html.includes('fake-learning-refresh'));assert.ok(!html.includes('fake-learning-access'));

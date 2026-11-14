@@ -9,7 +9,7 @@ import {claimNativeLessonJob,getNativeLessonJob,finishNativeLessonJob,failNative
 import {supportedNativeContext,NORMAL_REVIEW_CONTEXT} from './context.ts';
 import {nativeDraftRecords,appendNativeDraftRecords} from './register.ts';
 
-interface Receipt {version:1;state:'draft';sourceHash:string;reviewFolderId:string;slides:{id:string;url:string;mimeType:string};tutorNotes:{id:string;url:string;mimeType:string};homework:{id:string;url:string;mimeType:string};activities:{id:string;title:string;url:string}[];provenance?:{kind:string;bundleVersion:string;sourceIds:string[];context:typeof NORMAL_REVIEW_CONTEXT}}
+interface Receipt {version:1;state:'draft';sourceHash:string;reviewFolderId:string;slides:{id:string;url:string;mimeType:string};notesLocation?:'slides';tutorNotes?:{id:string;url:string;mimeType:string};homework:{id:string;url:string;mimeType:string};activities:{id:string;title:string;url:string}[];provenance?:{kind:string;bundleVersion:string;sourceIds:string[];context:typeof NORMAL_REVIEW_CONTEXT}}
 interface Options {
  enabled:()=>boolean;workspace:()=>NativeWorkspace|null;access:()=>CentralAccess;
  source:()=>{bundle:VisualLesson;version:string}|null;

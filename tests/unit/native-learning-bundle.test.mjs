@@ -11,13 +11,13 @@ test('native export creates real editable packages with separate private answers
  const {readFile}=await import('node:fs/promises');
  const logo=await readFile(new URL('../../static/images/logos/logo-slate.svg',import.meta.url),'utf8');
  const intrinsic=logo.match(/viewBox="[^"]*?([\d.]+) ([\d.]+)"/);const ratio=Number(intrinsic[1])/Number(intrinsic[2]);
- for(const [key,file,pattern]of [['slides','ppt/slides/slide1.xml',/<p:pic>[\s\S]*?<a:ext cx="(\d+)" cy="(\d+)"/],['homework','word/document.xml',/<wp:extent cx="(\d+)" cy="(\d+)"/],['tutorNotes','word/document.xml',/<wp:extent cx="(\d+)" cy="(\d+)"/]]){
+ for(const [key,file,pattern]of [['slides','ppt/slides/slide1.xml',/<p:pic>[\s\S]*?<a:ext cx="(\d+)" cy="(\d+)"/],['homework','word/document.xml',/<wp:extent cx="(\d+)" cy="(\d+)"/]]){
   const match=officeMembers(out[key]).get(file).toString().match(pattern);assert.ok(match,key+' logo missing');assert.ok(Math.abs(Number(match[1])/Number(match[2])-ratio)<.00001,key+' logo must preserve the shared artwork aspect ratio');
  }
 
- assert.match(out.tutorText,/PRIVATE_EXPECTED_9/);assert.match(out.tutorText,/PRIVATE_SOLUTION_9/);assert.doesNotMatch(out.homeworkText,/PRIVATE_/);
+ assert.match(out.speakerNotes.join('\n'),/PRIVATE_EXPECTED_9/);assert.match(out.speakerNotes.join('\n'),/PRIVATE_SOLUTION_9/);assert.doesNotMatch(out.homeworkText,/PRIVATE_/);
  assert.ok(out.slideCount>bundle.slides.length,'authored model states/reveals become progressive slides');
- assert.equal(out.slideMap[0].firstSlide,1);assert.equal(out.slideMap.at(-1).lastSlide,out.slideCount);assert.match(out.tutorText,/שקפים \u20661–/);
+ assert.equal(out.slideMap[0].firstSlide,1);assert.equal(out.slideMap.at(-1).lastSlide,out.slideCount);
  assert.equal(out.activities.length,3);assert.ok(out.activities.every(a=>a.url.startsWith('https://meabeclick.com/app/learning-pilot')));
  const changed=structuredClone(bundle);changed.homework[0].solution+=' new revision';
  assert.notEqual(out.sourceHash,(await exportNativeBundle({bundle:changed,activityBaseUrl:'https://meabeclick.com/app/learning-pilot'})).sourceHash);
@@ -31,6 +31,7 @@ test('review publisher creates native MIME documents and replay preserves human 
  const first=await publishNativeReviewBundle(input,dependencies);p.files.get(first.slides.id).human='edited';const count=p.files.size;
  const second=await publishNativeReviewBundle(input,dependencies);
  assert.equal(first.slides.mimeType,'application/vnd.google-apps.presentation');assert.equal(first.homework.mimeType,'application/vnd.google-apps.document');assert.equal(second.slides.id,first.slides.id);assert.equal(p.files.size,count);assert.equal(p.files.get(first.slides.id).human,'edited');
+ assert.equal(first.notesLocation,'slides');assert.equal(first.tutorNotes,undefined);assert.equal([...p.files.values()].filter(f=>f.mimeType==='application/vnd.google-apps.document').length,1,'only homework creates a Doc');
  assert.ok(p.calls.every(c=>!c.url.includes('/permissions')));assert.equal(first.state,'draft');
  p.files.get(workspace.reviewId).permissions=[{type:'anyone'}];await assert.rejects(publishNativeReviewBundle(input,dependencies),/privacy/);
 });
@@ -75,7 +76,7 @@ test('double-dollar math renders as formula assets in public slides, homework an
  bundle.homework[0].prompt='מה משמעות החלק '+expression+'?';
  bundle.slides[0].presenterNotes.explanation='מסבירים את '+expression+' בעזרת חלוקה לחלקים.';
  const rendered=await exportNativeBundle({bundle,activityBaseUrl});
- for(const key of ['slides','homework','tutorNotes']){
+ for(const key of ['slides','homework']){
   const entries=officeMembers(rendered[key]),before=officeMembers(baseline[key]);
   const xml=[...entries].filter(([name])=>name.endsWith('.xml')).map(([,bytes])=>bytes.toString()).join('\n');
   const textRuns=[...xml.matchAll(/<(?:a|w):t(?:\s[^>]*)?>([\s\S]*?)<\/(?:a|w):t>/g)].map(match=>match[1]).join('\n');
@@ -96,4 +97,18 @@ test('mixed Hebrew and math fit measured nonoverlapping native runs without Offi
   for(const r of runs){assert.ok(r.fontSize>=17,'projection copy remains legible');assert.ok(r.x>=box.x-.0001&&r.y>=box.y-.0001&&r.x+r.w<=box.x+box.w+.0001&&r.y+r.h<=box.y+box.h+.0001,'run must fit its authored box');}
   for(let i=0;i<runs.length;i++)for(let j=i+1;j<runs.length;j++){const a=runs[i],b=runs[j],overlapX=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x),overlapY=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);assert.ok(overlapX<.0001||overlapY<.0001,'math and editable narrative must never overlap');}
  }
+});
+
+test('every native slide carries its own private speaker notes with stage cues and matching solutions',async()=>{
+ const bundle=visualDeckFixture();bundle.slides[0].presenterNotes.expectedAnswer='PRIVATE_EXPECTED_9';bundle.homework[0].solution='PRIVATE_SOLUTION_9';
+ const out=await exportNativeBundle({bundle,activityBaseUrl:'https://example.test/app/native-review-activities'}),members=officeMembers(out.slides);
+ assert.equal(out.tutorNotes,undefined,'the teacher guide belongs inside the deck, not a separate document');
+ assert.equal(out.speakerNotes.length,out.slideCount);
+ for(let i=1;i<=out.slideCount;i++){
+  const notes=members.get(`ppt/notesSlides/notesSlide${i}.xml`)?.toString();assert.ok(notes,`slide ${i} needs real speaker notes`);assert.match(notes,/מה אומרים/);assert.match(notes,/עוצרים ושואלים/);assert.match(notes,/טעות שכדאי לזהות/);assert.match(notes,/צעד/);
+ }
+ assert.match(out.speakerNotes[0],/PRIVATE_EXPECTED_9/);assert.notEqual(out.speakerNotes[0],out.speakerNotes[1],'builds need their current-stage guidance');
+ assert.match(out.speakerNotes.at(-1),/PRIVATE_SOLUTION_9/,'the former teacher answer guide stays in the teacher deck');
+ for(const [name,bytes]of members)if(/^ppt\/slides\/slide\d+\.xml$/.test(name))assert.doesNotMatch(bytes.toString(),/PRIVATE_/,'private answers must not become projected text');
+ const homeworkXml=officeMembers(out.homework).get('word/document.xml').toString();assert.doesNotMatch(homeworkXml,/PRIVATE_/);
 });

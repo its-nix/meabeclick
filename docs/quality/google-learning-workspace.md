@@ -1,5 +1,37 @@
 # Google learning workspace setup
 
+## Archive and native-workspace cutover
+
+The owner approved archiving the rejected corpus and starting a fresh library.
+An operator-only POST to `/api/central-drive-sync` (cron key required) queues the
+one-time archive behind any active sync. There is no retirement control on the
+ordinary tutor dashboard. It rechecks every original upload, creates a separate
+dated native Sheets register including source key, hash, MIME type, size and
+Drive ID, and reads all three archive views back. A fresh source fingerprint and
+SQLite connection/external-writer revision must still match before a single
+transaction records the exact retired slugs and workspace receipt. A failed or
+changed snapshot cannot retire data. Repeated activation cannot capture newly
+created lessons. A pending job preserves its original fingerprint and slug set;
+source changes require explicit operator diagnosis instead of silently widening
+the archive. Existing managed source blobs are linked from the archive, never
+moved out of the mirror or duplicated merely for folder appearance.
+
+`Teaching workspace` is an app-created sibling of `Website sync`, with a fresh
+Library (Presentations, Homework, Interactive games, Teacher notes), Templates,
+Review, Archive and a native workspace guide. Original manual folders remain
+untouched. Student profiles and progress remain linked to the ongoing mirror.
+The website library becomes a small branded hub. Retired masters are unavailable
+for reuse and absent from active tutor lists; historical readers, customer
+versions, teacher edits, submissions and progress retain their original storage.
+Old review indexes redirect to the new workspace.
+
+After cutover the legacy generator, prepare and import paths are disabled,
+including their shared publication boundaries. Bookings continue normally and
+the tutor dashboard explains that materials are prepared in the new workspace.
+This is a fresh native workspace, **not a reviewed native authoring engine**.
+Original HTML/JSON is an archive; it is not relabelled as Google Slides. New
+automatic authoring and student publication require their separate quality gate.
+
 The new learning workspace lives inside the existing personal-owned MeaBeclick Drive folder. Google Sheets holds structured teaching records, Google Docs holds readable profiles and tutor narrative, and Drive owns the artifact files. Marketing, Skills, reference decks and the stale student folder are preserved.
 
 The initial staff-only skeleton and synthetic example remain intact. The central sync now connects once from the tutor dashboard and automatically copies existing and future educational content. The site's operational customer flows remain active; student publication is separate from staff storage.

@@ -19,6 +19,7 @@ import { authorizedCronRequest } from '$server/cron-auth.ts';
 import { readJson } from '$server/http.ts';
 import { validateLesson, type LessonPlan } from '$server/lesson/prep.ts';
 import { prepareSkill } from '$server/library/prepare.ts';
+import {nativeWorkspace,NATIVE_AUTHORING_MESSAGE} from '$server/learning-archive.ts';
 import { itemFor } from '$server/library/store.ts';
 import { skillExists } from '$server/library/view.ts';
 import type { RequestHandler } from './$types';
@@ -32,6 +33,7 @@ export const POST: RequestHandler = async (event) => {
     const denied = apiAuthDenied(event);
     if (denied) return denied;
   }
+  if(nativeWorkspace())return json({error:NATIVE_AUTHORING_MESSAGE,workspaceUrl:'/app/library'},{status:409});
   const parsed = await readJson(event.request);
   if (parsed instanceof Response) return parsed;
   const { template, skill, plan, engine } = (parsed ?? {}) as Record<string, unknown>;

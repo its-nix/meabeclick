@@ -1010,7 +1010,9 @@
       <button class="workspace-button" bind:this={newStudentTrigger} onclick={openModal}><Icon name="add" size={18} /> תלמיד/ה חדש/ה</button>
     {/snippet}
   </TutorPageHeader>
-  <EngineNotice alert={pageData.engineAlert} />
+  {#if pageData.nativeWorkspace}
+    <aside class="workspace-notice" role="status"><strong>מרחב ההוראה עבר ל־Google Drive</strong><p>החומרים הקודמים נשמרו בארכיון. עד לאישור היצירה החדשה, מכינים את השיעורים במרחב ההוראה.</p><a class="workspace-button" href="/app/library">פתיחת מרחב ההוראה</a></aside>
+  {:else}<EngineNotice alert={pageData.engineAlert} />{/if}
 
   {#if calendarFailures.length}
     <div class="cf-banner">
@@ -1742,6 +1744,7 @@
 </dialog>
 
 <style>
+  .workspace-notice{margin-block:20px;padding:24px;border:1px solid var(--border);border-radius:16px;background:var(--bg-card);line-height:1.8}.workspace-notice p{margin-block:8px 16px;color:var(--text-muted-strong)}
   .roster-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-block:32px 16px}
   .roster-toolbar .workspace-tutors-title{margin:0;display:flex;align-items:center;gap:10px}
   .workspace-tutors-title span{font-size:.875rem;font-weight:500;color:var(--text-muted)}

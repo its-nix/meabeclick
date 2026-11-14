@@ -1,5 +1,7 @@
-import{test}from'node:test';import assert from'node:assert/strict';import{mkdtemp,readFile,rm,stat}from'node:fs/promises';import{join}from'node:path';import{tmpdir}from'node:os';
+import{test,after}from'node:test';import assert from'node:assert/strict';import{mkdtemp,readFile,rm,stat}from'node:fs/promises';import{join}from'node:path';import{tmpdir}from'node:os';
 import{provider,artifact}from'../central-drive-fixture.mjs';
+const suiteRoot=await mkdtemp(join(tmpdir(),'central-sync-suite-'));process.env.DB_PATH=join(suiteRoot,'records.db');
+after(async()=>{(await import('../../src/lib/server/db.ts')).handle().close();await rm(suiteRoot,{recursive:true,force:true});});
 test('one shared worker backfills profiles and indexed originals, serializes calls and reuses snapshots after restart',async()=>{
  const{centralSyncController}=await import('../../src/lib/server/central-drive/sync.ts');
  const dir=await mkdtemp(join(tmpdir(),'central-sync-')),path=join(dir,'state.json'),p=provider();let enabled=true,epoch='one',captures=0;

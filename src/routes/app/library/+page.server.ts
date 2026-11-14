@@ -6,15 +6,18 @@
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
 import { libraryTableView } from '$server/library/view.ts';
+import {nativeWorkspace} from '$server/learning-archive.ts';
+import {centralLearningSync} from '$server/central-drive/sync.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = (event) => {
   requireAuth(event);
   event.setHeaders({ 'Cache-Control': 'private, no-store' });
   const view = libraryTableView();
-  const selectedTemplate = event.url.searchParams.get('template') ?? '';
+  const workspace=nativeWorkspace();
+  const selectedTemplate = workspace?'':event.url.searchParams.get('template') ?? '';
   if (selectedTemplate && !view.templates.some(t => t.id === selectedTemplate)) error(404, 'אין תבנית כזו');
-  return { ...view, selectedTemplate, filters: {
+  return { ...view, nativeWorkspace:workspace,centralDrive:centralLearningSync().view(),selectedTemplate, filters: {
     topic: event.url.searchParams.get('topic') ?? '',
     status: event.url.searchParams.get('status') ?? '',
     search: event.url.searchParams.get('search') ?? '',

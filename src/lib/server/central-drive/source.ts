@@ -13,7 +13,7 @@ export interface CentralArtifact {
  read:(offset?:number,length?:number)=>Promise<Buffer>;
 }
 export interface CentralStudent {id:number;code:string;name:string;goals:string|null;style:string|null;notes:string|null;subjects:string;progress:number;progress_note:string|null}
-export interface LearningInventory {artifacts:CentralArtifact[];students:CentralStudent[];progress:Array<Array<string|number|boolean|null>>;fingerprint:string}
+export interface LearningInventory {artifacts:CentralArtifact[];students:CentralStudent[];progress:Array<Array<string|number|boolean|null>>;fingerprint:string;lessonSlugs:string[]}
 const sha=(b:Buffer|string)=>createHash('sha256').update(b).digest('hex');
 const MAX_ROWS=100000,MAX_INLINE=64*1024*1024,MAX_FILES=100000;
 
@@ -137,5 +137,5 @@ export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:stri
   ...records.homework.map(e=>['homework',e.id,e.student_id,e.data_id??e.task,e.grade??(e.submitted_at?'submitted':'assigned'),null,null,e.graded_at??e.submitted_at??e.assigned_at]),
   ...records.learning_progress.map(e=>['activity',[e.lesson_slug,e.fingerprint,e.scene_id].join(':'),e.student_id,e.lesson_slug,e.solved===1?'solved':'in-progress',e.attempts,`hints:${e.hints}; visited:${e.visited}`,e.updated_at]),
  ];
- return {artifacts,students,progress,fingerprint:sha(JSON.stringify(artifacts.map(a=>[a.key,a.sha256])))};
+ return {artifacts,students,progress,lessonSlugs:[...new Set([...records.lessons,...records.lessons_v2].map(l=>l.slug as string))].sort(),fingerprint:sha(JSON.stringify(artifacts.map(a=>[a.key,a.sha256])))};
 }

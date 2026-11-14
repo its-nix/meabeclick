@@ -41,6 +41,7 @@ import { readLessons, readLessonsForSlugs } from '$server/db.ts';
 import { getStudentByCode } from '$server/entities.ts';
 import { unambiguousLessonsForStudent } from '$server/lessons.ts';
 import { isLibrarySlug } from '$server/library/slug.ts';
+import {isRetiredLesson} from '$server/learning-archive.ts';
 import { resolveStudent, studentRefById } from '$server/results.ts';
 import { gameUrl, lessonUrl } from '$server/urls.ts';
 import type { RequestHandler } from './$types';
@@ -74,7 +75,7 @@ export const GET: RequestHandler = async (event) => {
       ? readLessonsForSlugs(unambiguousLessonsForStudent(student.id).map(l => l.slug))
       : readLessons(raw || undefined);
     /* Library masters are nobody's lesson: they live on /app/library. */
-    const lessons = selected.filter(l => !isLibrarySlug(l.slug)).map(l => {
+    const lessons = selected.filter(l => !isLibrarySlug(l.slug)&&!isRetiredLesson(l.slug)).map(l => {
       /* Prefer the stable code: the legacy lessons table stores a display
          name, which is ambiguous between two children sharing one and
          changes when a child is renamed. An unresolvable name passes through

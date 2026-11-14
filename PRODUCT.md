@@ -55,6 +55,14 @@ floor sits underneath all five and is never traded against them.
 
 ### Lesson autopilot
 
+Owner-approved transition, 2026-11-14: archive the rejected generated corpus
+in the personal Google learning workspace and retire it from the active site
+catalog. Preserve student progress and historical links. After verified cutover,
+legacy automatic preparation/import/reuse is disabled; tutors prepare materials
+in the native workspace until a new Google Slides/Docs authoring bundle passes
+the agreed teaching review. Backfill and an empty native library are not evidence
+that the new generation engine is ready. See the Drive-native cutover design.
+
 Done for phase A: a generated plan, slides, and homework reach the
 student's page without Nikol touching them, for at least 80% of lessons
 (a lesson's homework is generated with it; the strict share). Homework

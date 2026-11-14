@@ -35,7 +35,8 @@ export function setItem(i: { templateId: string; skillKey: string; status: Libra
 }
 
 export function itemFor(templateId: string, skillKey: string): LibraryItem | null {
-  const r = handle().prepare(`SELECT * FROM library_items WHERE template_id = ? AND skill_key = ?`)
+  const r = handle().prepare(`SELECT * FROM library_items WHERE template_id = ? AND skill_key = ?
+    AND NOT EXISTS (SELECT 1 FROM learning_retired_lessons a WHERE a.slug=library_items.slug)`)
     .get(templateId, skillKey) as Row | undefined;
   return r ? toItem(r) : null;
 }
@@ -60,6 +61,7 @@ export function resetInterrupted(): number {
 }
 
 export function itemsForTemplate(templateId: string): LibraryItem[] {
-  return (handle().prepare(`SELECT * FROM library_items WHERE template_id = ? ORDER BY skill_key`)
+  return (handle().prepare(`SELECT * FROM library_items WHERE template_id = ?
+    AND NOT EXISTS (SELECT 1 FROM learning_retired_lessons a WHERE a.slug=library_items.slug) ORDER BY skill_key`)
     .all(templateId) as Row[]).map(toItem);
 }

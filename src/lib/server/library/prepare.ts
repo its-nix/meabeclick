@@ -1,3 +1,4 @@
+import {assertLegacyAuthoring,withLegacyPublication} from '../learning-archive.ts';
 /**
  * Preparing the library: one master lesson per skill of a plan template,
  * generated once and used by every booking that targets that skill.
@@ -66,6 +67,7 @@ export function libraryRequest(templateId: string, skillKey: string) {
 }
 
 export async function prepareSkill(templateId: string, skillKey: string, deps: PrepareDeps = {}): Promise<LibraryItem> {
+ return withLegacyPublication(async()=>{
   const meta = libraryRequest(templateId, skillKey);
   const { generate = generateLesson } = deps;
 
@@ -99,6 +101,7 @@ export async function prepareSkill(templateId: string, skillKey: string, deps: P
     finishLesson(slug, { status: 'failed', problem });
     return setItem({ templateId, skillKey, slug, status: 'failed', problem });
   }
+ });
 }
 
 /* One engine run at a time, across every request: a topic is several
@@ -108,6 +111,7 @@ const runner = singleton('library-runner', () => ({ tail: Promise.resolve() as P
 /** Queues skills and returns when they have all been prepared. Callers that
  *  must not wait (the API) ignore the promise; tests await it. */
 export function enqueue(templateId: string, skillKeys: string[], deps: PrepareDeps = {}): Promise<LibraryItem[]> {
+  assertLegacyAuthoring();
   for (const key of skillKeys) setItem({ templateId, skillKey: key, status: 'queued' });
   const done: LibraryItem[] = [];
   const run = runner.tail.then(async () => {

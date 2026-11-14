@@ -6,6 +6,7 @@
  * cron key; the tutor's session works too. Names no student.
  */
 import { json } from '@sveltejs/kit';
+import {nativeWorkspace,NATIVE_AUTHORING_MESSAGE} from '$server/learning-archive.ts';
 import { apiAuthDenied } from '$server/auth.ts';
 import { authorizedCronRequest } from '$server/cron-auth.ts';
 import { dueAhead } from '$server/library/due.ts';
@@ -16,6 +17,7 @@ export const GET: RequestHandler = (event) => {
     const denied = apiAuthDenied(event);
     if (denied) return denied;
   }
+  if(nativeWorkspace())return json({due:[],message:NATIVE_AUTHORING_MESSAGE,workspaceUrl:'/app/library'},{headers:{'Cache-Control':'private, no-store'}});
   const n = Number(event.url.searchParams.get('ahead') ?? 3);
   const ahead = Number.isInteger(n) && n > 0 ? Math.min(n, 20) : 3;
   return json({ due: dueAhead(ahead) }, { headers: { 'Cache-Control': 'no-store' } });

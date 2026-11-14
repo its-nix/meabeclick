@@ -1,4 +1,5 @@
-import { error } from '@sveltejs/kit';
+import {nativeWorkspace} from '$server/learning-archive.ts';
+import { error,redirect } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
 import { documentHeaders } from '$server/document-policy.ts';
 import { reviewCase, reviewCorpusFor, reviewGames, reviewUrl, renderReviewIndex, renderReviewHomework } from '$server/learning-review.ts';
@@ -8,7 +9,7 @@ import{teachingDisplay,homeworkExperience,homeworkSourceIds,homeworkIndependentI
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = event => {
-  requireAuth(event);
+  requireAuth(event);if(nativeWorkspace())redirect(303,'/app/library');
   const version=event.url.searchParams.get('version')==='v2'?'v2':'baseline';const reviewCorpus=reviewCorpusFor(version);
   const id = event.url.searchParams.get('case');
   let html: string;

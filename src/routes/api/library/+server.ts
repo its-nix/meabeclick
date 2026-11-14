@@ -5,11 +5,14 @@
 import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
 import { libraryView, libraryTableView } from '$server/library/view.ts';
+import {nativeWorkspace} from '$server/learning-archive.ts';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = (event) => {
   const denied = apiAuthDenied(event);
   if (denied) return denied;
+  const workspace=nativeWorkspace();
+  if(workspace)return json({nativeWorkspace:workspace,templates:[],rows:[],due:[]},{headers:{'Cache-Control':'private, no-store'}});
   if (event.url.searchParams.get('all') === '1') {
     return json(libraryTableView(), { headers: { 'Cache-Control': 'private, no-store' } });
   }

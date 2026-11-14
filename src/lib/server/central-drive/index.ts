@@ -4,9 +4,9 @@ export type IndexCell=string|number|boolean|null|{text:string;url:string};
 export interface IndexViews {students:IndexCell[][];materials:IndexCell[][];progress:IndexCell[][]}
 interface Sheet {properties:{sheetId:number;title:string;gridProperties?:{rowCount?:number;columnCount?:number}};developerMetadata?:Array<{metadataKey:string;metadataValue:string}>}
 interface IndexApi {scope:string;json:(url:string,init?:RequestInit)=>Promise<any>}
-const headings={
+export const indexHeadings={
  students:['מזהה תלמיד/ה','שם','מקצוע ורמה','מטרות','התקדמות באתר (%)','הערת התקדמות','פרופיל לעריכה','תיקייה'],
- materials:['מקור באתר','סוג','שיעור','גרסה','שם קובץ','נתיב מקורי','SHA-256','גודל (בתים)','קובץ ב־Drive'],
+ materials:['מקור באתר','סוג','שיעור','גרסה','שם קובץ','נתיב מקורי','SHA-256','גודל (בתים)','קובץ ב־Drive','MIME type','Drive file ID'],
  progress:['מקור','מזהה אירוע','מזהה תלמיד/ה','שיעור / מיומנות','מצב / ניקוד','ראיה / סה״כ / ניסיונות','הערה','מועד'],
 };
 const titles={students:'Site Students',materials:'Site Materials',progress:'Site Progress'};
@@ -33,7 +33,7 @@ export async function writeCentralIndex(api:IndexApi,id:string,views:IndexViews)
  for(const[ordinal,role]of (Object.keys(titles) as Array<keyof IndexViews>).entries()){
   const value=`${api.scope}:${role}`,owned=sheets.filter(s=>s.developerMetadata?.some(m=>m.metadataKey==='meaCentralView'&&m.metadataValue===value));
   if(owned.length>1)throw new CentralDriveError('conflict');
-  let sheet=owned[0];const rows=[headings[role],...views[role]],columns=headings[role].length;
+  let sheet=owned[0];const rows=[indexHeadings[role],...views[role]],columns=indexHeadings[role].length;
   if(views[role].some(r=>r.length>columns)||rows.length>100001)throw new CentralDriveError('source_limit');
   if(!sheet){
    if(sheets.some(s=>s.properties.title===titles[role]))throw new CentralDriveError('conflict');

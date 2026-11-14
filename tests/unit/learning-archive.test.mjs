@@ -1,0 +1,68 @@
+import {test,before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+let root,db,A,D,M,S;
+before(async()=>{
+ root=await mkdtemp(join(tmpdir(),'learning-archive-'));process.env.DB_PATH=join(root,'results.db');process.env.DATA_DIR=root;process.env.PORTAL_DIR=join(root,'portal');
+ process.env.SESSION_SECRET='archive-test-session-secret-long-enough';process.env.CODEX_HOME=join(root,'no-codex');delete process.env.OPENAI_API_KEY;
+ D=await import('../../src/lib/server/db.ts');db=D.handle();M=await import('../../src/lib/server/materials.ts');
+ S=await import('../../src/lib/server/library/store.ts');A=await import('../../src/lib/server/learning-archive.ts');
+});
+after(async()=>{db?.close();if(root)await rm(root,{recursive:true,force:true});});
+const fingerprint='a'.repeat(64),receipt={version:1,archiveId:'archive-first',fingerprint,archivedAt:'2026-11-14T12:00:00.000Z',artifactCount:3,lessonCount:2,
+ workspaceId:'nativeworkspace123',libraryId:'nativelibrary123',presentationsId:'presentations123',homeworkId:'homeworkfolder123',gamesId:'gamesfolder123',notesId:'notesfolder123',templatesId:'templatesfolder123',reviewId:'reviewfolder123',archiveFolderId:'archivefolder123',archiveIndexId:'archiveindex123',studentsId:'studentsfolder123',indexId:'sourceindex123',guideId:'nativeguide123'};
+test('retirement commits only its captured lesson set and preserves versions, edits and direct historical reads',async()=>{
+ for(const slug of ['old-master','assigned-lesson','new-lesson'])D.createLesson({slug,student:'Synthetic learner'});
+ M.addMaterial({slug:'old-master',kind:'plan',content:'{"title":"teacher correction"}',origin:'edited',publish:true});
+ S.setItem({templateId:'test-template',skillKey:'skill',status:'ready',slug:'old-master'});
+ const job=A.beginArchive({fingerprint,slugs:['old-master','assigned-lesson']});
+ assert.equal(A.nativeWorkspace(),null);assert.equal(S.itemFor('test-template','skill').slug,'old-master');
+ A.completeArchive({...receipt,archiveId:job.archiveId},A.sourceRevision());
+ assert.equal(A.isRetiredLesson('old-master'),true);assert.equal(A.isRetiredLesson('new-lesson'),false);
+ assert.equal(S.itemFor('test-template','skill'),null);assert.deepEqual(S.itemsForTemplate('test-template'),[]);
+ assert.equal(M.latestPublished('old-master','plan').content,'{"title":"teacher correction"}');
+ assert.ok(D.readLessons().some(l=>l.slug==='assigned-lesson'),'historical store remains intact');
+ assert.equal(db.prepare('SELECT count(*) n FROM lessons').get().n,3);
+ assert.equal(A.nativeWorkspace().archiveIndexId,receipt.archiveIndexId);
+ assert.throws(()=>A.assertLegacyAuthoring(),/native_workspace/);
+ const queue=await import('../../src/lib/server/lesson/queue.ts'),prepare=await import('../../src/lib/server/library/prepare.ts');
+ assert.deepEqual(queue.triggerForBooking({name:'Synthetic learner',subject:'מתמטיקה'}),{skipped:'native workspace'});
+ await assert.rejects(prepare.prepareSkill('not-a-template','skill'),/native_workspace/);
+ assert.throws(()=>prepare.enqueue('not-a-template',['skill']),/native_workspace/);
+ await assert.rejects(queue.publish('new-old-format',{},{}),/native_workspace/);
+ await assert.rejects(queue.publishDraftOnly('new-old-format',{},{}),/native_workspace/);
+ await assert.rejects(queue.appendToPortal(null,{},{}),/native_workspace/);
+ const again=A.beginArchive({fingerprint:'b'.repeat(64),slugs:['new-lesson']});assert.equal(again.archiveId,job.archiveId);
+ assert.equal(A.isRetiredLesson('new-lesson'),false,'repeated activation cannot retire new work');
+});
+test('changed database revision and unverified receipts cannot retire content',()=>{
+ db.exec('DELETE FROM learning_retired_lessons; DELETE FROM learning_archive');
+ const job=A.beginArchive({fingerprint,slugs:['assigned-lesson']});
+ const revision=A.sourceRevision();
+ db.prepare('UPDATE lessons SET title=? WHERE slug=?').run('Changed during archive','assigned-lesson');
+ assert.throws(()=>A.completeArchive({...receipt,archiveId:job.archiveId,lessonCount:1},revision),/source_changed/);
+ assert.equal(A.nativeWorkspace(),null);assert.equal(A.isRetiredLesson('assigned-lesson'),false);
+ assert.throws(()=>A.completeArchive({...receipt,archiveId:job.archiveId,lessonCount:1,fingerprint:'c'.repeat(64)},A.sourceRevision()),/source_changed/);
+ assert.equal(A.nativeWorkspace(),null);
+ const revision2=A.sourceRevision();const other=new (db.constructor)(process.env.DB_PATH);other.prepare('UPDATE lessons SET title=? WHERE slug=?').run('External writer','assigned-lesson');other.close();
+ assert.throws(()=>A.completeArchive({...receipt,archiveId:job.archiveId,lessonCount:1},revision2),/source_changed/);
+ assert.equal(A.beginArchive({fingerprint:'b'.repeat(64),slugs:['new-lesson']}).fingerprint,fingerprint,'retry retains original snapshot');
+});
+test('retirement cannot race asynchronous student delivery or deliver again after cutover',async()=>{
+ const E=await import('../../src/lib/server/entities.ts'),Q=await import('../../src/lib/server/lesson/queue.ts');
+ const account=E.createAccount({name:'Synthetic family',phone:null,credential:'x'});
+ const student=E.createStudent({code:'archive-student',name:'Synthetic learner',accountId:account.id,credential:'x'});
+ await mkdir(process.env.PORTAL_DIR,{recursive:true});const path=join(process.env.PORTAL_DIR,student.code+'.json');await writeFile(path,JSON.stringify({lessons:[],games:[]}));
+ const job=A.archiveJob(),revision=A.sourceRevision();
+ const plan={title:'Synthetic delivery',homework:[{task:'Test question',answer:'Private answer'}]};
+ const delivery=Q.appendToPortal(student.code,plan,{slug:'assigned-lesson',games:[]});
+ assert.throws(()=>A.completeArchive({...receipt,archiveId:job.archiveId,lessonCount:1},revision),/source_changed/);
+ assert.equal(A.nativeWorkspace(),null);assert.equal(await delivery,true);
+ assert.equal(db.prepare('SELECT count(*) n FROM homework WHERE student_id=?').get(student.id).n,1);
+ A.completeArchive({...receipt,archiveId:job.archiveId,lessonCount:1},A.sourceRevision());
+ const before=await readFile(path,'utf8');
+ await assert.rejects(Q.appendToPortal(student.code,plan,{slug:'assigned-lesson',games:[]}),/native_workspace/);
+ assert.equal(await readFile(path,'utf8'),before);assert.equal(db.prepare('SELECT count(*) n FROM homework WHERE student_id=?').get(student.id).n,1);
+});

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import DriveWorkspace from '$lib/components/DriveWorkspace.svelte';
   import { onMount, untrack } from 'svelte';
   import TutorPageHeader from '$lib/components/TutorPageHeader.svelte';
   import { filterLibraryRows, libraryPage } from '$lib/library-table.ts';
@@ -42,7 +43,7 @@
     return '/app/library' + (query.size ? '?' + query : '');
   });
   $effect(() => {
-    if (page.url.pathname + page.url.search !== libraryPath) replaceState(libraryPath, page.state);
+    if (!view.nativeWorkspace && page.url.pathname + page.url.search !== libraryPath) replaceState(libraryPath, page.state);
   });
   const working = $derived(view.rows.some(r => r.item && ['queued', 'preparing'].includes(r.item.status)));
   // A bulk preparation always names one complete topic, not a partial
@@ -86,6 +87,9 @@
 
 <svelte:head><title>ספריית תוכן — מאה בקליק</title></svelte:head>
 
+{#if view.nativeWorkspace}
+ <DriveWorkspace workspace={view.nativeWorkspace} centralDrive={view.centralDrive}/>
+{:else}
 <main class="workspace-page" id="workspace-content" tabindex="-1">
   <TutorPageHeader title="ספריית תוכן" description="שיעורים, תרגול ומשחקים לפי תכנית הלימוד.">
     {#snippet actions()}<a class="workspace-button workspace-button-quiet" href="/app/library/connection">מרחב Google</a><a class="workspace-button" href="/app/games">משחקי תרגול</a><a class="workspace-button workspace-button-primary" href="#library-catalog">בחירת נושא להכנה</a>{/snippet}
@@ -195,6 +199,7 @@
     <button class="link" disabled={pagination.page === pagination.pages} onclick={() => { pageNumber = pagination.page + 1; }}>הבא</button>
   </nav>
 </main>
+{/if}
 
 <style>
   .note { color: var(--text-muted-strong); font-size: .85rem; line-height: 1.7; margin: 0; }

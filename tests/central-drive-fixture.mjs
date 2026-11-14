@@ -14,6 +14,10 @@ function provider({publicRoot=false,wrongOwner=false,loseChunk=false}={}){
   if(url.pathname.endsWith('/about'))return Response.json({user:{emailAddress:config.ownerEmail}});
   if(url.pathname.endsWith('/generateIds'))return Response.json({ids:[`generated${++counter}abcde`]});
   if(url.hostname==='sheets.googleapis.com'){
+   if(url.pathname.endsWith('/values:batchGet')){
+    const id=url.pathname.split('/')[3],sheet=spreadsheets.get(id);assert.ok(sheet);
+    return Response.json({valueRanges:url.searchParams.getAll('ranges').map(range=>({range,values:sheet.sheets.find(s=>s.properties.title===range.split('!')[0].replaceAll("'",''))?.rows?.map(r=>r.values.map(c=>c.userEnteredValue?.stringValue??c.userEnteredValue?.numberValue??c.userEnteredValue?.boolValue??''))??[]}))});
+   }
    const id=url.pathname.split('/').at(-1).split(':')[0];const sheet=spreadsheets.get(id)??{spreadsheetId:id,sheets:[{properties:{sheetId:0,title:'Sheet1'}}]};spreadsheets.set(id,sheet);
    if(!init.method)return Response.json(sheet);
    const requests=JSON.parse(init.body).requests;

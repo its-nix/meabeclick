@@ -1,4 +1,6 @@
 import { test, expect } from './fixtures.mjs';
+import {DatabaseSync} from 'node:sqlite';
+import {seedRetired,receipt as nativeReceipt} from '../learning-archive-fixture.mjs';
 
 const profilePath = qa => `/app/students/${qa.learner.code}`;
 const studentPath = qa => `/app/student?s=${qa.learner.code}`;
@@ -182,6 +184,43 @@ test('permissions: student cannot read sibling, parent money or tutor data', asy
   await page.reload();
   await expect(page).toHaveURL(/\/portal/);
   await qa.evidence(page, 'expired-session');
+});
+
+test('permissions: migrated API boundaries refuse unsigned or unauthorized writes',async({qa})=>{
+ const cases=[
+  ['/api/ask','POST',{slug:qa.learner.code,question:'Synthetic question'},401],
+  ['/api/game-result','POST',{student:qa.learner.code,dataId:'synthetic-game',t:'invalid'},403],
+  ['/api/calendar-failures/999999/resolve','POST',{},401],
+  ['/api/enrollments/999999','PATCH',{teacherId:1},401],
+  ['/api/results','GET',undefined,401],['/api/remind-family','GET',undefined,401],
+  ['/api/students/import-local','POST',{},401],['/api/teachers/1','PATCH',{},401],
+ ];
+ const before=qa.row('SELECT count(*) n FROM results_v2').n;
+ for(const [path,method,json,status]of cases){const r=await qa.request(path,{cookie:'',method,json});expect(r.status,path).toBe(status);}
+ expect(qa.row('SELECT count(*) n FROM results_v2').n).toBe(before);
+ const tutor=await qa.request(`/api/results?studentCode=${qa.learner.code}`);expect(tutor.status).toBe(200);
+ const page=await qa.page('student');await page.goto(studentPath(qa));await expect(page.getByRole('heading',{name:'היום שלי',exact:true})).toBeVisible();await qa.evidence(page,'migrated-boundaries-preserve-student');
+});
+
+test('workspace: incomplete tutor setup cannot consume or manufacture a Google connection',async({qa})=>{
+ for(const [path,destination]of [['/api/tutor-setup/start?code=synthetic-invalid','/app/tutor-setup/synthetic-invalid'],['/app/tutor-setup/callback','/app/tutor-setup/done']]){
+  const r=await qa.request(path,{cookie:''});expect(r.status,path).toBe(303);expect(r.headers.get('location')).toBe(destination);
+ }
+ const page=await qa.page('anonymous');await page.goto('/app/tutor-setup/callback');await expect(page).toHaveURL(/\/app\/tutor-setup\/done/);await qa.evidence(page,'invalid-tutor-setup');
+});
+
+test('workspace: verified retirement opens the native library and blocks stale legacy actions',async({qa})=>{
+ const homework=qa.row('SELECT count(*) n FROM homework').n;
+ const db=new DatabaseSync(qa.dbPath);seedRetired(db);db.close();
+ const page=await qa.page('tutor');await page.goto('/app/library');
+ await expect(page.getByRole('heading',{name:'מרחב ההוראה',exact:true})).toBeVisible();
+ await expect(page.locator('.material-card')).toHaveCount(4);await expect(page.locator('#library-catalog')).toHaveCount(0);
+ await expect(page.getByRole('link',{name:'פתיחת המרחב ב־Drive'})).toHaveAttribute('href',`https://drive.google.com/drive/folders/${nativeReceipt.workspaceId}`);
+ await page.locator('details.archive summary').focus();await page.keyboard.press('Enter');await expect(page.getByRole('link',{name:'פתיחת רישום הארכיון'})).toBeVisible();
+ for(const path of ['/api/library/prepare','/api/library/import'])expect((await qa.request(path,{method:'POST',json:{template:'math-8',skill:'synthetic'}})).status).toBe(409);
+ expect((await qa.request('/api/central-drive-sync',{method:'POST'})).status).toBe(401);
+ expect((await qa.request('/api/library/due')).status).toBe(200);expect(qa.row('SELECT count(*) n FROM homework').n).toBe(homework);
+ await page.locator('details.archive summary').evaluate(el=>el.blur());await page.evaluate(()=>scrollTo(0,0));await qa.evidence(page,'native-workspace');
 });
 
 test('invitations: WhatsApp link previews safely and redeems only once', async ({ qa }) => {

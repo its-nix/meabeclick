@@ -105,6 +105,8 @@ export const STORAGE: Record<string, TableFact> = {
   lesson_requests:    { status: 'live', note: 'What a parent asked for with a booking.' },
   lesson_materials:   { status: 'live', note: 'Versioned teaching material, drafts vs published (#88).' },
   drive_items:        { status: 'live', note: 'Which Drive file is which, and what it last held — ids and sync bookkeeping only (migration 019).' },
+  learning_archive:   { status: 'live', note: 'One frozen archive job and its verified native-workspace receipt; source content stays in Drive and historical material storage.' },
+  learning_retired_lessons: { status: 'live', note: 'Exact archived slugs excluded from active selection and reuse; historical readers and progress are preserved.' },
 
   // ── Generation ────────────────────────────────────────────────────
   lessons: {

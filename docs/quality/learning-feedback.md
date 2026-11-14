@@ -1,5 +1,17 @@
 # Learning feedback history
 
+## 2026-11-14 — Archive the rejected corpus and start fresh in Drive
+
+The owner approved archiving old generated content rather than converting it
+into the fresh teaching library. The one-time operator migration verifies every
+source copy and reads back a separate immutable archive register before retiring
+the exact captured slugs. New or edited source, a running publication or changed
+database revision prevents retirement. The library becomes a branded native
+workspace hub, while historical readers, versions, teacher edits and progress
+remain intact. Stale prepare/import/reuse and booking-generation paths cannot
+bring back legacy HTML. The fresh workspace is not a claim that native lesson
+authoring passed teaching review. See the cutover design and workspace runbook.
+
 ## 2026-11-13 — Preserve safe reasons for Google verification failures
 
 The owner reached the generic Google-check failure after folder selection. The old helper discarded the HTTP stage/status/reason, making token exchange indistinguishable from Drive account verification. Normalize fixed failure codes and log only a fixed code, stage, numeric status and allowlisted provider reason. Never retain or echo response descriptions, bodies, URLs, tokens or credentials. A disabled Drive API gets a specific setup message and a Cloud link derived from the public OAuth project number; rejected clients, codes and malformed callbacks have distinct guidance. Failures preserve saved credentials and do not activate sync. Regression cases cover SERVICE_DISABLED, rejected client/code, unknown sensitive descriptions, missing code and the real callback failure path. This improves diagnosis; the owner's specific provider rejection and real Google completion still require confirmation.

@@ -105,3 +105,12 @@ test('shared lesson changes map existing preparation and source boundaries to th
     assert.ok(plan.journeys.includes(journey), route);
   }
 });
+
+test('schema migration dependencies retain explicit coverage for learning and tutor API boundaries',()=>{
+ const groups=[['permissions',['/api/ask','/api/game-result','/api/results','/api/calendar-failures/[id]/resolve','/api/enrollments/[id]','/api/remind-family','/api/students/import-local','/api/teachers/[id]']],['workspace',['/api/tutor-setup/start','/app/tutor-setup/callback']]];
+ for(const [journey,routes]of groups)for(const route of routes){
+  const path='src/routes'+route+'/+server.ts';const files={[path]:'export const GET=()=>{}'};
+  const plan=selectImpact({changedFiles:[path],baseFiles:files,headFiles:files});
+  assert.deepEqual(plan.unmappedRoutes,[],route);assert.ok(plan.journeys.includes(journey),route);
+ }
+});

@@ -1,3 +1,4 @@
+import {withLegacyPublication,nativeWorkspace} from '../learning-archive.ts';
 import {generationVersion} from '../../learning/teaching-rules.ts';
 import {teachingContextFor} from './teaching-context.ts';
 import type {TeachingContext} from '../../learning/teaching.ts';
@@ -114,6 +115,7 @@ export interface TriggerResult {
  * the background and is never awaited by the request.
  */
 export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): TriggerResult {
+  if(nativeWorkspace())return {skipped:'native workspace'};
   /* Not a skip: nothing went wrong. Only maths is prepared automatically,
      so for any other subject nothing is recorded — no failed lesson on the
      dashboard, no WhatsApp alarm, and no row in `lessons` to break the
@@ -258,7 +260,7 @@ async function run(
   fromLibrary: { masterSlug: string; plan: LessonPlan } | null,
   teachingContext?: TeachingContext,
 ): Promise<void> {
-
+ return withLegacyPublication(async()=>{
   const meta: RunMeta = {
     teachingContext,
     subject: booking.subject,
@@ -327,6 +329,7 @@ async function run(
   await notify(opts, onPortal
     ? `✅ ${ready} — ${plan.title}\n${plan.gradeContext}`
     : `⚠️ ${ready} — ${plan.title}\n${plan.gradeContext}\n${NOT_DELIVERED}`);
+ });
 }
 
 interface PublishedGame {
@@ -350,6 +353,7 @@ interface Published {
  * instead of a directory it computed itself.
  */
 export async function publish(slug: string, plan: LessonPlan, meta: RunMeta): Promise<Published> {
+  return withLegacyPublication(async()=>{
   /* Games FIRST, before the slides: they are the part that must never be
      overwritten (see the 'wx' below), so a refused republish stops here
      having touched nothing.
@@ -395,14 +399,17 @@ export async function publish(slug: string, plan: LessonPlan, meta: RunMeta): Pr
   recordGenerated(slug, { slides: slidesHtml, plan: JSON.stringify(plan) });
 
   return { slug, games };
+  });
 }
 
 export async function publishDraftOnly(slug: string, plan: LessonPlan, meta: RunMeta): Promise<void> {
+  return withLegacyPublication(async()=>{
   const slidesPath = contentPath('drafts', slug, 'slides.html');
   const planPath   = contentPath('drafts', slug, 'lesson.json');
   await mkdir(dirname(slidesPath), { recursive: true });
   await writeFile(slidesPath, renderSlides(plan, {...meta,slug}), 'utf8');
   await writeFile(planPath, JSON.stringify(plan, null, 2), 'utf8');
+  });
 }
 
 /**
@@ -438,6 +445,7 @@ export async function appendToPortal(
   /** Booking-time homework is held for its lesson (migration 018). */
   hold: { bookingId: number | null; heldUntil: string | null; lessonDate?: string | null } = { bookingId: null, heldUntil: null },
 ): Promise<boolean> {
+ return withLegacyPublication(async()=>{
   const student = code ? getStudentByCode(code) : null;
   if (!student) return false;
 
@@ -510,6 +518,7 @@ export async function appendToPortal(
 
   await writeFile(path, JSON.stringify(data, null, 2), 'utf8');
   return true;
+ });
 }
 
 async function notify(opts: TriggerOpts, text: string): Promise<void> {

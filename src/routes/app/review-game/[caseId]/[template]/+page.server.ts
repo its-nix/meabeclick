@@ -1,10 +1,12 @@
-import { error } from '@sveltejs/kit';
+import { error,redirect } from '@sveltejs/kit';
+import {nativeWorkspace} from '$server/learning-archive.ts';
 import { requireAuth } from '$server/auth.ts';
 import { reviewCase, reviewCorpusFor, reviewGames } from '$server/learning-review.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = event => {
   requireAuth(event);
+  if(nativeWorkspace())redirect(303,'/app/library');
   event.setHeaders({ 'Cache-Control':'private, no-store', 'X-Robots-Tag':'noindex, nofollow' });
   const version=event.url.searchParams.get('version')==='v2'?'v2':'baseline';const reviewCorpus=reviewCorpusFor(version);
   const item = reviewCase(event.params.caseId,version);

@@ -30,7 +30,7 @@
  <div class="drive-heading"><div class="drive-icon" aria-hidden="true"><Icon name="subjects" size={22}/></div><div><h2 id="central-drive-title">האחסון המרכזי ב־Google Drive</h2><p>חיבור אחד לכל המורים והתלמידים. החומרים הקיימים והחדשים מסתנכרנים אוטומטית.</p></div><span class:needs-attention={status.phase==='failed'} class="drive-state" role="status">{label}</span></div>
  {#if status.account}<p class="drive-account"><bdi dir="ltr">{status.account}</bdi></p>{/if}
  {#if status.phase==='running'}
-  <p class="drive-progress" role="status">{status.stage==='reading'?'קוראים את חומרי הלמידה…':status.stage==='profiles'?'מעדכנים את תיקי התלמידים…':status.stage==='index'?'מעדכנים את גיליון הרישום…':status.total?`${status.done} מתוך ${status.total} קבצים נבדקו`:'מתחברים לתיקייה המרכזית…'}</p>
+  <p class="drive-progress" role="status">{status.stage==='archiving'?'מאמתים את הארכיון ומכינים את מרחב ההוראה החדש…':status.stage==='reading'?'קוראים את חומרי הלמידה…':status.stage==='profiles'?'מעדכנים את תיקי התלמידים…':status.stage==='index'?'מעדכנים את גיליון הרישום…':status.total?`${status.done} מתוך ${status.total} קבצים נבדקו`:'מתחברים לתיקייה המרכזית…'}</p>
   {#if status.total}<progress value={status.done} max={status.total} aria-label="התקדמות סנכרון הקבצים"></progress>{/if}
  {:else if last}<p class="drive-last">סנכרון מלא אחרון: <bdi>{last}</bdi>{#if status.phase==='complete'} · {status.uploaded} קבצים חדשים, {status.reused} ללא שינוי.{/if}</p>
  {:else if status.connected}<p class="drive-last">הסנכרון הראשון יעתיק גם את החומרים שכבר קיימים באתר. אפשר להמשיך לעבוד בזמן הזה.</p>{/if}

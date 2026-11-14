@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, login } from './harness.mjs';
+import {DatabaseSync} from 'node:sqlite';
 
 test('harness boots the built SvelteKit app and tears it down', async () => {
   const { baseUrl, stop } = await startServer();
@@ -36,7 +37,7 @@ test('the harness keeps lesson generation switched off', async () => {
   //
   // Asserted through a real booking rather than by reading harness.mjs: what
   // matters is that the server the tests drive cannot reach an agent.
-  const { baseUrl, stop } = await startServer();
+  const { baseUrl, dbPath, stop } = await startServer();
   try {
     const booked = await fetch(`${baseUrl}/api/book`, {
       method: 'POST',
@@ -52,11 +53,14 @@ test('the harness keeps lesson generation switched off', async () => {
     const { lessons } = await (await fetch(`${baseUrl}/api/lessons`, {
       headers: { Cookie: await login(baseUrl) },   // the feed is tutor-only
     })).json();
-    assert.equal(lessons.length, 1, 'a skipped generation still records a row');
-    assert.equal(lessons[0].status, 'failed');
-    // The credential gate, not the daily cap and not a crash mid-run.
-    assert.match(lessons[0].problem, /פג תוקף החיבור/,
-      'generation must be refused for want of credentials, never attempted');
+    assert.equal(lessons.length, 0, 'new bookings never invoke legacy generation');
+    const db=new DatabaseSync(dbPath,{readOnly:true});
+    try{
+      const job=db.prepare('SELECT student_id,state,bundle FROM native_lesson_jobs').get();
+      assert.ok(job,'booking durably queues native preparation without reaching an engine');
+      assert.ok(['queued','needs-preparation'].includes(job.state));
+      assert.equal(job.bundle,null);
+    }finally{db.close();}
   } finally {
     await stop();
   }

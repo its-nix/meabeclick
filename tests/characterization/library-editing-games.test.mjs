@@ -9,6 +9,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, login, familySession } from './harness.mjs';
+import {copyHistoricalLibraryLesson} from './historical-lesson-fixture.mjs';
 
 const MASTER = 'lib-math-8-num-ratio-prop-games';
 const games = {
@@ -34,7 +35,7 @@ const newTruths = [
   ...games.twoTruths.rounds.slice(1),
 ];
 
-test("a master's edited games reach the next booking, and a stuck lie is refused", async () => {
+test("a master's edited games remain compatible with historical copies, and a stuck lie is refused", async () => {
   const s = await startServer();
   try {
     const tutor = await login(s.baseUrl);
@@ -66,11 +67,8 @@ test("a master's edited games reach the next booking, and a stuck lie is refused
       body: JSON.stringify({ name: 'נוגה', level: 'כיתה ח', phone: '0501234567', email: 'games@example.com', durationMin: 90,
         start: '2027-03-08T10:00:00+02:00', end: '2027-03-08T11:30:00+02:00' }) });
 
-    let copy = null;
-    for (let i = 0; i < 300 && !copy; i++) {
-      const row = db.prepare(`SELECT l.slug, l.status FROM lessons l JOIN library_uses u ON u.lesson_slug = l.slug`).get();
-      if (row?.status === 'ready') copy = row; else await new Promise(r => setTimeout(r, 100));
-    }
+    const slug=copyHistoricalLibraryLesson(s,first.portal.code);
+    const copy=db.prepare('SELECT slug,status FROM lessons WHERE slug=?').get(slug);
     assert.ok(copy, 'a copy from the library');
     const file = (t) => readFile(join(s.dataDir, 'games-data', `${copy.slug}-${t}.json`), 'utf8');
     assert.match(await file('two-truths'), /2:3 שווה ל-3:2/);

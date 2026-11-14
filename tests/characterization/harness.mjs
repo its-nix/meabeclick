@@ -117,6 +117,7 @@ export async function startServer({ env = {}, ports = [], fakeGoogle = false } =
       DATA_DIR: dataDir,
       PORTAL_DIR: join(dataDir, 'portal'),
       ADMIN_PASSWORD: 'test-password',
+      NATIVE_LESSON_AUTHORING_ENABLED: 'false',
       SESSION_SECRET: 'test-secret-not-a-real-one',
       SITE_URL: `http://127.0.0.1:${port}`,
       ORIGIN: `http://127.0.0.1:${port}`,

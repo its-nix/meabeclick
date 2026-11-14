@@ -33,6 +33,7 @@ test.describe('explicit tutor context',()=>{
   mutate(qa,db=>seedRetired(db));const booking=await book(qa);
   const page=await qa.page('tutor');await page.goto(`/app/students/${booking.code}`);
   const panel=page.getByRole('region',{name:'הכנת שיעורים במרחב ההוראה'});await panel.locator('summary').click();
+  await expect(panel).toContainText('10/08/2028 10:00');
   const button=panel.getByRole('button',{name:'הכנת טיוטה לבדיקה',exact:true});await expect(button).toBeDisabled();
   await panel.getByRole('checkbox').check();const binding=page.waitForResponse(r=>r.url().endsWith(`/api/native-lessons/${booking.bookingId}`)&&r.request().method()==='POST');await button.click();expect((await binding).status()).toBe(200);
   await expect(panel.getByRole('status')).toContainText('בקשת ההכנה נשמרה');
@@ -44,6 +45,10 @@ test.describe('explicit tutor context',()=>{
   await expect.poll(()=>qa.row('SELECT reason FROM native_lesson_jobs WHERE booking_id=?',unsupported.booking_id).reason).toBe('unsupported_context');
   expect((await qa.request(`/api/native-lessons/${unsupported.booking_id}`,{method:'POST',json:{studentId:qa.learner.studentId,context:NORMAL_REVIEW_CONTEXT}})).status).toBe(409);
   expect((await bind(qa,{...booking,studentId:qa.learner.studentId})).status).toBe(409);
+  await page.reload();await panel.locator('summary').click();await panel.getByRole('checkbox').check();
+  await page.route(`**/api/native-lessons/${booking.bookingId}`,route=>route.fulfill({status:401,json:{error:'unauthorized'}}));
+  await button.click();await expect(page.getByText('ההתחברות הסתיימה, והשינוי האחרון לא נשמר. צריך להתחבר מחדש.')).toBeVisible();
+  await expect(page.getByRole('link',{name:'להתחברות',exact:true})).toHaveAttribute('href','/login?next=/app/dashboard');
  });
 });
 

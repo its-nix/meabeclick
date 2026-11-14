@@ -10,6 +10,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, login, familySession } from './harness.mjs';
+import {copyHistoricalLibraryLesson,seedHistoricalLesson} from './historical-lesson-fixture.mjs';
 
 const MASTER = 'lib-math-8-num-ratio-prop-seed';
 const plan = {
@@ -64,7 +65,7 @@ async function setup() {
   return { ...s, tutor, db, post };
 }
 
-test("the master's edited questions and homework reach the next booking's child", async () => {
+test("the master's edits remain available in an explicitly copied historical lesson", async () => {
   const t = await setup();
   try {
     const r = await t.post(MASTER, { type: 'publish-plan', edit: { ...core, quiz: harder, homework: newHomework } });
@@ -79,14 +80,8 @@ test("the master's edited questions and homework reach the next booking's child"
     assert.equal(created.status, 200);
     await book(t.baseUrl, '08', family);
 
-    const copy = await (async () => {
-      for (let i = 0; i < 300; i++) {
-        const row = t.db.prepare(`SELECT l.slug, l.status FROM lessons l JOIN library_uses u ON u.lesson_slug = l.slug`).get();
-        if (row?.status === 'ready') return row;
-        await new Promise(res => setTimeout(res, 100));
-      }
-      return null;
-    })();
+    const slug=copyHistoricalLibraryLesson(t,first.portal.code);
+    const copy=t.db.prepare('SELECT slug,status FROM lessons WHERE slug=?').get(slug);
     assert.ok(copy, 'a lesson copied from the library, finished');
 
     const quiz = await readFile(join(t.dataDir, 'games-data', `${copy.slug}-quiz.json`), 'utf8');
@@ -117,7 +112,7 @@ test("a student's own lesson refuses a question edit", async () => {
   try {
     const booked = await book(t.baseUrl, '15');
     assert.ok(booked.portal);
-    const slug = t.db.prepare(`SELECT slug FROM lessons WHERE student <> 'ספרייה'`).get().slug;
+    const slug=seedHistoricalLesson(t,booked.portal.code);
     assert.equal((await t.post(slug, { type: 'save', kind: 'plan', content: JSON.stringify(plan), publish: true })).status, 200);
     const r = await t.post(slug, { type: 'publish-plan', edit: { ...core, quiz: harder } });
     assert.equal(r.status, 400);

@@ -8,6 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, login, familySession } from './harness.mjs';
+import {seedHistoricalLesson} from './historical-lesson-fixture.mjs';
 
 const book = (baseUrl, over = {}) => fetch(`${baseUrl}/api/book`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -18,13 +19,10 @@ const book = (baseUrl, over = {}) => fetch(`${baseUrl}/api/book`, {
   }),
 }).then(r => r.json());
 
-/** The booking starts generation, which creates the lessons row this
- *  endpoint addresses by slug. */
-async function lessonSlug(baseUrl, cookie) {
-  const booked = await book(baseUrl);
-  const lessons = await (await fetch(`${baseUrl}/api/lessons`, { headers: { Cookie: cookie } })).json();
-  const list = Array.isArray(lessons) ? lessons : (lessons.lessons ?? []);
-  return { slug: list[0]?.slug ?? null, code: booked.portal.code, link: booked.portal.link };
+/** Explicit historical material: new bookings only queue native preparation. */
+async function lessonSlug(server) {
+  const booked = await book(server.baseUrl);
+  return { slug: seedHistoricalLesson(server,booked.portal.code), code: booked.portal.code, link: booked.portal.link };
 }
 
 const materials = (baseUrl, slug, cookie, qs = '') =>
@@ -38,11 +36,10 @@ const post = (baseUrl, slug, cookie, body) =>
   });
 
 test('a family session cannot reach the editor at all', async (t) => {
-  const { baseUrl, stop } = await startServer();
+  const { baseUrl, dbPath, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
-    const { slug, link } = await lessonSlug(baseUrl, cookie);
-    if (!slug) return t.skip('no lesson row was created for this booking');
+    const { slug, link } = await lessonSlug({baseUrl,dbPath});
 
     const family = await familySession(link);
     assert.equal((await materials(baseUrl, slug, family)).status, 401,
@@ -53,11 +50,10 @@ test('a family session cannot reach the editor at all', async (t) => {
 });
 
 test('saving makes a draft, and a draft is not published', async (t) => {
-  const { baseUrl, stop } = await startServer();
+  const { baseUrl, dbPath, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
-    const { slug } = await lessonSlug(baseUrl, cookie);
-    if (!slug) return t.skip('no lesson row was created for this booking');
+    const { slug } = await lessonSlug({baseUrl,dbPath});
 
     const res = await post(baseUrl, slug, cookie, {
       type: 'save', kind: 'plan', content: JSON.stringify({ title: 'תיקון של ניקול' }),
@@ -75,11 +71,10 @@ test('saving makes a draft, and a draft is not published', async (t) => {
 });
 
 test('publishing is a separate act, and history keeps both', async (t) => {
-  const { baseUrl, stop } = await startServer();
+  const { baseUrl, dbPath, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
-    const { slug } = await lessonSlug(baseUrl, cookie);
-    if (!slug) return t.skip('no lesson row was created for this booking');
+    const { slug } = await lessonSlug({baseUrl,dbPath});
 
     await post(baseUrl, slug, cookie, { type: 'save', kind: 'plan', content: JSON.stringify({ t: 1 }) });
     await post(baseUrl, slug, cookie, { type: 'save', kind: 'plan', content: JSON.stringify({ t: 2 }) });
@@ -95,11 +90,10 @@ test('publishing is a separate act, and history keeps both', async (t) => {
 });
 
 test('restoring copies forward, so the student actually sees the old text', async (t) => {
-  const { baseUrl, stop } = await startServer();
+  const { baseUrl, dbPath, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
-    const { slug } = await lessonSlug(baseUrl, cookie);
-    if (!slug) return t.skip('no lesson row was created for this booking');
+    const { slug } = await lessonSlug({baseUrl,dbPath});
 
     await post(baseUrl, slug, cookie, { type: 'save', kind: 'plan', content: JSON.stringify({ t: 'good' }), publish: true });
     await post(baseUrl, slug, cookie, { type: 'save', kind: 'plan', content: JSON.stringify({ t: 'bad' }), publish: true });
@@ -115,11 +109,10 @@ test('restoring copies forward, so the student actually sees the old text', asyn
 });
 
 test('teacher-only notes never come back in the published read', async (t) => {
-  const { baseUrl, stop } = await startServer();
+  const { baseUrl, dbPath, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
-    const { slug } = await lessonSlug(baseUrl, cookie);
-    if (!slug) return t.skip('no lesson row was created for this booking');
+    const { slug } = await lessonSlug({baseUrl,dbPath});
 
     await post(baseUrl, slug, cookie, {
       type: 'save', kind: 'plan',
@@ -136,11 +129,10 @@ test('teacher-only notes never come back in the published read', async (t) => {
 });
 
 test('unknown kinds and actions are refused rather than 500ing', async (t) => {
-  const { baseUrl, stop } = await startServer();
+  const { baseUrl, dbPath, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
-    const { slug } = await lessonSlug(baseUrl, cookie);
-    if (!slug) return t.skip('no lesson row was created for this booking');
+    const { slug } = await lessonSlug({baseUrl,dbPath});
 
     assert.equal((await materials(baseUrl, slug, cookie, '?kind=constructor')).status, 400);
     assert.equal((await post(baseUrl, slug, cookie, { type: 'save', kind: 'nope', content: '{}' })).status, 400);
@@ -151,7 +143,7 @@ test('unknown kinds and actions are refused rather than 500ing', async (t) => {
 });
 
 test('an unknown lesson is not found, for every verb', async () => {
-  const { baseUrl, stop } = await startServer();
+  const { baseUrl, dbPath, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
     assert.equal((await materials(baseUrl, 'nosuchlesson', cookie, '?kind=plan')).status, 404);

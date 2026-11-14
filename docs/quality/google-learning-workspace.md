@@ -196,7 +196,7 @@ linked records and human edits. Seeded Playwright `native-lessons` journeys cove
 the real booking enqueue, explicit tutor context UI, unsupported/flag-off states,
 private route guards and score-free activities on phone and desktop. These checks
 do not establish native Google rendering quality or owner teaching approval;
-the synthetic native bundle still needs actual slide/document visual and math QA.
+owner teaching approval remains a separate release gate.
 
 Local verification for this integration: production build passed; 34 focused
 worker/context/PR-QA checks passed; all six seeded Chromium journeys passed
@@ -221,3 +221,19 @@ At f334b3a, supported Linux Node 22 build, type check and all 1,852 tests pass w
 Twelve newly created folders/files were verified for personal ownership, expected parents and staff-only permissions. Three representative native Docs exports were visually inspected: workspace guide, synthetic student profile and synthetic lesson brief each render as a clean one-page document with Hebrew text and working links. No real student data was read into this bootstrap or written to the new register.
 
 The website connection extension adds synthetic OAuth/persistence/CLI tests and protected-route checks, including a complete callback and repeat verification. Dedicated TLS browser journeys cover both unconfigured access and native connect/verify forms on phone and desktop. A real Chromium check exposed `no-referrer` suppressing Origin on native POSTs: the connection page now uses `same-origin`, while the OAuth callback retains `no-referrer`. The browser regression failed before the correction and passes afterward. The fresh bounded review accepted the implementation and the targeted header correction; real owner consent remains pending.
+
+
+### Native calibration import verification (2026-11-14)
+
+The synthetic normal-distribution draft was created using the runtime personal
+OAuth connection and verified as native Google Slides plus two Google Docs.
+Ownership, expected private parent folder and staff-only access were read back
+from Drive. All 67 slide builds, two homework pages and 13 private notes pages
+were exported back from Google and visually inspected. An initial import exposed
+mixed prose/formula overlap; the exporter now measures shipped Heebo glyphs,
+authors explicit one-line native runs and reserves text space across reveal
+stages. Regression checks cover bounds, non-overlap and legibility on the failed
+examples. The corrected Google import passed the same visual review. This is
+technical acceptance of a review draft, not owner teaching approval or generic
+lesson-generation coverage. Automatic authoring and student delivery remain off.
+Private evidence and file IDs are held outside the repository.

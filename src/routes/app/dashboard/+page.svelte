@@ -79,7 +79,8 @@
     if(!nativeContextConfirmed[bookingId]||nativePreparationBusy!==null)return;
     nativePreparationBusy=bookingId;
     try{
-      const response=await fetch(`/api/native-lessons/${bookingId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId,context:pageData.nativeReviewContext})});
+      const response=await api(`/api/native-lessons/${bookingId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId,context:pageData.nativeReviewContext})});
+      if(session.over)return;
       const result=await response.json();
       nativePreparationMessage=response.ok?'בקשת ההכנה נשמרה. רעננו בהמשך כדי לראות את מצב הטיוטה.':result.error??'לא ניתן לשמור את בקשת ההכנה.';
       if(response.ok)nativeContextConfirmed[bookingId]=false;
@@ -1022,7 +1023,7 @@
       <h2>הכנת שיעורים</h2>
       <ul>
         {#each pageData.nativePreparations as preparation (preparation.bookingId)}
-          <li><strong>{preparation.studentName}</strong> · <bdi>{String(preparation.start).slice(0, 10)}</bdi> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.reason}<p>{preparation.reason}</p>{/if}{#if preparation.error}<p>{preparation.error}</p>{/if}
+          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.reason}<p>{preparation.reason}</p>{/if}{#if preparation.error}<p>{preparation.error}</p>{/if}
             {#if preparation.canBind && pageData.nativeAuthoringEnabled}
               <details><summary>בחירת חבילת מבוא לבדיקה</summary>
                 <p>חבילת כיול: התפלגות נורמלית, תיכון, 3 יחידות, שאלון <bdi>35372</bdi>, 90 דקות, סימון בית־ספרי <bdi>s</bdi>. המקור המודרך הוא קיץ 2025 שאלה 3. יש לבדוק שהנושא והשאלה לא נלמדו כבר.</p>

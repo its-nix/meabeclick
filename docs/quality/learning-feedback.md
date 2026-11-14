@@ -132,3 +132,18 @@ Google import/readback must verify notes survive conversion before acceptance.
 The associated request for lively motion is a separate delivery choice: use
 teacher-paced reveals and brief mathematical demonstrations; do not promise that
 PowerPoint object animations survive Google conversion without playback proof.
+
+
+## Include animations in the complete native workflow — 2026-11-14
+
+After the verified three-slide animated-GIF example, the owner requested default
+workflow integration. Native lesson export/publishing now appends labelled motion
+builds after eligible static spread/area explanations. These derive frames from
+the same mathematical model, use exact supported school percentages, preserve
+prediction pauses and add motion-specific speaker cues. Metadata and renderer
+identity cover the animation so retries preserve edits and later versions never
+silently reuse a stale render. Independent questions, original exam sources,
+comparison figures and question-only homework retain their answer-safe static
+representations. Browser/Google acceptance checks must inspect both moving cases,
+notes, embedded frame counts/timing and the actual static PDF fallback. Existing
+customer artifacts/progress and student-release approval gates stay intact.

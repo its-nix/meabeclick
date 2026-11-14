@@ -1,0 +1,15 @@
+# Native mathematical motion implementation plan
+
+> **For agentic workers:** use nixkit:subagent-driven-development or nixkit:executing-plans task-by-task. Existing user authority includes implementation, review, merge and deployment.
+
+Goal: make the verified GIF approach part of every native lesson export, not a separate probe. Keep the existing private speaker notes and question-only homework intact. Existing artifacts, edits and progress remain untouched.
+
+- [x] Add `native-learning/motion.ts`: deterministic spread/area plans from existing worked NormalModels; generate labelled 900x400 animated GIFs with Sharp. No new dependencies. Reject independent/challenge/source/compare roles and unsupported models. Spread uses fixed mean/axis and varying s; area uses supported half-s bounds and checked school percentages. Test mathematical states, gating, GIF frames/timing and meaningful first frame.
+- [x] Integrate `bundle.ts`: retain authored static/reveal slides, then add one dedicated motion build per distinct eligible plan. Teacher advances to start it. Use neutral motion-specific prompt/caption so static numbers never contradict changing diagrams. Embed GIF; preserve full per-slide speaker notes with motion/pause cues. Record slide/scene/kind/frame/hash metadata in export, receipt and CLI manifest. Include helper in renderer fingerprint. Test actual PPTX animated media, notes alignment, independent/homework answer protection and retry/version identity.
+- [x] Update product/feedback/authoring guidance: animation is the default for eligible explanatory models; GIFs have a static prediction/PDF frame and do not turn independent questions into worked answers. Keep unsupported lessons honest and student delivery gated.
+- [ ] Independent bounded math/privacy/code review; build/typecheck/focused checks; actual personal-OAuth native Google import, notes/media readback, all-page PDF visual QA and actual slideshow playback for both kinds.
+- [ ] Normal PR CI, merge/deploy; verify live renderer/revision and preserved records. Deliver the full lesson link. Archive private evidence and remove own credential staging.
+
+Ruling: use deterministic GIFs, already verified in Google Slides, with an extra teacher-paced build after the static explanation. No additional Google API or browser-automation generation dependency. Dynamic sliders/games retain their web runtime. Motion affects the native presentation path; homework stays static and retains its interactive links.
+
+Ruling: the current desktop bridge is unavailable (native pipe and browser host both fail). The earlier GIF probe was watched in a real Google slideshow; the new complete native deck preserves both GIFs byte-for-byte with all32frames/timing, correct placement/PDF and69matchingnotes. A fresh two-animation playback confirmation is requested asynchronously. Do not claim it was personally observed unless the bridge recovers; preserve this validation limit while private draft/owner-review gates remain in force.

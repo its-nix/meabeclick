@@ -156,3 +156,23 @@ them:
    that belongs.
 4. A random sample to read end-to-end: `m-gd-1` (כיתה ג–ד arithmetic),
    `p-ya-1` (כיתה יא kinematics). Both graded A by me.
+
+
+## Default motion in native teacher decks
+
+Native exports add a teacher-paced motion build after each distinct eligible
+worked mathematical exploration. The current normal-distribution renderer
+animates spread and supported symmetric half-s area bounds using the same
+checked mathematical SVG model. This is the default export/publish path, not
+a manually attached demonstration. Static prediction/explanation builds stay
+first, with a meaningful diagram in PDF. Each changing parameter, interval and
+percentage is labelled inside its own frame. Motion pages use a neutral prompt
+and caption so a static number cannot contradict the changing graph.
+
+Independent tasks, original assessment sources, comparisons and unsupported
+models remain static. Question-only homework does not receive answer-revealing
+GIFs. Teacher notes describe the motion, its repeated cycle and the previous
+static build used for a pause. These are GIF animations rather than native
+object-animation timelines or interactive sliders. Interactive games and sliders
+retain their existing web runtime. New renderer identities preserve old decks,
+annotations, notes and student progress.

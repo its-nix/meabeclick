@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "rendererHash": "caaa133920b0a20cd3f224149bfa816c7c4ba8cbaeee87aeeda7774bce55fa42",
+  "rendererHash": "d08fcab80f8111620efc3a93ad49feb0f453d1bf24dae956378f83ad9a02ba19",
   "files": {
     "Dockerfile": "f3293fa2222294339249927864ca6253f3310aae3b901057d1a5e03e0a9f13d9",
     "package-lock.json": "ce8bcc789ed16c3b9ed5d18fd864beb79129150235a51c7f7c59152365605008",
@@ -10,7 +10,8 @@
     "src/lib/learning/math.ts": "833791af9e3dee57a225370b787eb9981d5ba9aef7294e5917c6d9f61cd28a9e",
     "src/lib/server/lesson/official-question-assets.json": "0aba5fcdd5c2b7db88d47482d428f6b515651f787f65210a08887864889e52a9",
     "src/lib/server/lesson/official-questions.ts": "6327846dae3500ca259e4ad5c79590591fcc81e06a2b39fc5236aae4a915b6ea",
-    "src/lib/server/native-learning/bundle.ts": "223e94e9ca6170bb783db4d7616121acf221cacd68879c7df92987b67dbfceb7",
+    "src/lib/server/native-learning/bundle.ts": "fc50e2fc615855f523d178d3f5c38402c1f28aada5248097d691b24ca7efb73f",
+    "src/lib/server/native-learning/motion.ts": "3f896e945975600a2ec7f87a49c690b85acc3ea7ca26463c04ccd8ac0a0c7207",
     "static/images/logos/logo-slate.svg": "8600682a9c1052517fa1b07a62d03391408532bddc559ab229f0f371baa348c1",
     "static/learning-assets/native-fonts/Heebo.ttf": "18f930b583fa8fe6b40b2f8263b7ac6afbac07adc91a12467874e7467d3ace30"
   }

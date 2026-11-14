@@ -11,6 +11,6 @@ const pilot=getPilot();if(!pilot)throw Error('checked calibration corpus unavail
 const input={bundle:pilot.bundle,key:'synthetic-normal-35372-native-v1',activityBaseUrl:values['activity-base-url']};
 const result=await exportNativeBundle(input);const out=path.resolve(values.out);await mkdir(out,{recursive:false});
 for(const [name,bytes]of [['lesson.pptx',result.slides],['homework.docx',result.homework]])await writeFile(path.join(out,name),bytes,{flag:'wx'});
-const manifest={version:1,state:'draft',sourceHash:result.sourceHash,rendererHash:result.rendererHash,pilotVersion:pilot.version,slideCount:result.slideCount,slideMap:result.slideMap,notesLocation:result.notesLocation,activities:result.activities,...(values.publish?{receipt:await publishNativeReviewBundle(input)}:{})};
+const manifest={version:1,state:'draft',sourceHash:result.sourceHash,rendererHash:result.rendererHash,pilotVersion:pilot.version,slideCount:result.slideCount,slideMap:result.slideMap,notesLocation:result.notesLocation,motion:result.motion,activities:result.activities,...(values.publish?{receipt:await publishNativeReviewBundle(input)}:{})};
 await writeFile(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
 console.log(JSON.stringify({out,slideCount:result.slideCount,sourceHash:result.sourceHash,...(manifest.receipt?{receipt:manifest.receipt}:{})}));

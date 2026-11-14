@@ -80,4 +80,3 @@ test('rendered GIFs retain 32 timed looping pages and a meaningful authored firs
   assert.deepEqual({...process.env},envBefore);
  }
 });
-

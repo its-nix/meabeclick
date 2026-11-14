@@ -38,6 +38,37 @@ async function formula(tex:string){
 const data=(b:Buffer)=>`data:image/png;base64,${b.toString('base64')}`;
 const chunks=(text:string)=>text.split(/(\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$)/g).filter(Boolean).map(s=>{const math=/^\\[([]|^\$\$/.test(s);return {math,value:math?s.slice(2,-2):s};});
 
+interface NativeTextPart {value:string;math:boolean;x:number;y:number;w:number;h:number;fontSize:number}
+const textWidths=new Map<string,number>();
+async function measuredTextWidth(value:string,fontSize:number){
+ const key=`${fontSize}:${value}`;let width=textWidths.get(key);if(width!==undefined)return width;
+ const escaped=value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const metrics=await sharp({text:{text:escaped,font:`Heebo ${fontSize}`,fontfile:path.join(process.cwd(),'static/learning-assets/native-fonts/Heebo.ttf'),dpi:72}}).metadata();
+ width=(metrics.width??0)*1.10/72+.025;textWidths.set(key,width);return width;
+}
+/** Measure Heebo glyphs before authoring. Each native run is one line; Slides need not honour Office autofit. */
+export async function layoutNativeText(text:string,box:{x:number;y:number;w:number;h:number},preferredSize=25):Promise<NativeTextPart[]>{
+ if(!text.trim())return [];
+ const tokens=chunks(text).flatMap(part=>part.math?[{value:part.value,math:true}]:part.value.split(/(\n)/).flatMap(value=>value==='\n'?[{value,math:false}]:value.split(/\s+/).filter(Boolean).map(value=>({value,math:false}))));
+ const imageRatios=new Map<string,number>();for(const token of tokens)if(token.math){const bytes=await formula(token.value);imageRatios.set(token.value,bytes.readUInt32BE(16)/bytes.readUInt32BE(20));}
+ for(let size=preferredSize;size>=11;size--){
+  const gap=size*.30/72,lineHeight=size*1.6/72;let row=0,used=0,failed=false;const rows:NativeTextPart[][]=[[]];
+  for(const token of tokens){
+   if(token.value==='\n'){row++;used=0;rows.push([]);continue;}
+   const mathHeight=size*(/\\frac|\\begin/.test(token.value)?1.5:1.05)/72;
+   const width=token.math?mathHeight*imageRatios.get(token.value)!:await measuredTextWidth(token.value,size);
+   if(width>box.w){failed=true;break;}
+   if(used&&used+gap+width>box.w){row++;used=0;rows.push([]);}
+   const space=used?gap:0;rows[row].push({value:token.value,math:token.math,x:box.x+box.w-used-space-width,y:box.y+row*lineHeight,w:width,h:lineHeight,fontSize:size});used+=space+width;
+  }
+  if(failed||rows.length*lineHeight>box.h+.0001)continue;
+  const result:NativeTextPart[]=[];
+  for(const line of rows)for(const part of line){const last=result.at(-1);if(last&&!last.math&&!part.math&&last.y===part.y){last.value+=' '+part.value;last.w=last.x+last.w-part.x;last.x=part.x;}else result.push({...part});}
+  return result;
+ }
+ throw Error('native_text_overflow');
+}
+
 /** Identity pins the checked renderer/dependencies, complete private source and activity destination. */
 export async function exportNativeBundle(input:NativeBundleInput){
  const {bundle}=input;const base=new URL(input.activityBaseUrl);
@@ -53,9 +84,10 @@ export async function exportNativeBundle(input:NativeBundleInput){
  pptx.theme={headFontFace:'Heebo',bodyFontFace:'Heebo'};
  const logo=await png(await readFile(path.join(process.cwd(),'static',BRAND_LOGO_SRC.split('?')[0]),'utf8'));
  async function addText(slide:PptxGenJS.Slide,text:string,x:number,y:number,w:number,h:number,size=25){
-  // Keep narrative editable. Mathematical islands are the only text rasterized.
-  const parts=chunks(text);if(parts.length===1&&!parts[0].math){slide.addText(text,{x,y,w,h,fontFace:'Heebo',fontSize:size,color:colour('text'),rtlMode:true,align:'right',breakLine:false,margin:0,fit:'shrink'});return;}
-  let at=y;for(const part of parts){if(!part.value.trim())continue;const ph=Math.min(h/Math.max(1,parts.length),.55);if(part.math){const bytes=await formula(part.value);slide.addImage({data:data(bytes),...pptxgenImageContain(bytes,x,at,w,ph)});}else slide.addText(part.value,{x,y:at,w,h:ph,fontSize:size,fontFace:'Heebo',rtlMode:true,align:'right',margin:0,fit:'shrink',color:colour('text')});at+=ph;}
+  for(const part of await layoutNativeText(text,{x,y,w,h},size)){
+   if(part.math){const bytes=await formula(part.value);slide.addImage({data:data(bytes),...pptxgenImageContain(bytes,part.x,part.y,part.w,part.h)});}
+   else slide.addText(part.value,{x:part.x,y:part.y,w:part.w,h:part.h,fontFace:'Heebo',fontSize:part.fontSize,color:colour('text'),rtlMode:true,align:'right',valign:'middle',wrap:false,margin:0});
+  }
  }
  function pptxgenImageContain(bytes:Buffer,x:number,y:number,w:number,h:number){const iw=bytes.readUInt32BE(16),ih=bytes.readUInt32BE(20),scale=Math.min(w/iw,h/ih);return {x:x+(w-iw*scale)/2,y:y+(h-ih*scale)/2,w:iw*scale,h:ih*scale};}
  async function model(slide:PptxGenJS.Slide,m:NormalModel,stage:number,x:number,y:number,w:number,h:number,comparison:NormalModel[]=[]){const v=normalVisual(m,stage,'native',{},comparison);slide.addImage({data:data(await png(v.svg)),x,y,w,h:h-.65});await addText(slide,v.caption,x,y+h-.6,w,.25,13);if(v.formula){const bytes=await formula(v.formula);slide.addImage({data:data(bytes),...pptxgenImageContain(bytes,x,y+h-.3,w,.3)});}}
@@ -71,14 +103,14 @@ export async function exportNativeBundle(input:NativeBundleInput){
    for(const [i,a]of activities.entries())slide.addText(a.title+' ↗',{x:1+i*3.8,y:6.85,w:3.5,h:.2,fontFace:'Heebo',fontSize:10,color:colour('brand'),rtlMode:true,align:'right',hyperlink:{url:a.url}});
    slide.addImage({data:data(logo),...pptxgenImageContain(logo,.6,7.02,.4,.3)});slide.addText(`${slideCount} · נושא ${sceneIndex+1}/${bundle.slides.length} · צעד ${stage+1}/${maxReveal+states} · ${title}`,{x:1,y:7,w:11.7,h:.3,fontSize:10,color:colour('muted'),rtlMode:true,align:'right'});
    if(original.taskId){const t=publicVisualLesson(bundle).tasks.find(t=>t.id===original.taskId)!;await addText(slide,t.givens,.7,2.4,11.9,.65,21);await addText(slide,t.prompt,.7,3.1,11.9,.7,24);if(t.model)await model(slide,t.model,0,.8,4,8,2.7);if(t.check?.options.length)await addText(slide,t.check.options.join('\n'),9,4,3,2.4,21);continue;}
-   const blocks=original.blocks.filter(b=>b.reveal<=reveal);const models=blocks.filter(b=>b.model),hasVisual=models.length>0||blocks.some(b=>b.type==='source');
-   const texts=blocks.filter(b=>b.type!=='model'&&b.type!=='source');
+   const blocks=original.blocks.filter(b=>b.reveal<=reveal);const models=original.blocks.filter(b=>b.model),hasVisual=models.length>0||original.blocks.some(b=>b.type==='source');
+   const texts=original.blocks.filter(b=>b.type!=='model'&&b.type!=='source');
    const two=models.length>1;const split=hasVisual&&texts.length>0;
-   let visualAt=0,textAt=0;
+   let visualAt=0;
    for(const b of blocks){
     if(b.model){const w=two?5.9:split?7.4:11.9,x=two?.7+visualAt*6.1:.7;await model(slide,b.model,modelStage,x,two&&split?3.65:2.4,w,two&&split?2.95:4.2,original.layout==='compare'?models.flatMap(b=>b.model?[b.model]:[]):[]);if(b.text)await addText(slide,b.text,x,two&&split?3.35:2.12,w,.3,15);visualAt++;}
     else if(b.type==='source'&&b.sourceId){const asset=officialQuestionAsset(b.sourceId),caption=sourceCaption(b.sourceId);if(!asset||!caption)throw Error('native_source');slide.addImage({data:asset.image,...pptxgenImageContain(Buffer.from(asset.image.split(',')[1],'base64'),.7,2.35,split?7.4:11.9,4.05)});slide.addText(caption.label,{x:.7,y:6.55,w:11.9,h:.27,fontSize:11,color:colour('muted'),rtlMode:true,align:'right',hyperlink:{url:caption.url}});}
-    else{const x=two?.9:split?8.5:.9,w=two?11.5:split?3.8:11.5,h=two?.45:Math.min(1.1,4.15/Math.max(1,texts.length)),y=(two?2.3:2.45)+textAt*(h+.15);if(b.type==='equation'){const bytes=await formula(b.text);slide.addImage({data:data(bytes),...pptxgenImageContain(bytes,x,y,w,h)});}else await addText(slide,b.text,x,y,w,h,split?22:26);textAt++;}
+    else{const x=two?.9:split?8.5:.9,w=two?11.5:split?3.8:11.5,h=two?.45:4.15/Math.max(1,texts.length)-.15,y=(two?2.3:2.45)+texts.indexOf(b)*(h+.15);if(b.type==='equation'){const bytes=await formula(b.text);slide.addImage({data:data(bytes),...pptxgenImageContain(bytes,x,y,w,h)});}else await addText(slide,b.text,x,y,w,h,split?22:26);}
    }
   }
   slideMap.push({sceneId:original.id,title:original.title,firstSlide,lastSlide:slideCount});

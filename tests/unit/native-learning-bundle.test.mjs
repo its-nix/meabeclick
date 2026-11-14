@@ -83,3 +83,17 @@ test('double-dollar math renders as formula assets in public slides, homework an
   assert.ok([...entries.keys()].filter(name=>name.includes('/media/')&&!name.endsWith('/')).length>[...before.keys()].filter(name=>name.includes('/media/')&&!name.endsWith('/')).length,key+' must contain the new rendered formula image');
  }
 });
+
+test('mixed Hebrew and math fit measured nonoverlapping native runs without Office autofit',async()=>{
+ const {layoutNativeText}=await import('../../src/lib/server/native-learning/bundle.ts');
+ const cases=[
+  ['ציון התקן \\(z\\) הוא מספר סטיות התקן מן הממוצע. ימינה הוא חיובי, שמאלה שלילי, ובממוצע \\(z=0\\).',{x:8.5,y:2.45,w:3.8,h:1.925},22],
+  ['פתחו את המקור בהגדלה. קראו יחד את הנתון \\(s=8\\) ואת המשפט: 93% מן הציונים נמוכים מ־84.',{x:8.5,y:2.45,w:3.8,h:4},22],
+  ['מהו מספר המילים שקוראת תלמידה שציון התקן שלה הוא \\(z=-0.5\\)?',{x:.7,y:3.1,w:11.9,h:.7},24],
+ ];
+ for(const [text,box,size]of cases){
+  const runs=await layoutNativeText(text,box,size);assert.ok(runs.some(r=>r.math));assert.ok(runs.some(r=>!r.math));
+  for(const r of runs){assert.ok(r.fontSize>=17,'projection copy remains legible');assert.ok(r.x>=box.x-.0001&&r.y>=box.y-.0001&&r.x+r.w<=box.x+box.w+.0001&&r.y+r.h<=box.y+box.h+.0001,'run must fit its authored box');}
+  for(let i=0;i<runs.length;i++)for(let j=i+1;j<runs.length;j++){const a=runs[i],b=runs[j],overlapX=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x),overlapY=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);assert.ok(overlapX<.0001||overlapY<.0001,'math and editable narrative must never overlap');}
+ }
+});

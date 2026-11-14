@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, login, familySession } from './harness.mjs';
+import {seedHistoricalLesson} from './historical-lesson-fixture.mjs';
 
 const post = (url, body, cookie) => fetch(url, {
   method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body),
@@ -21,6 +22,7 @@ test('after a report, the covered skill\'s library games reach the child\'s page
     const tutor = await login(baseUrl);
     const created = await (await post(`${baseUrl}/api/plans`, { code: booked.portal.code, subject: 'מתמטיקה', templateId: 'math-8', goal: 'כיתה ח' }, tutor)).json();
 
+    seedHistoricalLesson({dbPath},booked.portal.code);
     const db = new DatabaseSync(dbPath, { timeout: 5000 });
     // In the past, so it can be reported: the booking and its lesson together.
     const past = '2026-01-05T10:00:00.000Z';

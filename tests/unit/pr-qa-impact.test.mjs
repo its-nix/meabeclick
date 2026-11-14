@@ -114,3 +114,11 @@ test('schema migration dependencies retain explicit coverage for learning and tu
   assert.deepEqual(plan.unmappedRoutes,[],route);assert.ok(plan.journeys.includes(journey),route);
  }
 });
+
+test('native lesson API and private activity routes select their seeded browser journey',()=>{
+ for(const route of ['/api/native-lessons/[bookingId]','/app/native-review-activities']){
+  const path='src/routes'+route+'/+server.ts',files={[path]:'export const GET=()=>{}'};
+  const plan=selectImpact({changedFiles:[path],baseFiles:files,headFiles:files});
+  assert.deepEqual(plan.unmappedRoutes,[]);assert.ok(plan.journeys.includes('native-lessons'));
+ }
+});

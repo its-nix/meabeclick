@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, login, familySession } from './harness.mjs';
+import {copyHistoricalLibraryLesson} from './historical-lesson-fixture.mjs';
 
 const plan = {
   title: 'יחס ופרופורציה — מהספרייה',
@@ -31,8 +32,9 @@ const book = (baseUrl, day, cookie) => fetch(`${baseUrl}/api/book`, {
     durationMin: 90, start: `2027-02-${day}T10:00:00+02:00`, end: `2027-02-${day}T11:30:00+02:00` }),
 }).then(r => r.json());
 
-test('a prepared skill reaches the child with no engine', async () => {
-  const { baseUrl, dbPath, stop } = await startServer();
+test('a historical prepared skill copy remains readable with no engine', async () => {
+  const server=await startServer();
+  const { baseUrl, dbPath, stop } = server;
   try {
     const first = await book(baseUrl, '01');
     const family = await familySession(first.portal.link);
@@ -55,15 +57,8 @@ test('a prepared skill reaches the child with no engine', async () => {
       .run(MASTER, JSON.stringify(plan), now, now);
 
     await book(baseUrl, '08', family);
-    const copy = await (async () => {
-      // Up to 30s: generous, because the whole suite runs servers in parallel.
-      for (let i = 0; i < 300; i++) {
-        const row = db.prepare(`SELECT l.slug, l.status, l.title FROM lessons l JOIN library_uses u ON u.lesson_slug = l.slug`).get();
-        if (row?.status === 'ready') return row;
-        await new Promise(r => setTimeout(r, 100));
-      }
-      return null;
-    })();
+    const slug=copyHistoricalLibraryLesson(server,first.portal.code);
+    const copy=db.prepare('SELECT slug,status,title FROM lessons WHERE slug=?').get(slug);
     assert.ok(copy, 'a lesson copied from the library, finished');
     assert.equal(copy.title, plan.title);
 

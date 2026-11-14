@@ -13,7 +13,9 @@ node_modules
 .svelte-kit
 build
 learning-video
-static/learning-assets
+static/learning-assets/*
+!static/learning-assets/native-fonts/
+!static/learning-assets/native-fonts/**
 data
 # Runtime bind mounts, not build inputs. codex-home holds live Codex
 # credentials and is mode 700 owned by the container's uid — the user that

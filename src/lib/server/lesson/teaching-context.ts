@@ -6,6 +6,7 @@ import type {Booking} from './queue.ts';
 import type {TargetSkill} from './targeting.ts';
 import type {LessonPlan,LessonRequest} from './prep.ts';
 import{suppliedQuestionId,suppliedSourceIntent}from'./official-questions.ts';
+import {levelUnitTracks} from '../../learning/education-level.ts';
 const clipped=(s:unknown,max=500)=>typeof s==='string'?s.trim().slice(0,max):'';
 export function teachingContextFor(booking:Booking,studentCode:string|null,target:Pick<TargetSkill,'templateId'|'title'|'key'>|null):TeachingContext{
  const student=studentCode?getStudentByCode(studentCode):null;
@@ -13,7 +14,7 @@ export function teachingContextFor(booking:Booking,studentCode:string|null,targe
  const template=target?templateById(target.templateId):null;
  const level=clipped(booking.level||enrollment?.level,160);
  const grade=level.match(/כיתה\s+[א-ת׳״"']+/u)?.[0]??((!/יח/.test(level)?level:'')||(template?.grades?.length===1?template.grades[0]:''));
- const track=level.match(/[345]\s*יח(?:ידות|["״']?ל)?/u)?.[0]??template?.track??'';
+ const track=levelUnitTracks(level)[0]??template?.track??'';
  const context:TeachingContext={grade,track,notation:'standard',request:clipped(booking.request,1500),skill:clipped(target?.title,160),curriculum:template?`${template.id}@${template.version}`:'',questionnaire:template?.questionnaires?.join(',')??'',durationMin:booking.durationMin===90||booking.durationMin===135?booking.durationMin:45,history:[]};
  context.purpose='booking';if(target)context.skillKey=target.key;if(template?.grades?.length)context.applicableGrades=template.grades;
  const intent=suppliedSourceIntent(context.request);if(intent)context.sourceIntent=intent;

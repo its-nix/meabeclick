@@ -80,6 +80,17 @@ The calibration brief is now agreed: a90-minute introduction to school-profile n
 
 ## Deferred owner idea — readiness clarification and activity reuse
 
+2026-11-14 native-pipeline update: the first private draft worker now requires an
+explicit tutor confirmation of the narrow normal-distribution calibration brief,
+including readiness and exact source. This confirmation is planning context;
+it does not infer understanding from a file view or claim assessment evidence.
+Bookings persist independently of Google, unsupported contexts remain visible
+for tutor preparation, and the same introductory source is not silently repeated
+after a prior native review. Draft artifacts and linked Sheets assignments stay
+private and unreleased. General adaptive authoring, automatic reuse selection,
+student clarification and owner-approved delivery remain separate work; existing
+customer history and the rejected legacy authoring boundary are preserved.
+
 Revisit after the visual calibration lesson and generation-skill refinement are completed and reviewed. The owner observed that the design interview itself improves alignment: ask the student or tutor a few targeted questions about understanding before choosing the teaching sequence. Track the resulting context and material versions so the agent can reuse suitable parts of previous presentations and generate only missing or unsuitable material, controlling duplication without sacrificing fit. This would build on the existing context/reuse safeguards. Student/tutor clarification flows, broader component-library selection and automated reuse decisions are outside the current visual-calibration task. Returning to this note is a discussion checkpoint, not permission to silently enable a new customer workflow.
 
 ## Visual calibration: first real candidate rejection (2026-11-10)

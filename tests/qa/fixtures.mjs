@@ -12,6 +12,7 @@ import { join } from 'node:path';
 export { expect };
 export const test = base.extend({
   learningConnection:[false,{option:true}],
+  nativeAuthoring:[false,{option:true}],
   tlsCredentials: [async ({}, use) => {
     const dir = mkdtempSync(join(tmpdir(), 'qa-local-tls-'));
     try {
@@ -19,7 +20,7 @@ export const test = base.extend({
       await use({ key: readFileSync(join(dir, 'key.pem')), cert: readFileSync(join(dir, 'cert.pem')) });
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }, { scope: 'worker' }],
-  qa: async ({ browser, tlsCredentials,learningConnection }, use, info) => {
+  qa: async ({ browser, tlsCredentials,learningConnection,nativeAuthoring }, use, info) => {
     let server;
     let learningDir;
     const learningEnv={};
@@ -42,7 +43,7 @@ export const test = base.extend({
     const contexts = [];
     const errors = [];
     try {
-      server = await startServer({ fakeGoogle:learningConnection,env: { NODE_ENV: 'production', SITE_URL: browserUrl, ORIGIN: browserUrl,...learningEnv } });
+      server = await startServer({ fakeGoogle:learningConnection,env: { NODE_ENV: 'production', SITE_URL: browserUrl, ORIGIN: browserUrl,NATIVE_LESSON_AUTHORING_ENABLED:String(nativeAuthoring),...learningEnv } });
       // Seed helpers use HTTP on the private backend; browsers use the HTTPS
       // entry point, preserving the app's real production cookie semantics.
       const sessionForLink = link => familySession(link.replace(browserUrl, server.baseUrl));

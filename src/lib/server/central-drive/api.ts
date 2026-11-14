@@ -8,12 +8,12 @@ export interface CentralFile {id:string;name:string;mimeType:string;parents?:str
 export interface UploadCheckpoint {key:string;id:string;url?:string}
 export interface CheckpointStore {read:()=>UploadCheckpoint|null;write:(value:UploadCheckpoint|null)=>void}
 const API='https://www.googleapis.com/drive/v3/files',UPLOAD='https://www.googleapis.com/upload/drive/v3/files';
-export const FOLDER='application/vnd.google-apps.folder',DOC='application/vnd.google-apps.document',SHEET='application/vnd.google-apps.spreadsheet';
+export const FOLDER='application/vnd.google-apps.folder',DOC='application/vnd.google-apps.document',SHEET='application/vnd.google-apps.spreadsheet',SLIDES='application/vnd.google-apps.presentation';
 const FIELDS='id,name,mimeType,parents,owners(emailAddress),permissions(type),trashed,appProperties,md5Checksum,size';
 const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
 const validId=(s:unknown):s is string=>typeof s==='string'&&/^[\w-]{10,}$/.test(s);
 const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-export const centralFileUrl=(file:CentralFile)=>file.mimeType===FOLDER?`https://drive.google.com/drive/folders/${file.id}`:file.mimeType===DOC?`https://docs.google.com/document/d/${file.id}/edit`:file.mimeType===SHEET?`https://docs.google.com/spreadsheets/d/${file.id}/edit`:`https://drive.google.com/file/d/${file.id}/view`;
+export const centralFileUrl=(file:CentralFile)=>file.mimeType===FOLDER?`https://drive.google.com/drive/folders/${file.id}`:file.mimeType===DOC?`https://docs.google.com/document/d/${file.id}/edit`:file.mimeType===SHEET?`https://docs.google.com/spreadsheets/d/${file.id}/edit`:file.mimeType===SLIDES?`https://docs.google.com/presentation/d/${file.id}/edit`:`https://drive.google.com/file/d/${file.id}/view`;
 export function artifactCategory(a:CentralArtifact){return ['slides','presentation'].includes(a.role)?'Presentations':a.role==='teacher-notes'?'Teacher notes':['game','game-template'].includes(a.role)?'Games':['draft','game-draft'].includes(a.role)?'Drafts':a.role==='review'?'Review':a.role==='resource'?'Resources':a.role==='curriculum'?'Curriculum':a.role==='plan'?'Lesson plans':'Records';}
 
 export class CentralDriveError extends Error {code:string;constructor(code:string){super(code);this.code=code;}}
@@ -93,6 +93,20 @@ export function centralDriveApi(options:{access:CentralAccess;fetch?:typeof fetc
   const out=html===undefined?await json(`${API}?fields=${FIELDS}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(meta)}):await parse(await request(`${UPLOAD}?uploadType=multipart&fields=${FIELDS}`,{method:'POST',...multipart(meta,Buffer.from(html),'text/html; charset=UTF-8')}));
   return{file:remember(validate(out,type,parent,key)),reused:false};
  }
+ /** Atomic Office conversion: retries reuse the immutable source key, never edit native content. */
+ async function nativeImport(key:string,name:string,type:string,parent:string,content:Buffer,sourceType:string){
+  ready();if(![DOC,SLIDES].includes(type)||content.length>40*1024*1024)fail('source_schema');
+  const old=known(key,type,parent);if(old)return {file:old,reused:true};
+  const out=await parse(await request(`${UPLOAD}?uploadType=multipart&fields=${FIELDS}`,{method:'POST',...multipart({name,mimeType:type,parents:[parent],appProperties:props(key)},content,sourceType)}));
+  return {file:remember(validate(out,type,parent,key)),reused:false};
+ }
+ async function privateFolder(id:string,parent:string){
+  ready();const file=await metadata(id);
+  if(!file||file.mimeType!==FOLDER||file.trashed||!file.parents?.includes(parent))fail('conflict');
+  if(!file.owners?.some(o=>o.emailAddress?.toLowerCase()===access.config.ownerEmail.toLowerCase()))fail('ownership');
+  if(!Array.isArray(file.permissions)||file.permissions.some(p=>!['user','group'].includes(p.type)))fail('privacy');
+  return file;
+ }
  function session(url:string){try{const parsed=new URL(url);if(parsed.origin!=='https://www.googleapis.com'||!parsed.pathname.startsWith('/upload/drive/v3/files')||parsed.username||parsed.password)fail('google_response');return String(parsed);}catch{fail('google_response');}}
  async function blob(a:CentralArtifact,parent:string){
   ready();const key=`blob:${artifactCategory(a)}:${a.mimeType}:${a.sha256}`;let old=known(key,a.mimeType,parent);
@@ -136,5 +150,5 @@ export function centralDriveApi(options:{access:CentralAccess;fetch?:typeof fetc
   const html=`<!doctype html><html lang="he" dir="rtl"><body dir="rtl"><h1>${esc(student.name)} — תיק תלמיד/ה</h1><p>מזהה: ${esc(student.code)} · ${esc(student.subjects)}</p><p><a href="https://docs.google.com/spreadsheets/d/${indexId}/edit">הרישום המרכזי — חומרים והתקדמות מהאתר</a></p><h2>מטרות הלמידה</h2><p>${esc(student.goals)}</p><h2>מה עוזר בלמידה</h2><p>${esc(student.style)}</p><h2>הערות למורה</h2><p>${esc(student.notes)}</p><p>זהו מסמך לעריכה חופשית. הסנכרון אינו מחליף את ההערות שלכם; נתונים שמתעדכנים אוטומטית נמצאים בגיליון הרישום.</p></body></html>`;
   return native(`profile:${student.id}`,`${student.name} — תיק תלמיד`,DOC,parent,html);
  }
- return{scope,prepare,folder,blob,profile,native,artifactCheckpointKey:(a:CentralArtifact)=>`${scope}:${marker(`blob:${artifactCategory(a)}:${a.mimeType}:${a.sha256}`)}`,register:(parent:string)=>native('register','MeaBeclick — Website sync index',SHEET,parent),json,request};
+ return{scope,prepare,folder,blob,profile,native,nativeImport,privateFolder,artifactCheckpointKey:(a:CentralArtifact)=>`${scope}:${marker(`blob:${artifactCategory(a)}:${a.mimeType}:${a.sha256}`)}`,register:(parent:string)=>native('register','MeaBeclick — Website sync index',SHEET,parent),json,request};
 }

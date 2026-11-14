@@ -60,6 +60,8 @@ if (!dev) {
   if (cut) console.warn(`[library] ${cut} preparation(s) cut short by the restart, marked failed`);
   const {queueCentralSync}=await import('$server/central-drive/sync.ts');
   queueCentralSync();
+  const {startNativeLessonWorker}=await import('$server/native-learning/worker.ts');
+  startNativeLessonWorker();
 }
 
 const { PERMISSIONS_POLICY } = await import('$server/document-policy.ts');

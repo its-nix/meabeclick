@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, login, familySession } from './harness.mjs';
+import {seedHistoricalLesson} from './historical-lesson-fixture.mjs';
 
 const BASE_PLAN = {
   title: 'מקור', gradeContext: 'כיתה ט',
@@ -19,14 +20,14 @@ const EDIT = {
 
 async function setup() {
   const s = await startServer();
+  try {
   const cookie = await login(s.baseUrl);
   const booked = await fetch(`${s.baseUrl}/api/book`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'יובל כהן', subject: 'מתמטיקה', level: 'כיתה ט', phone: '0501234567',
       email: 'ed@example.com', durationMin: 90, start: '2027-08-01T10:00:00+03:00', end: '2027-08-01T11:30:00+03:00' }),
   }).then(r => r.json());
-  const lessons = await (await fetch(`${s.baseUrl}/api/lessons`, { headers: { Cookie: cookie } })).json();
-  const slug = (Array.isArray(lessons) ? lessons : lessons.lessons)[0].slug;
+  const slug=seedHistoricalLesson(s,booked.portal.code);
   const post = (body, c = cookie) => fetch(`${s.baseUrl}/api/lessons/${slug}/materials`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(c ? { Cookie: c } : {}) }, body: JSON.stringify(body),
   });
@@ -36,6 +37,7 @@ async function setup() {
   const served = () => fetch(`${s.baseUrl}/lessons/${slug}`).then(r => r.text());
   const plans = async () => (await (await fetch(`${s.baseUrl}/api/lessons/${slug}/materials?kind=plan`, { headers: { Cookie: cookie } })).json());
   return { ...s, cookie, slug, post, served, plans, link: booked.portal.link };
+  } catch(error) { await s.stop(); throw error; }
 }
 
 test('publishing an edit serves the edited deck, escaped, and keeps the games', async () => {

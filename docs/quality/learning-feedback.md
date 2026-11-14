@@ -147,3 +147,13 @@ comparison figures and question-only homework retain their answer-safe static
 representations. Browser/Google acceptance checks must inspect both moving cases,
 notes, embedded frame counts/timing and the actual static PDF fallback. Existing
 customer artifacts/progress and student-release approval gates stay intact.
+
+## 2026-11-15 — Short, sortable Drive review names
+
+Long identical lesson titles hid the version distinction on phones. Native review
+folders now start with the creation date and local Israel time (YYYY-MM-DD HHmmss),
+followed by a topic of at most 24 characters and an animation/draft label. Inside,
+01 מצגת and 02 שיעורי בית sort by material type. Full teaching titles stay in the
+artifacts; technical hashes stay in immutable receipts/appProperties. Existing review
+files can be renamed without changing their IDs, links, content, sharing or progress.
+Publisher retry tests preserve existing native files and tutor edits.

@@ -13,6 +13,7 @@ import {liteAdaptor} from 'mathjax-full/js/adaptors/liteAdaptor.js';
 import {RegisterHTMLHandler} from 'mathjax-full/js/handlers/html.js';
 import {AllPackages} from 'mathjax-full/js/input/tex/AllPackages.js';
 import {DECK_PALETTE,BRAND_LOGO_SRC} from '../../brand.ts';
+import {nativeReviewNames} from './names.ts';
 import {nativeMotionPlan,renderNativeMotion,type NativeMotionPlan} from './motion.ts';
 import {normalVisual} from '../../learning/deck/normal.ts';
 import {publicVisualLesson,visualLessonProblems,type VisualLesson,type NormalModel} from '../../learning/deck/model.ts';
@@ -176,10 +177,11 @@ export async function publishNativeReviewBundle(input:NativeBundleInput&{key:str
   const api=centralDriveApi({access,fetch:dependencies?.fetch,checkpoint:{read:()=>null,write:()=>{}}});await api.prepare();
   await api.privateFolder(workspace.workspaceId,access.config.learningFolderId);await api.privateFolder(workspace.reviewId,workspace.workspaceId);
   const title=(input.title??input.bundle.title).slice(0,140),key=`native-review:${digest(input.key)}:${output.sourceHash}`;
-  const folder=await api.folder(key,`${title} — טיוטה [${output.sourceHash.slice(0,8)}]`,workspace.reviewId);
+  const names=nativeReviewNames(title,Boolean(output.motion?.slides.length));
+  const folder=await api.folder(key,names.folder,workspace.reviewId);
   const file=(f:CentralFile)=>({id:f.id,url:centralFileUrl(f),mimeType:f.mimeType});
-  const slides=await api.nativeImport(`${key}:slides`,`${title} — מצגת`,SLIDES,folder.id,output.slides,PPTX);
-  const homework=await api.nativeImport(`${key}:homework`,`${title} — תרגול לבית ללא פתרונות`,DOC,folder.id,output.homework,DOCX);
+  const slides=await api.nativeImport(`${key}:slides`,names.slides,SLIDES,folder.id,output.slides,PPTX);
+  const homework=await api.nativeImport(`${key}:homework`,names.homework,DOC,folder.id,output.homework,DOCX);
   return {version:1 as const,state:'draft' as const,sourceHash:output.sourceHash,reviewFolderId:folder.id,slides:file(slides.file),notesLocation:'slides' as const,homework:file(homework.file),activities:output.activities,slideCount:output.slideCount,motion:output.motion};
  })();running.set(gate,task);try{return await task;}finally{running.delete(gate);}
 }

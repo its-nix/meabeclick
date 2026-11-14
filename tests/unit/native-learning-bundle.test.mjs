@@ -31,6 +31,8 @@ test('review publisher creates native MIME documents and replay preserves human 
  const first=await publishNativeReviewBundle(input,dependencies);p.files.get(first.slides.id).human='edited';const count=p.files.size;
  const second=await publishNativeReviewBundle(input,dependencies);
  assert.equal(first.slides.mimeType,'application/vnd.google-apps.presentation');assert.equal(first.homework.mimeType,'application/vnd.google-apps.document');assert.equal(second.slides.id,first.slides.id);assert.equal(p.files.size,count);assert.equal(p.files.get(first.slides.id).human,'edited');
+ assert.match(p.files.get(first.reviewFolderId).name,/^\d{4}-\d{2}-\d{2} \d{6} · /);
+ assert.match(p.files.get(first.slides.id).name,/^01 מצגת · /);assert.match(p.files.get(first.homework.id).name,/^02 שיעורי בית · /);
  assert.equal(first.notesLocation,'slides');assert.equal(first.tutorNotes,undefined);assert.equal([...p.files.values()].filter(f=>f.mimeType==='application/vnd.google-apps.document').length,1,'only homework creates a Doc');
  assert.ok(p.calls.every(c=>!c.url.includes('/permissions')));assert.equal(first.state,'draft');
  p.files.get(workspace.reviewId).permissions=[{type:'anyone'}];await assert.rejects(publishNativeReviewBundle(input,dependencies),/privacy/);

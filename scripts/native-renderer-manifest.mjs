@@ -14,6 +14,7 @@ const sources=[
  'src/lib/server/lesson/official-questions.ts',
  'src/lib/server/native-learning/bundle.ts',
  'src/lib/server/native-learning/motion.ts',
+ 'src/lib/server/native-learning/names.ts',
  'static/images/logos/logo-slate.svg',
  'static/learning-assets/native-fonts/Heebo.ttf',
 ].sort();

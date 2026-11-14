@@ -59,6 +59,9 @@
   "overrides": {
     "hyperframes": {
       "undici": "^7.30.1"
+    },
+    "pptxgenjs": {
+      "image-size": "2.0.3"
     }
   }
 }

@@ -92,7 +92,7 @@ export function reconcileNativeLessonJobs(): number {
  const rows=handle().prepare(`SELECT b.id,b.student_id FROM bookings_v2 b
  LEFT JOIN native_lesson_jobs j ON j.booking_id=b.id
  WHERE b.status='confirmed'
- AND (b.start >= ? OR b.at >= (SELECT applied_at FROM schema_version WHERE version=40))
+ AND (julianday(b.start) >= julianday(?) OR b.at >= (SELECT applied_at FROM schema_version WHERE version=40))
  AND j.id IS NULL ORDER BY b.id`).all(new Date().toISOString());
  let recovered=0;
  for (const row of rows) {

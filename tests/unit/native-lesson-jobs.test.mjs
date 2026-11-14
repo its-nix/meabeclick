@@ -118,3 +118,16 @@ test('only one active worker may prepare a student across different booking jobs
  handle().prepare("UPDATE native_lesson_jobs SET lease_until='2000-01-01T00:00:00.000Z' WHERE booking_id=?").run(firstId);
  assert.ok(J.claimNativeLessonJob({bookingId:secondId}));
 });
+test('reconciliation compares offset booking starts as instants at the upcoming boundary', (t) => {
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2036-04-15T11:30:00.000Z')});
+ const db=handle();
+ // 12:30 +02 is 10:30 UTC: already started, although its wall time sorts later.
+ const pastId=E.reserveBooking({studentId:student.id,start:'2036-04-15T12:30:00.000+02:00',end:'2036-04-15T13:00:00.000+02:00',durationMin:30});
+ // 10:30 -02 is 12:30 UTC: upcoming, although its wall time sorts earlier.
+ const futureId=E.reserveBooking({studentId:student.id,start:'2036-04-15T10:30:00.000-02:00',end:'2036-04-15T11:00:00.000-02:00',durationMin:30});
+ assert.ok(pastId); assert.ok(futureId);
+ for(const id of [pastId,futureId]) db.prepare('UPDATE bookings_v2 SET at=? WHERE id=?').run('2000-01-01T00:00:00.000Z',id);
+ J.reconcileNativeLessonJobs();
+ assert.equal(J.getNativeLessonJob(pastId),null,'a pre-activation booking already started in UTC is historical');
+ assert.equal(J.getNativeLessonJob(futureId)?.state,'queued','an upcoming booking is eligible regardless of its offset');
+});

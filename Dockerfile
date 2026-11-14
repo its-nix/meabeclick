@@ -39,8 +39,12 @@ RUN npm ci --omit=dev
 # invisible while the engine was Claude Code, which is Node-based and used
 # Node's bundled roots.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates \
+ && apt-get install -y --no-install-recommends ca-certificates fontconfig \
  && rm -rf /var/lib/apt/lists/*
+
+# Native diagram SVG labels use the same Heebo font as the site, including Hebrew.
+COPY static/learning-assets/native-fonts/Heebo.ttf /usr/share/fonts/truetype/heebo/Heebo.ttf
+RUN fc-cache -f
 
 RUN npm install -g @openai/codex@0.149.0
 

@@ -63,6 +63,18 @@ in the native workspace until a new Google Slides/Docs authoring bundle passes
 the agreed teaching review. Backfill and an empty native library are not evidence
 that the new generation engine is ready. See the Drive-native cutover design.
 
+The native draft path now durably queues one preparation job per booking and
+shows its state to the tutor. Unsupported or unbound contexts require tutor
+preparation. Opt-in authoring accepts only the explicitly confirmed 90-minute
+introductory normal-distribution calibration for high-school three-unit 35372,
+using the verified summer 2025 question 3 and school `s` convention. It creates
+private editable Slides, private tutor notes/solutions, separate homework and
+protected interactive review links, plus linked draft records in Sheets.
+Retry and restart preserve job identity and human edits. A prior native review
+for that learner blocks silently repeating the same introductory source.
+This is a review workflow, not a general adaptive engine: automatic student
+release remains blocked until actual owner teaching review and approval.
+
 Done for phase A: a generated plan, slides, and homework reach the
 student's page without Nikol touching them, for at least 80% of lessons
 (a lesson's homework is generated with it; the strict share). Homework

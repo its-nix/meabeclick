@@ -18,8 +18,8 @@
  * request here, the outcome is just book()'s return value — the hook has
  * no equivalent and is not reproduced.
  *
- * Generation (triggerForBooking) is fire-and-forget and must never delay
- * or block the response — it is not awaited.
+ * Native preparation is durably enqueued after booking succeeds. The worker
+ * prepares review drafts separately and never blocks this response.
  */
 import { json, type Cookies } from '@sveltejs/kit';
 import { flagCalendarFailure } from '$server/db.ts';
@@ -34,7 +34,7 @@ import { addPayment, lessonDateInIsrael, voidChargeForBooking } from '$server/pa
 import { enrollFromBooking, EnrollError, type EnrollResult } from '$server/enroll.ts';
 import { sendBookingEmail, sendFamilyBookingEmail, sendConfirmBookingEmail, type EnrolledForEmail } from '$server/email.ts';
 import { issueAccountCredential } from '$server/access-credentials.ts';
-import { triggerForBooking, sendWhatsApp, type Booking } from '$server/lesson/queue.ts';
+import { enqueueNativeLessonForBooking } from '$server/native-learning/jobs.ts';
 import { addLessonRequest } from '$server/requests.ts';
 import { readJson } from '$server/http.ts';
 import { planFor, kindFor, agorot } from '$lib/plans.ts';
@@ -716,14 +716,7 @@ async function completeBooking(body: ConfirmedBookBody, ctx: CompleteCtx): Promi
       }
     }
     const requestText = resolveRequest(body);
-    try {
-      triggerForBooking(
-        { ...body, request: requestText } as Booking,
-        { notify: sendWhatsApp, enrolledCode: result.enrolledCode, bookingId },
-      );
-    } catch (e) {
-      console.error('trigger', e);
-    }
+
 
     /* Guarded like flagCalendarFailure above: a failure to record the
        parent's note must never retroactively fail a booking that already
@@ -740,6 +733,11 @@ async function completeBooking(body: ConfirmedBookBody, ctx: CompleteCtx): Promi
       } catch (e) {
         console.error('[book] addLessonRequest failed:', e);
       }
+    }
+
+    if (enrolled && bookingId != null) {
+      const job = enqueueNativeLessonForBooking({ bookingId, studentId: enrolled.student.id });
+      if (!job) console.error('[book] native lesson enqueue failed; tutor preparation required');
     }
 
     /* The funnel's booking-count event (marketing.ts's funnel(), migration

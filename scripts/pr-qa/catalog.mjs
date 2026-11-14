@@ -1,5 +1,6 @@
 /** Pages and API boundaries each real-data journey verifies. Import impact is discovered separately. */
 export const JOURNEYS = [
+  { id: 'native-lessons', routes: ['/api/native-lessons/[bookingId]', '/app/native-review-activities'] },
   { id: 'roles-smoke', routes: ['/login', '/portal', '/app/dashboard', '/app/parent', '/app/student', '/api/login', '/api/logout', '/api/me', '/api/family'] },
   { id: 'public-booking', routes: ['/', '/booking', '/confirm-booking', '/privacy', '/terms', '/api/availability', '/api/book', '/api/events'] },
   { id: 'tutor-create', routes: ['/app/dashboard', '/api/students'] },

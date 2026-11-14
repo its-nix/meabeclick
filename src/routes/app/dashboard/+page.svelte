@@ -72,6 +72,20 @@
   // Named apart from the local fake-CRM `data` below (see that variable's
   // own comment) — this one is the real, server-rendered roster.
   let { data: pageData }: { data: PageData } = $props();
+  let nativeContextConfirmed = $state<Record<number,boolean>>({});
+  let nativePreparationBusy = $state<number|null>(null);
+  let nativePreparationMessage = $state('');
+  async function prepareNativeReview(bookingId:number,studentId:number) {
+    if(!nativeContextConfirmed[bookingId]||nativePreparationBusy!==null)return;
+    nativePreparationBusy=bookingId;
+    try{
+      const response=await fetch(`/api/native-lessons/${bookingId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId,context:pageData.nativeReviewContext})});
+      const result=await response.json();
+      nativePreparationMessage=response.ok?'בקשת ההכנה נשמרה. רעננו בהמשך כדי לראות את מצב הטיוטה.':result.error??'לא ניתן לשמור את בקשת ההכנה.';
+      if(response.ok)nativeContextConfirmed[bookingId]=false;
+    }catch{nativePreparationMessage='לא ניתן לשמור כרגע. אפשר לנסות שוב.';}
+    finally{nativePreparationBusy=null;}
+  }
   const selectedStudentCode = $derived(pageData.selectedStudentCode);
   let dashboardPlans = $state(untrack(() => pageData.learningPlans ?? {}));
 
@@ -1003,6 +1017,26 @@
 
 <main class="page workspace-page" id="workspace-content" tabindex="-1">
   <span class="save-indicator" class:show={saveIndicatorVisible} role="status">{saveIndicatorVisible ? '✓ נשמר' : ''}</span>
+  {#if pageData.nativePreparations?.length}
+    <section class="workspace-notice" aria-label="הכנת שיעורים במרחב ההוראה">
+      <h2>הכנת שיעורים</h2>
+      <ul>
+        {#each pageData.nativePreparations as preparation (preparation.bookingId)}
+          <li><strong>{preparation.studentName}</strong> · <bdi>{String(preparation.start).slice(0, 10)}</bdi> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.reason}<p>{preparation.reason}</p>{/if}{#if preparation.error}<p>{preparation.error}</p>{/if}
+            {#if preparation.canBind && pageData.nativeAuthoringEnabled}
+              <details><summary>בחירת חבילת מבוא לבדיקה</summary>
+                <p>חבילת כיול: התפלגות נורמלית, תיכון, 3 יחידות, שאלון <bdi>35372</bdi>, 90 דקות, סימון בית־ספרי <bdi>s</bdi>. המקור המודרך הוא קיץ 2025 שאלה 3. יש לבדוק שהנושא והשאלה לא נלמדו כבר.</p>
+                <label><input type="checkbox" bind:checked={nativeContextConfirmed[preparation.bookingId]} /> בדקתי שהתלמיד/ה מבינ/ה אחוזים וממוצע, חדש/ה בנושא, ושהחבילה מתאימה לבקשה ולרמה. אני מבקש/ת טיוטה פרטית לבדיקה.</label>
+                <button class="workspace-button" type="button" disabled={!nativeContextConfirmed[preparation.bookingId] || nativePreparationBusy!==null} onclick={()=>prepareNativeReview(preparation.bookingId,preparation.studentId)}>{nativePreparationBusy===preparation.bookingId?'שומרים…':'הכנת טיוטה לבדיקה'}</button>
+              </details>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+      {#if nativePreparationMessage}<p role="status">{nativePreparationMessage}</p>{/if}
+      {#if pageData.nativeWorkspace}<a class="workspace-button" href={`https://drive.google.com/drive/folders/${pageData.nativeWorkspace.reviewId}`} target="_blank" rel="noopener">פתיחת טיוטות לבדיקה ב־Drive</a>{/if}
+    </section>
+  {/if}
   {#if !selectedStudentCode}
   <TutorPageHeader title="לוח בקרה" description={dashboardDate}>
     {#snippet actions()}

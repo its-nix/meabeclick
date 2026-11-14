@@ -22,6 +22,9 @@ import { error, type RequestEvent } from '@sveltejs/kit';
 import { engineAlert } from '$server/lesson/engine-health.ts';
 import {centralLearningSync} from '$server/central-drive/sync.ts';
 import {nativeWorkspace} from '$server/learning-archive.ts';
+import {listNativeLessonJobs} from '$server/native-learning/jobs.ts';
+import {NATIVE_PREPARATION_REASONS} from '$server/native-learning/worker.ts';
+import {NORMAL_REVIEW_CONTEXT,supportedNativeContext} from '$server/native-learning/context.ts';
 
 /** One guarded loader for the overview and the tutor's student detail page. */
 export async function loadTutorWorkspace(event: RequestEvent, selectedStudentCode: string | null = null) {
@@ -67,5 +70,8 @@ export async function loadTutorWorkspace(event: RequestEvent, selectedStudentCod
     googleReady: webClientFromEnv() !== null,
     centralDrive:centralLearningSync().view(),
     nativeWorkspace:nativeWorkspace(),
+    nativeReviewContext:NORMAL_REVIEW_CONTEXT,
+    nativeAuthoringEnabled:process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',
+    nativePreparations:listNativeLessonJobs(selected?{studentId:selected.id}:{}).map(job=>({bookingId:job.bookingId,studentId:job.studentId,studentName:allRows.find(s=>s.id===job.studentId)?.name??'תלמיד/ה',state:job.state,start:job.snapshot.start,canBind:['queued','failed','needs-preparation'].includes(job.state)&&supportedNativeContext({...job.snapshot,context:NORMAL_REVIEW_CONTEXT}),reason:job.reason?NATIVE_PREPARATION_REASONS[job.reason]??'נדרשת הכנת מורה.':null,error:job.errorCode?'ההכנה לא הושלמה. בדקו את חיבור Google ואת חומרי המקור.':null})),
   };
 }

@@ -38,7 +38,7 @@ function provider({publicRoot=false,wrongOwner=false,loseChunk=false}={}){
   if(url.pathname.startsWith('/upload/drive/v3/files')&&init.method!=='PUT'){
    if(url.searchParams.get('uploadType')==='multipart'){
     const body=Buffer.from(init.body).toString(),parts=body.split('\r\n\r\n'),meta=JSON.parse(parts[1].split('\r\n--')[0]);
-    const file={...meta,id:meta.id??`native${++counter}abcdef`,owners:[{emailAddress:config.ownerEmail}],permissions:[{type:'user'}],html:parts[2].split('\r\n--')[0]};files.set(file.id,file);return Response.json(wire(file));
+    const file={...meta,id:meta.id??`native${++counter}abcdef`,owners:[{emailAddress:config.ownerEmail}],permissions:[{type:'user'}],html:parts[2].split('\r\n--')[0]};if(!body.includes('Content-Type: text/html')){file.bytes=Buffer.from(init.body);delete file.html;}files.set(file.id,file);return Response.json(wire(file));
    }
    const meta=JSON.parse(init.body),existing=url.pathname.split('/').at(-1),file={...files.get(existing),...meta,id:meta.id??existing,owners:[{emailAddress:config.ownerEmail}],permissions:[{type:'user'}]};files.set(file.id,file);
    const location=`https://www.googleapis.com/upload/drive/v3/files?upload_id=session${++counter}`;sessions.set(location,{file,bytes:Buffer.alloc(0)});return new Response('',{headers:{Location:location}});

@@ -153,6 +153,61 @@ The next native-authoring step can build on these central artifacts and observed
 
 ## Retiring duplicate code
 
+### Native booking preparation draft path — 2026-11-14
+
+Confirmed bookings enqueue a durable student/booking-scoped SQLite job without
+waiting for Google. Production startup and a 30-second poll recover queued,
+expired-lease and post-activation bookings whose initial enqueue was missed.
+Cancellation fences further writes and final review binding. Jobs expose queued,
+preparing, needs-preparation, failed, review and cancelled states to the tutor.
+
+`NATIVE_LESSON_AUTHORING_ENABLED=true` opts into private draft authoring; its
+default is off. The tutor must explicitly confirm the supported 90-minute
+high-school mathematics context: introductory normal distribution, three-unit
+35372, percentages/mean understood, normal distribution new, school `s` notation,
+and verified summer 2025 question 3. Unknown/unsupported contexts remain visible
+as needs-preparation. A previous native review for the learner blocks automatic
+repetition. The context is a tutor planning statement, not demonstrated mastery.
+
+The worker uses the encrypted personal `learningService().syncAccess()` and the
+verified native-workspace receipt. Native Slides, tutor notes/solutions and
+separate homework remain in private Review folders. Activity links target
+tutor-authenticated `/app/native-review-activities`; its runtime records no
+customer scores. `/api/native-lessons/[bookingId]` is tutor-only, including its
+private notes links and explicit context binding. Legacy authoring stays disabled.
+
+The ongoing index receives separate managed `Native Students`, `Native Lessons`,
+`Native Materials` and `Native Assignments` tabs. Stable IDs link learner,
+booking, material and draft assignment; source IDs and bundle hashes retain
+provenance. Existing human edits and historical/archive tabs are untouched.
+Identity/URL/hash conflicts stop preparation. Sheets append retries read stable
+IDs before writing; an uncertain response can be retried without replacing rows.
+Artifact identity includes a checked renderer manifest covering the exporter,
+shared maths/diagrams, brand/logo, fonts and dependency lock. Run
+`node scripts/native-renderer-manifest.mjs` after changing these inputs; the
+regression suite rejects stale manifests. A renderer change creates a new
+immutable draft and preserves older native files and human edits.
+No progress/mastery row, published material, assigned homework, public sharing,
+notification or automatic student release is created by this draft worker.
+
+Focused regressions cover restart recovery, backoff, cancellation, expired-worker
+fencing, source continuity, exactly-once final binding, response-loss retries,
+linked records and human edits. Seeded Playwright `native-lessons` journeys cover
+the real booking enqueue, explicit tutor context UI, unsupported/flag-off states,
+private route guards and score-free activities on phone and desktop. These checks
+do not establish native Google rendering quality or owner teaching approval;
+the synthetic native bundle still needs actual slide/document visual and math QA.
+
+Local verification for this integration: production build passed; 34 focused
+worker/context/PR-QA checks passed; all six seeded Chromium journeys passed
+across phone and desktop. The activity test makes a real authenticated grading
+POST and verifies no customer results, learning events or homework were written.
+The migration dependency graph reaches 85 mapped routes with no unmapped
+boundaries. Type checking retains the existing 22-warning baseline. Phone
+screenshots of the explicit context panel and activity page were inspected for
+Hebrew wrapping and horizontal overflow. These are isolated synthetic fixtures,
+not a production reliability or native Google teaching-quality claim.
+
 Use native Google editing and presenter tools for the new presentation path. Once native-template generation and the same-lesson comparison pass, the new worker can return Google artifact IDs instead of a parallel editable HTML presentation. The custom presentation editor, notes viewer and duplicate library administration can then be retired for new material. Preserve historical readers and customer links until migration is verified. Keep mathematical validation and custom interactive graphs/games where they supply teaching value.
 
 ## Evidence

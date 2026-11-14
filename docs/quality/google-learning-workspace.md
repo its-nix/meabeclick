@@ -170,8 +170,11 @@ as needs-preparation. A previous native review for the learner blocks automatic
 repetition. The context is a tutor planning statement, not demonstrated mastery.
 
 The worker uses the encrypted personal `learningService().syncAccess()` and the
-verified native-workspace receipt. Native Slides, tutor notes/solutions and
-separate homework remain in private Review folders. Activity links target
+verified native-workspace receipt. Native teacher Slides contain their own per-slide speaker notes and answer
+keys; separate question-only homework remains in the private Review folder.
+New drafts do not create a teacher-notes Doc. The teacher deck is staff material:
+sharing a Slides file can expose its notes, so student delivery requires a
+separate notes-free artifact. Historical separate-notes receipts stay readable. Activity links target
 tutor-authenticated `/app/native-review-activities`; its runtime records no
 customer scores. `/api/native-lessons/[bookingId]` is tutor-only, including its
 private notes links and explicit context binding. Legacy authoring stays disabled.
@@ -237,3 +240,24 @@ examples. The corrected Google import passed the same visual review. This is
 technical acceptance of a review draft, not owner teaching approval or generic
 lesson-generation coverage. Automatic authoring and student delivery remain off.
 Private evidence and file IDs are held outside the repository.
+
+
+### Embedded presenter notes (2026-11-14)
+
+The native exporter attaches a real speaker-notes page to every progressive slide,
+including current-build cues, whole-scene timing, the authored spoken explanation,
+questions, expected answers, scaffolds, misconceptions and transitions. Relevant
+class/source solutions stay with their slides; the final notes page also holds
+the private homework/game answer guide. Speaker notes are plain text; common
+math notation is made readable without adding projected answer text. New imports
+create one teacher Slides file and one homework Doc. Receipt metadata declares
+`notesLocation: slides`; Sheets marks the combined teacher deck as staff-only.
+Do not share the teacher file as a student resource merely because notes are
+hidden during projection. Existing separate-guide files/receipts remain intact.
+
+Google Slides supports native animation in its editor. Its published API request
+model does not expose equivalent animation/timeline authoring. Treat automated
+PowerPoint animation import as unverified until a real native round trip and
+slideshow playback prove it. Prefer brief tutor-controlled mathematical video
+demonstrations with a useful static/PDF frame; keep prediction and independent
+practice answer-safe. Interactive sliders still use the protected web activities.

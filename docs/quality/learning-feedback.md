@@ -116,3 +116,19 @@ Candidate08 is the final protected review candidate: a10.546s bounded revision o
 Integration with current main3d98341 adds the pilot routes to the PR learning-impact catalog and includes its selected browser outcome in the CI report; a workflow regression failed before the integration fix and28 PR-QA tests pass afterward. Candidate09 repeats the same four-field revision after main's dependency-lock change:11.163s, content exactly identical to08, new source seal. Earlier candidates remain intact for comparison.
 
 PR109's first CI run reproduced an incomplete pre-existing route catalog when shared lesson dependencies were traced. Mapped the affected report/preparation/legacy source boundaries to their actual learning/workspace checks, added a selection regression, and exercised the unsaved editor preview through its real sandboxed form POST.29 PR-QA unit checks and both phone/desktop learning journeys pass; the impact plan now has no unmapped routes. No generator input or final bundle content changed.
+
+
+## Presenter notes must travel with the native deck — 2026-11-14
+
+The owner rejected a separate teacher Doc as the default presenter workflow.
+Every generated native teacher slide now gets real speaker notes, including a
+cue for its current progressive build and relevant private solutions. The final
+notes page retains the homework/game answer guide. New bundles create no
+separate notes Doc. Historical receipts remain readable; the combined deck is
+classified as staff material, and student artifacts must exclude private notes.
+Regression checks inspect actual Office notes pages, projected-slide and homework
+answer separation, teacher-only register records and native import count. Actual
+Google import/readback must verify notes survive conversion before acceptance.
+The associated request for lively motion is a separate delivery choice: use
+teacher-paced reveals and brief mathematical demonstrations; do not promise that
+PowerPoint object animations survive Google conversion without playback proof.

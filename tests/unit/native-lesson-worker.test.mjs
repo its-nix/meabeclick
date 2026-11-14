@@ -92,3 +92,12 @@ test('linked draft records append once after lost response and preserve human ed
  sheets.find(s=>s.properties.title==='Native Materials').rows[1][4]='https://docs.google.com/presentation/d/changed-human-id/edit';
  await assert.rejects(appendNativeDraftRecords(api,'native-index-id',records),/conflict/);
 });
+
+test('embedded-note decks are staff material, with no phantom notes Doc or student assignment',()=>{
+ const {bookingId}=booking();const combined={...receipt,notesLocation:'slides'};delete combined.tutorNotes;
+ const records=nativeDraftRecords(J.getNativeLessonJob(bookingId),combined,'Synthetic');
+ const deck=records.Materials.find(m=>m.kind==='presentation');assert.equal(deck.audience,'staff');
+ assert.equal(records.Materials.filter(m=>m.kind==='lesson_brief').length,0);
+ assert.ok(records.Assignments.every(a=>a.material_id!==deck.material_id));
+ const historical=nativeDraftRecords(J.getNativeLessonJob(bookingId),receipt,'Synthetic');assert.ok(historical.Materials.some(m=>m.url===receipt.tutorNotes.url),'existing separate-note receipts remain readable');
+});

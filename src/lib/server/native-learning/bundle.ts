@@ -13,6 +13,7 @@ import {liteAdaptor} from 'mathjax-full/js/adaptors/liteAdaptor.js';
 import {RegisterHTMLHandler} from 'mathjax-full/js/handlers/html.js';
 import {AllPackages} from 'mathjax-full/js/input/tex/AllPackages.js';
 import {DECK_PALETTE,BRAND_LOGO_SRC} from '../../brand.ts';
+import {nativeMotionPlan,renderNativeMotion,type NativeMotionPlan} from './motion.ts';
 import {normalVisual} from '../../learning/deck/normal.ts';
 import {publicVisualLesson,visualLessonProblems,type VisualLesson,type NormalModel} from '../../learning/deck/model.ts';
 import {officialQuestion,officialQuestionAsset,sourceCaption} from '../lesson/official-questions.ts';
@@ -27,7 +28,9 @@ const digest=(v:string)=>createHash('sha256').update(v).digest('hex');
 const colour=(key:string)=>DECK_PALETTE[key].slice(1);
 export interface NativeActivity {id:string;title:string;url:string}
 export interface NativeBundleInput {bundle:VisualLesson;key?:string;title?:string;activityBaseUrl:string}
-export interface NativeBundleReceipt {version:1;state:'draft';sourceHash:string;reviewFolderId:string;slides:{id:string;url:string;mimeType:string};notesLocation:'slides';homework:{id:string;url:string;mimeType:string};activities:NativeActivity[];slideCount:number}
+export interface NativeMotionSlide {sceneId:string;slideNumber:number;kind:'spread'|'area';frameCount:number;durationMs:number;gifSha256:string}
+export interface NativeMotionManifest {version:1;slides:NativeMotionSlide[]}
+export interface NativeBundleReceipt {version:1;state:'draft';sourceHash:string;reviewFolderId:string;slides:{id:string;url:string;mimeType:string};notesLocation:'slides';homework:{id:string;url:string;mimeType:string};activities:NativeActivity[];slideCount:number;motion?:NativeMotionManifest}
 
 async function png(svg:string){return sharp(Buffer.from(svg.replace(/(\sdata-[\w-]+)(?=[\s>])/g,'$1=""'))).resize({width:1800,withoutEnlargement:false}).png().toBuffer();}
 async function formula(tex:string){
@@ -76,14 +79,14 @@ function notesText(text:string){
   return value.replace(/\\(?:left|right)\b/g,'').replace(/\\(mu|sigma|cdot|times|leq|geq|pm|%)(?![a-z])/g,(_,name:string)=>({mu:'μ',sigma:'σ',cdot:'·',times:'×',leq:'≤',geq:'≥',pm:'±','%':'%'}[name]!));
  }).join('');
 }
-function nativeSpeakerNotes(bundle:VisualLesson,sceneIndex:number,stage:number,reveal:number,modelStage:number,total:number){
+function nativeSpeakerNotes(bundle:VisualLesson,sceneIndex:number,stage:number,reveal:number,modelStage:number,total:number,motion:NativeMotionPlan|null=null){
  const scene=bundle.slides[sceneIndex],n=scene.presenterNotes,last=stage===total-1;
  const visible=scene.blocks.filter(b=>b.reveal<=reveal).flatMap(b=>b.model?[normalVisual(b.model,modelStage,'notes').caption]:b.type==='source'?['השאלה הרשמית המקורית']:b.text?[b.text]:[]);
  const task=bundle.tasks.find(t=>t.id===scene.taskId);
  const sections=[scene.title,`סצנה ${sceneIndex+1} · צעד ${stage+1} מתוך ${total}`,`זמן לסצנה כולה: ${n.minutes} דקות — לא לכל צעד.`,
-  `מה רואים כעת: ${task?[task.givens,task.prompt].join(' '):visible.join(' | ')||scene.prompt}`,
+  `מה רואים כעת: ${motion?motion.caption:task?[task.givens,task.prompt].join(' '):visible.join(' | ')||scene.prompt}`,
   'בהסבר ובשאלות התייחסו רק למה שכבר נחשף. עצרו לחיזוי לפני מעבר לשלב הבא.',
-  `מה אומרים: ${n.explanation}`,`עוצרים ושואלים: ${n.ask}`,`למה מקשיבים — תשובה למורה: ${n.expectedAnswer}`,`אם נתקעים: ${n.ifStuck}`,`טעות שכדאי לזהות: ${n.misconception}`,
+  `מה אומרים: ${motion?motion.notes:n.explanation}`,`עוצרים ושואלים: ${motion?motion.prompt:n.ask}`,`למה מקשיבים — תשובה למורה: ${motion?(motion.kind==='spread'?'המרכז נשאר קבוע; עקומה רחבה יותר נמוכה יותר. השטח הכולל נשאר 100%.':'הממוצע וסטיית התקן קבועים; תחום רחב יותר כולל חלק גדול יותר מן הקבוצה, לפי קירוב התרשים הבית־ספרי.'):n.expectedAnswer}`,`אם נתקעים: ${n.ifStuck}`,`טעות שכדאי לזהות: ${n.misconception}`,
   last?`המעבר הבא: ${n.transition}`:'הצעד הבא: המשיכו בלחיצה לחשיפה הבאה באותה סצנה; אל תעברו עדיין לנושא הבא.',
   ...(task?[`פתרון הבדיקה — למורה בלבד: ${task.solution}`]:[]),
   ...bundle.sourceSolutions.filter(solution=>solution.slideId===scene.id).map(solution=>`פתרון מקור ${solution.questionId}, סעיף ${solution.part}: ${solution.answer}`),
@@ -116,18 +119,28 @@ export async function exportNativeBundle(input:NativeBundleInput){
  }
  function pptxgenImageContain(bytes:Buffer,x:number,y:number,w:number,h:number){const iw=bytes.readUInt32BE(16),ih=bytes.readUInt32BE(20),scale=Math.min(w/iw,h/ih);return {x:x+(w-iw*scale)/2,y:y+(h-ih*scale)/2,w:iw*scale,h:ih*scale};}
  async function model(slide:PptxGenJS.Slide,m:NormalModel,stage:number,x:number,y:number,w:number,h:number,comparison:NormalModel[]=[]){const v=normalVisual(m,stage,'native',{},comparison);slide.addImage({data:data(await png(v.svg)),x,y,w,h:h-.65});await addText(slide,v.caption,x,y+h-.6,w,.25,13);if(v.formula){const bytes=await formula(v.formula);slide.addImage({data:data(bytes),...pptxgenImageContain(bytes,x,y+h-.3,w,.3)});}}
- const slideMap:Array<{sceneId:string;title:string;firstSlide:number;lastSlide:number}>=[];const speakerNotes:string[]=[];let slideCount=0;
+ const slideMap:Array<{sceneId:string;title:string;firstSlide:number;lastSlide:number}>=[];const speakerNotes:string[]=[],motionSlides:NativeMotionSlide[]=[];const seenMotion=new Set<string>();let slideCount=0;
  for(const [sceneIndex,original]of publicVisualLesson(bundle).slides.entries()){
   const firstSlide=slideCount+1;
   const maxReveal=Math.max(0,...original.blocks.map(b=>b.reveal));const states=Math.max(1,...original.blocks.map(b=>b.model?.states.length??1));
+  const candidate=nativeMotionPlan(original),motionKey=candidate?JSON.stringify(candidate):'';const motionPlan=candidate&&!seenMotion.has(motionKey)?candidate:null;if(motionPlan)seenMotion.add(motionKey);
+  const staticBuilds=maxReveal+states,totalBuilds=staticBuilds+(motionPlan?1:0);
   // Each authored build is a separate editable slide, preserving learner-paced progressive disclosure.
-  for(let stage=0;stage<=maxReveal+states-1;stage++){
+  for(let stage=0;stage<totalBuilds;stage++){
+   const motion=stage===staticBuilds?motionPlan:null;
    const reveal=Math.min(stage,maxReveal),modelStage=Math.max(0,stage-maxReveal);const slide=pptx.addSlide();slideCount++;slide.background={color:colour('bg')};
-   const notes=nativeSpeakerNotes(bundle,sceneIndex,stage,reveal,modelStage,maxReveal+states);slide.addNotes(notes);speakerNotes.push(notes);
-   slide.addText(original.kicker,{x:.6,y:.3,w:12.1,h:.25,fontSize:13,color:colour('brand'),rtlMode:true,align:'right'});
-   await addText(slide,original.title,.6,.75,12.1,.65,30);await addText(slide,original.prompt,.6,1.5,12.1,.7,20);
+   const notes=nativeSpeakerNotes(bundle,sceneIndex,stage,reveal,modelStage,totalBuilds,motion);slide.addNotes(notes);speakerNotes.push(notes);
+   slide.addText(motion?'הדגמה בתנועה':original.kicker,{x:.6,y:.3,w:12.1,h:.25,fontSize:13,color:colour('brand'),rtlMode:true,align:'right'});
+   await addText(slide,motion?(motion.kind==='spread'?'הפיזור משתנה; המרכז נשאר קבוע':'כשהתחום מתרחב, השטח המסומן גדל'):original.title,.6,.75,12.1,.65,30);await addText(slide,motion?motion.prompt:original.prompt,.6,1.5,12.1,.7,20);
    for(const [i,a]of activities.entries())slide.addText(a.title+' ↗',{x:1+i*3.8,y:6.85,w:3.5,h:.2,fontFace:'Heebo',fontSize:10,color:colour('brand'),rtlMode:true,align:'right',hyperlink:{url:a.url}});
-   slide.addImage({data:data(logo),...pptxgenImageContain(logo,.6,7.02,.4,.3)});slide.addText(`${slideCount} · נושא ${sceneIndex+1}/${bundle.slides.length} · צעד ${stage+1}/${maxReveal+states} · ${title}`,{x:1,y:7,w:11.7,h:.3,fontSize:10,color:colour('muted'),rtlMode:true,align:'right'});
+   slide.addImage({data:data(logo),...pptxgenImageContain(logo,.6,7.02,.4,.3)});slide.addText(`${slideCount} · נושא ${sceneIndex+1}/${bundle.slides.length} · צעד ${stage+1}/${totalBuilds} · ${title}`,{x:1,y:7,w:11.7,h:.3,fontSize:10,color:colour('muted'),rtlMode:true,align:'right'});
+   if(motion){
+    const bytes=await renderNativeMotion(motion),scale=Math.min(11.9/motion.width,3.85/motion.height),w=motion.width*scale,h=motion.height*scale;
+    slide.addImage({data:`data:image/gif;base64,${bytes.toString('base64')}`,x:.7+(11.9-w)/2,y:2.2,w,h});
+    await addText(slide,motion.caption,.7,6.15,11.9,.45,14);
+    motionSlides.push({sceneId:original.id,slideNumber:slideCount,kind:motion.kind,frameCount:motion.frames.length,durationMs:motion.frames.length*motion.delayMs,gifSha256:createHash('sha256').update(bytes).digest('hex')});
+    continue;
+   }
    if(original.taskId){const t=publicVisualLesson(bundle).tasks.find(t=>t.id===original.taskId)!;await addText(slide,t.givens,.7,2.4,11.9,.65,21);await addText(slide,t.prompt,.7,3.1,11.9,.7,24);if(t.model)await model(slide,t.model,0,.8,4,8,2.7);if(t.check?.options.length)await addText(slide,t.check.options.join('\n'),9,4,3,2.4,21);continue;}
    const blocks=original.blocks.filter(b=>b.reveal<=reveal);const models=original.blocks.filter(b=>b.model),hasVisual=models.length>0||original.blocks.some(b=>b.type==='source');
    const texts=original.blocks.filter(b=>b.type!=='model'&&b.type!=='source');
@@ -149,7 +162,7 @@ export async function exportNativeBundle(input:NativeBundleInput){
   for(const a of activities)paragraphs.push(new Paragraph({children:[new ExternalHyperlink({link:a.url,children:[new TextRun({text:a.title,style:'Hyperlink',rightToLeft:true})]})],bidirectional:true}));
   return Packer.toBuffer(new Document({sections:[{properties:{},children:paragraphs}]}));
  }
- return {sourceHash,rendererHash:rendererManifest.rendererHash,slideCount,slideMap,slides:Buffer.from(await pptx.write({outputType:'nodebuffer'}) as Buffer),notesLocation:'slides' as const,speakerNotes,homework:await document(homeworkText,true),homeworkText,activities};
+ return {sourceHash,rendererHash:rendererManifest.rendererHash,slideCount,slideMap,slides:Buffer.from(await pptx.write({outputType:'nodebuffer'}) as Buffer),notesLocation:'slides' as const,speakerNotes,motion:{version:1 as const,slides:motionSlides},homework:await document(homeworkText,true),homeworkText,activities};
 }
 
 const running=new Map<string,Promise<NativeBundleReceipt>>();
@@ -167,6 +180,6 @@ export async function publishNativeReviewBundle(input:NativeBundleInput&{key:str
   const file=(f:CentralFile)=>({id:f.id,url:centralFileUrl(f),mimeType:f.mimeType});
   const slides=await api.nativeImport(`${key}:slides`,`${title} — מצגת`,SLIDES,folder.id,output.slides,PPTX);
   const homework=await api.nativeImport(`${key}:homework`,`${title} — תרגול לבית ללא פתרונות`,DOC,folder.id,output.homework,DOCX);
-  return {version:1 as const,state:'draft' as const,sourceHash:output.sourceHash,reviewFolderId:folder.id,slides:file(slides.file),notesLocation:'slides' as const,homework:file(homework.file),activities:output.activities,slideCount:output.slideCount};
+  return {version:1 as const,state:'draft' as const,sourceHash:output.sourceHash,reviewFolderId:folder.id,slides:file(slides.file),notesLocation:'slides' as const,homework:file(homework.file),activities:output.activities,slideCount:output.slideCount,motion:output.motion};
  })();running.set(gate,task);try{return await task;}finally{running.delete(gate);}
 }

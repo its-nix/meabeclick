@@ -69,7 +69,8 @@ preparation. Opt-in authoring accepts only the explicitly confirmed 90-minute
 introductory normal-distribution calibration for high-school three-unit 35372,
 using the verified summer 2025 question 3 and school `s` convention. It creates
 private editable teacher Slides with per-slide speaker notes and private solution
-keys inside the same deck, separate question-only homework and
+keys inside the same deck, automatically animated spread/area demonstrations
+after eligible static explanation steps, separate question-only homework and
 protected interactive review links, plus linked draft records in Sheets.
 Retry and restart preserve job identity and human edits. A prior native review
 for that learner blocks silently repeating the same introductory source.

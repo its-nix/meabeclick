@@ -261,3 +261,22 @@ PowerPoint animation import as unverified until a real native round trip and
 slideshow playback prove it. Prefer brief tutor-controlled mathematical video
 demonstrations with a useful static/PDF frame; keep prediction and independent
 practice answer-safe. Interactive sliders still use the protected web activities.
+
+
+### Mathematical animation is part of native authoring
+
+`native-learning/motion.ts` selects eligible worked single-model spread/area
+scenes; `bundle.ts` appends a dedicated motion build after their authored static
+steps. Identical mathematical plans reuse the first demonstration in the same
+lesson rather than adding duplicate loops. The motion builds contain native
+editable titles/captions, an embedded labelled GIF and their own speaker notes.
+No additional Google API is needed for this verified Drive import path.
+
+Spread has 32 frames at 180ms; area has 32 held school-bound frames at 240ms.
+Every frame uses the existing SVG mathematical renderer with fixed axes and
+current parameter/probability labels. The static frame remains available before
+the loop, and the GIF has an intentional first frame for PDF. Independent tasks,
+source questions, comparisons and homework are excluded. Unsupported models keep
+their original static representation. Export manifests and private receipts
+record scene/slide, kind, frame count, duration and GIF SHA-256; the committed
+renderer fingerprint includes the motion helper.

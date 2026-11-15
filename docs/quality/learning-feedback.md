@@ -185,3 +185,15 @@ Visual inspection also caught comparison content crossing its prompt; smaller
 comparison diagrams and safe centering fix the shared HTML layout, with header
 intersection assertions in the pilot browser check. No real bookings or learning
 scores were created for this validation. Student delivery remains owner-review gated.
+
+Production-model validation used the live ChatGPT connection with gpt-5.6-terra
+and CLI 0.149.0 in isolated temporary storage. Its raw candidate had correct keys
+but needed clearer complement wording and a worked percentage bridge. The shared
+policy was refined. A 15-string editorial child records parent/patch hashes and
+retains every model, key, ID and agenda item; it is labelled reviewed generation,
+not untouched automatic output. Independent math review cleared the child.
+The canonical private sample serves its own activities without a fake booking.
+Native Google conversion preserved all 64 presenter-note bodies. All 64 Google
+PDF pages were rendered and visually inspected, including the forward and reverse
+percentage correspondences. This remains a tutor-review sample, not evidence of
+student comprehension or the required production generation streak.

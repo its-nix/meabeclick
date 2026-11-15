@@ -3,10 +3,10 @@ import{requireAuth}from'$server/auth.ts';
 import{documentHeaders}from'$server/document-policy.ts';
 import{ensurePreviewSession}from'$server/visual-pilot.ts';
 import{renderVisualDeck}from'$server/visual-deck-render.ts';
-import{nativeBookingActivities}from'$server/native-learning/activities.ts';
+import{nativeActivitySource}from'$server/native-learning/activities.ts';
 import type{RequestHandler}from'./$types';
 export const GET:RequestHandler=event=>{
- requireAuth(event);const id=Number(event.params.bookingId),source=nativeBookingActivities(id);
+ requireAuth(event);const id=event.params.bookingId,source=nativeActivitySource(id);
  if(!source)error(404,'חומרי השיעור אינם זמינים');
  const view=event.url.searchParams.get('view')??'game',gameId=event.url.searchParams.get('game')??undefined;
  if(!['game','homework'].includes(view)||view==='game'&&!source.bundle.games.some(g=>g.id===gameId))error(404,'הפעילות לא נמצאה');

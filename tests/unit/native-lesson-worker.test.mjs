@@ -129,3 +129,7 @@ test('generation quota errors retain a safe code and do not automatically retry'
  const worker=controller({generate:async()=>{throw Object.assign(Error('PRIVATE_PROVIDER_RESPONSE'),{kind:'engine-quota'});}});worker.queue();await worker.settled();
  const failed=J.getNativeLessonJob(f.bookingId);assert.equal(failed.errorCode,'engine-quota');assert.equal(failed.retryAt,null);assert.doesNotMatch(JSON.stringify(failed),/PRIVATE_PROVIDER_RESPONSE/);
 });
+
+test('synthetic owner-review sample is validated and never requires a fake booking',async()=>{
+ const{nativeActivitySource}=await import('../../src/lib/server/native-learning/activities.ts');const source=nativeActivitySource('sample');assert.equal(source.model,'gpt-5.6-terra');assert.equal(source.bundle.durationMin,90);assert.equal(source.version.length,64);assert.equal(nativeActivitySource('../sample'),null);assert.equal(nativeActivitySource('sample<script>'),null);
+});

@@ -23,3 +23,13 @@ Every new function and interval must be defined in learner-visible content befor
 Calibration regressions: prose math uses `\(...\)`; single-dollar delimiters are rejected because the shared renderer does not support them. Introduce z before using it, with its sign and distance meaning. Do not replace a visual explanation with a full cumulative lookup dump. Include live spread and area explorations during instruction. A comparison needs common physical axes AND common tick positions to prevent crowded labels. Working with a diagram uses a side-by-side composition; inspect every reveal and printed page.
 
 The calibration must explicitly contrast a band and cumulative area with identical mean, spread and upper boundary (for example0..0.5 versus the left tail..0.5,19% versus69%). Paired diagrams or two teacher-controlled states are both suitable. A separate central68% example does not supply this contrast. Fresh independent comparisons change data and group order rather than replay the just-worked answer. Inspect live-axis label spacing at both spread extremes and working-diagram percentages at projected size.
+
+When a tutor reports difficulty converting percentages to quantities, put a visible
+worked bridge before independent assessment: identify the whole (100%), find one
+percent, scale to the requested part, and reverse the bridge for an unknown whole.
+Use labelled correspondences between percentages and pupil counts; these are not
+equal quantities. Complements add to 100%: subtraction finds an unknown complement,
+then addition checks it. Preserve a raw generated parent when an editorial review
+corrects a candidate; record the selected string fields and patch hash, and fix the
+shared authoring rules as well. A reviewed editorial child is not an untouched
+machine output and is not approval for student release.

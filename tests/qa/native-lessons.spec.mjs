@@ -90,3 +90,11 @@ test('native-lessons: saved booking activities use their own content and grading
  mutate(qa,db=>db.prepare("UPDATE bookings_v2 SET status='cancelled' WHERE id=?").run(booking.bookingId));
  expect((await qa.request(`/app/native-review-activities/${booking.bookingId}?view=homework`)).status).toBe(404);
 });
+
+test('native-lessons: canonical synthetic review sample opens without creating customer records',async({qa})=>{
+ const before=qa.row('SELECT count(*) n FROM bookings_v2').n,events=qa.row('SELECT count(*) n FROM learning_events').n;
+ const page=await qa.page('tutor');const r=await page.goto('/app/native-review-activities/sample?view=homework');expect(r.status()).toBe(200);await expect(page.locator('.task-card').first()).toBeVisible();expect(await page.locator('#deck-config').textContent()).not.toContain('presenterNotes');
+ expect(qa.row('SELECT count(*) n FROM bookings_v2').n).toBe(before);expect(qa.row('SELECT count(*) n FROM learning_events').n).toBe(events);
+ expect((await qa.request('/api/native-activities/sample',{method:'POST',cookie:'',json:{}})).status).toBe(401);
+ await qa.evidence(page,'native-reviewed-sample');
+});

@@ -27,6 +27,7 @@ export function workspaceClient(options:{config:LearningWorkspaceConfig;credenti
   if(data.id!==id||data.mimeType!==kind||data.trashed)throw Error('learning workspace file identity/type mismatch');
   if(!Array.isArray(data.owners)||!data.owners.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===config.ownerEmail.toLowerCase()))throw Error('learning workspace file owner mismatch');
   if(parent&&(!Array.isArray(data.parents)||!data.parents.includes(parent)))throw Error('learning workspace parent folder mismatch');
+  return data;
  }
  async function readSnapshot(){
   // This reader is a short-lived job/CLI object, not an indefinitely cached token singleton.
@@ -35,7 +36,14 @@ export function workspaceClient(options:{config:LearningWorkspaceConfig;credenti
   if(account.user?.emailAddress?.toLowerCase()!==config.ownerEmail.toLowerCase())throw Error('personal learning workspace OAuth owner mismatch');
   await file(config.projectFolderId,'application/vnd.google-apps.folder');
   await file(config.learningFolderId,'application/vnd.google-apps.folder',config.projectFolderId);
-  await file(config.spreadsheetId,'application/vnd.google-apps.spreadsheet',config.learningFolderId);
+  // Retired registers may be archived within the selected root. Verify every ancestor.
+  let location=await file(config.spreadsheetId,'application/vnd.google-apps.spreadsheet');
+  const visited=new Set<string>([config.spreadsheetId]);
+  for(let depth=0;!(Array.isArray(location.parents)&&location.parents.includes(config.learningFolderId));depth++){
+   const parent=location.parents?.[0];
+   if(depth>=8||location.parents?.length!==1||typeof parent!=='string'||!/^[\w-]{10,}$/.test(parent)||visited.has(parent))throw Error('learning workspace parent folder mismatch');
+   visited.add(parent);location=await file(parent,'application/vnd.google-apps.folder');
+  }
   const metadata=await get(endpoint(`https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}`,{fields:'spreadsheetId,properties(title,locale,timeZone),sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)))'}));
   if(metadata.spreadsheetId!==config.spreadsheetId||!Array.isArray(metadata.sheets))throw Error('learning register metadata is incomplete');
   if(!['Etc/UTC','UTC'].includes(metadata.properties?.timeZone))throw Error('learning register timezone must remain UTC for observation timestamps');

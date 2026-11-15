@@ -29,19 +29,19 @@ export async function writeVerifiedArchive(api:Api,id:string,views:IndexViews){
 
 export async function prepareNativeArchive(api:Api,job:ArchiveJob,inventory:LearningInventory,views:IndexViews,refs:{studentsId:string;indexId:string;learningFolderId:string}):Promise<NativeWorkspace>{
  if(job.fingerprint!==inventory.fingerprint)throw Error('source_changed');
- const workspace=await api.folder('native-workspace','Teaching workspace',refs.learningFolderId);
- const library=await api.folder('native-library','Library',workspace.id);
+ const workspace=await api.folder('native-workspace','01 שיעורים',refs.learningFolderId);
+ const library=await api.folder('native-library','02 ספריית שיעורים',workspace.id);
  const folders:Record<string,string>={};
  // The shared upload checkpoint requires sequential creation, even for folders.
  for(const [key,name,parent]of [
-  ['presentations','Presentations',library.id],['homework','Homework',library.id],['games','Interactive games',library.id],['notes','Teacher notes',library.id],
-  ['templates','Templates',workspace.id],['review','Review',workspace.id],['archive','Archive',workspace.id],
+  ['presentations','01 מצגות',library.id],['homework','02 שיעורי בית',library.id],['games','03 משחקים',library.id],['notes','04 הערות נלוות',library.id],
+  ['templates','03 תבניות',workspace.id],['review','01 לבדיקה',workspace.id],['archive','90 ארכיון',workspace.id],
  ])folders[key]=(await api.folder(`native-${key}`,name,parent)).id;
  const dated=await api.folder(`archive:${job.archiveId}`,`Website content — ${israelToday()}`,folders.archive);
  const index=await api.native(`archive-index:${job.archiveId}`,'MeaBeclick — Archived website content',SHEET,dated.id);
  await writeVerifiedArchive(api,index.file.id,views);
- const guide=await api.native('native-workspace-guide','מאה בקליק — מרחב ההוראה החדש',DOC,workspace.id,
-  `<!doctype html><html lang="he" dir="rtl"><body dir="rtl"><h1>מאה בקליק — מרחב ההוראה</h1><p>הספרייה מתחילה מחדש. החומרים הישנים נשמרו בארכיון כמקורות היסטוריים, ואינם חומרי הוראה שאושרו לשימוש חדש.</p><h2>מבנה חבילת שיעור</h2><p>מצגת ניתנת לעריכה ב־Google Slides. מסמך Google Docs נפרד להערות למורה ולפתרונות, ומסמך תרגול לבית ללא תשובות. משחקים ותרגול אינטראקטיבי שומרים על ההמחשות ועל מעקב הניסיונות באתר.</p><h2>לפני שימוש עם תלמיד/ה</h2><p>בודקים את המתמטיקה, ההסברים, המיתוג והערות המורה. טיוטה אינה חומר שאושר או שפורסם לתלמיד. שומרים על הפרדה בין חומר לתלמיד לבין פתרונות ומידע פרטי למורה.</p><h2>קישורים</h2><p><a href="${centralFileUrl(index.file)}">ארכיון מלא של המקורות</a></p><p><a href="https://docs.google.com/spreadsheets/d/${refs.indexId}/edit">תלמידים, חומרים והתקדמות</a></p><p>היצירה האוטומטית הישנה הושבתה. הפעלת יצירה חדשה מחייבת תחילה חבילת שיעור מקורית שעברה בדיקת איכות.</p></body></html>`);
+ const guide=await api.native('native-workspace-guide','00 מדריך',DOC,workspace.id,
+  `<!doctype html><html lang="he" dir="rtl"><body dir="rtl"><h1>מאה בקליק — מרחב ההוראה</h1><p>בתיקיית הוראה נמצאים 01 שיעורים ו־02 תלמידים ומעקב. בתוך שיעורים: 01 לבדיקה למועמדים הנוכחיים, 02 ספריית שיעורים, 03 תבניות ו־90 ארכיון. מתקנים משוב בקבצים הנוכחיים כשאפשר; יצירה מחדש נבדקת לפני שהמועמד הקודם עובר לארכיון. היסטוריית גרסאות שומרת עריכות באותו קובץ ולא עותקים נפרדים.</p><p>הספרייה מתחילה מחדש. החומרים הישנים נשמרו בארכיון כמקורות היסטוריים, ואינם חומרי הוראה שאושרו לשימוש חדש.</p><h2>מבנה חבילת שיעור</h2><p>מצגת Google Slides עם הערות ופתרונות פרטיים למורה בתוך השקופיות, ומסמך תרגול לבית ללא תשובות. משחקים ותרגול אינטראקטיבי שומרים על ההמחשות ועל מעקב הניסיונות באתר.</p><h2>לפני שימוש עם תלמיד/ה</h2><p>בודקים את המתמטיקה, ההסברים, המיתוג והערות המורה. טיוטה אינה חומר שאושר או שפורסם לתלמיד. שומרים על הפרדה בין חומר לתלמיד לבין פתרונות ומידע פרטי למורה.</p><h2>קישורים</h2><p><a href="${centralFileUrl(index.file)}">ארכיון מלא של המקורות</a></p><p><a href="https://docs.google.com/spreadsheets/d/${refs.indexId}/edit">תלמידים, חומרים והתקדמות</a></p><p>היצירה האוטומטית הישנה הושבתה. הפעלת יצירה חדשה מחייבת תחילה חבילת שיעור מקורית שעברה בדיקת איכות.</p></body></html>`);
  return {version:1,archiveId:job.archiveId,fingerprint:job.fingerprint,archivedAt:new Date().toISOString(),artifactCount:inventory.artifacts.length,lessonCount:job.slugs.length,
   workspaceId:workspace.id,libraryId:library.id,presentationsId:folders.presentations,homeworkId:folders.homework,gamesId:folders.games,notesId:folders.notes,templatesId:folders.templates,reviewId:folders.review,
   archiveFolderId:dated.id,archiveIndexId:index.file.id,studentsId:refs.studentsId,indexId:refs.indexId,guideId:guide.file.id};

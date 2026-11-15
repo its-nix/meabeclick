@@ -1,0 +1,17 @@
+import{test,after}from'node:test';import assert from'node:assert/strict';import{mkdtempSync,rmSync}from'node:fs';import{tmpdir}from'node:os';import{join}from'node:path';
+const root=mkdtempSync(join(tmpdir(),'native-brief-'));process.env.DB_PATH=join(root,'db.sqlite');
+const E=await import('../../src/lib/server/entities.ts');const{handle}=await import('../../src/lib/server/db.ts');
+const{preparationBriefForBooking}=await import('../../src/lib/server/native-learning/preparation-brief.ts');
+after(()=>{handle().close();rmSync(root,{recursive:true,force:true});});
+let serial=0;
+function fixture(code){const day=String(++serial).padStart(2,'0');const a=E.createAccount({name:'Synthetic',credential:code});const s=E.createStudent({code,name:'PRIVATE_NAME',accountId:a.id,credential:code});const e=E.upsertEnrollment({studentId:s.id,subject:'מתמטיקה',level:'כיתה יא · 3 יחידות',teacherId:null});const b=E.reserveBooking({studentId:s.id,enrollmentId:e.id,start:`2028-08-${day}T10:00:00Z`,end:`2028-08-${day}T11:30:00Z`,durationMin:90});return{s,e,b};}
+test('brief uses exact booking enrollment and leaves topic and readiness unknown',()=>{const f=fixture('brief-1');const brief=preparationBriefForBooking({bookingId:f.b,studentId:f.s.id});assert.equal(brief.level,'כיתה יא · 3 יחידות');assert.equal(brief.durationMin,90);assert.equal(brief.readiness,'unknown');assert.ok(brief.missing.includes('topic'));assert.doesNotMatch(JSON.stringify(brief),/PRIVATE_NAME|credential|accountId/);assert.throws(()=>preparationBriefForBooking({bookingId:f.b,studentId:f.s.id+999}),/ownership/);});
+test('foreign enrollment never supplies another student level or subject',()=>{const a=fixture('brief-2'),b=fixture('brief-3');handle().prepare('UPDATE bookings_v2 SET enrollment_id=? WHERE id=?').run(b.e.id,a.b);const brief=preparationBriefForBooking({bookingId:a.b,studentId:a.s.id});assert.equal(brief.level,null);assert.equal(brief.subject,null);assert.ok(brief.missing.includes('enrollment'));assert.deepEqual(brief.observations,[]);});
+test('replayed enqueue preserves the original preparation brief',async()=>{const{enqueueNativeLesson}=await import('../../src/lib/server/native-learning/jobs.ts');const f=fixture('brief-4');const first=enqueueNativeLesson({bookingId:f.b,studentId:f.s.id});assert.equal(first.snapshot.brief.version,1);handle().prepare("UPDATE enrollments SET level='כיתה יב · 5 יחידות' WHERE id=?").run(f.e.id);assert.deepEqual(enqueueNativeLesson({bookingId:f.b,studentId:f.s.id}).snapshot.brief,first.snapshot.brief);});
+
+test('observations are scoped to the selected enrollment and coverage is not mastery',async()=>{
+ const P=await import('../../src/lib/server/plans/store.ts');const a=fixture('brief-5'),b=fixture('brief-6');
+ const template={id:'synthetic',version:1,topics:[{key:'topic',title:'Topic',branches:[{key:'branch',title:'Branch',skills:[{key:'skill',title:'Synthetic skill'}]}]}],prerequisites:[]};
+ for(const f of[a,b]){const plan=P.createPlan({studentId:f.s.id,enrollmentId:f.e.id,template,goal:'Synthetic'});const node=P.planData(plan).nodes.find(n=>n.kind==='skill');P.addStatusEvent(plan,node.id,'with_help');P.addCoveredEvent(plan,node.id);}
+ const brief=preparationBriefForBooking({bookingId:a.b,studentId:a.s.id});assert.equal(brief.observations.length,2);assert.equal(brief.observations[0].kind,'covered');assert.equal(brief.observations[0].status,null);assert.equal(brief.observations[1].status,'with_help');assert.equal(brief.readiness,'unknown');
+});

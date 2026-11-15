@@ -45,3 +45,14 @@ Main includes PRs 119–121. Booking jobs, personal Drive sync, native export, e
 ## Integration boundaries
 
 Open PRs 104 and 106 target broad legacy generation/reporting changes and are not prerequisites for this first native draft increment. Review and port a needed behavior independently rather than merging those branches wholesale. Student assessment questionnaires, general cross-topic component reuse and automatic student release remain later increments.
+
+## Implementation ledger
+
+2026-11-15: added versioned preparation briefs to newly enqueued job snapshots.
+Exact booking/enrollment ownership is enforced; plan observations are limited to
+that enrollment and student. Coverage and status remain distinct, corrected events
+are excluded, and readiness stays unknown. Missing topic/readiness are explicit.
+Existing snapshots remain readable; enqueue replays preserve the first brief.
+24 focused brief/job/worker tests passed; independent review found no blockers.
+Generation, UI collection of missing fields, practice/source history enrichment and
+activation remain unfinished. No production switch was enabled.

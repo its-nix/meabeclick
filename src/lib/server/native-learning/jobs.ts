@@ -1,9 +1,11 @@
 import { handle } from '../db.ts';
+import {preparationBriefForBooking,type PreparationBrief} from './preparation-brief.ts';
 
 export type NativeLessonState = 'queued' | 'preparing' | 'needs-preparation' | 'review' | 'failed' | 'cancelled';
 export interface NativeLessonSnapshot {
  bookingId: number; studentId: number; enrollmentId: number | null; teacherId: number | null;
  subject: string | null; level: string | null; start: string; durationMin: number | null;
+ brief?:PreparationBrief;
 }
 export interface NativeLessonJob {
  id: number; bookingId: number; studentId: number; state: NativeLessonState;
@@ -31,7 +33,7 @@ export function enqueueNativeLesson(input: {bookingId: number; studentId: number
  const snapshot: NativeLessonSnapshot={bookingId:input.bookingId,studentId:input.studentId,
  enrollmentId:row.enrollment_id as number|null,teacherId:row.teacher_id as number|null,
  subject:row.subject as string|null ?? null,level:row.level as string|null ?? null,
- start:String(row.start),durationMin:row.duration as number|null};
+ start:String(row.start),durationMin:row.duration as number|null,brief:preparationBriefForBooking(input)};
  const now=new Date().toISOString();
  db.prepare(`INSERT INTO native_lesson_jobs (booking_id,student_id,state,snapshot,created_at,updated_at)
  VALUES (?,?,?,?,?,?) ON CONFLICT(booking_id) DO NOTHING`).run(input.bookingId,input.studentId,

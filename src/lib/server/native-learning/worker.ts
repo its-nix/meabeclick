@@ -7,7 +7,7 @@ import {authorNativeLesson,type AuthoredLesson} from './authoring.ts';
 import type {VisualLesson} from '../../learning/deck/model.ts';
 import {claimNativeLessonJob,cacheNativePublication,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,listNativeLessonJobs,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
 import {supportedNativeContext,NORMAL_REVIEW_CONTEXT} from './context.ts';
-import {nativeDraftRecords,appendNativeDraftRecords} from './register.ts';
+import {nativeDraftRecords,appendNativeDraftRecords,validateNativeDraftFiles} from './register.ts';
 
 interface Receipt {version:1;state:'draft';sourceHash:string;reviewFolderId:string;slides:{id:string;url:string;mimeType:string};notesLocation?:'slides';tutorNotes?:{id:string;url:string;mimeType:string};homework:{id:string;url:string;mimeType:string};activities:{id:string;title:string;url:string}[];provenance?:{kind:string;bundleVersion:string;sourceIds:string[];context:Record<string,unknown>;generation?:Omit<AuthoredLesson,'bundle'>}}
 interface Options {
@@ -74,6 +74,7 @@ export function nativeLearningWorker(){return worker??=nativeLessonWorker({
   const student=getStudentById(job.studentId);if(!student)throw Error('ownership');
   const api=centralDriveApi({access,checkpoint:{read:()=>null,write:()=>{}}});
   await api.prepare();
+  await validateNativeDraftFiles(api,workspace,receipt,access.config);
   const index=await api.json(`https://www.googleapis.com/drive/v3/files/${workspace.indexId}?fields=id,mimeType,owners(emailAddress),permissions(type),trashed,appProperties`);
   if(index.id!==workspace.indexId||index.mimeType!=='application/vnd.google-apps.spreadsheet'||index.trashed||index.appProperties?.meaCentralScope!==api.scope||!index.owners?.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===access.config.ownerEmail.toLowerCase()))throw Error('ownership');
   if(!Array.isArray(index.permissions)||index.permissions.some((p:{type?:string})=>!['user','group'].includes(p.type??'')))throw Error('privacy');

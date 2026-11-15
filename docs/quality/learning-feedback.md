@@ -207,3 +207,9 @@ lease before Sheets registration and retained through paused preparation. Retry
 tests cover renderer changes, wrong archive and manual resume without republishing.
 The dashboard refreshes pending drafts automatically; 12 desktop/mobile flow
 checks passed. Student delivery remains blocked.
+
+Follow-up: cached publication skips re-export, so registration independently
+revalidates the private folder chain and each native file's current MIME, owner,
+parent, scope and sharing. Deleted, moved, foreign or publicly shared files stop
+registration; saved IDs remain available for repair and retry. This preserves the
+original publisher's privacy checks across registration-only retries.

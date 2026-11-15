@@ -4,6 +4,20 @@ import type {NativeLessonJob} from './jobs.ts';
 
 interface Receipt {sourceHash:string;slides:{url:string};notesLocation?:'slides';tutorNotes?:{url:string};homework:{url:string};activities:{id:string;title:string;url:string}[];provenance?:{kind?:string;bundleVersion:string;sourceIds:string[]}}
 interface Api {scope:string;json:(url:string,init?:RequestInit)=>Promise<any>}
+/** Recheck sealed native files before linking them, including after a registration retry. */
+export async function validateNativeDraftFiles(api:Api&{privateFolder:(id:string,parent:string)=>Promise<unknown>},workspace:{workspaceId:string;reviewId:string},receipt:{reviewFolderId:string;slides:{id:string};homework:{id:string};tutorNotes?:{id:string}},config:{learningFolderId:string;ownerEmail:string}){
+ await api.privateFolder(workspace.workspaceId,config.learningFolderId);
+ await api.privateFolder(workspace.reviewId,workspace.workspaceId);
+ await api.privateFolder(receipt.reviewFolderId,workspace.reviewId);
+ const items=[{id:receipt.slides.id,type:'application/vnd.google-apps.presentation'},{id:receipt.homework.id,type:'application/vnd.google-apps.document'},...(receipt.tutorNotes?[{id:receipt.tutorNotes.id,type:'application/vnd.google-apps.document'}]:[])];
+ for(const item of items){
+  if(!/^[A-Za-z0-9_-]{10,200}$/.test(item.id))throw Error('conflict');
+  const file=await api.json(`https://www.googleapis.com/drive/v3/files/${item.id}?fields=id,mimeType,parents,owners(emailAddress),permissions(type),trashed,appProperties`);
+  if(file.id!==item.id||file.mimeType!==item.type||file.trashed||!file.parents?.includes(receipt.reviewFolderId)||file.appProperties?.meaCentralScope!==api.scope)throw Error('conflict');
+  if(!file.owners?.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===config.ownerEmail.toLowerCase()))throw Error('ownership');
+  if(!Array.isArray(file.permissions)||file.permissions.some((p:{type?:string})=>!['user','group'].includes(p.type??'')))throw Error('privacy');
+ }
+}
 const roles=['Students','Lessons','Materials','Assignments'] as const;
 export function nativeDraftRecords(job:NativeLessonJob,receipt:Receipt,studentName:string,studentLinks?:{profileUrl:string;folderUrl:string}):WorkspaceSnapshot {
  const studentId=`student-${job.studentId}`,lessonId=`booking-${job.bookingId}`,prefix=`native-${job.id}`,demo=false;

@@ -151,3 +151,12 @@ test('proposal scope is explicit bounded data, including manual generator reques
  assert.throws(()=>S.completeFeedbackReview({id:q.id,attempt:c.attempts,proposal:{...proposal,scope:'execute-code'},validation:{status:'pass'}}),/schema/);
  const blocked=S.completeFeedbackReview({id:q.id,attempt:c.attempts,proposal:{...proposal,scope:'generator-change'},validation:{status:'blocked'}});assert.equal(blocked.proposal.scope,'generator-change');assert.equal(blocked.state,'blocked');
 });
+
+
+test('dotted native comments collected by Google enter the durable review queue',async()=>{
+ const {listFeedbackComments}=await import('../../src/lib/server/learning-feedback/google.ts');
+ const native=await listFeedbackComments({async json(url){return url.includes('/replies')?{replies:[{id:'qa.reply-456',content:'Clarify this step',author:{displayName:'Tutor'}}]}:{comments:[{id:'qa.comment-123',content:'Explain the bridge',author:{displayName:'Tutor'}}]};}},'feedback-native-12345');
+ const id=file();S.ingestFeedbackComments(id,native);const run=ready(id);
+ assert.equal(run.comments[0].id,'qa.comment-123');assert.equal(run.comments[0].replies[0].id,'qa.reply-456');
+ for(const unsafe of ['.','..','../other','a/b','a?b','a%2Fb'])assert.throws(()=>S.ingestFeedbackComments(id,[{id:unsafe,content:'Bad ID'}]),/feedback_schema/);
+});

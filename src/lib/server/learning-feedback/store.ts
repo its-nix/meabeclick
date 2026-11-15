@@ -34,7 +34,7 @@ export function registerFeedbackArtifact(input:{fileId:string;title:string;mimeT
  });
 }
 function normalizeComment(c:FeedbackComment):FeedbackComment {
- const id=limited(c.id,200);if(!/^[A-Za-z0-9_-]+$/.test(id))throw Error('feedback_schema');
+ const id=limited(c.id,200);if(!/^[-\w]+(?:\.[-\w]+)*$/.test(id))throw Error('feedback_schema');
  const replies=(c.replies??[]).filter(r=>!r.agent).map(r=>({id:limited(r.id,200),content:limited(r.content,12000,false),...(r.author?{author:limited(r.author,500)}:{}),deleted:!!r.deleted})).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
  if(replies.length>500||new Set(replies.map(r=>r.id)).size!==replies.length)throw Error('feedback_schema');
  return{id,content:limited(c.content,12000,false),...(c.quotedText?{quotedText:limited(c.quotedText,12000)}:{}),...(c.location?{location:limited(c.location,4000)}:{}),...(c.author?{author:limited(c.author,500)}:{}),resolved:!!c.resolved,deleted:!!c.deleted,replies};

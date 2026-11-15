@@ -9,7 +9,7 @@ const {handle}=await import('../../src/lib/server/db.ts');
 const J=await import('../../src/lib/server/native-learning/jobs.ts');
 const C=await import('../../src/lib/server/native-learning/context.ts');
 const {nativeLessonWorker}=await import('../../src/lib/server/native-learning/worker.ts');
-const {nativeDraftRecords,appendNativeDraftRecords}=await import('../../src/lib/server/native-learning/register.ts');
+const {nativeDraftRecords,appendNativeDraftRecords,validateNativeDraftFiles}=await import('../../src/lib/server/native-learning/register.ts');
 let serial=0;
 function booking({bind=true,student=null}={}){
  serial++;
@@ -149,4 +149,13 @@ test('temporary disabled authoring retains sealed publication through manual res
  const paused=J.getNativeLessonJob(f.bookingId);assert.equal(paused.state,'needs-preparation');assert.ok(paused.bundle.pendingPublication);
  C.bindNativeReviewContext({bookingId:f.bookingId,studentId:f.student.id,context:C.NORMAL_REVIEW_CONTEXT});
  const resumed=controller({publish:async()=>{throw Error('must reuse publication');}});resumed.queue();await resumed.settled();assert.equal(J.getNativeLessonJob(f.bookingId).state,'review');
+});
+
+test('sealed file registration revalidates privacy, location and ownership before linking',async()=>{
+ let change={};let folders=0;
+ const api={scope:'expected',async privateFolder(){folders++;},async json(url){const id=url.match(/files\/([^?]+)/)[1];return {id,mimeType:id===receipt.slides.id?'application/vnd.google-apps.presentation':'application/vnd.google-apps.document',parents:[receipt.reviewFolderId],owners:[{emailAddress:'owner@example.test'}],permissions:[{type:'user'}],appProperties:{meaCentralScope:'expected'},...change};}};
+ const run=()=>validateNativeDraftFiles(api,{workspaceId:'workspace123',reviewId:'review12345'},receipt,{learningFolderId:'root123456',ownerEmail:'owner@example.test'});
+ await run();assert.equal(folders,3);
+ for(const [mutation,reason] of [[{permissions:[{type:'anyone'}]},'privacy'],[{permissions:undefined},'privacy'],[{owners:[{emailAddress:'other@example.test'}]},'ownership'],[{trashed:true},'conflict'],[{parents:['elsewhere']},'conflict'],[{appProperties:{meaCentralScope:'foreign'}},'conflict']]){change=mutation;await assert.rejects(run(),new RegExp(reason));}
+ change={};api.privateFolder=async()=>{throw Error('conflict');};await assert.rejects(run(),/conflict/);
 });

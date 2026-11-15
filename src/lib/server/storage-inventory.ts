@@ -165,6 +165,12 @@ export const STORAGE: Record<string, TableFact> = {
         + 'Raw events are deleted after 365 days.',
   },
 
+  learning_feedback_artifacts: {status: 'live', note: 'Registered private native review files and their collection state; never student release.'},
+  learning_feedback_comments: {status: 'live', note: 'Durable comment fingerprints and human reply snapshots used to fence stale reviews.'},
+  learning_feedback_runs: {status: 'live', note: 'Leased feedback proposals, exact-version human acceptance and independent verification audit.'},
+  learning_feedback_policies: {status: 'live', note: 'Separately accepted future generation guidance with an immutable revocation audit.'},
+  learning_feedback_notifications: {status: 'live', note: 'Idempotent Google thread reply outbox; notification retries never rerun generation.'},
+
   // ── Bookkeeping ───────────────────────────────────────────────────
   schema_version: { status: 'live', note: 'Which migrations have run.' },
 };

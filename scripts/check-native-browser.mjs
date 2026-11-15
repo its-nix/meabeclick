@@ -1,0 +1,4 @@
+/** Image-build smoke: no account, network, student data or persistent browser profile. */
+import {chromium} from 'playwright-core';
+const browser=await chromium.launch({executablePath:process.env.CHROME_BIN??'/usr/bin/chromium',headless:true,env:{PATH:process.env.PATH??'/usr/bin:/bin',HOME:process.env.HOME??'/tmp',TMPDIR:'/tmp',LANG:'C.UTF-8'},args:['--disable-background-networking','--disable-component-update','--disable-default-apps','--disable-sync','--no-first-run']});
+try{const page=await browser.newPage();await page.route('**/*',route=>route.abort());await page.setContent('<html dir="rtl"><body style="font:24px Heebo,sans-serif"><p>בדיקת תצוגה · 25%</p></body></html>');const bytes=await page.screenshot();if(bytes.length<500)throw Error('Native browser did not render');console.log(JSON.stringify({nativeBrowser:await browser.version(),rendered:true}));}finally{await browser.close();}

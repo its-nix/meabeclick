@@ -39,7 +39,7 @@ RUN npm ci --omit=dev
 # invisible while the engine was Claude Code, which is Node-based and used
 # Node's bundled roots.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates fontconfig \
+ && apt-get install -y --no-install-recommends ca-certificates fontconfig poppler-utils chromium \
  && rm -rf /var/lib/apt/lists/*
 
 # Native diagram SVG labels use the same Heebo font as the site, including Hebrew.
@@ -67,7 +67,11 @@ COPY --chown=node:node static ./static
 # any `docker compose exec` agree on one location.
 ENV NODE_ENV=production
 ENV CODEX_HOME=/app/.codex
+ENV CHROME_BIN=/usr/bin/chromium
 
+COPY --chown=node:node scripts/check-native-browser.mjs ./scripts/check-native-browser.mjs
 USER node
+# Prove the production browser can launch as the actual runtime user before publishing.
+RUN node scripts/check-native-browser.mjs
 EXPOSE 3000
 CMD ["node", "build/index.js"]

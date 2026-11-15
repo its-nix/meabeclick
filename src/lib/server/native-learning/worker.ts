@@ -3,7 +3,8 @@ import {nativeWorkspace,type NativeWorkspace} from '../learning-archive.ts';
 import {learningService} from '../learning-google.ts';
 import {centralDriveApi,centralFileUrl,type CentralAccess} from '../central-drive/api.ts';
 import {getStudentById,enrollmentsForStudent} from '../entities.ts';
-import {authorNativeLesson,type AuthoredLesson} from './authoring.ts';
+import {type AuthoredLesson} from './authoring.ts';
+import {prepareReviewedNativeLesson} from './preparation-review.ts';
 import type {VisualLesson} from '../../learning/deck/model.ts';
 import {claimNativeLessonJob,cacheNativePublication,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,listNativeLessonJobs,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
 import {supportedNativeContext,NORMAL_REVIEW_CONTEXT} from './context.ts';
@@ -47,7 +48,7 @@ export function nativeLessonWorker(options:Options){
    const pending=(job.bundle as {pendingPublication?:{receipt:Receipt;sourceVersion:string;archiveId:string}}|null)?.pendingPublication;
    if(pending&&(pending.sourceVersion!==source.version||pending.archiveId!==workspace.archiveId))throw Error('conflict');
    const published=pending?.receipt??await options.publish({bundle:source.bundle,key,activityBaseUrl:options.generate?`${options.activityBaseUrl()}/${job.bookingId}`:options.activityBaseUrl()},{access,workspace});
-   const receipt={...published,provenance:{kind:options.generate?'fresh-booking-generation':'tutor-selected-calibration',bundleVersion:source.version,sourceIds:[NORMAL_REVIEW_CONTEXT.sourceId],context:{...NORMAL_REVIEW_CONTEXT,readiness:job.snapshot.brief?.readiness==='tutor-reported'?'tutor-reported':NORMAL_REVIEW_CONTEXT.readiness},...(options.generate?{generation:{version:source.version,model:(source as AuthoredLesson).model,rulesHash:(source as AuthoredLesson).rulesHash,contextHash:(source as AuthoredLesson).contextHash,cliVersion:(source as AuthoredLesson).cliVersion,authoringFingerprint:(source as AuthoredLesson).authoringFingerprint,sources:(source as AuthoredLesson).sources}}:{})}};
+   const receipt={...published,provenance:{kind:options.generate?'fresh-booking-generation':'tutor-selected-calibration',bundleVersion:source.version,sourceIds:[NORMAL_REVIEW_CONTEXT.sourceId],context:{...NORMAL_REVIEW_CONTEXT,readiness:job.snapshot.brief?.readiness==='tutor-reported'?'tutor-reported':NORMAL_REVIEW_CONTEXT.readiness},...(options.generate?{generation:{version:source.version,model:(source as AuthoredLesson).model,rulesHash:(source as AuthoredLesson).rulesHash,contextHash:(source as AuthoredLesson).contextHash,cliVersion:(source as AuthoredLesson).cliVersion,authoringFingerprint:(source as AuthoredLesson).authoringFingerprint,sources:(source as AuthoredLesson).sources,feedbackPolicyHash:(source as AuthoredLesson).feedbackPolicyHash,validation:(source as AuthoredLesson).validation}}:{})}};
    access.assertCurrent();
    if(!pending&&!cacheNativePublication({bookingId:job.bookingId,attempt:job.attempts,publication:{receipt,sourceVersion:source.version,archiveId:workspace.archiveId}}))throw Error('paused');
    await options.register(access,workspace,job,receipt);
@@ -55,7 +56,7 @@ export function nativeLessonWorker(options:Options){
    finishNativeLessonJob({bookingId:job.bookingId,attempt:job.attempts,state:'review',bundle:{...receipt,studentDelivery:'blocked-owner-review-required'}});
   }catch(e){
    const code=e instanceof Error?(typeof (e as Error&{kind?:unknown}).kind==='string'?String((e as Error&{kind:string}).kind):e.message):'';
-   const safe=['authorization','permissions','ownership','privacy','conflict','api_setup','quota','disconnected','disabled','paused','source_limit','native_register_schema','engine-quota','engine-auth','engine-missing','engine-timeout','bad-output','native_authoring_invalid'].includes(code)?code:'native_preparation_failed';
+   const safe=['authorization','permissions','ownership','privacy','conflict','api_setup','quota','disconnected','disabled','paused','source_limit','native_register_schema','engine-quota','engine-auth','engine-missing','engine-timeout','bad-output','native_authoring_invalid','engine-failed','native_review_revise','native_review_blocked','native_review_invalid','native_review_repair_limit','native_review_failed','native_review_evidence','native_review_input','native_authoring_locked','native_feedback_policy_limit'].includes(code)||/^native_player_[a-z_]+$/.test(code)||code==='native_text_overflow'?code:'native_preparation_failed';
    failNativeLessonJob({bookingId:job.bookingId,attempt:job.attempts,code:safe,retryable:['quota','native_preparation_failed','paused'].includes(safe)});
   }
  }
@@ -67,7 +68,7 @@ export function nativeLessonWorker(options:Options){
 }
 let worker:ReturnType<typeof nativeLessonWorker>|undefined;
 export function nativeLearningWorker(){return worker??=nativeLessonWorker({
- enabled:()=>process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',workspace:nativeWorkspace,access:()=>learningService().syncAccess(),source:()=>null,generate:authorNativeLesson,
+ enabled:()=>process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',workspace:nativeWorkspace,access:()=>learningService().syncAccess(),source:()=>null,generate:prepareReviewedNativeLesson,
  activityBaseUrl:()=>new URL('/app/native-review-activities',process.env.SITE_URL).href,
  async publish(input,dependencies){const{publishNativeReviewBundle}=await import('./bundle.ts');return publishNativeReviewBundle(input,dependencies);},
  async register(access,workspace,job,receipt){

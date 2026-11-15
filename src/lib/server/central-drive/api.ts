@@ -30,7 +30,7 @@ export function centralDriveApi(options:{access:CentralAccess;fetch?:typeof fetc
  }
  async function request(url:string,init:RequestInit={},allowed:number[]=[]):Promise<Response>{
   let target:URL;try{target=new URL(url);}catch{fail('google_response');}
-  if(target.username||target.password||!['https://www.googleapis.com','https://sheets.googleapis.com'].includes(target.origin)||target.origin==='https://www.googleapis.com'&&!/^\/(drive\/v3\/|upload\/drive\/v3\/files)/.test(target.pathname)||target.origin==='https://sheets.googleapis.com'&&!target.pathname.startsWith('/v4/spreadsheets/'))fail('google_response');
+  if(target.username||target.password||!['https://www.googleapis.com','https://sheets.googleapis.com','https://slides.googleapis.com','https://docs.googleapis.com'].includes(target.origin)||target.origin==='https://www.googleapis.com'&&!/^\/(drive\/v3\/|upload\/drive\/v3\/files)/.test(target.pathname)||target.origin==='https://sheets.googleapis.com'&&!target.pathname.startsWith('/v4/spreadsheets/')||target.origin==='https://slides.googleapis.com'&&!/^\/v1\/presentations\/[\w-]+(?:$|\/|:)/.test(target.pathname)||target.origin==='https://docs.googleapis.com'&&!/^\/v1\/documents\/[\w-]+(?:$|\/|:)/.test(target.pathname))fail('google_response');
   access.assertCurrent();
   if(!token||token.until<Date.now()){
    try{const value=await accessToken(access.credentials,(input,body)=>{access.assertCurrent();return fetchImpl(input,{...body,redirect:'manual',signal:AbortSignal.timeout(20000)});});if(typeof value!=='string'||!value||value.length>8192)fail('authorization');token={value,until:Date.now()+45*60*1000};}

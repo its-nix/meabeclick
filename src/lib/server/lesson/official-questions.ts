@@ -12,6 +12,8 @@ export interface OfficialQuestion {
  answer:string;
  /** Multi-part visual authoring has its own contract; the legacy numeric generator cannot solve this record. */
  visualOnly?:boolean;answers?:Record<string,string>;
+ /** Reading panels in the checked crop's pixel coordinates, preserving complete question content. */
+ nativeReadingPanels?:Array<{label:string;crop:[number,number,number,number]}>;
 }
 // Standalone adaptation of one short subpart; the full paper is linked, not republished.
 // Checked against rendered page 3, not its scrambled PDF text layer.
@@ -28,6 +30,7 @@ const CATALOGUE:ReadonlyArray<OfficialQuestion>=[{
   verifiedBy:'codex-rendered-page-and-symbolic-check',date:'2026-11-09'
  }
 },{
+ nativeReadingPanels:[{label:'הנתונים וסעיף א',crop:[0,0,1175,305]},{label:'התרשים להשלמת סעיף א',crop:[0,650,1175,393]},{label:'סעיפים ב–ד',crop:[0,305,1175,345]}],
  id:'moe-2025a-35372-3',authority:'moe',url:'https://meyda.education.gov.il/sheeloney_bagrut/2025/6/HEB/35372.pdf',year:2025,session:'קיץ',questionnaire:'35372',programme:'math-3u',track:'3',grades:['כיתה יא','כיתה יב'],topics:['התפלגות נורמלית'],page:8,question:'3',subparts:'א–ד',pageSize:[623.6220092773438,870.2360229492188],crop:[78,151,470,417],documentSha256:'11823e215717c0e9f572aace6ca4bb6f9db19bd4ed8ca8995b2541413cab81f8',
  transcript:'בבית ספר מסוים נערך מבחן במתמטיקה. הציונים במבחן מתפלגים נורמלית וסטיית התקן היא 8. נתון כי הציון של 93% מן התלמידים שנבחנו במתמטיקה נמוך מ־84.\nא(1) מצאו את ממוצע הציונים במבחן במתמטיקה. א(2) השלימו במלבנים הריקים בגרף את הציונים במבחן.\nהתלמידים שהציון שלהם גבוה מ־80 התקבלו ללימודי העשרה במתמטיקה. ב. מהו אחוז התלמידים שהתקבלו ללימודי ההעשרה?\nנתון כי הציון של 32 תלמידים גבוה מ־80. ג. על פי גרף ההתפלגות הנורמלית, כמה תלמידים נבחנו במתמטיקה?\nעמית נבחן במתמטיקה. ציון התקן שלו במבחן הוא 1.75. ד. מהו הציון של עמית במבחן?',
  accessibleText:'תרשים התפלגות נורמלית בית־ספרי, עם 11 מלבנים ריקים על הציר. אחוזי הרצועות ממרכז העקומה לכל צד: 19, 15, 9, 5, 1.5, 0.5. התרשים המקורי מופיע בתמונת השאלה.',kind:'official',use:'excerpt',answer:'72',visualOnly:true,answers:{a1:'72',a2:'52,56,60,64,68,72,76,80,84,88,92',b:'16',c:'200',d:'86'},verification:{source:'Official page8 rendered and compared with the reference; complete question and diagram crop excludes blank answer grid.',math:'School diagram: 93%=50+19+15+9 identifies +1.5s; mean84-1.5*8=72. Half-step4 gives axis52..92. Above80 is16%;32/.16=200.72+1.75*8=86.',verifiedBy:'rendered-original-and-independent-exact-arithmetic',date:'2026-11-10'}

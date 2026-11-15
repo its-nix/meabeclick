@@ -62,6 +62,8 @@ if (!dev) {
   queueCentralSync();
   const {startNativeLessonWorker}=await import('$server/native-learning/worker.ts');
   startNativeLessonWorker();
+  const {startLearningFeedbackWorker}=await import('$server/learning-feedback/worker.ts');
+  startLearningFeedbackWorker();
 }
 
 const { PERMISSIONS_POLICY } = await import('$server/document-policy.ts');

@@ -1033,7 +1033,7 @@
       <h2>הכנת שיעורים</h2>
       <ul>
         {#each pageData.nativePreparations as preparation (preparation.bookingId)}
-          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.reason}<p>{preparation.reason}</p>{/if}{#if preparation.error}<p>{preparation.error}</p>{/if}
+          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.reason}<p>{preparation.reason}</p>{/if}{#if preparation.error}<p>{preparation.error}</p>{/if}{#if preparation.validationFindings?.length}<details><summary>מה צריך לתקן בטיוטה?</summary><ul>{#each preparation.validationFindings as finding}<li><p>{finding.issue}</p><p>{finding.requestedChange}</p></li>{/each}</ul></details>{/if}
             {#if preparation.canBind && pageData.nativeAuthoringEnabled}
               <details><summary>הכנת שיעור מותאם לבדיקה</summary>
                 <p>מסלול נתמך בשלב זה: התפלגות נורמלית, תיכון, 3 יחידות, שאלון <bdi>35372</bdi>, 90 דקות, סימון בית־ספרי <bdi>s</bdi>. המקור המודרך הוא קיץ 2025 שאלה 3. ניצור תוכן חדש לפי המטרה ותיאור הידע הקודם. יש לבדוק שהשאלה לא נלמדה כבר.</p>
@@ -1061,7 +1061,7 @@
     {/snippet}
   </TutorPageHeader>
   {#if pageData.nativeWorkspace}
-    <aside class="workspace-notice" role="status"><strong>מרחב ההוראה עבר ל־Google Drive</strong><p>החומרים הקודמים נשמרו בארכיון. עד לאישור היצירה החדשה, מכינים את השיעורים במרחב ההוראה.</p><a class="workspace-button" href="/app/library">פתיחת מרחב ההוראה</a></aside>
+    <aside class="workspace-notice" role="status"><strong>מרחב ההוראה עבר ל־Google Drive</strong><p>החומרים הקודמים נשמרו בארכיון. עד לאישור היצירה החדשה, מכינים את השיעורים במרחב ההוראה.</p><a class="workspace-button" href="/app/library">פתיחת מרחב ההוראה</a>{#if pageData.learningFeedbackEnabled}<a class="workspace-button" href={`https://docs.google.com/spreadsheets/d/${pageData.nativeWorkspace.indexId}/edit`} target="_blank" rel="noopener">משוב ובדיקת חומרים</a>{/if}</aside>
   {:else}<EngineNotice alert={pageData.engineAlert} />{/if}
 
   {#if calendarFailures.length}

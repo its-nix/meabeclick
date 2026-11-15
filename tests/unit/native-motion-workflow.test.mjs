@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import JSZip from 'jszip';
 import sharp from 'sharp';
+import {officialQuestion} from '../../src/lib/server/lesson/official-questions.ts';
 import {getPilot} from '../../src/lib/server/visual-pilot.ts';
 import {exportNativeBundle} from '../../src/lib/server/native-learning/bundle.ts';
 
@@ -11,7 +12,7 @@ test('the complete native lesson includes staged mathematical motion, aligned no
  const out=await exportNativeBundle({bundle,activityBaseUrl:'https://meabeclick.com/app/native-review-activities'});
  assert.equal(out.motion?.slides.length,2,'the full workflow must include both eligible explanation animations');
  assert.deepEqual(out.motion.slides.map(s=>s.kind),['spread','area']);
- const staticCount=bundle.slides.reduce((n,s)=>n+Math.max(0,...s.blocks.map(b=>b.reveal))+Math.max(1,...s.blocks.map(b=>b.model?.states.length??1)),0);
+ const staticCount=bundle.slides.reduce((n,s)=>{const source=s.blocks.find(b=>b.type==='source'&&b.sourceId);const panels=source?officialQuestion(source.sourceId)?.nativeReadingPanels?.length??0:0;return n+Math.max(panels,Math.max(0,...s.blocks.map(b=>b.reveal))+Math.max(1,...s.blocks.map(b=>b.model?.states.length??1)));},0);
  assert.equal(out.slideCount,staticCount+2);assert.equal(out.speakerNotes.length,out.slideCount);
  const pptx=await JSZip.loadAsync(out.slides),gifs=Object.values(pptx.files).filter(f=>/^ppt\/media\/.*\.gif$/.test(f.name));assert.equal(gifs.length,2);
  const hashes=new Map();for(const file of gifs){const bytes=await file.async('nodebuffer'),meta=await sharp(bytes,{animated:true}).metadata();assert.ok(meta.pages>1);assert.equal(meta.loop,0);hashes.set(createHash('sha256').update(bytes).digest('hex'),meta);}

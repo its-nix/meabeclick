@@ -292,7 +292,7 @@ jobs:
           # local repo. An empty answer (API hiccup) falls through to the
           # deploy — skipping on an unknown is how you skip a real one.
           tip=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha 2>/dev/null || true)
-          if [ -n "$tip" ] && [ "$tip" != "${{ github.sha }}" ]; then
+          if [[ "$tip" =~ ^[0-9a-f]{40}$ ]] && [ "$tip" != "${{ github.sha }}" ]; then
             echo "::notice::Superseded — main is now $tip, this run is for ${{ github.sha }}."
             echo "::notice::Skipping; the run for $tip deploys both."
             exit 0

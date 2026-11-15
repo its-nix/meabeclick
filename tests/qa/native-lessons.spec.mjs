@@ -105,3 +105,15 @@ test('native-lessons: preparation progress refreshes automatically when a draft 
  const url='https://docs.google.com/presentation/d/synthetic-ready/edit';mutate(qa,db=>db.prepare("UPDATE native_lesson_jobs SET state='review',lease_until=NULL,bundle=? WHERE booking_id=?").run(JSON.stringify({slides:{url},studentDelivery:'blocked-owner-review-required'}),b.bookingId));
  await page.clock.fastForward(16000);await expect(panel.getByRole('link',{name:'מצגת והערות למורה',exact:true})).toHaveAttribute('href',url);
 });
+
+test('native-lessons: feedback queue and controls are tutor-only and disabled by default',async({qa})=>{
+ for(const role of ['anonymous','parent','student']){const cookie=role==='anonymous'?'':qa.cookies[role];for(const method of ['GET','POST']){const response=await qa.request('/api/learning-feedback',{method,cookie,...(method==='POST'?{json:{action:'tick'}}:{})});expect(response.status).toBe(401);}}
+ const response=await qa.request('/api/learning-feedback');expect(response.status).toBe(200);const body=await response.json();expect(body.enabled).toBe(false);expect(body.artifacts).toEqual([]);expect((await qa.request('/api/learning-feedback',{method:'POST',json:{action:'accept',validation:{status:'pass'}}})).status).toBe(400);
+});
+
+test.describe('feedback discovery',()=>{
+ test.use({learningFeedback:true});
+ test('native-lessons: enabled feedback links the existing teaching index on phone and desktop',async({qa})=>{
+  mutate(qa,db=>seedRetired(db));const page=await qa.page('tutor');await page.goto('/app/dashboard');const link=page.getByRole('link',{name:'משוב ובדיקת חומרים',exact:true});await expect(link).toBeVisible();await expect(link).toHaveAttribute('href','https://docs.google.com/spreadsheets/d/sourceindex123/edit');expect((await(await qa.request('/api/learning-feedback')).json()).enabled).toBe(true);await qa.evidence(page,'native-feedback-index-link');
+ });
+});

@@ -253,3 +253,9 @@ test('the documented forced command satisfies Compose\'s APP_TAG contract', () =
   assert.match(forcedCommand, /docker compose pull app && docker compose up -d --no-build$/,
     'the same exported APP_TAG must select both the pulled and started image');
 });
+
+test('a GitHub API error cannot masquerade as a superseding commit',()=>{
+ const guard=workflow.split('tip=$(gh api')[1]?.split('attempt=0')[0]??'';
+ assert.match(guard,/\[\[ "\$tip" =~ \^\[0-9a-f\]\{40\}\$ \]\]/);
+ for(const tip of ['', '{"message":"Server Error"}', 'null'])assert.equal(/^[0-9a-f]{40}$/.test(tip),false);
+});

@@ -24,7 +24,7 @@ The owner could not select the Learning folder in Google's authorization picker.
 
 The owner clarified that central storage must be authorized once from the tutor dashboard and keep syncing all existing/future learning content automatically. A read-only nine-resource setup did not satisfy that workflow. The revised connection selects one Learning folder, creates an isolated Website sync subtree, backfills immutable source snapshots, creates editable student Docs and maintains a native three-view index. Shared dashboard controls and a five-minute worker handle retries and pauses; activation latches off legacy business learning transfers. Customer lessons/versions/links and teacher Drive edits are preserved. See `google-learning-workspace.md` and the central-sync design/plan. Synthetic source, interruption, privacy, managed-tab, policy and browser checks exercise this contract; actual owner consent/backfill remain an external acceptance gate.
 
-Give feedback in conversation; no new UI or form is needed. A useful message is: “Example 04, stage 2: the jump from 15% to 0.15 is confusing; show why we divide by 100.” Case/stage details help but are optional.
+Leave feedback in native Google comments and use the existing teaching Sheet to submit a batch and accept verified changes. Conversation remains an optional supplement; see [the feedback loop](learning-feedback-loop.md). A useful message is: “Example 04, stage 2: the jump from 15% to 0.15 is confusing; show why we divide by 100.” Case/stage details help but are optional.
 
 The reusable workflow is [meabeclick-learning-iteration](../../skills/meabeclick-learning-iteration/SKILL.md). Keep entries sanitized: this repository is public.
 
@@ -213,3 +213,40 @@ revalidates the private folder chain and each native file's current MIME, owner,
 parent, scope and sharing. Deleted, moved, foreign or publicly shared files stop
 registration; saved IDs remain available for repair and retry. This preserves the
 original publisher's privacy checks across registration-only retries.
+
+## 2026-11-15 — Native comments and a fresh same-model reviewer
+
+Human comments now have a durable batch/proposal/acceptance loop in the existing
+teaching index. Exact review-attempt tokens prevent stale Sheet approvals. Google
+text edits preserve IDs and notes, bind native revisions and get another fresh
+review of actual Google output after application. Changed comments or native text
+invalidate stale work; failed final reports remain visible instead of showing an
+earlier proposal pass. Reply delivery has a separate outbox and cannot downgrade
+a verified edit or resolve newly changed human feedback. Global guidance requires
+separate approval and has per-rule revocation/provenance. Structural/code requests
+remain explicitly blocked implementation work, not pretend prompt-only fixes.
+
+Fresh generation now runs a separate ephemeral reviewer session using the same
+model, with no creator conversation or self-rating. It checks render evidence and
+canonical maths, allows one bounded creator repair, and blocks unsupported passes.
+Renderer/policy upgrades invalidate unpublished visual approvals; sealed publication
+retries keep their exact old files and matching original review.
+
+Real production-model pressure check (isolated storage, no customer booking) used
+gpt-5.6-terra and four captured preview images. The fresh reviewer rejected an80%
+claim where the diagram showed38%, and independently flagged an answer-revealing
+practice state in the synthetic fixture. This is reviewer behavior evidence, not
+a production generation streak or proof of student learning. Live Google comment
+updates still require enabling Docs/Slides APIs in the site Cloud project.
+
+The real fresh reviewer then checked the current full example and correctly asked
+for a larger official-question excerpt plus actual student-player evidence. The
+shared native exporter now presents the complete original question in three
+legible reading panels. Real browser capture found clipped class-task buttons;
+interactive task slides now grow with their content. The canonical capture passed
+150desktop/mobile states across questions, wrong answers, hints, solutions, games
+and controls, with no external requests or customer writes. Automated preview
+grading is isolated from human preview sessions. With65native slide previews and
+25student-player contact pages (36images total), the same production model in a
+fresh session returned PASS with zero findings. This is still an isolated teaching
+example, not a real-student reliability streak or owner teaching approval.

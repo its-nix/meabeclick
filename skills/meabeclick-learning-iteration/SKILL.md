@@ -58,3 +58,22 @@ The shared authoring policy is `src/lib/learning/deck/rules.ts`, consumed by `vi
 For generation changes, use the common production policy in `src/lib/learning/teaching-rules.ts` and the relevant guide: [presentations](references/presentation.md), [games](references/games.md), [homework](references/homework.md), [mathematics and sources](references/mathematics.md). These are one teaching contract. Keep runtime instructions aligned with the guides; a local skill install alone does not change production. Preserve v1 compatibility and require owner review of candidate examples before promoting v2.
 
 For bounded wording/notation feedback on an otherwise checked visual bundle, use `generate-visual-pilot.mjs --revise-from <sealed-parent> --feedback-file <sanitized-text> --field <JSON-pointer> ... --out <new-directory> --model <verified-account-model>`. Supply `--parent-ref <original-source-commit>` when the parent predates recorded Git revisions. The command verifies the historical source fingerprint, asks for replacements only at selected string leaves, preserves all other content/keys/models, validates the entire child and records parent/feedback/patch hashes. It never overwrites the parent or customer material. Package the child normally and verify the requested change plus screen/print output. Structural, grading or model changes use a full generation and appropriate regressions. This editorial path does not implement the deferred readiness/reuse engine.
+
+## Native feedback and independent review
+
+Google comments on registered private Slides/Docs are the primary review channel;
+conversation remains an optional supplement. The existing teaching index exposes
+Learning Reviews and Learning Feedback. Ready batches comments; token-bound Accept
+approves one exact proposal. Future-guidance approval and revocation are separate.
+Use [the independent reviewer skill](../meabeclick-learning-reviewer/SKILL.md) for a
+fresh same-model review without the creator's conversation or rationale. Runtime
+uses native-learning/validation.ts, not skill text alone. Feedback orchestration is
+learning-feedback/worker.ts; comments, approvals and reports are durable and scoped.
+
+Automated current-file edits are bounded wording corrections with native revision
+guards and post-apply image review. Diagrams, layout and code requests remain
+actionable generator-change items; never mark them fixed because a prompt rule was
+stored. Sheet feedback can propose future guidance but cannot alter student data.
+A failed independent post-apply check must retain its actual findings and leave the
+thread open. Agent reply failures retry delivery, never redo generation or downgrade
+a verified edit. Human replies after acceptance must not be silently resolved.

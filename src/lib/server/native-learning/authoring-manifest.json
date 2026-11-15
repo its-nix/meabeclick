@@ -2,14 +2,17 @@
   "version": 1,
   "files": {
     "src/lib/learning/deck/model.ts": "8b75b2f60a1ee7137b0f2502f95da32e710df4269d2af963ef961f11dfd0f961",
+    "src/lib/learning/deck/review-rules.ts": "f5b65516fd9c5d60688e69f8610b9654b4fc1dbb82d06a7d1ec1875b884c6660",
     "src/lib/learning/deck/rules.ts": "b695bea6e5d390baddc630414c545fef639aefdcca9e255ee21d3f983e910734",
     "src/lib/learning/deck/schema.ts": "2d47d776536a5403fdc8bb9520095afe65710903d8223496248687732a75a9ab",
     "src/lib/server/lesson/prompt.ts": "1b876cda3f21139d64426e39df92f9b711af534f444eacc45da9e3faae9dbfe3",
     "src/lib/server/lesson/structured-output.ts": "288b1f716e7cca075fe0509306ce178b9afa6f5a136a80fdeb14e01ff8a869f5",
     "src/lib/server/lesson/visual-generation.ts": "fd29d36b29bcd7950776481b8a6c8af5935ff13bec140cf8dc8252bbe08cdee2",
-    "src/lib/server/native-learning/authoring.ts": "6ed60449916ac672f116e8228f401f2a6b5efe3077b2648df255d01f22cf9d84",
+    "src/lib/server/native-learning/authoring.ts": "06f5d83a5b471b3b621b9946f8b3e92291c5fc8617ddfcaffc189195f0f16dc8",
     "src/lib/server/native-learning/context.ts": "2da1ba094d34b01263a00d05db2c58ed30f4814115763b2daaa240884f98f919",
-    "src/lib/server/native-learning/preparation-brief.ts": "d830b69ae2426aa44013f71c036b9c2e10a0098957e7529088f52a19d62f8efc"
+    "src/lib/server/native-learning/preparation-brief.ts": "d830b69ae2426aa44013f71c036b9c2e10a0098957e7529088f52a19d62f8efc",
+    "src/lib/server/native-learning/preparation-review.ts": "a728f908efd9414cb85c08476d650d9e2019d4220ee4c7dcd27ba3fe5c4a2c45",
+    "src/lib/server/native-learning/validation.ts": "24c3e0a89db7696bf56cabd3970221fb8966f9d119dd95a80fd06e25fa2a56d8"
   },
-  "fingerprint": "2b1818dd0aff45ae431ed5cf0e2785cabab40443c0351409e350bfdda1746fc1"
+  "fingerprint": "c98487caa8d55f41054770f724da684eb5470ecbdd3cc3a0dc579a05691cb9cb"
 }

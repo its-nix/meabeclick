@@ -253,3 +253,18 @@ test('the documented forced command satisfies Compose\'s APP_TAG contract', () =
   assert.match(forcedCommand, /docker compose pull app && docker compose up -d --no-build$/,
     'the same exported APP_TAG must select both the pulled and started image');
 });
+
+test('a GitHub API error cannot masquerade as a superseding commit',()=>{
+ const guard=workflow.split('tip=$(gh api')[1]?.split('attempt=0')[0]??'';
+ assert.match(guard,/\[\[ "\$tip" =~ \^\[0-9a-f\]\{40\}\$ \]\]/);
+ for(const tip of ['', '{"message":"Server Error"}', 'null'])assert.equal(/^[0-9a-f]{40}$/.test(tip),false);
+});
+
+
+test('the production browser smoke script is included in the Docker build context',()=>{
+ const ignore=readFileSync(join(root,'.dockerignore'),'utf8');
+ assert.match(ignore,/^!scripts\/check-native-browser\.mjs$/m);
+ const docker=readFileSync(join(root,'Dockerfile'),'utf8');
+ assert.match(docker,/COPY --chown=node:node scripts\/check-native-browser\.mjs/);
+ assert.match(docker,/USER node[\s\S]*RUN node scripts\/check-native-browser\.mjs/);
+});

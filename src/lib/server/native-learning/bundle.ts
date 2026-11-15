@@ -13,6 +13,7 @@ import {liteAdaptor} from 'mathjax-full/js/adaptors/liteAdaptor.js';
 import {RegisterHTMLHandler} from 'mathjax-full/js/handlers/html.js';
 import {AllPackages} from 'mathjax-full/js/input/tex/AllPackages.js';
 import {DECK_PALETTE,BRAND_LOGO_SRC} from '../../brand.ts';
+import {captureNativeSlide,writeNativeEvidence,type NativeCapture} from './review-evidence.ts';
 import {nativeReviewNames} from './names.ts';
 import {nativeMotionPlan,renderNativeMotion,type NativeMotionPlan} from './motion.ts';
 import {normalVisual} from '../../learning/deck/normal.ts';
@@ -99,7 +100,8 @@ function nativeSpeakerNotes(bundle:VisualLesson,sceneIndex:number,stage:number,r
 }
 
 /** Identity pins the checked renderer/dependencies, complete private source and activity destination. */
-export async function exportNativeBundle(input:NativeBundleInput){
+export async function exportNativeBundle(input:NativeBundleInput,options:{evidenceDirectory?:string}={}){
+ const captures:NativeCapture[]=[];
  const {bundle}=input;const base=new URL(input.activityBaseUrl);
  if(base.protocol!=='https:'||base.username||base.password||!base.pathname.startsWith('/app/'))throw Error('native_activity_url');
  const sourceAnswers:Record<string,Record<string,string>>={};
@@ -125,11 +127,12 @@ export async function exportNativeBundle(input:NativeBundleInput){
   const firstSlide=slideCount+1;
   const maxReveal=Math.max(0,...original.blocks.map(b=>b.reveal));const states=Math.max(1,...original.blocks.map(b=>b.model?.states.length??1));
   const candidate=nativeMotionPlan(original),motionKey=candidate?JSON.stringify(candidate):'';const motionPlan=candidate&&!seenMotion.has(motionKey)?candidate:null;if(motionPlan)seenMotion.add(motionKey);
-  const staticBuilds=maxReveal+states,totalBuilds=staticBuilds+(motionPlan?1:0);
+  const sourceBlock=original.blocks.find(b=>b.type==='source'&&b.sourceId),readingPanels=sourceBlock?officialQuestion(sourceBlock.sourceId!)?.nativeReadingPanels:undefined;
+  const staticBuilds=Math.max(maxReveal+states,readingPanels?.length??0),totalBuilds=staticBuilds+(motionPlan?1:0);
   // Each authored build is a separate editable slide, preserving learner-paced progressive disclosure.
   for(let stage=0;stage<totalBuilds;stage++){
    const motion=stage===staticBuilds?motionPlan:null;
-   const reveal=Math.min(stage,maxReveal),modelStage=Math.max(0,stage-maxReveal);const slide=pptx.addSlide();slideCount++;slide.background={color:colour('bg')};
+   const reveal=Math.min(stage,maxReveal),modelStage=Math.max(0,stage-maxReveal);const slide=pptx.addSlide();slideCount++;if(options.evidenceDirectory)captures.push(captureNativeSlide(slide,slideCount));slide.background={color:colour('bg')};
    const notes=nativeSpeakerNotes(bundle,sceneIndex,stage,reveal,modelStage,totalBuilds,motion);slide.addNotes(notes);speakerNotes.push(notes);
    slide.addText(motion?'הדגמה בתנועה':original.kicker,{x:.6,y:.3,w:12.1,h:.25,fontSize:13,color:colour('brand'),rtlMode:true,align:'right'});
    await addText(slide,motion?(motion.kind==='spread'?'הפיזור משתנה; המרכז נשאר קבוע':'כשהתחום מתרחב, השטח המסומן גדל'):original.title,.6,.75,12.1,.65,30);await addText(slide,motion?motion.prompt:original.prompt,.6,1.5,12.1,.7,20);
@@ -141,6 +144,13 @@ export async function exportNativeBundle(input:NativeBundleInput){
     await addText(slide,motion.caption,.7,6.15,11.9,.45,14);
     motionSlides.push({sceneId:original.id,slideNumber:slideCount,kind:motion.kind,frameCount:motion.frames.length,durationMs:motion.frames.length*motion.delayMs,gifSha256:createHash('sha256').update(bytes).digest('hex')});
     continue;
+   }
+   if(readingPanels?.length&&sourceBlock?.sourceId){
+    const asset=officialQuestionAsset(sourceBlock.sourceId),caption=sourceCaption(sourceBlock.sourceId),panel=readingPanels[Math.min(stage,readingPanels.length-1)];if(!asset||!caption)throw Error('native_source');
+    const [left,top,width,height]=panel.crop;const bytes=await sharp(Buffer.from(asset.image.split(',')[1],'base64')).extract({left,top,width,height}).png().toBuffer();
+    await addText(slide,`${panel.label} · ${Math.min(stage+1,readingPanels.length)}/${readingPanels.length}`,.7,2.25,11.9,.35,16);
+    slide.addImage({data:data(bytes),...pptxgenImageContain(bytes,.7,2.85,11.9,3.5)});
+    slide.addText(caption.label,{x:.7,y:6.55,w:11.9,h:.27,fontSize:11,color:colour('muted'),rtlMode:true,align:'right',hyperlink:{url:caption.url}});continue;
    }
    if(original.taskId){const t=publicVisualLesson(bundle).tasks.find(t=>t.id===original.taskId)!;await addText(slide,t.givens,.7,2.4,11.9,.65,21);await addText(slide,t.prompt,.7,3.1,11.9,.7,24);if(t.model)await model(slide,t.model,0,.8,4,8,2.7);if(t.check?.options.length)await addText(slide,t.check.options.join('\n'),9,4,3,2.4,21);continue;}
    const blocks=original.blocks.filter(b=>b.reveal<=reveal);const models=original.blocks.filter(b=>b.model),hasVisual=models.length>0||original.blocks.some(b=>b.type==='source');
@@ -163,7 +173,8 @@ export async function exportNativeBundle(input:NativeBundleInput){
   for(const a of activities)paragraphs.push(new Paragraph({children:[new ExternalHyperlink({link:a.url,children:[new TextRun({text:a.title,style:'Hyperlink',rightToLeft:true})]})],bidirectional:true}));
   return Packer.toBuffer(new Document({sections:[{properties:{},children:paragraphs}]}));
  }
- return {sourceHash,rendererHash:rendererManifest.rendererHash,slideCount,slideMap,slides:Buffer.from(await pptx.write({outputType:'nodebuffer'}) as Buffer),notesLocation:'slides' as const,speakerNotes,motion:{version:1 as const,slides:motionSlides},homework:await document(homeworkText,true),homeworkText,activities};
+ const reviewImages=options.evidenceDirectory?await writeNativeEvidence(captures,options.evidenceDirectory):[];
+ return {reviewImages,sourceHash,rendererHash:rendererManifest.rendererHash,slideCount,slideMap,slides:Buffer.from(await pptx.write({outputType:'nodebuffer'}) as Buffer),notesLocation:'slides' as const,speakerNotes,motion:{version:1 as const,slides:motionSlides},homework:await document(homeworkText,true),homeworkText,activities};
 }
 
 const running=new Map<string,Promise<NativeBundleReceipt>>();

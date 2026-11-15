@@ -259,3 +259,12 @@ test('a GitHub API error cannot masquerade as a superseding commit',()=>{
  assert.match(guard,/\[\[ "\$tip" =~ \^\[0-9a-f\]\{40\}\$ \]\]/);
  for(const tip of ['', '{"message":"Server Error"}', 'null'])assert.equal(/^[0-9a-f]{40}$/.test(tip),false);
 });
+
+
+test('the production browser smoke script is included in the Docker build context',()=>{
+ const ignore=readFileSync(join(root,'.dockerignore'),'utf8');
+ assert.match(ignore,/^!scripts\/check-native-browser\.mjs$/m);
+ const docker=readFileSync(join(root,'Dockerfile'),'utf8');
+ assert.match(docker,/COPY --chown=node:node scripts\/check-native-browser\.mjs/);
+ assert.match(docker,/USER node[\s\S]*RUN node scripts\/check-native-browser\.mjs/);
+});

@@ -9,6 +9,7 @@ marketing
 # Keep operational scripts excluded while making this build input available.
 scripts/*
 !scripts/vendor-learning.mjs
+!scripts/check-native-browser.mjs
 node_modules
 .svelte-kit
 build

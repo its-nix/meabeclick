@@ -19,6 +19,12 @@ Fix the reusable mechanism: Hebrew voice and teaching sequence belong in generat
 
 Preserve an example that demonstrates the failure and check the result against it. Prefer a small meaningful regression over assertions that merely duplicate the implementation. For visual or wording changes, inspect real rendered before/after content, including Hebrew/LaTeX and the affected narrow viewport or print layout.
 
+## Drive review organization
+
+Use the connected teaching root with two working areas: `01 שיעורים` and `02 תלמידים ומעקב`. Review candidates belong in `01 שיעורים/01 לבדיקה`; keep one current candidate per lesson being reviewed. Do not recreate the retired parallel setup. Folder IDs, managed keys and parent contracts are authoritative; names are display labels.
+
+For ordinary feedback, prefer scoped native Slides/Docs edits to the current private review files, preserving IDs, notes, comments and Google revision history. Still fix the shared generator where applicable and record the changed areas so a manually revised file is not claimed byte-identical to its original generated receipt. For complete regeneration, validate the new candidate first and move the superseded review to `90 ארכיון/בדיקות קודמות`; do not leave each iteration beside the current candidate. Independent files are not revisions of the latest deck. Preserve sealed source/export evidence and assigned customer versions. Google history alone does not recover a deleted separate file or establish generator provenance.
+
 ## Customer invariants
 
 - Assigned lessons, tutor edits, published versions, links and student progress belong to customers. A generator update does not authorize deleting or silently replacing them, or invalidating old library masters.

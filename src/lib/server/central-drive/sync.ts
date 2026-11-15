@@ -56,8 +56,8 @@ export function centralSyncController(options:{path:string;service:()=>Service;i
    const inventory=await options.inventory();check();const archive=shouldArchive&&options.archive&&!options.archive.current()?options.archive.begin(inventory):null;
    if(archive&&archive.fingerprint!==inventory.fingerprint)throw Error('source_changed');
    update({total:inventory.artifacts.length,stage:'uploading'});
-   const root=await api.folder('site','Website sync',access.config.learningFolderId);
-   const library=await api.folder('library','Library',root.id),studentsFolder=await api.folder('students','Students',root.id);
+   const root=await api.folder('site','02 תלמידים ומעקב',access.config.learningFolderId);
+   const library=await api.folder('library','90 גיבוי האתר',root.id),studentsFolder=await api.folder('students','02 תיקי תלמידים',root.id);
    const index=await api.register(root.id),materials:IndexCell[][]=[],students:IndexCell[][]=[];
    const artifacts=[...inventory.artifacts],pending=load(options.path).pending;
    // Finish the persisted media upload before a new folder can claim the checkpoint.

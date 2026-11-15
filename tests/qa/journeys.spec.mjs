@@ -352,7 +352,7 @@ test.describe('personal learning Google forms',()=>{
   });
   await page.goto('/app/library/connection');
   await page.getByRole('button',{name:'חיבור עם Google',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('Learning');
+  await expect(page.getByRole('alert')).toContainText('הוראה');
   await expect(page.getByRole('button',{name:'חיבור עם Google',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'חיבור עם Google',exact:true}).click();
   await expect(page.getByRole('heading',{name:'מרחב הלמידה עבר בדיקה',exact:true})).toBeVisible();

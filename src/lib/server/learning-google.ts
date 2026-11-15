@@ -10,9 +10,9 @@ export const LEARNING_FLOW_COOKIE='maab_learning_google';
 export const LEARNING_GOOGLE_ERRORS:Record<string,string>={
  cancelled:'החיבור בוטל. אפשר להתחיל שוב כשנוח לך.',
  expired:'החיבור הזה כבר לא תקף. התחילו שוב מאותו דפדפן.',
- selection:'יש לבחור את התיקייה Learning שבתוך MeaBeclick. התחילו שוב ובחרו אותה בחלון Google.',
+ selection:'יש לבחור את התיקייה הוראה שבתוך MeaBeclick. התחילו שוב ובחרו אותה בחלון Google.',
  account:'נבחר חשבון אחר. התחילו שוב ובחרו את החשבון האישי שמופיע כאן.',
- files:'לא הצלחנו לאמת גישה לתיקייה. בדקו שנבחרה תיקיית Learning הנכונה, שהיא בחשבון האישי ושאינה ציבורית.',
+ files:'לא הצלחנו לאמת גישה לתיקייה. בדקו שנבחרה תיקיית הוראה הנכונה, שהיא בחשבון האישי ושאינה ציבורית.',
  register:'הגישה התקבלה, אך הרישום לא עבר את בדיקת המבנה והנתונים. יש לבדוק את גיליון הרישום לפני חיבור מחדש.',
  offline:'Google לא נתן הרשאה לחיבור מתמשך. התחילו שוב ואשרו את ההרשאה.',
  scope:'ההרשאה שהתקבלה אינה מתאימה. התחילו שוב ואשרו גישה לקבצים שנבחרו.',
@@ -47,7 +47,7 @@ export function learningFiles(w:Workspace){
  const folder='application/vnd.google-apps.folder',doc='application/vnd.google-apps.document';
  return [
   {id:w.projectFolderId,name:'MeaBeclick',type:folder,parent:undefined},
-  {id:w.learningFolderId,name:'Learning',type:folder,parent:w.projectFolderId},
+  {id:w.learningFolderId,name:'הוראה',type:folder,parent:w.projectFolderId},
   {id:w.spreadsheetId,name:'Learning register',type:'application/vnd.google-apps.spreadsheet',parent:w.learningFolderId},
   ...([['templatesFolderId','Templates'],['libraryFolderId','Library'],['studentsFolderId','Students'],['reviewFolderId','Review']] as const).map(([key,name])=>({id:w[key],name,type:folder,parent:w.learningFolderId})),
   {id:w.studentProfileTemplateId,name:'תבנית פרופיל תלמיד',type:doc,parent:w.templatesFolderId},

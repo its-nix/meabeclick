@@ -157,3 +157,14 @@ followed by a topic of at most 24 characters and an animation/draft label. Insid
 artifacts; technical hashes stay in immutable receipts/appProperties. Existing review
 files can be renamed without changing their IDs, links, content, sharing or progress.
 Publisher retry tests preserve existing native files and tutor edits.
+
+## 2026-11-15 — One teaching workspace and one current review candidate
+
+An unused initial setup and seven superseded/probe review folders obscured the
+current lesson on phones. Keep the connected root organized as 01 שיעורים and
+02 תלמידים ומעקב. Retired setup lives inside the teaching archive. Review edits
+should reuse the current private native files where supported; complete regenerated
+candidates are validated before archiving the predecessor. Separate files are not
+Google revisions, and customer-assigned material must remain intact. Managed folder
+keys and parent relationships are unchanged; setup defaults and the existing guide
+now match this organization and the embedded-speaker-notes contract.

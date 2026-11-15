@@ -5,7 +5,7 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import PptxGenJS from 'pptxgenjs';
 import sharp from 'sharp';
-import {Document,Packer,Paragraph,TextRun,ImageRun,ExternalHyperlink,HeadingLevel} from 'docx';
+import {Document,Packer,Paragraph,TextRun,ImageRun,ExternalHyperlink,HeadingLevel,LineRuleType} from 'docx';
 import {mathjax} from 'mathjax-full/js/mathjax.js';
 import {TeX} from 'mathjax-full/js/input/tex.js';
 import {SVG} from 'mathjax-full/js/output/svg.js';
@@ -157,9 +157,9 @@ export async function exportNativeBundle(input:NativeBundleInput){
  }
  const publicBundle=publicVisualLesson(bundle);
  const homeworkText=[title,`תרגול לבית · ${bundle.homeworkMinutes} דקות`,...publicBundle.homework.flatMap((t,i)=>[`${i+1}. ${t.title}`,t.givens,t.prompt,...(t.check?.options??[])])].join('\n');
- async function document(text:string,homework=false){const paragraphs:Paragraph[]=[new Paragraph({children:[new ImageRun({data:logo,type:'png',transformation:{width:32,height:24}})],bidirectional:true})];
+ async function document(text:string,homework=false){const paragraphs:Paragraph[]=[new Paragraph({children:[new ImageRun({data:logo,type:'png',transformation:{width:48,height:36}})],bidirectional:true})];
   const content:Array<string|NormalModel>=homework?[title,`תרגול לבית · ${bundle.homeworkMinutes} דקות`,...publicBundle.homework.flatMap((t,i)=>[`${i+1}. ${t.title}`,t.givens,t.prompt,...(t.check?.options??[]),...(t.model?[t.model]:[]),'מקום לדרך הפתרון:','________________________________________','________________________________________'])]:text.split('\n');
-  for(const [i,line]of content.entries()){if(typeof line!=='string'){const bytes=await png(normalVisual(line,0,'homework').svg);paragraphs.push(new Paragraph({children:[new ImageRun({data:bytes,type:'png',transformation:{width:540,height:240}})],bidirectional:true,keepNext:true}));continue;}const runs:Array<TextRun|ImageRun>=[];for(const part of chunks(line)){if(part.math){const bytes=await formula(part.value),meta=await sharp(bytes).metadata();runs.push(new ImageRun({data:bytes,type:'png',transformation:{width:Math.min(500,28*(meta.width??1200)/(meta.height??180)),height:28},altText:{title:part.value,description:'נוסחה מתמטית',name:'math'}}));}else runs.push(new TextRun({text:part.value,font:'Heebo',size:24,rightToLeft:true}));}paragraphs.push(new Paragraph({children:runs,bidirectional:true,heading:i===0?HeadingLevel.TITLE:/^\d+\./.test(line)?HeadingLevel.HEADING_2:undefined,keepNext:i===0||/^\d+\./.test(line)||homework&&!line.startsWith('____'),spacing:{after:120}}));}
+  for(const [i,line]of content.entries()){if(typeof line!=='string'){const bytes=await png(normalVisual(line,0,'homework').svg);paragraphs.push(new Paragraph({children:[new ImageRun({data:bytes,type:'png',transformation:{width:540,height:240}})],bidirectional:true,keepNext:true}));continue;}const runs:Array<TextRun|ImageRun>=[];for(const part of chunks(line)){if(part.math){const bytes=await formula(part.value),meta=await sharp(bytes).metadata(),height=/\\frac|\\begin/.test(part.value)?26:18;runs.push(new ImageRun({data:bytes,type:'png',transformation:{width:Math.min(500,height*(meta.width??1200)/(meta.height??180)),height},altText:{title:part.value,description:'נוסחה מתמטית',name:'math'}}));}else runs.push(new TextRun({text:part.value,font:'Heebo',size:24,rightToLeft:true}));}paragraphs.push(new Paragraph({children:runs,bidirectional:true,heading:i===0?HeadingLevel.TITLE:/^\d+\./.test(line)?HeadingLevel.HEADING_2:undefined,keepNext:i===0||/^\d+\./.test(line)||homework&&!line.startsWith('____'),spacing:{after:120,line:480,lineRule:LineRuleType.AT_LEAST}}));}
   for(const a of activities)paragraphs.push(new Paragraph({children:[new ExternalHyperlink({link:a.url,children:[new TextRun({text:a.title,style:'Hyperlink',rightToLeft:true})]})],bidirectional:true}));
   return Packer.toBuffer(new Document({sections:[{properties:{},children:paragraphs}]}));
  }

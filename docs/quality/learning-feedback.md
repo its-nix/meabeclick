@@ -197,3 +197,13 @@ Native Google conversion preserved all 64 presenter-note bodies. All 64 Google
 PDF pages were rendered and visually inspected, including the forward and reverse
 percentage correspondences. This remains a tutor-review sample, not evidence of
 student comprehension or the required production generation streak.
+
+Native Docs conversion exposed oversized inline formula images overlapping Hebrew
+wrapped lines. The shared exporter now uses prose-sized formula images, a minimum
+paragraph line height and a larger brand mark. The corrected two-page native Doc
+was exported back to PDF and visually checked; its superseded private candidate
+was archived. Acknowledged publication receipts are now saved under the same job
+lease before Sheets registration and retained through paused preparation. Retry
+tests cover renderer changes, wrong archive and manual resume without republishing.
+The dashboard refreshes pending drafts automatically; 12 desktop/mobile flow
+checks passed. Student delivery remains blocked.

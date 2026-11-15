@@ -61,10 +61,18 @@ export function finishNativeLessonJob(input: {
  bookingId:number; attempt:number; state:'review'|'needs-preparation'; bundle?:unknown; reason?:string;
 }): NativeLessonJob | null {
  const now=new Date().toISOString();
- return decode(handle().prepare(`UPDATE native_lesson_jobs SET state=?,bundle=?,reason=?,error_code=NULL,
+ return decode(handle().prepare(`UPDATE native_lesson_jobs SET state=?,bundle=COALESCE(?,bundle),reason=?,error_code=NULL,
  lease_until=NULL,retry_at=NULL,updated_at=? WHERE booking_id=? AND attempts=? AND state='preparing'
  AND lease_until>? AND EXISTS (SELECT 1 FROM bookings_v2 b WHERE b.id=booking_id AND b.student_id=native_lesson_jobs.student_id AND b.status='confirmed') RETURNING *`)
  .get(input.state,input.bundle==null?null:JSON.stringify(input.bundle),input.reason??null,now,input.bookingId,input.attempt,now));
+}
+/** Seal acknowledged Drive IDs before Sheets writes; retries must reuse them across renderer upgrades. */
+export function cacheNativePublication(input:{bookingId:number;attempt:number;publication:unknown}):NativeLessonJob|null{
+ const now=new Date().toISOString();
+ return decode(handle().prepare(`UPDATE native_lesson_jobs SET bundle=?,updated_at=?
+ WHERE booking_id=? AND attempts=? AND state='preparing' AND lease_until>?
+ AND EXISTS(SELECT 1 FROM bookings_v2 b WHERE b.id=booking_id AND b.student_id=native_lesson_jobs.student_id AND b.status='confirmed') RETURNING *`)
+ .get(JSON.stringify({pendingPublication:input.publication}),now,input.bookingId,input.attempt,now));
 }
 /** Persist a safe error code, not upstream bodies that might contain private source material. */
 export function failNativeLessonJob(input: {bookingId:number;attempt:number;code:string;retryable?:boolean}): NativeLessonJob | null {

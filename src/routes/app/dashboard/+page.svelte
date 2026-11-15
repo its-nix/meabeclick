@@ -61,6 +61,7 @@
    *   - #confirm-bg.open (confirm dialog)   → confirmMsg !== null
    */
   import { onMount, untrack } from 'svelte';
+  import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { SvelteSet } from 'svelte/reactivity';
   import { toHref } from '$lib/urls.ts';
@@ -84,8 +85,8 @@
       const response=await api(`/api/native-lessons/${bookingId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId,preparation:{request:nativeRequests[bookingId],priorKnowledge:nativeKnowledge[bookingId]}})});
       if(session.over)return;
       const result=await response.json();
-      nativePreparationMessage=response.ok?'בקשת ההכנה נשמרה. רעננו בהמשך כדי לראות את מצב הטיוטה.':result.error??'לא ניתן לשמור את בקשת ההכנה.';
-      if(response.ok)nativeContextConfirmed[bookingId]=false;
+      nativePreparationMessage=response.ok?'בקשת ההכנה נשמרה. מצב הטיוטה יתעדכן כאן אוטומטית.':result.error??'לא ניתן לשמור את בקשת ההכנה.';
+      if(response.ok){nativeContextConfirmed[bookingId]=false;await invalidateAll();}
     }catch{nativePreparationMessage='לא ניתן לשמור כרגע. אפשר לנסות שוב.';}
     finally{nativePreparationBusy=null;}
   }
@@ -979,6 +980,13 @@
     `${student.name} ${student.subjects ?? ''} ${tutorsOf(student)}`.toLocaleLowerCase().includes(studentSearch.trim().toLocaleLowerCase()),
   ));
   const dashboardDate = new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+
+  onMount(() => {
+    const timer=setInterval(()=>{
+      if(!session.over && document.visibilityState==='visible' && pageData.nativePreparations?.some(p=>p.state==='queued'||p.state==='preparing'))void invalidateAll().catch(()=>{});
+    },15000);
+    return()=>clearInterval(timer);
+  });
 
   onMount(() => {
     data = loadData();

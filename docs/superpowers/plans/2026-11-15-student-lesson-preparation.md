@@ -14,33 +14,33 @@ Main includes PRs 119–121. Booking jobs, personal Drive sync, native export, e
 
 ## 1. Assemble a truthful preparation brief
 
-- [ ] Add a focused native-learning preparation-context module using the booking's enrollment identity, subject, level, duration and requested topic. Inspect teachingContextFor and targeting.ts for reusable evidence; avoid its first-subject-enrollment fallback when a booking supplies an enrollment ID.
-- [ ] Include recorded taught topics, checked practice evidence and previously used official source IDs. Distinguish unknown readiness from demonstrated understanding. Minimize learner-identifying prompt data.
-- [ ] Persist a versioned context on the existing job, preserving current lease, cancellation and ownership fences. Missing topic or ambiguous level enters needs-preparation with concrete tutor-facing missing fields.
-- [ ] Test exact enrollment selection, missing context, cross-student exclusion, evidence interpretation, cancellation and retry stability.
+- [x] Add a focused native-learning preparation-context module using the booking's enrollment identity, subject, level, duration and requested topic. Inspect teachingContextFor and targeting.ts for reusable evidence; avoid its first-subject-enrollment fallback when a booking supplies an enrollment ID.
+- [x] Include recorded taught topics, checked practice evidence and previously used official source IDs. Distinguish unknown readiness from demonstrated understanding. Minimize learner-identifying prompt data.
+- [x] Persist a versioned context on the existing job, preserving current lease, cancellation and ownership fences. Missing topic or ambiguous level enters needs-preparation with concrete tutor-facing missing fields.
+- [x] Test exact enrollment selection, missing context, cross-student exclusion, evidence interpretation, cancellation and retry stability.
 
 ## 2. Author fresh supported lesson drafts
 
-- [ ] Replace getPilot as the production authoring source through an injected generator interface; retain pilot review routes as calibration fixtures.
-- [ ] First support fresh lessons within the validated mathematical family, using verified sources and actual student context. Keep unsupported families explicit until their models, checking and renderer exist.
-- [ ] Extend visual-generation.ts context/schema/prompt deliberately; changing only purpose:'review' or removing supportedNativeContext is insufficient. Never silently fall back to the pilot or revive retired lesson reuse.
-- [ ] Seal model, rules, source, input and output provenance. Preserve brand, conversational Hebrew, speaker notes and question-only independent work. Use bounded repair and existing error classification.
-- [ ] Verify context reaches the real prompt, invalid mathematical output cannot publish, and retries do not duplicate completed generation or overwrite tutor edits. Real generated examples need rendered review in addition to fixture tests.
+- [x] Replace getPilot as the production authoring source through an injected generator interface; retain pilot review routes as calibration fixtures.
+- [x] First support fresh lessons within the validated mathematical family, using verified sources and actual student context. Keep unsupported families explicit until their models, checking and renderer exist.
+- [x] Extend visual-generation.ts context/schema/prompt deliberately; changing only purpose:'review' or removing supportedNativeContext is insufficient. Never silently fall back to the pilot or revive retired lesson reuse.
+- [x] Seal model, rules, source, input and output provenance. Preserve brand, conversational Hebrew, speaker notes and question-only independent work. Use bounded repair and existing error classification.
+- [x] Verify context reaches the real prompt, invalid mathematical output cannot publish, and retries do not duplicate completed generation or overwrite tutor edits. Real generated examples need rendered review in addition to fixture tests.
 
 ## 3. Publish and link the complete review package
 
-- [ ] Persist generated output before publishing so a Drive retry reuses the same validated content. Store immutable generation provenance separately from later native file edits.
-- [ ] Use existing native export/publisher for teacher Slides, homework and protected activity links. Verify each game fits the generated topic; pilot-only activity links must not be reused for unrelated content.
-- [ ] Append stable student, booking, materials and assignment IDs through register.ts. Keep existing tutor edits and customer assignments untouched. Verify links and native speaker notes after conversion.
-- [ ] For agent-led feedback, edit current native review files where supported. Validate full regenerated replacements before archiving predecessors; retain one current candidate per reviewed lesson. Do not silently replace an assigned customer version.
-- [ ] Test lost acknowledgements, restart, partial publishing failure, duplicate jobs, wrong owner/parent, and private-answer isolation.
+- [x] Persist generated output before publishing so a Drive retry reuses the same validated content. Store immutable generation provenance separately from later native file edits.
+- [x] Use existing native export/publisher for teacher Slides, homework and protected activity links. Verify each game fits the generated topic; pilot-only activity links must not be reused for unrelated content.
+- [x] Append stable student, booking, materials and assignment IDs through register.ts. Keep existing tutor edits and customer assignments untouched. Verify links and native speaker notes after conversion.
+- [x] For agent-led feedback, edit current native review files where supported. Validate full regenerated replacements before archiving predecessors; retain one current candidate per reviewed lesson. Do not silently replace an assigned customer version.
+- [x] Test lost acknowledgements, restart, partial publishing failure, duplicate jobs, wrong owner/parent, and private-answer isolation.
 
 ## 4. Tutor review and controlled activation
 
-- [ ] Show missing-context requests, preparation state and review links in the existing tutor workspace. Clearly distinguish source reuse from fresh generation.
-- [ ] Keep student delivery blocked while draft preparation is validated. Approval and delivery require a separate, explicit tested transition; do not equate successful export with teaching approval.
-- [ ] Exercise confirmed booking → brief → real generated draft → native artifacts → linked register → tutor review using isolated synthetic records. Do not create fake production bookings or count synthetic runs as the production reliability streak.
-- [ ] Run affected unit, characterization and browser checks, build/type checks and normal PR gates. Activate only the supported draft path with a rollback switch after reviewing real generated output.
+- [x] Show missing-context requests, preparation state and review links in the existing tutor workspace. Clearly distinguish source reuse from fresh generation.
+- [x] Keep student delivery blocked while draft preparation is validated. Approval and delivery require a separate, explicit tested transition; do not equate successful export with teaching approval.
+- [x] Exercise confirmed booking → brief → real generated draft → native artifacts → linked register → tutor review using isolated synthetic records. Do not create fake production bookings or count synthetic runs as the production reliability streak.
+- [x] Run affected unit, characterization and browser checks, build/type checks and normal PR gates. Activate only the supported draft path with a rollback switch after reviewing real generated output.
 
 ## Integration boundaries
 
@@ -72,3 +72,17 @@ checked 130 reveal states at desktop/tablet sizes and mobile activities. A compa
 header overlap found visually was fixed in shared layout, with a browser regression.
 Full Linux CI remains the release gate; local macOS full-suite failures were inspected
 in unchanged GNU/Linux operator scripts and /bin/true --version assumptions.
+
+Final validation iteration: the production-model editorial child has 64 native
+slides with all speaker-note bodies verified. Shared homework math sizing/line
+spacing was corrected after inspecting the Google PDF round trip. A sealed
+publication receipt now survives registration retries, renderer changes and
+needs-preparation pauses; 26 worker/job tests pass. The pending dashboard refresh
+passed all 12 phone/desktop browser checks. No fake production bookings were used.
+Ruling: retain tutor-only draft generation and review gating; successful export
+does not authorize student release or establish generic subject coverage.
+
+Final independent review: no remaining correctness blockers; pause/resume receipt
+preservation regression confirmed. Release uses Linux CI as the complete suite
+gate. Real generation/native conversion and worker integration were validated
+separately; this is not a real-student production reliability streak.

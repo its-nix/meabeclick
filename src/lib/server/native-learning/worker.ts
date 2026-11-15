@@ -5,7 +5,7 @@ import {centralDriveApi,centralFileUrl,type CentralAccess} from '../central-driv
 import {getStudentById,enrollmentsForStudent} from '../entities.ts';
 import {authorNativeLesson,type AuthoredLesson} from './authoring.ts';
 import type {VisualLesson} from '../../learning/deck/model.ts';
-import {claimNativeLessonJob,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,listNativeLessonJobs,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
+import {claimNativeLessonJob,cacheNativePublication,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,listNativeLessonJobs,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
 import {supportedNativeContext,NORMAL_REVIEW_CONTEXT} from './context.ts';
 import {nativeDraftRecords,appendNativeDraftRecords} from './register.ts';
 
@@ -44,9 +44,12 @@ export function nativeLessonWorker(options:Options){
    const source=options.generate?await options.generate(job):options.source();if(!source){finish('source_unavailable');return;}
    access.assertCurrent();
    const key=`booking-${job.bookingId}-student-${job.studentId}-${createHash('sha256').update(source.version).digest('hex').slice(0,20)}`;
-   const published=await options.publish({bundle:source.bundle,key,activityBaseUrl:options.generate?`${options.activityBaseUrl()}/${job.bookingId}`:options.activityBaseUrl()},{access,workspace});
+   const pending=(job.bundle as {pendingPublication?:{receipt:Receipt;sourceVersion:string;archiveId:string}}|null)?.pendingPublication;
+   if(pending&&(pending.sourceVersion!==source.version||pending.archiveId!==workspace.archiveId))throw Error('conflict');
+   const published=pending?.receipt??await options.publish({bundle:source.bundle,key,activityBaseUrl:options.generate?`${options.activityBaseUrl()}/${job.bookingId}`:options.activityBaseUrl()},{access,workspace});
    const receipt={...published,provenance:{kind:options.generate?'fresh-booking-generation':'tutor-selected-calibration',bundleVersion:source.version,sourceIds:[NORMAL_REVIEW_CONTEXT.sourceId],context:{...NORMAL_REVIEW_CONTEXT,readiness:job.snapshot.brief?.readiness==='tutor-reported'?'tutor-reported':NORMAL_REVIEW_CONTEXT.readiness},...(options.generate?{generation:{version:source.version,model:(source as AuthoredLesson).model,rulesHash:(source as AuthoredLesson).rulesHash,contextHash:(source as AuthoredLesson).contextHash,cliVersion:(source as AuthoredLesson).cliVersion,authoringFingerprint:(source as AuthoredLesson).authoringFingerprint,sources:(source as AuthoredLesson).sources}}:{})}};
    access.assertCurrent();
+   if(!pending&&!cacheNativePublication({bookingId:job.bookingId,attempt:job.attempts,publication:{receipt,sourceVersion:source.version,archiveId:workspace.archiveId}}))throw Error('paused');
    await options.register(access,workspace,job,receipt);
    access.assertCurrent();
    finishNativeLessonJob({bookingId:job.bookingId,attempt:job.attempts,state:'review',bundle:{...receipt,studentDelivery:'blocked-owner-review-required'}});

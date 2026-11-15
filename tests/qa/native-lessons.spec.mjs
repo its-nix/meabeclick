@@ -98,3 +98,10 @@ test('native-lessons: canonical synthetic review sample opens without creating c
  expect((await qa.request('/api/native-activities/sample',{method:'POST',cookie:'',json:{}})).status).toBe(401);
  await qa.evidence(page,'native-reviewed-sample');
 });
+
+test('native-lessons: preparation progress refreshes automatically when a draft becomes ready',async({qa})=>{
+ mutate(qa,db=>seedRetired(db));const b=await book(qa);mutate(qa,db=>db.prepare("UPDATE native_lesson_jobs SET state='preparing',attempts=1,lease_until='2099-01-01T00:00:00Z' WHERE booking_id=?").run(b.bookingId));
+ const page=await qa.page('tutor');await page.clock.install();await page.goto(`/app/students/${b.code}`);const panel=page.getByRole('region',{name:'הכנת שיעורים במרחב ההוראה'});await expect(panel).toContainText('בהכנה');
+ const url='https://docs.google.com/presentation/d/synthetic-ready/edit';mutate(qa,db=>db.prepare("UPDATE native_lesson_jobs SET state='review',lease_until=NULL,bundle=? WHERE booking_id=?").run(JSON.stringify({slides:{url},studentDelivery:'blocked-owner-review-required'}),b.bookingId));
+ await page.clock.fastForward(16000);await expect(panel.getByRole('link',{name:'מצגת והערות למורה',exact:true})).toHaveAttribute('href',url);
+});

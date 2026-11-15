@@ -113,3 +113,12 @@ test('accepted policy rows link their source and offer only token-bound revocati
  await syncFeedbackSheet(api,indexId,[policy],[]);const review=api.sheets.find(s=>s.properties.title==='Learning Reviews');const rule=api.requests.filter(r=>r.setDataValidation).at(-1).setDataValidation;assert.deepEqual(rule.rule.condition.values.map(v=>v.userEnteredValue),['ביטול כלל להמשך · בדיקה 12.1']);assert.equal(review.rows[1][0],'policy:12');assert.equal(review.rows[1][4],'אושר');
  review.rows[1][8]='ביטול כלל להמשך · בדיקה 12.1';const result=await syncFeedbackSheet(api,indexId,[policy],[]);assert.equal(result.commands[0].fileId,'policy:12');assert.equal(result.commands[0].command,'revoke-policy');assert.equal(result.commands[0].reviewToken,'12.1');await ackFeedbackCommand(api,indexId,result.commands[0]);await syncFeedbackSheet(api,indexId,[{...policy,state:'revoked'}],[]);assert.equal(review.rows[1][4],'בוטל');
 });
+
+
+test('native Google dotted comment and reply identifiers work without accepting path segments',async()=>{
+ const api={async json(url,init){assert.ok(url.includes('/comments/qa.comment-123/replies'));return init?{id:'qa.reply-456'}:{replies:[]};}};
+ assert.equal(await appendReplyOnce(api,fileId,'qa.comment-123','qa-smoke','בדיקה'),'qa.reply-456');
+ for(const unsafe of ['.','..','../other','a/b','a?b','a%2Fb'])await assert.rejects(appendReplyOnce(api,fileId,unsafe,'qa-smoke','בדיקה'),/conflict/);
+ const listed=await listFeedbackComments({async json(url){return url.includes('/replies')?{replies:[{id:'qa.reply-456',content:'תשובה'}]}:{comments:[{id:'qa.comment-123',content:'משוב'}]};}},fileId);
+ assert.equal(listed[0].replies[0].id,'qa.reply-456');
+});

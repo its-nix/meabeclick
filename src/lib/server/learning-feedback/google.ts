@@ -20,7 +20,7 @@ const DRIVE='https://www.googleapis.com/drive/v3/files';
 export const FEEDBACK_SLIDES='application/vnd.google-apps.presentation',FEEDBACK_DOC='application/vnd.google-apps.document',FEEDBACK_SHEET='application/vnd.google-apps.spreadsheet';
 const sha=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const id=(value:string)=>{if(typeof value!=='string'||!/^[-\w]{10,200}$/.test(value))throw Error('conflict');return value;};
-const threadId=(value:string)=>{if(typeof value!=='string'||!/^[-\w]{1,200}$/.test(value))throw Error('conflict');return value;};
+const threadId=(value:string)=>{if(typeof value!=='string'||value.length>200||!/^[-\w]+(?:\.[-\w]+)*$/.test(value))throw Error('conflict');return value;};
 function bounded(value:unknown,max=12000):string {if(typeof value!=='string')return '';if(value.length>max)throw Error('source_limit');return value;}
 function privateFile(file:any,ownerEmail:string){
  if(!file||file.trashed)throw Error('conflict');

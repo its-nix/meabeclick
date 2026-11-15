@@ -250,3 +250,11 @@ grading is isolated from human preview sessions. With65native slide previews and
 25student-player contact pages (36images total), the same production model in a
 fresh session returned PASS with zero findings. This is still an isolated teaching
 example, not a real-student reliability streak or owner teaching approval.
+
+
+Live integration verification found native Google comment/reply IDs containing
+internal dots, which the initial adapter rejected before collecting feedback.
+The boundary now accepts dotted identifier segments while rejecting path/query
+characters and dot-only segments. A regression covers real-shape IDs and unsafe
+alternatives. The disposable integration probe uses only private archive files,
+never customer bookings or scores.

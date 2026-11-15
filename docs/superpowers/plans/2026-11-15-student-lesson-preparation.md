@@ -56,3 +56,19 @@ Existing snapshots remain readable; enqueue replays preserve the first brief.
 24 focused brief/job/worker tests passed; independent review found no blockers.
 Generation, UI collection of missing fields, practice/source history enrichment and
 activation remain unfinished. No production switch was enabled.
+
+2026-11-15 continuation: implemented tutor goal/readiness collection, fresh Codex
+booking generation for the supported family, durable authored output, stable retries,
+booking-specific protected activities and grading, direct student profile/folder
+links, complete generation provenance and safe engine diagnostics. Context-only
+legacy bindings cannot authorize fresh generation. Changed requests cannot mutate
+a saved generation after potential publication. Source assignments remain labelled
+unconfirmed use; revealed practice preserves version/scene/reveal evidence.
+Independent review found and verified fixes for these failure modes.
+
+Real synthetic generation: 26 scenes, 67 native slides and two animations; an explicit
+percentage-to-quantity bridge responds to the supplied learner difficulty. HTML QA
+checked 130 reveal states at desktop/tablet sizes and mobile activities. A comparison
+header overlap found visually was fixed in shared layout, with a browser regression.
+Full Linux CI remains the release gate; local macOS full-suite failures were inspected
+in unchanged GNU/Linux operator scripts and /bin/true --version assumptions.

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "files": {
+    "src/lib/learning/deck/model.ts": "8b75b2f60a1ee7137b0f2502f95da32e710df4269d2af963ef961f11dfd0f961",
+    "src/lib/learning/deck/rules.ts": "a7e8e428e36c1a04313f19b6df9b9fc1f1442e92a227306ee5909991fbb2361a",
+    "src/lib/learning/deck/schema.ts": "2d47d776536a5403fdc8bb9520095afe65710903d8223496248687732a75a9ab",
+    "src/lib/server/lesson/prompt.ts": "1b876cda3f21139d64426e39df92f9b711af534f444eacc45da9e3faae9dbfe3",
+    "src/lib/server/lesson/structured-output.ts": "288b1f716e7cca075fe0509306ce178b9afa6f5a136a80fdeb14e01ff8a869f5",
+    "src/lib/server/lesson/visual-generation.ts": "8c420fc1aba06ed74063196b8c47db14c680f8595beb0d1c3bd967cdac1cf86f",
+    "src/lib/server/native-learning/authoring.ts": "6ed60449916ac672f116e8228f401f2a6b5efe3077b2648df255d01f22cf9d84",
+    "src/lib/server/native-learning/context.ts": "2da1ba094d34b01263a00d05db2c58ed30f4814115763b2daaa240884f98f919",
+    "src/lib/server/native-learning/preparation-brief.ts": "d830b69ae2426aa44013f71c036b9c2e10a0098957e7529088f52a19d62f8efc"
+  },
+  "fingerprint": "ac6a21b6cde8429c506fd366bf2473cc060c80e07a1b0ba46324537b04a3d65d"
+}

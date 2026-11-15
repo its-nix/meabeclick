@@ -101,3 +101,31 @@ test('embedded-note decks are staff material, with no phantom notes Doc or stude
  assert.ok(records.Assignments.every(a=>a.material_id!==deck.material_id));
  const historical=nativeDraftRecords(J.getNativeLessonJob(bookingId),receipt,'Synthetic');assert.ok(historical.Materials.some(m=>m.url===receipt.tutorNotes.url),'existing separate-note receipts remain readable');
 });
+
+test('tutor brief drives fresh authoring; a saved generation survives registration retry and activities resolve its own version',async()=>{
+ const {authorNativeLesson}=await import('../../src/lib/server/native-learning/authoring.ts');
+ const {nativeBookingActivities}=await import('../../src/lib/server/native-learning/activities.ts');
+ const {getPilot}=await import('../../src/lib/server/visual-pilot.ts');
+ const f=booking({bind:false});
+ handle().prepare("UPDATE bookings_v2 SET status='cancelled' WHERE id<>?").run(f.bookingId);
+ C.bindNativePreparation({bookingId:f.bookingId,studentId:f.student.id,request:'להבין שטחים בלי לשנן',priorKnowledge:'מבין ממוצע, מתקשה באחוזים'});
+ let generated=0,registered=0;const worker=controller({generate:job=>authorNativeLesson(job,async input=>{generated++;assert.match(input.context.readiness,/מתקשה באחוזים/);assert.equal(input.context.purpose,'booking');assert.doesNotMatch(JSON.stringify(input.context),/Same name/);return structuredClone(getPilot().bundle);},()=>({model:'fixture',cliVersion:'fixture'})),publish:async input=>{assert.ok(input.activityBaseUrl.endsWith('/'+f.bookingId));return receipt;},register:async()=>{if(registered++<2)throw Error('quota');}});
+ assert.equal(nativeBookingActivities(f.bookingId),null);
+ worker.queue();await worker.settled();assert.equal(J.getNativeLessonJob(f.bookingId).state,'failed');assert.equal(generated,1);
+ handle().prepare("UPDATE native_lesson_jobs SET retry_at='2000-01-01T00:00:00Z' WHERE booking_id=?").run(f.bookingId);
+ worker.queue();await worker.settled();assert.equal(generated,1);assert.equal(J.getNativeLessonJob(f.bookingId).state,'failed');
+ assert.throws(()=>C.bindNativePreparation({bookingId:f.bookingId,studentId:f.student.id,request:'different request',priorKnowledge:'different knowledge'}),/locked/);
+ C.bindNativePreparation({bookingId:f.bookingId,studentId:f.student.id,request:'להבין שטחים בלי לשנן',priorKnowledge:'מבין ממוצע, מתקשה באחוזים'});worker.queue();await worker.settled();assert.equal(generated,1);
+ const done=J.getNativeLessonJob(f.bookingId);assert.equal(done.state,'review');assert.equal(done.bundle.provenance.kind,'fresh-booking-generation');assert.equal(nativeBookingActivities(f.bookingId).version,done.snapshot.authored.version);
+ E.cancelBooking(f.bookingId);assert.equal(nativeBookingActivities(f.bookingId),null);
+});
+
+test('legacy calibration context never bypasses required tutor fields for fresh authoring',async()=>{
+ const f=booking();let calls=0;const worker=controller({generate:async()=>{calls++;throw Error('must not author');}});worker.queue();await worker.settled();assert.equal(J.getNativeLessonJob(f.bookingId).reason,'missing_brief');assert.equal(calls,0);
+});
+
+test('generation quota errors retain a safe code and do not automatically retry',async()=>{
+ const f=booking({bind:false});C.bindNativePreparation({bookingId:f.bookingId,studentId:f.student.id,request:'להבין את הנושא',priorKnowledge:'טרם נבדק באופן עצמאי'});
+ const worker=controller({generate:async()=>{throw Object.assign(Error('PRIVATE_PROVIDER_RESPONSE'),{kind:'engine-quota'});}});worker.queue();await worker.settled();
+ const failed=J.getNativeLessonJob(f.bookingId);assert.equal(failed.errorCode,'engine-quota');assert.equal(failed.retryAt,null);assert.doesNotMatch(JSON.stringify(failed),/PRIVATE_PROVIDER_RESPONSE/);
+});

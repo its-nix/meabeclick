@@ -168,3 +168,20 @@ candidates are validated before archiving the predecessor. Separate files are no
 Google revisions, and customer-assigned material must remain intact. Managed folder
 keys and parent relationships are unchanged; setup defaults and the existing guide
 now match this organization and the embedded-speaker-notes contract.
+
+## 2026-11-15 — From booking brief to fresh private native draft
+
+The worker previously copied the calibration bundle and its activity links opened
+the shared pilot. Supported booking drafts now use tutor-reported goals/readiness
+and enrollment-scoped observations to generate fresh content. Output is saved before
+publishing; unchanged retries reuse it and material identities. Activities load and
+grade the exact saved booking version behind tutor authentication. Student profiles,
+folders, native materials and draft assignments are linked through Sheets. Unknown
+readiness, assigned sources and revealed practice retain their actual evidence status.
+
+An isolated real 26-scene example adapted to a difficulty with percentages, exported
+67 native slides with two animations, and passed 130 reveal-state overflow checks.
+Visual inspection also caught comparison content crossing its prompt; smaller
+comparison diagrams and safe centering fix the shared HTML layout, with header
+intersection assertions in the pilot browser check. No real bookings or learning
+scores were created for this validation. Student delivery remains owner-review gated.

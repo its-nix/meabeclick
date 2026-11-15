@@ -35,6 +35,7 @@ test.describe('explicit tutor context',()=>{
   const panel=page.getByRole('region',{name:'הכנת שיעורים במרחב ההוראה'});await panel.locator('summary').click();
   await expect(panel).toContainText('10/08/2028 10:00');
   const button=panel.getByRole('button',{name:'הכנת טיוטה לבדיקה',exact:true});await expect(button).toBeDisabled();
+  await panel.getByLabel('מה מטרת השיעור?').fill('להבין שטחים בעקומה');await panel.getByLabel('מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת?').fill('מבין ממוצע ומתקשה באחוזים');
   await panel.getByRole('checkbox').check();const binding=page.waitForResponse(r=>r.url().endsWith(`/api/native-lessons/${booking.bookingId}`)&&r.request().method()==='POST');await button.click();expect((await binding).status()).toBe(200);
   await expect(panel.getByRole('status')).toContainText('בקשת ההכנה נשמרה');
   expect(JSON.parse(qa.row('SELECT snapshot FROM native_lesson_jobs WHERE booking_id=?',booking.bookingId).snapshot).context).toEqual(NORMAL_REVIEW_CONTEXT);
@@ -45,7 +46,7 @@ test.describe('explicit tutor context',()=>{
   await expect.poll(()=>qa.row('SELECT reason FROM native_lesson_jobs WHERE booking_id=?',unsupported.booking_id).reason).toBe('unsupported_context');
   expect((await qa.request(`/api/native-lessons/${unsupported.booking_id}`,{method:'POST',json:{studentId:qa.learner.studentId,context:NORMAL_REVIEW_CONTEXT}})).status).toBe(409);
   expect((await bind(qa,{...booking,studentId:qa.learner.studentId})).status).toBe(409);
-  await page.reload();await panel.locator('summary').click();await panel.getByRole('checkbox').check();
+  await page.reload();await panel.locator('summary').click();await panel.getByLabel('מה מטרת השיעור?').fill('להבין שטחים בעקומה');await panel.getByLabel('מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת?').fill('עדיין לא נבדק');await panel.getByRole('checkbox').check();
   await page.route(`**/api/native-lessons/${booking.bookingId}`,route=>route.fulfill({status:401,json:{error:'unauthorized'}}));
   await button.click();await expect(page.getByText('ההתחברות הסתיימה, והשינוי האחרון לא נשמר. צריך להתחבר מחדש.')).toBeVisible();
   await expect(page.getByRole('link',{name:'להתחברות',exact:true})).toHaveAttribute('href','/login?next=/app/dashboard');
@@ -71,4 +72,21 @@ test('native-lessons: protected interactive review writes no customer scores and
  await task.locator('[data-task-action="attempt"]').click();expect((await attempt).status()).toBe(200);await expect(task.locator('[data-task-feedback]')).not.toBeEmpty();await qa.evidence(page,'native-private-activity');
  for(const [role,path]of [['student',`/app/student?s=${qa.learner.code}`],['parent',`/app/parent?s=${qa.learner.code}`]]){const family=await qa.page(role);await family.goto(path);expect(await family.content()).not.toContain(privateUrl);}
  expect({results:qa.row('SELECT count(*) n FROM results_v2').n,events:qa.row('SELECT count(*) n FROM learning_events').n,homework:qa.row('SELECT count(*) n FROM homework').n}).toEqual(before);
+});
+
+test('native-lessons: saved booking activities use their own content and grading with no student evidence writes',async({qa})=>{
+ const {default:corpus}=await import('../../src/lib/server/learning-pilot-corpus.json',{with:{type:'json'}});
+ mutate(qa,db=>seedRetired(db));const booking=await book(qa),bundle=structuredClone(corpus.bundle);
+ bundle.homework[0].title='תרגול ייחודי לשיעור זה';
+ const version='c'.repeat(64);
+ mutate(qa,db=>{const row=db.prepare('SELECT snapshot FROM native_lesson_jobs WHERE booking_id=?').get(booking.bookingId);db.prepare("UPDATE native_lesson_jobs SET state='review',snapshot=? WHERE booking_id=?").run(JSON.stringify({...JSON.parse(row.snapshot),authored:{bundle,version}}),booking.bookingId);});
+ const page=await qa.page('tutor');await page.goto(`/app/native-review-activities/${booking.bookingId}?view=homework`);
+ await expect(page.getByRole('heading',{name:'תרגול ייחודי לשיעור זה'})).toBeVisible();
+ const config=await page.locator('#deck-config').textContent();expect(config).toContain(`/api/native-activities/${booking.bookingId}`);expect(config).not.toContain('presenterNotes');expect(config).not.toContain('expectedAnswer');
+ const before=qa.row('SELECT count(*) n FROM learning_events').n;
+ const task=bundle.homework[0];const result=await page.evaluate(async({id,version,taskId})=>{const r=await fetch(`/api/native-activities/${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version,taskId,action:'attempt',input:'0',eventId:'booking-attempt'})});return r.status;},{id:booking.bookingId,version,taskId:task.id});expect(result).toBe(200);
+ expect(qa.row('SELECT count(*) n FROM learning_events').n).toBe(before);
+ expect((await qa.request(`/api/native-activities/${booking.bookingId}`,{method:'POST',cookie:'',json:{}})).status).toBe(401);
+ mutate(qa,db=>db.prepare("UPDATE bookings_v2 SET status='cancelled' WHERE id=?").run(booking.bookingId));
+ expect((await qa.request(`/app/native-review-activities/${booking.bookingId}?view=homework`)).status).toBe(404);
 });

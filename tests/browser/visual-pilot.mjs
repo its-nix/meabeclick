@@ -21,7 +21,7 @@ try{
    assert.equal(await page.locator('[data-slide]:visible').count(),1);assert.equal(await page.locator('.katex-error,[data-math-error]').count(),0);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`overflow ${width}/${s.id}`);
    assert.equal(await slide.evaluate(e=>e.scrollHeight>e.clientHeight+3),false,`vertical clipping ${width}/${s.id}`);
-   const max=Math.max(0,...s.blocks.map(b=>b.reveal+(b.model?.states.length??1)-1));for(let j=0;j<=max;j++){if(j)await page.locator('[data-next]').click();assert.equal(await slide.evaluate(e=>e.scrollHeight>e.clientHeight+3),false,`build clipping ${width}/${s.id}/${j}`);if(width===1440&&j<max)await page.screenshot({path:join(evidence,`${String(i+1).padStart(2,'0')}-build-${j}.png`),fullPage:false});}
+   const max=Math.max(0,...s.blocks.map(b=>b.reveal+(b.model?.states.length??1)-1));for(let j=0;j<=max;j++){if(j)await page.locator('[data-next]').click();assert.equal(await slide.evaluate(e=>e.scrollHeight>e.clientHeight+3),false,`build clipping ${width}/${s.id}/${j}`);assert.equal(await slide.evaluate(e=>{const head=e.querySelector('.slide-head'),blocks=e.querySelector('.blocks');return !!(head&&blocks&&blocks.getBoundingClientRect().top<head.getBoundingClientRect().bottom-1);}),false,`header overlap ${width}/${s.id}/${j}`);if(width===1440&&j<max)await page.screenshot({path:join(evidence,`${String(i+1).padStart(2,'0')}-build-${j}.png`),fullPage:false});}
    if(width===1440)await page.screenshot({path:join(evidence,`${String(i+1).padStart(2,'0')}-${s.layout}.png`),fullPage:false});report.slides++;
   }
  }

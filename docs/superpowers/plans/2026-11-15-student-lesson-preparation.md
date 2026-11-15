@@ -1,0 +1,88 @@
+# Student Lesson Preparation Implementation Plan
+
+> **For agentic workers:** Use nixkit:executing-plans to implement this plan task by task. Preserve the existing Drive-native cutover and review gates.
+
+**Goal:** Prepare a student-specific native lesson draft from a confirmed booking and known learning context, with linked Drive artifacts and tutor review before delivery.
+
+**Architecture:** Extend the existing durable native job path. Reuse verified student/enrollment/report evidence and existing generation boundaries; publish native Slides/Docs through the current converter and append stable linked Sheets records. Missing context requires tutor input, not an invented topic or assumed mastery.
+
+**Tech stack:** TypeScript, existing SQLite job leases, Codex generation boundary, Google Drive conversion and Sheets.
+
+## Verified starting point
+
+Main includes PRs 119–121. Booking jobs, personal Drive sync, native export, embedded notes, animations and linked draft records exist. Automatic authoring is disabled. The worker's source is getPilot, not fresh generation. generateVisualLesson explicitly rejects contexts outside three-unit normal distribution; its models and official-source checks must be expanded before claiming generic coverage. The legacy automatic path remains retired.
+
+## 1. Assemble a truthful preparation brief
+
+- [x] Add a focused native-learning preparation-context module using the booking's enrollment identity, subject, level, duration and requested topic. Inspect teachingContextFor and targeting.ts for reusable evidence; avoid its first-subject-enrollment fallback when a booking supplies an enrollment ID.
+- [x] Include recorded taught topics, checked practice evidence and previously used official source IDs. Distinguish unknown readiness from demonstrated understanding. Minimize learner-identifying prompt data.
+- [x] Persist a versioned context on the existing job, preserving current lease, cancellation and ownership fences. Missing topic or ambiguous level enters needs-preparation with concrete tutor-facing missing fields.
+- [x] Test exact enrollment selection, missing context, cross-student exclusion, evidence interpretation, cancellation and retry stability.
+
+## 2. Author fresh supported lesson drafts
+
+- [x] Replace getPilot as the production authoring source through an injected generator interface; retain pilot review routes as calibration fixtures.
+- [x] First support fresh lessons within the validated mathematical family, using verified sources and actual student context. Keep unsupported families explicit until their models, checking and renderer exist.
+- [x] Extend visual-generation.ts context/schema/prompt deliberately; changing only purpose:'review' or removing supportedNativeContext is insufficient. Never silently fall back to the pilot or revive retired lesson reuse.
+- [x] Seal model, rules, source, input and output provenance. Preserve brand, conversational Hebrew, speaker notes and question-only independent work. Use bounded repair and existing error classification.
+- [x] Verify context reaches the real prompt, invalid mathematical output cannot publish, and retries do not duplicate completed generation or overwrite tutor edits. Real generated examples need rendered review in addition to fixture tests.
+
+## 3. Publish and link the complete review package
+
+- [x] Persist generated output before publishing so a Drive retry reuses the same validated content. Store immutable generation provenance separately from later native file edits.
+- [x] Use existing native export/publisher for teacher Slides, homework and protected activity links. Verify each game fits the generated topic; pilot-only activity links must not be reused for unrelated content.
+- [x] Append stable student, booking, materials and assignment IDs through register.ts. Keep existing tutor edits and customer assignments untouched. Verify links and native speaker notes after conversion.
+- [x] For agent-led feedback, edit current native review files where supported. Validate full regenerated replacements before archiving predecessors; retain one current candidate per reviewed lesson. Do not silently replace an assigned customer version.
+- [x] Test lost acknowledgements, restart, partial publishing failure, duplicate jobs, wrong owner/parent, and private-answer isolation.
+
+## 4. Tutor review and controlled activation
+
+- [x] Show missing-context requests, preparation state and review links in the existing tutor workspace. Clearly distinguish source reuse from fresh generation.
+- [x] Keep student delivery blocked while draft preparation is validated. Approval and delivery require a separate, explicit tested transition; do not equate successful export with teaching approval.
+- [x] Exercise confirmed booking → brief → real generated draft → native artifacts → linked register → tutor review using isolated synthetic records. Do not create fake production bookings or count synthetic runs as the production reliability streak.
+- [x] Run affected unit, characterization and browser checks, build/type checks and normal PR gates. Activate only the supported draft path with a rollback switch after reviewing real generated output.
+
+## Integration boundaries
+
+Open PRs 104 and 106 target broad legacy generation/reporting changes and are not prerequisites for this first native draft increment. Review and port a needed behavior independently rather than merging those branches wholesale. Student assessment questionnaires, general cross-topic component reuse and automatic student release remain later increments.
+
+## Implementation ledger
+
+2026-11-15: added versioned preparation briefs to newly enqueued job snapshots.
+Exact booking/enrollment ownership is enforced; plan observations are limited to
+that enrollment and student. Coverage and status remain distinct, corrected events
+are excluded, and readiness stays unknown. Missing topic/readiness are explicit.
+Existing snapshots remain readable; enqueue replays preserve the first brief.
+24 focused brief/job/worker tests passed; independent review found no blockers.
+Generation, UI collection of missing fields, practice/source history enrichment and
+activation remain unfinished. No production switch was enabled.
+
+2026-11-15 continuation: implemented tutor goal/readiness collection, fresh Codex
+booking generation for the supported family, durable authored output, stable retries,
+booking-specific protected activities and grading, direct student profile/folder
+links, complete generation provenance and safe engine diagnostics. Context-only
+legacy bindings cannot authorize fresh generation. Changed requests cannot mutate
+a saved generation after potential publication. Source assignments remain labelled
+unconfirmed use; revealed practice preserves version/scene/reveal evidence.
+Independent review found and verified fixes for these failure modes.
+
+Real synthetic generation: 26 scenes, 67 native slides and two animations; an explicit
+percentage-to-quantity bridge responds to the supplied learner difficulty. HTML QA
+checked 130 reveal states at desktop/tablet sizes and mobile activities. A comparison
+header overlap found visually was fixed in shared layout, with a browser regression.
+Full Linux CI remains the release gate; local macOS full-suite failures were inspected
+in unchanged GNU/Linux operator scripts and /bin/true --version assumptions.
+
+Final validation iteration: the production-model editorial child has 64 native
+slides with all speaker-note bodies verified. Shared homework math sizing/line
+spacing was corrected after inspecting the Google PDF round trip. A sealed
+publication receipt now survives registration retries, renderer changes and
+needs-preparation pauses; 26 worker/job tests pass. The pending dashboard refresh
+passed all 12 phone/desktop browser checks. No fake production bookings were used.
+Ruling: retain tutor-only draft generation and review gating; successful export
+does not authorize student release or establish generic subject coverage.
+
+Final independent review: no remaining correctness blockers; pause/resume receipt
+preservation regression confirmed. Release uses Linux CI as the complete suite
+gate. Real generation/native conversion and worker integration were validated
+separately; this is not a real-student production reliability streak.

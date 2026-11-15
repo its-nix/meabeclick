@@ -67,7 +67,13 @@ The native draft path now durably queues one preparation job per booking and
 shows its state to the tutor. Unsupported or unbound contexts require tutor
 preparation. Opt-in authoring accepts only the explicitly confirmed 90-minute
 introductory normal-distribution calibration for high-school three-unit 35372,
-using the verified summer 2025 question 3 and school `s` convention. It creates
+using the verified summer 2025 question 3 and school `s` convention. Tutors supply
+the lesson goal and a description of observed prior knowledge. The booking's exact
+enrollment and recorded coverage/practice inform a fresh generated draft; unknown
+readiness is never replaced by an introductory-learner assumption. Generation is
+persisted before Drive publication so storage retries reuse it, with the exact model,
+CLI version, authoring policy and source hashes recorded. The generated activities
+resolve the saved booking bundle, not the calibration pilot. It creates
 private editable teacher Slides with per-slide speaker notes and private solution
 keys inside the same deck, automatically animated spread/area demonstrations
 after eligible static explanation steps, separate question-only homework and

@@ -1,9 +1,11 @@
 import { handle } from '../db.ts';
+import {preparationBriefForBooking,type PreparationBrief} from './preparation-brief.ts';
 
 export type NativeLessonState = 'queued' | 'preparing' | 'needs-preparation' | 'review' | 'failed' | 'cancelled';
 export interface NativeLessonSnapshot {
  bookingId: number; studentId: number; enrollmentId: number | null; teacherId: number | null;
  subject: string | null; level: string | null; start: string; durationMin: number | null;
+ brief?:PreparationBrief;
 }
 export interface NativeLessonJob {
  id: number; bookingId: number; studentId: number; state: NativeLessonState;
@@ -31,7 +33,7 @@ export function enqueueNativeLesson(input: {bookingId: number; studentId: number
  const snapshot: NativeLessonSnapshot={bookingId:input.bookingId,studentId:input.studentId,
  enrollmentId:row.enrollment_id as number|null,teacherId:row.teacher_id as number|null,
  subject:row.subject as string|null ?? null,level:row.level as string|null ?? null,
- start:String(row.start),durationMin:row.duration as number|null};
+ start:String(row.start),durationMin:row.duration as number|null,brief:preparationBriefForBooking(input)};
  const now=new Date().toISOString();
  db.prepare(`INSERT INTO native_lesson_jobs (booking_id,student_id,state,snapshot,created_at,updated_at)
  VALUES (?,?,?,?,?,?) ON CONFLICT(booking_id) DO NOTHING`).run(input.bookingId,input.studentId,
@@ -59,10 +61,18 @@ export function finishNativeLessonJob(input: {
  bookingId:number; attempt:number; state:'review'|'needs-preparation'; bundle?:unknown; reason?:string;
 }): NativeLessonJob | null {
  const now=new Date().toISOString();
- return decode(handle().prepare(`UPDATE native_lesson_jobs SET state=?,bundle=?,reason=?,error_code=NULL,
+ return decode(handle().prepare(`UPDATE native_lesson_jobs SET state=?,bundle=COALESCE(?,bundle),reason=?,error_code=NULL,
  lease_until=NULL,retry_at=NULL,updated_at=? WHERE booking_id=? AND attempts=? AND state='preparing'
  AND lease_until>? AND EXISTS (SELECT 1 FROM bookings_v2 b WHERE b.id=booking_id AND b.student_id=native_lesson_jobs.student_id AND b.status='confirmed') RETURNING *`)
  .get(input.state,input.bundle==null?null:JSON.stringify(input.bundle),input.reason??null,now,input.bookingId,input.attempt,now));
+}
+/** Seal acknowledged Drive IDs before Sheets writes; retries must reuse them across renderer upgrades. */
+export function cacheNativePublication(input:{bookingId:number;attempt:number;publication:unknown}):NativeLessonJob|null{
+ const now=new Date().toISOString();
+ return decode(handle().prepare(`UPDATE native_lesson_jobs SET bundle=?,updated_at=?
+ WHERE booking_id=? AND attempts=? AND state='preparing' AND lease_until>?
+ AND EXISTS(SELECT 1 FROM bookings_v2 b WHERE b.id=booking_id AND b.student_id=native_lesson_jobs.student_id AND b.status='confirmed') RETURNING *`)
+ .get(JSON.stringify({pendingPublication:input.publication}),now,input.bookingId,input.attempt,now));
 }
 /** Persist a safe error code, not upstream bodies that might contain private source material. */
 export function failNativeLessonJob(input: {bookingId:number;attempt:number;code:string;retryable?:boolean}): NativeLessonJob | null {

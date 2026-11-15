@@ -61,6 +61,7 @@
    *   - #confirm-bg.open (confirm dialog)   → confirmMsg !== null
    */
   import { onMount, untrack } from 'svelte';
+  import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { SvelteSet } from 'svelte/reactivity';
   import { toHref } from '$lib/urls.ts';
@@ -72,6 +73,8 @@
   // Named apart from the local fake-CRM `data` below (see that variable's
   // own comment) — this one is the real, server-rendered roster.
   let { data: pageData }: { data: PageData } = $props();
+  let nativeRequests = $state<Record<number,string>>(untrack(()=>Object.fromEntries((pageData.nativePreparations??[]).map(p=>[p.bookingId,p.brief?.request??'']))));
+  let nativeKnowledge = $state<Record<number,string>>(untrack(()=>Object.fromEntries((pageData.nativePreparations??[]).map(p=>[p.bookingId,p.brief?.priorKnowledge??'']))));
   let nativeContextConfirmed = $state<Record<number,boolean>>({});
   let nativePreparationBusy = $state<number|null>(null);
   let nativePreparationMessage = $state('');
@@ -79,11 +82,11 @@
     if(!nativeContextConfirmed[bookingId]||nativePreparationBusy!==null)return;
     nativePreparationBusy=bookingId;
     try{
-      const response=await api(`/api/native-lessons/${bookingId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId,context:pageData.nativeReviewContext})});
+      const response=await api(`/api/native-lessons/${bookingId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId,preparation:{request:nativeRequests[bookingId],priorKnowledge:nativeKnowledge[bookingId]}})});
       if(session.over)return;
       const result=await response.json();
-      nativePreparationMessage=response.ok?'בקשת ההכנה נשמרה. רעננו בהמשך כדי לראות את מצב הטיוטה.':result.error??'לא ניתן לשמור את בקשת ההכנה.';
-      if(response.ok)nativeContextConfirmed[bookingId]=false;
+      nativePreparationMessage=response.ok?'בקשת ההכנה נשמרה. מצב הטיוטה יתעדכן כאן אוטומטית.':result.error??'לא ניתן לשמור את בקשת ההכנה.';
+      if(response.ok){nativeContextConfirmed[bookingId]=false;await invalidateAll();}
     }catch{nativePreparationMessage='לא ניתן לשמור כרגע. אפשר לנסות שוב.';}
     finally{nativePreparationBusy=null;}
   }
@@ -979,6 +982,13 @@
   const dashboardDate = new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
   onMount(() => {
+    const timer=setInterval(()=>{
+      if(!session.over && document.visibilityState==='visible' && pageData.nativePreparations?.some(p=>p.state==='queued'||p.state==='preparing'))void invalidateAll().catch(()=>{});
+    },15000);
+    return()=>clearInterval(timer);
+  });
+
+  onMount(() => {
     data = loadData();
     // Computed once, off the browser's existing local blob and the roster
     // already seeded from the page load — never re-run automatically after
@@ -1025,12 +1035,17 @@
         {#each pageData.nativePreparations as preparation (preparation.bookingId)}
           <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.reason}<p>{preparation.reason}</p>{/if}{#if preparation.error}<p>{preparation.error}</p>{/if}
             {#if preparation.canBind && pageData.nativeAuthoringEnabled}
-              <details><summary>בחירת חבילת מבוא לבדיקה</summary>
-                <p>חבילת כיול: התפלגות נורמלית, תיכון, 3 יחידות, שאלון <bdi>35372</bdi>, 90 דקות, סימון בית־ספרי <bdi>s</bdi>. המקור המודרך הוא קיץ 2025 שאלה 3. יש לבדוק שהנושא והשאלה לא נלמדו כבר.</p>
-                <label><input type="checkbox" bind:checked={nativeContextConfirmed[preparation.bookingId]} /> בדקתי שהתלמיד/ה מבינ/ה אחוזים וממוצע, חדש/ה בנושא, ושהחבילה מתאימה לבקשה ולרמה. אני מבקש/ת טיוטה פרטית לבדיקה.</label>
-                <button class="workspace-button" type="button" disabled={!nativeContextConfirmed[preparation.bookingId] || nativePreparationBusy!==null} onclick={()=>prepareNativeReview(preparation.bookingId,preparation.studentId)}>{nativePreparationBusy===preparation.bookingId?'שומרים…':'הכנת טיוטה לבדיקה'}</button>
+              <details><summary>הכנת שיעור מותאם לבדיקה</summary>
+                <p>מסלול נתמך בשלב זה: התפלגות נורמלית, תיכון, 3 יחידות, שאלון <bdi>35372</bdi>, 90 דקות, סימון בית־ספרי <bdi>s</bdi>. המקור המודרך הוא קיץ 2025 שאלה 3. ניצור תוכן חדש לפי המטרה ותיאור הידע הקודם. יש לבדוק שהשאלה לא נלמדה כבר.</p>
+                {#if preparation.brief?.previousAssignedSourceIds?.includes(pageData.nativeReviewContext.sourceId)}<p>השאלה הופיעה בחומר שהוקצה בעבר. בדקו אם נעשה בה שימוש לפני הכנת השיעור.</p>{/if}
+                <label>מה מטרת השיעור? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeRequests[preparation.bookingId]} placeholder="למשל: להבין שטחים בעקומה ולפתור שאלה עם פחות עזרה"></textarea></label>
+                <label>מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeKnowledge[preparation.bookingId]} placeholder="תארו מה נצפה בפועל; אפשר לציין שעדיין לא נבדק"></textarea></label>
+                <label><input type="checkbox" bind:checked={nativeContextConfirmed[preparation.bookingId]} /> בדקתי שהנושא, הרמה ומקור הבחינה מתאימים לשיעור. תיארתי את הידע הקודם לפי מה שידוע לי. אני מבקש/ת טיוטה פרטית לבדיקה.</label>
+                <button class="workspace-button" type="button" disabled={!nativeContextConfirmed[preparation.bookingId] || !(nativeRequests[preparation.bookingId]?.trim().length>=3) || !(nativeKnowledge[preparation.bookingId]?.trim().length>=3) || nativePreparationBusy!==null} onclick={()=>prepareNativeReview(preparation.bookingId,preparation.studentId)}>{nativePreparationBusy===preparation.bookingId?'שומרים…':preparation.hasGenerated?'ניסיון נוסף לשמירת הטיוטה':'הכנת טיוטה לבדיקה'}</button>
               </details>
             {/if}
+            {#if preparation.links?.slides}<a class="workspace-button" href={preparation.links.slides.url} target="_blank" rel="noopener">מצגת והערות למורה</a>{/if}
+            {#if preparation.links?.homework}<a class="workspace-button" href={preparation.links.homework.url} target="_blank" rel="noopener">שיעורי בית לבדיקה</a>{/if}
           </li>
         {/each}
       </ul>

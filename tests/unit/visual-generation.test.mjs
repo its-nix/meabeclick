@@ -7,7 +7,7 @@ async function inert(responses,action){const dir=await mkdtemp(join(tmpdir(),'vi
  const bin=join(dir,'stub.mjs');await writeFile(bin,`#!/usr/bin/env node
 import{readFileSync,writeFileSync}from'node:fs';import{join}from'node:path';
 const d=process.env.VISUAL_STUB_DIR,a=process.argv.slice(2);if(a.includes('--version')){process.stdout.write('codex-cli test');process.exit(0)}let p='';for await(const c of process.stdin)p+=c;
-let n=0;try{n=Number(readFileSync(join(d,'count'),'utf8'))}catch{}writeFileSync(join(d,'count'),String(n+1));writeFileSync(join(d,'prompt-'+n),p);writeFileSync(join(d,'schema.json'),readFileSync(a[a.indexOf('--output-schema')+1]));const r=JSON.parse(readFileSync(join(d,'responses.json'),'utf8'))[n];
+let n=0;try{n=Number(readFileSync(join(d,'count'),'utf8'))}catch{}writeFileSync(join(d,'count'),String(n+1));writeFileSync(join(d,'prompt-'+n),p);writeFileSync(join(d,'args.json'),JSON.stringify(a));writeFileSync(join(d,'schema.json'),readFileSync(a[a.indexOf('--output-schema')+1]));const r=JSON.parse(readFileSync(join(d,'responses.json'),'utf8'))[n];
 if(r?.pause)await new Promise(resolve=>setTimeout(resolve,2000));if(r?.failure){process.stderr.write(r.failure);process.exit(1)}writeFileSync(a[a.indexOf('-o')+1],JSON.stringify(r));
 `,{mode:0o755});process.env.CODEX_BIN=bin;process.env.VISUAL_STUB_DIR=dir;return await action(dir);
  }finally{for(const[k,v]of Object.entries(old)){if(v===undefined)delete process.env[k];else process.env[k]=v;}await rm(dir,{recursive:true,force:true});}}
@@ -20,7 +20,7 @@ test('invalid nested output repairs once; quota and unknown sources never retry'
  await inert([{slides:[null]},visualDeckFixture()],async dir=>{const rejected=[];assert.equal((await generateVisualLesson({context,sourceIds:[],timeoutMs:3000,onRejected:e=>rejected.push(e)})).slides.length,20);assert.equal(rejected.length,1);assert.deepEqual(JSON.parse(rejected[0].response),{slides:[null]});assert.equal(await readFile(join(dir,'count'),'utf8'),'2');assert.match(await readFile(join(dir,'prompt-1'),'utf8'),/validation failures/);});
  await inert([{},{}],async dir=>{await assert.rejects(generateVisualLesson({context,sourceIds:[],timeoutMs:3000}),e=>e.kind==='bad-output');assert.equal(await readFile(join(dir,'count'),'utf8'),'2');});
  await inert([{failure:"You've hit your usage limit"}],async dir=>{await assert.rejects(generateVisualLesson({context,sourceIds:[],timeoutMs:3000}),e=>e.kind==='engine-quota');assert.equal(await readFile(join(dir,'count'),'utf8'),'1');await assert.rejects(generateVisualLesson({context,sourceIds:['invented'],timeoutMs:3000}),/source/);assert.equal(await readFile(join(dir,'count'),'utf8'),'1');});
- for(const [response,kind,timeoutMs]of [[{failure:'please run codex login'},'engine-auth',3000],[{pause:true},'engine-timeout',500]])await inert([response],async dir=>{await assert.rejects(generateVisualLesson({context,sourceIds:[],timeoutMs}),e=>e.kind===kind);assert.equal(await readFile(join(dir,'count'),'utf8'),'1');});
+ for(const [response,kind,timeoutMs]of [[{failure:'please run codex login'},'engine-auth',3000],[{pause:true},'engine-timeout',500]])await inert([response],async dir=>{await assert.rejects(generateVisualLesson({context,sourceIds:[],timeoutMs}),e=>e.kind===kind);const count=await readFile(join(dir,'count'),'utf8').catch(e=>{if(kind==='engine-timeout'&&e.code==='ENOENT')return '0';throw e;});assert.ok(kind==='engine-timeout'?Number(count)<=1:count==='1','a timed-out process may be killed before startup, but must never retry');});
 });
 test('official solution identities and canonical values are constrained in the actual CLI schema',async()=>{
  const {generateVisualLesson}=await import('../../src/lib/server/lesson/visual-generation.ts');const bundle=visualDeckFixture(),id='moe-2025a-35372-3';bundle.slides[2].blocks.push({type:'source',sourceId:id,text:'מקור',model:null,reveal:0});bundle.sourceSolutions=Object.entries({a1:'72',a2:'52,56,60,64,68,72,76,80,84,88,92',b:'16',c:'200',d:'86'}).map(([part,answer])=>({questionId:id,part,answer,slideId:'slide-3'}));
@@ -71,4 +71,9 @@ test('chained revision parents reject missing or changed lineage evidence',async
   await rm(join(out,'revision-feedback.txt'));await assert.rejects(m.readCandidate(out));await assert.rejects(m.readRevisionParent(out,ref,repo),'historical reader must not bypass missing evidence');
   await writeFile(join(out,'revision-feedback.txt'),'changed');await assert.rejects(m.readRevisionParent(out,ref,repo),/checksum/);
  }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('booking authoring passes the tutor readiness and request through the actual CLI prompt',async()=>{
+ const{generateVisualLesson}=await import('../../src/lib/server/lesson/visual-generation.ts');
+ await inert([visualDeckFixture()],async dir=>{await generateVisualLesson({context:{...context,purpose:'booking',readiness:'TUTOR_REPORTED_FRACTIONS_GAP',request:'PERSONALIZED_REQUEST'},sourceIds:[],timeoutMs:3000});const prompt=await readFile(join(dir,'prompt-0'),'utf8');assert.match(prompt,/TUTOR_REPORTED_FRACTIONS_GAP/);assert.match(prompt,/PERSONALIZED_REQUEST/);assert.match(prompt,/introductory learner assumption above is a fallback/);const args=JSON.parse(await readFile(join(dir,'args.json'),'utf8'));assert.ok(args.includes('read-only'));assert.ok(args.includes('shell_tool'));assert.ok(!args.includes('--dangerously-bypass-approvals-and-sandbox'));});
 });

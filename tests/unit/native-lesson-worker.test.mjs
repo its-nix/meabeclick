@@ -46,8 +46,8 @@ test('failed registration can be resumed by a new worker without duplicate final
  const first=controller({publish:async input=>{keys.push(input.key);return receipt;},register:async()=>{attempts++;throw Error('quota');}});
  first.queue();await first.settled();assert.equal(J.getNativeLessonJob(bookingId).state,'failed');
  handle().prepare("UPDATE native_lesson_jobs SET retry_at='2000-01-01T00:00:00.000Z' WHERE booking_id=?").run(bookingId);
- const restarted=controller({publish:async input=>{keys.push(input.key);return receipt;},register:async()=>{attempts++;}});restarted.queue();await restarted.settled();
- assert.equal(J.getNativeLessonJob(bookingId).state,'review');assert.equal(attempts,2);assert.equal(keys[0],keys[1]);
+ const restarted=controller({publish:async input=>{keys.push(input.key);return {...receipt,sourceHash:'renderer-upgraded',slides:{...receipt.slides,id:'wrong-new-id'}};},register:async(_a,_w,_j,saved)=>{assert.equal(saved.slides.id,receipt.slides.id);assert.equal(saved.sourceHash,receipt.sourceHash);attempts++;}});restarted.queue();await restarted.settled();
+ assert.equal(J.getNativeLessonJob(bookingId).state,'review');assert.equal(attempts,2);assert.equal(keys.length,1);assert.equal(J.getNativeLessonJob(bookingId).bundle.slides.id,receipt.slides.id);
 });
 test('context rejects other sources, ownership, and changes while preparing',()=>{
  const {bookingId,student}=booking({bind:false});
@@ -100,4 +100,53 @@ test('embedded-note decks are staff material, with no phantom notes Doc or stude
  assert.equal(records.Materials.filter(m=>m.kind==='lesson_brief').length,0);
  assert.ok(records.Assignments.every(a=>a.material_id!==deck.material_id));
  const historical=nativeDraftRecords(J.getNativeLessonJob(bookingId),receipt,'Synthetic');assert.ok(historical.Materials.some(m=>m.url===receipt.tutorNotes.url),'existing separate-note receipts remain readable');
+});
+
+test('tutor brief drives fresh authoring; a saved generation survives registration retry and activities resolve its own version',async()=>{
+ const {authorNativeLesson}=await import('../../src/lib/server/native-learning/authoring.ts');
+ const {nativeBookingActivities}=await import('../../src/lib/server/native-learning/activities.ts');
+ const {getPilot}=await import('../../src/lib/server/visual-pilot.ts');
+ const f=booking({bind:false});
+ handle().prepare("UPDATE bookings_v2 SET status='cancelled' WHERE id<>?").run(f.bookingId);
+ C.bindNativePreparation({bookingId:f.bookingId,studentId:f.student.id,request:'להבין שטחים בלי לשנן',priorKnowledge:'מבין ממוצע, מתקשה באחוזים'});
+ let generated=0,registered=0;const worker=controller({generate:job=>authorNativeLesson(job,async input=>{generated++;assert.match(input.context.readiness,/מתקשה באחוזים/);assert.equal(input.context.purpose,'booking');assert.doesNotMatch(JSON.stringify(input.context),/Same name/);return structuredClone(getPilot().bundle);},()=>({model:'fixture',cliVersion:'fixture'})),publish:async input=>{assert.ok(input.activityBaseUrl.endsWith('/'+f.bookingId));return receipt;},register:async()=>{if(registered++<2)throw Error('quota');}});
+ assert.equal(nativeBookingActivities(f.bookingId),null);
+ worker.queue();await worker.settled();assert.equal(J.getNativeLessonJob(f.bookingId).state,'failed');assert.equal(generated,1);
+ handle().prepare("UPDATE native_lesson_jobs SET retry_at='2000-01-01T00:00:00Z' WHERE booking_id=?").run(f.bookingId);
+ worker.queue();await worker.settled();assert.equal(generated,1);assert.equal(J.getNativeLessonJob(f.bookingId).state,'failed');
+ assert.throws(()=>C.bindNativePreparation({bookingId:f.bookingId,studentId:f.student.id,request:'different request',priorKnowledge:'different knowledge'}),/locked/);
+ C.bindNativePreparation({bookingId:f.bookingId,studentId:f.student.id,request:'להבין שטחים בלי לשנן',priorKnowledge:'מבין ממוצע, מתקשה באחוזים'});worker.queue();await worker.settled();assert.equal(generated,1);
+ const done=J.getNativeLessonJob(f.bookingId);assert.equal(done.state,'review');assert.equal(done.bundle.provenance.kind,'fresh-booking-generation');assert.equal(nativeBookingActivities(f.bookingId).version,done.snapshot.authored.version);
+ E.cancelBooking(f.bookingId);assert.equal(nativeBookingActivities(f.bookingId),null);
+});
+
+test('legacy calibration context never bypasses required tutor fields for fresh authoring',async()=>{
+ const f=booking();let calls=0;const worker=controller({generate:async()=>{calls++;throw Error('must not author');}});worker.queue();await worker.settled();assert.equal(J.getNativeLessonJob(f.bookingId).reason,'missing_brief');assert.equal(calls,0);
+});
+
+test('generation quota errors retain a safe code and do not automatically retry',async()=>{
+ const f=booking({bind:false});C.bindNativePreparation({bookingId:f.bookingId,studentId:f.student.id,request:'להבין את הנושא',priorKnowledge:'טרם נבדק באופן עצמאי'});
+ const worker=controller({generate:async()=>{throw Object.assign(Error('PRIVATE_PROVIDER_RESPONSE'),{kind:'engine-quota'});}});worker.queue();await worker.settled();
+ const failed=J.getNativeLessonJob(f.bookingId);assert.equal(failed.errorCode,'engine-quota');assert.equal(failed.retryAt,null);assert.doesNotMatch(JSON.stringify(failed),/PRIVATE_PROVIDER_RESPONSE/);
+});
+
+test('synthetic owner-review sample is validated and never requires a fake booking',async()=>{
+ const{nativeActivitySource}=await import('../../src/lib/server/native-learning/activities.ts');const source=nativeActivitySource('sample');assert.equal(source.model,'gpt-5.6-terra');assert.equal(source.bundle.durationMin,90);assert.equal(source.version.length,64);assert.equal(nativeActivitySource('../sample'),null);assert.equal(nativeActivitySource('sample<script>'),null);
+});
+
+ test('a sealed publication refuses registration in a different archive',async()=>{
+ const f=booking();const first=controller({register:async()=>{throw Error('quota');}});first.queue();await first.settled();
+ assert.ok(J.getNativeLessonJob(f.bookingId).bundle.pendingPublication);
+ handle().prepare("UPDATE native_lesson_jobs SET retry_at='2000-01-01T00:00:00Z' WHERE booking_id=?").run(f.bookingId);
+ let writes=0;const second=controller({workspace:()=>({archiveId:'other-archive',indexId:'other-index'}),publish:async()=>{writes++;return receipt;},register:async()=>{writes++;}});second.queue();await second.settled();
+ assert.equal(J.getNativeLessonJob(f.bookingId).errorCode,'conflict');assert.equal(writes,0);
+ });
+
+test('temporary disabled authoring retains sealed publication through manual resume',async()=>{
+ const f=booking();const first=controller({register:async()=>{throw Error('quota');}});first.queue();await first.settled();
+ handle().prepare("UPDATE native_lesson_jobs SET retry_at='2000-01-01T00:00:00Z' WHERE booking_id=?").run(f.bookingId);
+ const disabled=controller({enabled:()=>false});disabled.queue();await disabled.settled();
+ const paused=J.getNativeLessonJob(f.bookingId);assert.equal(paused.state,'needs-preparation');assert.ok(paused.bundle.pendingPublication);
+ C.bindNativeReviewContext({bookingId:f.bookingId,studentId:f.student.id,context:C.NORMAL_REVIEW_CONTEXT});
+ const resumed=controller({publish:async()=>{throw Error('must reuse publication');}});resumed.queue();await resumed.settled();assert.equal(J.getNativeLessonJob(f.bookingId).state,'review');
 });

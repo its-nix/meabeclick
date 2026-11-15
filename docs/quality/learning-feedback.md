@@ -168,3 +168,42 @@ candidates are validated before archiving the predecessor. Separate files are no
 Google revisions, and customer-assigned material must remain intact. Managed folder
 keys and parent relationships are unchanged; setup defaults and the existing guide
 now match this organization and the embedded-speaker-notes contract.
+
+## 2026-11-15 — From booking brief to fresh private native draft
+
+The worker previously copied the calibration bundle and its activity links opened
+the shared pilot. Supported booking drafts now use tutor-reported goals/readiness
+and enrollment-scoped observations to generate fresh content. Output is saved before
+publishing; unchanged retries reuse it and material identities. Activities load and
+grade the exact saved booking version behind tutor authentication. Student profiles,
+folders, native materials and draft assignments are linked through Sheets. Unknown
+readiness, assigned sources and revealed practice retain their actual evidence status.
+
+An isolated real 26-scene example adapted to a difficulty with percentages, exported
+67 native slides with two animations, and passed 130 reveal-state overflow checks.
+Visual inspection also caught comparison content crossing its prompt; smaller
+comparison diagrams and safe centering fix the shared HTML layout, with header
+intersection assertions in the pilot browser check. No real bookings or learning
+scores were created for this validation. Student delivery remains owner-review gated.
+
+Production-model validation used the live ChatGPT connection with gpt-5.6-terra
+and CLI 0.149.0 in isolated temporary storage. Its raw candidate had correct keys
+but needed clearer complement wording and a worked percentage bridge. The shared
+policy was refined. A 15-string editorial child records parent/patch hashes and
+retains every model, key, ID and agenda item; it is labelled reviewed generation,
+not untouched automatic output. Independent math review cleared the child.
+The canonical private sample serves its own activities without a fake booking.
+Native Google conversion preserved all 64 presenter-note bodies. All 64 Google
+PDF pages were rendered and visually inspected, including the forward and reverse
+percentage correspondences. This remains a tutor-review sample, not evidence of
+student comprehension or the required production generation streak.
+
+Native Docs conversion exposed oversized inline formula images overlapping Hebrew
+wrapped lines. The shared exporter now uses prose-sized formula images, a minimum
+paragraph line height and a larger brand mark. The corrected two-page native Doc
+was exported back to PDF and visually checked; its superseded private candidate
+was archived. Acknowledged publication receipts are now saved under the same job
+lease before Sheets registration and retained through paused preparation. Retry
+tests cover renderer changes, wrong archive and manual resume without republishing.
+The dashboard refreshes pending drafts automatically; 12 desktop/mobile flow
+checks passed. Student delivery remains blocked.

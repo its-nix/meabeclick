@@ -1,5 +1,8 @@
 import { test, expect } from './fixtures.mjs';
 import {DatabaseSync} from 'node:sqlite';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { formatDateTime } from '../../src/lib/dates.ts';
 import {seedRetired,receipt as nativeReceipt} from '../learning-archive-fixture.mjs';
 
 const profilePath = qa => `/app/students/${qa.learner.code}`;
@@ -372,4 +375,23 @@ test.describe('personal learning Google forms',()=>{
   await expect(card.getByRole('button',{name:'סנכרון עכשיו',exact:true})).toBeEnabled({timeout:20000});
   await qa.evidence(page,'central-drive-dashboard');
  });
+});
+
+test('learning: generated lesson card shows the booked time and previews games as the tutor', async ({ qa }) => {
+  const booking = qa.row('SELECT start FROM bookings_v2 b JOIN students_v2 s ON s.id=b.student_id WHERE s.code=?', qa.learner.code);
+  const dataId = `${qa.learner.slug}-quiz`;
+  const db = new DatabaseSync(qa.dbPath);
+  db.prepare('UPDATE lessons SET lesson_at=?, games=? WHERE slug=?').run(booking.start, JSON.stringify([{ title: 'חידון בדיקה', template: 'quiz', dataId }]), qa.learner.slug);
+  db.close();
+  mkdirSync(join(qa.dataDir, 'games-data'), { recursive: true });
+  writeFileSync(join(qa.dataDir, 'games-data', `${dataId}.json`), JSON.stringify({ title: 'חידון בדיקה', questions: [{ q: '1+1?', options: ['2', '3'], answer: 0, why: 'חיבור.' }] }));
+  const page = await qa.page('tutor');
+  await page.goto(profilePath(qa));
+  const card = page.locator('.lsn-card').first();
+  await expect(card).toContainText(`מועד השיעור: ${formatDateTime(booking.start)}`);
+  const game = card.getByRole('link', { name: /חידון בדיקה/ });
+  await expect(game).toHaveAttribute('href', `/app/play/quiz?lesson=${qa.learner.slug}`);
+  await page.goto(await game.getAttribute('href'));
+  await expect(page.getByText('ללא רישום תוצאות')).toBeVisible();
+  await qa.evidence(page, 'tutor-game-preview');
 });

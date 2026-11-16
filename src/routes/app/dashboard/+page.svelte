@@ -940,11 +940,11 @@
   }
 
   /* ═══════════════════ auto-generated lessons (/api/lessons) ═══════════════════ */
-  interface LessonGame { title: string; url: string | null; broken: boolean }
+  interface LessonGame { title: string; url: string | null; previewUrl: string | null; broken: boolean }
   interface LessonEntry {
     slug: string; student: string; subject: string | null; title: string | null; topic: string | null;
     context: string | null; status: string; problem: string | null; slidesUrl: string | null;
-    homework: unknown[]; games: LessonGame[]; level: string | null;
+    homework: unknown[]; games: LessonGame[]; level: string | null; lessonAt: string | null;
   }
   let lessons = $state<LessonEntry[]>([]);
   let lessonsLoading = $state(true);
@@ -1714,6 +1714,8 @@
             <div>
               <div class="lsn-title">{l.title || l.topic || '—'}</div>
               <div class="lsn-meta">{l.student} · {l.subject || ''} {l.level || ''}</div>
+              <!-- The booked lesson time, never when generation finished (`at`). -->
+              <div class="lsn-meta">{#if l.lessonAt}מועד השיעור: <bdi>{formatDateTime(l.lessonAt)}</bdi>{:else}טרם נקבע מועד לשיעור{/if}</div>
             </div>
             <span class="lsn-badge" style="color:{b[1]};background:{b[2]}">{b[0]}</span>
           </div>
@@ -1725,7 +1727,10 @@
                  that generated has a plan to edit. -->
             {#if l.status === 'ready'}<a href="/app/lessons/{l.slug}/edit">✏️ עריכה</a>{/if}
             {#each l.games as g}
-              {#if g.url}
+              {#if g.previewUrl}
+                <!-- Tutor preview: never the child's signed play link. -->
+                <a href={g.previewUrl} target="_blank" rel="noopener">🎮 {g.title}</a>
+              {:else if g.url}
                 <a href={toHref(g.url)} target="_blank" rel="noopener">🎮 {g.title}</a>
               {:else}
                 <span class="lsn-broken" title="לא הצלחתי לבנות קישור למשחק הזה">⚠ {g.title} — קישור שבור</span>
@@ -1853,11 +1858,9 @@
   .roster-table th:nth-child(2) { width: 22%; }
   .roster-table td:last-child { font-size: 0.875rem; }
   .roster-table td bdi { white-space: nowrap; }
-  .roster-table tbody tr { position: relative; border-top: 1px solid var(--border); }
+  .roster-table tbody tr { border-top: 1px solid var(--border); }
   .roster-table tbody tr:hover, .roster-table tbody tr:focus-within { background: var(--bg-surface); }
   .student-row-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--accent-deep); font-weight: 700; text-decoration:none; }
-  .student-row-link::after { content: ''; position: absolute; inset: 0; }
-  .student-row-link:focus-visible::after { outline: 3px solid var(--accent); outline-offset: -3px; }
   .roster-meta { display: block; color: var(--text-muted-strong); font-size: 0.85rem; line-height: 1.5; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 

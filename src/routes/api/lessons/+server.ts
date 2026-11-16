@@ -46,19 +46,23 @@ import { resolveStudent, studentRefById } from '$server/results.ts';
 import { gameUrl, lessonUrl } from '$server/urls.ts';
 import type { RequestHandler } from './$types';
 
-function normalizeLessonGame(entry: unknown, student: string): { title: string; url: string | null; broken: boolean } {
+/* `url` is the student's own signed link: opening it as the tutor plays,
+   and can record, as that child. The dashboard links `previewUrl` instead —
+   /app/play's tutor-only `?lesson=` preview, which writes no results. Only a
+   new-shape entry (template + dataId) can be previewed that way. */
+function normalizeLessonGame(entry: unknown, student: string, slug: string): { title: string; url: string | null; previewUrl: string | null; broken: boolean } {
   const e = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {};
   const title = typeof e.title === 'string' && e.title ? e.title : '(ללא שם)';
 
-  if (typeof e.url === 'string') return { title, url: e.url, broken: false }; // old shape: already has a url
+  if (typeof e.url === 'string') return { title, url: e.url, previewUrl: null, broken: false }; // old shape: already has a url
   if (typeof e.template === 'string' && typeof e.dataId === 'string') {
     try {
-      return { title, url: gameUrl({ template: e.template, dataId: e.dataId, student }), broken: false };
+      return { title, url: gameUrl({ template: e.template, dataId: e.dataId, student }), previewUrl: `/app/play/${e.template}?lesson=${encodeURIComponent(slug)}`, broken: false };
     } catch {
-      return { title, url: null, broken: true }; // invalid template — visible, not vanished
+      return { title, url: null, previewUrl: null, broken: true }; // invalid template — visible, not vanished
     }
   }
-  return { title, url: null, broken: true }; // neither shape
+  return { title, url: null, previewUrl: null, broken: true }; // neither shape
 }
 
 export const GET: RequestHandler = async (event) => {
@@ -84,7 +88,7 @@ export const GET: RequestHandler = async (event) => {
       const ref = id === null ? l.student : (studentRefById(id)?.code ?? l.student);
       return {
         ...l,
-        games: l.games.map(g => normalizeLessonGame(g, ref)),
+        games: l.games.map(g => normalizeLessonGame(g, ref, l.slug)),
         slidesUrl: l.slides ? lessonUrl(l.slug) : null,
       };
     });

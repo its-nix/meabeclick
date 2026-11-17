@@ -69,8 +69,6 @@ export const STORAGE: Record<string, TableFact> = {
   payments:      { status: 'live', note: 'Charges in integer agorot. Manual marking, no auto-billing.' },
   homework:      { status: 'live', note: 'One store for both sides since #86; `done` is the hand-marked submission.' },
   learning_assignments: { status: 'live', note: 'Explicit student ownership, booking/skill, preparation release deadline and the editable practice material target.' },
-  learning_progress: { status: 'live', note: 'Attempts, hints and completion per student, lesson content version and scene; not an assertion of skill mastery.' },
-  learning_events: { status: 'live', note: 'Idempotent learning actions so offline retries never duplicate attempts.' },
   access_credentials: {
     status: 'live',
     note: 'Hashed single-use entry: 15-minute account links and 48-hour student invitations; raw secrets are never stored.',

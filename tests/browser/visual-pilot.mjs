@@ -8,7 +8,7 @@ if(fixture){bundle.slides[2].blocks[0].model.states.push({...bundle.slides[2].bl
 const evidence=process.env.EVIDENCE_DIR??join(tmpdir(),'meabeclick-visual-pilot');await mkdir(evidence,{recursive:true});
 const server=await startServer(),browser=await chromium.launch({executablePath:process.env.CHROME_BIN??(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':chromium.executablePath()),headless:true});
 const report={fixture,errors:[],slides:0,activities:0,viewports:[1440,768,390,320]};
-const count=()=>{const db=new DatabaseSync(server.dbPath);try{return ['lessons','lesson_materials','learning_assignments','learning_progress','learning_events','native_results'].map(t=>db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n);}finally{db.close();}};
+const count=()=>{const db=new DatabaseSync(server.dbPath);try{return ['lessons','lesson_materials','learning_assignments','native_results'].map(t=>db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n);}finally{db.close();}};
 try{
  const cookie=await login(server.baseUrl),context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});const[name,...v]=cookie.split('=');await context.addCookies([{name,value:v.join('='),url:server.baseUrl}]);const page=await context.newPage();page.on('pageerror',e=>report.errors.push(e.message));
  const path=fixture?'/visual-fixture':'/app/learning-pilot',base=server.baseUrl+path,before=count();

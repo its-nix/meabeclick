@@ -46,6 +46,7 @@ import { sql as sql044 } from './044_native_results.ts';
 import { sql as sql045 } from './045_drop_join_codes.ts';
 import { sql as sql046 } from './046_native_homework_shares.ts';
 import { sql as sql047 } from './047_remove_classic_games.ts';
+import { sql as sql048 } from './048_drop_learning_progress.ts';
 
 export interface Migration {
   version: number;
@@ -111,4 +112,5 @@ export const MIGRATIONS: Migration[] = [
   { version: 45, name: '045_drop_join_codes', sql: sql045 },
   { version: 46, name: '046_native_homework_shares', sql: sql046 },
   { version: 47, name: '047_remove_classic_games', sql: sql047 },
+  { version: 48, name: '048_drop_learning_progress', sql: sql048 },
 ];

@@ -31,7 +31,7 @@ for(const from of [34,35]) test(`learning migration upgrades schema ${from} with
     assert.deepEqual(db.prepare('SELECT * FROM students_v2').all(),student);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
     if(from===35) {
-      assert.equal(db.prepare('SELECT solved FROM learning_progress').get().solved,1);
+      assert.equal(db.prepare("SELECT count(*) n FROM sqlite_master WHERE name IN ('learning_progress','learning_events')").get().n,0,'048 drops the dead per-scene progress tables');
       assert.equal(db.prepare('SELECT practice_state FROM learning_assignments').get().practice_state,'assigned');
     }
   }finally{db.close();}

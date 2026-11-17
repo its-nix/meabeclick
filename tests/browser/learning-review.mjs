@@ -15,7 +15,7 @@ assert.equal(corpus.cases.length,10);
 const server=await startServer();
 const browser=await chromium.launch({executablePath:process.env.CHROME_BIN??(process.platform==='darwin'?'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome':chromium.executablePath()),headless:true});
 const report={syntheticOnly:true,version,errors:[],badRequests:[],scenes:0,viewports:[390,1440]};
-function counts(){const db=new DatabaseSync(server.dbPath);try{return ['lessons','library_items','lesson_materials','learning_assignments','learning_progress','learning_events','native_results'].map(t=>db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n);}finally{db.close();}}
+function counts(){const db=new DatabaseSync(server.dbPath);try{return ['lessons','library_items','lesson_materials','learning_assignments','native_results'].map(t=>db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n);}finally{db.close();}}
 try{
   const cookie=await login(server.baseUrl);
   const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});

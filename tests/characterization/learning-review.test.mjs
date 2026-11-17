@@ -6,7 +6,7 @@ import corpus from '../../src/lib/server/learning-review-corpus.json' with { typ
 import { startServer, login } from './harness.mjs';
 import { seedLearning } from './learning-fixture.mjs';
 
-const tables=['lessons','lesson_materials','library_items','library_uses','learning_assignments','learning_progress','learning_events','native_results'];
+const tables=['lessons','lesson_materials','library_items','library_uses','learning_assignments','native_results'];
 export function reviewCounts(path) {
   const db=new DatabaseSync(path);try{return Object.fromEntries(tables.map(table=>[table,db.prepare(`SELECT count(*) AS n FROM ${table}`).get().n]));}finally{db.close();}
 }

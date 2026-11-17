@@ -21,9 +21,8 @@ test('practice preserves reveal and version identity; assigned sources never cla
  db.prepare("INSERT INTO lessons(slug,student,subject,at,status,title) VALUES(?,?,?,'2028-01-01','ready','Practice')").run(slug,f.s.code,'מתמטיקה');
  db.prepare("INSERT INTO learning_assignments(lesson_slug,student_id,booking_id,practice_state) VALUES(?,?,?,'held')").run(slug,f.s.id,f.b);
  db.prepare("INSERT INTO lesson_materials(lesson_slug,kind,version,content,origin,published_at,created_at) VALUES(?,'plan',1,?,'generated','2028-01-01','2028-01-01')").run(slug,JSON.stringify({teaching:{sources:[{questionId:'moe-2025a-35372-3'}]}}));
- db.prepare("INSERT INTO learning_progress(student_id,lesson_slug,fingerprint,scene_id,attempts,hints,solved,updated_at) VALUES(?,?,?,'scene',1,0,1,'2028-01-01')").run(f.s.id,slug,'fingerprint');
- db.prepare("INSERT INTO learning_events(id,student_id,lesson_slug,fingerprint,scene_id,action,created_at) VALUES('brief-reveal',?,?,?,'scene','solution','2028-01-01')").run(f.s.id,slug,'fingerprint');
- let b=preparationBriefForBooking({bookingId:f.b,studentId:f.s.id});assert.equal(b.practice[0].revealed,true);assert.equal(b.practice[0].fingerprint,'fingerprint');assert.equal(b.readiness,'unknown');assert.deepEqual(b.previousAssignedSourceIds,[]);
+ db.prepare("INSERT INTO native_results(student_id,booking_id,game_id,round_id,outcome,attempts,at) VALUES(?,?,'quiz','r1','assisted',2,'2028-01-01')").run(f.s.id,f.b);
+ let b=preparationBriefForBooking({bookingId:f.b,studentId:f.s.id});assert.equal(b.practice[0].outcome,'assisted');assert.equal(b.practice[0].attempts,2);assert.equal(b.practice[0].gameId,'quiz');assert.equal(b.readiness,'unknown');assert.deepEqual(b.previousAssignedSourceIds,[]);
  db.prepare("UPDATE learning_assignments SET practice_state='assigned' WHERE lesson_slug=?").run(slug);b=preparationBriefForBooking({bookingId:f.b,studentId:f.s.id});assert.deepEqual(b.previousAssignedSourceIds,['moe-2025a-35372-3']);
  E.cancelBooking(f.b);assert.deepEqual(preparationBriefForBooking({bookingId:f.b,studentId:f.s.id}).previousAssignedSourceIds,[]);
 });

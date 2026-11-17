@@ -28,8 +28,6 @@ const columns={
  homework:'id lesson_id student_id task assigned_at due_at submitted_at submitted_by graded_at grade graded_by node_id booking_id held_until answer',
  native_results:'id student_id booking_id game_id round_id skill_node_id outcome attempts seconds at',
  learning_assignments:'lesson_slug student_id booking_id node_id held_until practice_state practice_material_slug',
- learning_progress:'student_id lesson_slug fingerprint scene_id mode attempts hints solved visited updated_at',
- learning_events:'id student_id lesson_slug fingerprint scene_id mode action correct created_at',
  plans:'id student_id enrollment_id template_id template_version goal exam_date focus created_at',
  plan_nodes:'id plan_id key parent_id kind title position visibility',
  plan_prereqs:'skill_id requires_id',
@@ -119,7 +117,6 @@ export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:stri
   ...records.plan_events.map(e=>['plan',e.id,records.plans.find(p=>p.id===e.plan_id)?.student_id??null,e.node_id??null,e.status??e.type,e.evidence??null,e.note??null,e.at]),
   ...records.native_results.map(e=>['game',e.id,e.student_id,`${e.game_id}:${e.round_id}`,e.outcome,e.attempts,e.seconds??null,e.at]),
   ...records.homework.map(e=>['homework',e.id,e.student_id,e.task,e.grade??(e.submitted_at?'submitted':'assigned'),null,null,e.graded_at??e.submitted_at??e.assigned_at]),
-  ...records.learning_progress.map(e=>['activity',[e.lesson_slug,e.fingerprint,e.scene_id].join(':'),e.student_id,e.lesson_slug,e.solved===1?'solved':'in-progress',e.attempts,`hints:${e.hints}; visited:${e.visited}`,e.updated_at]),
  ];
  return {artifacts,students,progress,lessonSlugs:[...new Set([...records.lessons,...records.lessons_v2].map(l=>l.slug as string))].sort(),fingerprint:sha(JSON.stringify(artifacts.map(a=>[a.key,a.sha256])))};
 }

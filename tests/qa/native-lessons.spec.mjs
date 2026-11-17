@@ -57,7 +57,7 @@ test('native-lessons: protected interactive review writes no customer scores and
  mutate(qa,db=>seedRetired(db));const booking=await book(qa);
  const privateUrl='https://docs.google.com/document/d/synthetic-private-notes/edit';
  mutate(qa,db=>db.prepare("UPDATE native_lesson_jobs SET state='review',bundle=? WHERE booking_id=?").run(JSON.stringify({state:'draft',tutorNotes:{url:privateUrl},studentDelivery:'blocked-owner-review-required'}),booking.bookingId));
- const before={results:qa.row('SELECT count(*) n FROM native_results').n,events:qa.row('SELECT count(*) n FROM learning_events').n,homework:qa.row('SELECT count(*) n FROM homework').n};
+ const before={results:qa.row('SELECT count(*) n FROM native_results').n,events:qa.row('SELECT count(*) n FROM native_results').n,homework:qa.row('SELECT count(*) n FROM homework').n};
  const anon=await qa.page('anonymous');await anon.goto('/app/native-review-activities?view=homework');await expect(anon).toHaveURL(/\/login/);
  for(const role of ['parent','student']){expect((await qa.request('/app/native-review-activities?view=homework',{cookie:qa.cookies[role]})).status).toBe(302);expect((await qa.request(`/api/native-lessons/${booking.bookingId}`,{cookie:qa.cookies[role]})).status).toBe(401);}
  const tutorJob=await(await qa.request(`/api/native-lessons/${booking.bookingId}`)).json();expect(tutorJob.job.bundle.tutorNotes.url).toBe(privateUrl);
@@ -71,7 +71,7 @@ test('native-lessons: protected interactive review writes no customer scores and
  const attempt=page.waitForResponse(r=>r.url().endsWith('/api/learning-pilot')&&r.request().method()==='POST');
  await task.locator('[data-task-action="attempt"]').click();expect((await attempt).status()).toBe(200);await expect(task.locator('[data-task-feedback]')).not.toBeEmpty();await qa.evidence(page,'native-private-activity');
  for(const [role,path]of [['student',`/app/student?s=${qa.learner.code}`],['parent',`/app/parent?s=${qa.learner.code}`]]){const family=await qa.page(role);await family.goto(path);expect(await family.content()).not.toContain(privateUrl);}
- expect({results:qa.row('SELECT count(*) n FROM native_results').n,events:qa.row('SELECT count(*) n FROM learning_events').n,homework:qa.row('SELECT count(*) n FROM homework').n}).toEqual(before);
+ expect({results:qa.row('SELECT count(*) n FROM native_results').n,events:qa.row('SELECT count(*) n FROM native_results').n,homework:qa.row('SELECT count(*) n FROM homework').n}).toEqual(before);
 });
 
 test('native-lessons: saved booking activities use their own content and grading with no student evidence writes',async({qa})=>{
@@ -83,18 +83,18 @@ test('native-lessons: saved booking activities use their own content and grading
  const page=await qa.page('tutor');await page.goto(`/app/native-review-activities/${booking.bookingId}?view=homework`);
  await expect(page.getByRole('heading',{name:'תרגול ייחודי לשיעור זה'})).toBeVisible();
  const config=await page.locator('#deck-config').textContent();expect(config).toContain(`/api/native-activities/${booking.bookingId}`);expect(config).not.toContain('presenterNotes');expect(config).not.toContain('expectedAnswer');
- const before=qa.row('SELECT count(*) n FROM learning_events').n;
+ const before=qa.row('SELECT count(*) n FROM native_results').n;
  const task=bundle.homework[0];const result=await page.evaluate(async({id,version,taskId})=>{const r=await fetch(`/api/native-activities/${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version,taskId,action:'attempt',input:'0',eventId:'booking-attempt'})});return r.status;},{id:booking.bookingId,version,taskId:task.id});expect(result).toBe(200);
- expect(qa.row('SELECT count(*) n FROM learning_events').n).toBe(before);
+ expect(qa.row('SELECT count(*) n FROM native_results').n).toBe(before);
  expect((await qa.request(`/api/native-activities/${booking.bookingId}`,{method:'POST',cookie:'',json:{}})).status).toBe(401);
  mutate(qa,db=>db.prepare("UPDATE bookings_v2 SET status='cancelled' WHERE id=?").run(booking.bookingId));
  expect((await qa.request(`/app/native-review-activities/${booking.bookingId}?view=homework`)).status).toBe(404);
 });
 
 test('native-lessons: canonical synthetic review sample opens without creating customer records',async({qa})=>{
- const before=qa.row('SELECT count(*) n FROM bookings_v2').n,events=qa.row('SELECT count(*) n FROM learning_events').n;
+ const before=qa.row('SELECT count(*) n FROM bookings_v2').n,events=qa.row('SELECT count(*) n FROM native_results').n;
  const page=await qa.page('tutor');const r=await page.goto('/app/native-review-activities/sample?view=homework');expect(r.status()).toBe(200);await expect(page.locator('.task-card').first()).toBeVisible();expect(await page.locator('#deck-config').textContent()).not.toContain('presenterNotes');
- expect(qa.row('SELECT count(*) n FROM bookings_v2').n).toBe(before);expect(qa.row('SELECT count(*) n FROM learning_events').n).toBe(events);
+ expect(qa.row('SELECT count(*) n FROM bookings_v2').n).toBe(before);expect(qa.row('SELECT count(*) n FROM native_results').n).toBe(events);
  expect((await qa.request('/api/native-activities/sample',{method:'POST',cookie:'',json:{}})).status).toBe(401);
  await qa.evidence(page,'native-reviewed-sample');
 });

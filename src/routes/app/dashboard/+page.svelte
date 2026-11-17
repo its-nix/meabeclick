@@ -545,7 +545,6 @@
     name?: string;
     accountName?: string;
     link: string;
-    joinCode?: string;
   }
   // Seeded from the server load so a first, JS-free GET already carries the
   // roster (and the plan link on each row); loadCodes() below still keeps

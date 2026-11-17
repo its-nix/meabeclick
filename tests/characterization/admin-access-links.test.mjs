@@ -39,7 +39,7 @@ test('admin account and student issuance are distinct and do not revoke the othe
     const studentResponse = await issue(baseUrl, admin, booked.portal.code, 'student');
     assert.equal(studentResponse.status, 200);
     const student = await studentResponse.json();
-    assert.deepEqual(Object.keys(student).sort(), ['joinCode', 'link', 'name', 'scope']);
+    assert.deepEqual(Object.keys(student).sort(), ['link', 'name', 'scope']);
     assert.equal(student.scope, 'student');
 
     const accountRedemption = await redeemFamilyLink(account.link);

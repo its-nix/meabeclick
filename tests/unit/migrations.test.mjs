@@ -26,9 +26,10 @@ test('migrate creates the entity tables and records the version', async () => {
     `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`
   ).all().map(r => r.name);
 
-  for (const t of ['accounts', 'enrollments', 'homework', 'payments', 'teachers', 'join_codes', 'game_filler']) {
+  for (const t of ['accounts', 'enrollments', 'homework', 'payments', 'teachers', 'access_credentials', 'game_filler']) {
     assert.ok(tables.includes(t), `expected table ${t}, got ${tables.join(', ')}`);
   }
+  assert.ok(!tables.includes('join_codes'), 'join_codes is retired by 045');
   assert.equal(db.prepare(`SELECT MAX(version) AS v FROM schema_version`).get().v, LATEST);
 });
 
@@ -100,13 +101,12 @@ test('a failing 002 leaves no half-backfilled database behind', async () => {
       ('noga', 'נוגה', 'מתמטיקה', 'כיתה יב', '1234', '5678', NULL, 'pw', '2026-04-07T10:00:00Z');
   `);
 
-  // Collide on join_codes, the LAST statement in 002 — so the columns, the
-  // indexes, the tutor seed and the whole backfill have already succeeded
-  // inside the transaction when the failure hits. This is the state an
-  // operator would actually be left holding, and a half-migrated family
-  // model is far worse than an unmigrated one: accounts would exist with no
-  // way to hand a child a code.
-  db.exec(`CREATE TABLE join_codes (bogus TEXT)`);
+  // Collide on idx_join_codes_student, the LAST statement in 002 — so the
+  // columns, the tables, the tutor seed and the whole backfill have already
+  // succeeded inside the transaction when the failure hits. This is the
+  // state an operator would actually be left holding, and a half-migrated
+  // family model is far worse than an unmigrated one.
+  db.exec(`CREATE TABLE idx_join_codes_student (bogus TEXT)`);
   assert.throws(() => migrate(db));
 
   // 001 committed in its own transaction and stays; 002 must be entirely gone.

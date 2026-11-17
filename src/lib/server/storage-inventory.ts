@@ -72,10 +72,9 @@ export const STORAGE: Record<string, TableFact> = {
   learning_assignments: { status: 'live', note: 'Explicit student ownership, booking/skill, preparation release deadline and the editable practice material target.' },
   learning_progress: { status: 'live', note: 'Attempts, hints and completion per student, lesson content version and scene; not an assertion of skill mastery.' },
   learning_events: { status: 'live', note: 'Idempotent learning actions so offline retries never duplicate attempts.' },
-  join_codes:    { status: 'live', note: 'A child\'s own way in, minted by the parent.' },
   access_credentials: {
     status: 'live',
-    note: 'Hashed single-use entry: 15-minute account links/codes and 48-hour student invitations; raw secrets are never stored.',
+    note: 'Hashed single-use entry: 15-minute account links and 48-hour student invitations; raw secrets are never stored.',
   },
   access_credential_audit: {
     status: 'live',

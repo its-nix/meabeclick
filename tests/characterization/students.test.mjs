@@ -88,7 +88,6 @@ test('a student added by hand is reachable by a link, not a password', async () 
     const access = await linkRes.json();
     assert.equal(access.scope, 'student');
     assert.ok(access.link.includes('/enter#'), 'the admin must be able to hand over a student link');
-    assert.match(access.joinCode, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
 
     // And that link actually opens the student's page.
     const cookie2 = await familySession(access.link);

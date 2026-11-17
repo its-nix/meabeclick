@@ -295,66 +295,10 @@ export function findStudentInAccountByName(accountId: number, name: unknown): St
   ).get(accountId, n) as StudentRow) ?? null;
 }
 
-/* ── Join codes ─────────────────────────────────────────────────────────
- *
- * A parent hands one of these to a child so the child's own device can
- * claim a student session. Single-use and short-lived on purpose: the code
- * travels through whatever channel the family already uses (read aloud,
- * WhatsApp, a note), so it must stop being an access token the moment it
- * has done its one job.
- */
-
-export type JoinCodeRow = {
-  code: string; student_id: number;
-  created_at: string; expires_at: string; used_at: string | null;
-};
-
-export function insertJoinCode(
-  j: { code: string; studentId: number; expiresAt: string },
-): JoinCodeRow {
-  handle().prepare(`
-    INSERT INTO join_codes (code, student_id, created_at, expires_at, used_at)
-    VALUES (?, ?, ?, ?, NULL)
-  `).run(j.code, j.studentId, new Date().toISOString(), j.expiresAt);
-  return getJoinCode(j.code)!;
-}
-
-export function getJoinCode(code: string): JoinCodeRow | null {
-  return (handle().prepare(
-    `SELECT * FROM join_codes WHERE code = ?`
-  ).get(code) as JoinCodeRow) ?? null;
-}
-
-/** The newest code for this student that is still usable, so a parent who
- *  reopens the page sees the same code they already read out rather than a
- *  new one that invalidates nothing but confuses everyone. */
-export function activeJoinCodeForStudent(studentId: number, nowIso: string): JoinCodeRow | null {
-  return (handle().prepare(`
-    SELECT * FROM join_codes
-    WHERE student_id = ? AND used_at IS NULL AND expires_at > ?
-    ORDER BY created_at DESC LIMIT 1
-  `).get(studentId, nowIso) as JoinCodeRow) ?? null;
-}
-
-/** Stamps the code used and returns the student it belonged to, or null if
- *  it was unknown, expired, or already spent. One statement per outcome
- *  rather than a read-then-write, so two devices racing the same code
- *  cannot both be admitted. */
-export function redeemJoinCode(code: string, nowIso: string): StudentRow | null {
-  const info = handle().prepare(`
-    UPDATE join_codes SET used_at = ?
-    WHERE code = ? AND used_at IS NULL AND expires_at > ?
-  `).run(nowIso, code, nowIso);
-  if (!info.changes) return null;
-
-  const row = getJoinCode(code);
-  return row ? getStudentById(row.student_id) : null;
-}
-
 /**
  * Removes a student and the access artifacts that only exist to reach them.
  *
- * Join codes and enrollments are deleted because they are meaningless
+ * Enrollments are deleted because they are meaningless
  * without the student. Lessons, results, bookings, payments and plans are NOT
  * touched and will block the delete through their foreign keys — that is
  * deliberate. Those rows are the history of work done and money owed, and
@@ -366,7 +310,6 @@ export function deleteStudentCascade(code: string): boolean {
   if (!student) return false;
 
   const db = handle();
-  db.prepare(`DELETE FROM join_codes WHERE student_id = ?`).run(student.id);
   db.prepare(`DELETE FROM enrollments WHERE student_id = ?`).run(student.id);
   const info = db.prepare(`DELETE FROM students_v2 WHERE id = ?`).run(student.id);
 

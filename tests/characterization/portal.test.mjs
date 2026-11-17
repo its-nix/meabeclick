@@ -96,27 +96,6 @@ test('a student session reaches its own board but not the parent view', async ()
   } finally { await stop(); }
 });
 
-test('join-code login is gone: /api/join no longer admits anyone', async () => {
-  const { baseUrl, stop } = await startServer();
-  try {
-    const portal = await bookFamily(baseUrl);
-    const parentCookie = await familySession(portal.link);
-    const share = await (await fetch(`${baseUrl}/api/student-link`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: parentCookie },
-      body: JSON.stringify({ code: portal.code }),
-    })).json();
-
-    const redeem = await fetch(`${baseUrl}/api/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: share.joinCode }),
-    });
-    assert.equal(redeem.status, 404, 'a valid code must not open a session');
-    assert.ok(!redeem.headers.getSetCookie().some(c => c.startsWith('maab_family=')));
-  } finally { await stop(); }
-});
-
 test('the roster is tutor-only, and never carries a credential', async () => {
   const { baseUrl, stop } = await startServer();
   try {
@@ -206,33 +185,6 @@ test('a portal game link carries the student code, not the Hebrew display name',
       !games[0].url.includes(displayName),
       `game link must not carry the Hebrew display name, got: ${games[0].url}`,
     );
-  } finally { await stop(); }
-});
-
-test('requesting a link answers the same for a known and an unknown address', async () => {
-  const { baseUrl, stop } = await startServer();
-  try {
-    await bookFamily(baseUrl, { email: 'known@example.com' });
-
-    const ask = email => fetch(`${baseUrl}/api/request-link`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-
-    const known = await ask('known@example.com');
-    const unknown = await ask('nobody@example.com');
-
-    // Any difference here — status, body, or which one errors — turns this
-    // endpoint into a way to check whether a given family uses the tutor.
-    assert.equal(known.status, 200);
-    assert.equal(unknown.status, 200);
-    assert.deepEqual(await known.json(), await unknown.json());
-
-    // A malformed address is about the request, not about who exists, so it
-    // may be answered differently.
-    const bad = await ask('not-an-address');
-    assert.equal(bad.status, 400);
   } finally { await stop(); }
 });
 

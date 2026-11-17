@@ -1,10 +1,9 @@
 /**
- * The parent's sharing controls for one of their children: a link to
- * forward, and a code to read aloud.
+ * The parent's sharing control for one of their children: a link to forward.
  *
- * Both are minted here rather than on the page, because both are access
- * tokens — a page that could construct them would have to be trusted with
- * the signing secret.
+ * It is minted here rather than on the page, because it is an access token —
+ * a page that could construct it would have to be trusted with the signing
+ * secret.
  *
  * Only an account session reaches this. A student session must never be
  * able to mint another student's link, or re-share its own to a wider
@@ -34,6 +33,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   return json({
     name: student.name,
     link: credential.link,
-    joinCode: credential.joinCode,
   }, { headers: { 'Cache-Control': 'no-store' } });
 };

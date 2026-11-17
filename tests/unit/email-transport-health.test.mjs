@@ -8,11 +8,10 @@
  * 2026-09-18. Nothing anywhere said it had stopped.
  *
  * All outbound mail shares one transport, so the whole of it was down:
- * booking confirmations, the family's portal link, and the hourly report
- * prompts. Two of those fail silently by design — /api/request-link always
- * answers ok:true so it cannot confirm which addresses are on file, and a
- * booking must not be lost because mail failed. Those are the right calls,
- * and together they mean a revoked password can sit unnoticed indefinitely.
+ * booking confirmations and the hourly report prompts. Booking mail fails
+ * silently by design, because a booking must not be lost because mail
+ * failed — the right call, and one that lets a revoked password sit
+ * unnoticed indefinitely.
  *
  * It surfaced only because #74 gave the weekly reminder an email fallback
  * that answers 503 when it cannot send. That is one route, once a week.

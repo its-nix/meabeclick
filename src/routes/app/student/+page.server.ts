@@ -1,10 +1,9 @@
 /**
  * The student board's guard.
  *
- * Reached three ways, all of which arrive here already holding a session:
- * a child tapping the link their parent forwarded, a child who redeemed a
- * join code, or a parent opening their own child's board from the parent
- * view. There is no gate to render, because there is no secret to ask for.
+ * Reached two ways, both of which arrive here already holding a session:
+ * a child tapping the link their parent forwarded, or a parent opening
+ * their own child's board from the parent view. There is no gate to render, because there is no secret to ask for.
  *
  * What this replaces: the page read a code from `?s=` or localStorage and a
  * pin from `student_pin_<code>`, then asked for the pin when either was

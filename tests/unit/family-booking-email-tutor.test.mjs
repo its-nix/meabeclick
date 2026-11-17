@@ -6,8 +6,7 @@
  * לאישור סופי לפני השיעור." regardless of who taught the lesson, and with
  * a gendered verb that only worked for a tutor who happens to be a woman.
  *
- * nodemailer is stubbed via a loader hook (same pattern as
- * request-link-mail-down.test.mjs) so this exercises the REAL email.ts
+ * nodemailer is stubbed via a loader hook so this exercises the REAL email.ts
  * logic — just not a real SMTP connection.
  */
 import { test } from 'node:test';

@@ -119,31 +119,6 @@ export async function verifyEmailTransport(
   }
 }
 
-/**
- * Whether the mail server is currently refusing our credentials.
- *
- * True ONLY when credentials exist and are being rejected — never for a
- * machine that simply has none, which is every dev machine and this repo's
- * test suite. That distinction is the same one emailConfigured() draws and
- * exists for the same reason: failing the unconfigured case would train
- * everyone to ignore the failure that matters.
- *
- * Memoised briefly. Callers are request paths, and an SMTP round-trip per
- * request would be both slow and rude to the server; a minute is short
- * enough that a fixed credential starts working again promptly.
- */
-let rejectedCheck: { at: number; value: boolean } | null = null;
-const REJECTED_TTL_MS = 60_000;
-
-export async function mailCredentialsRejected(now = Date.now()): Promise<boolean> {
-  if (!emailConfigured()) return false;
-  if (rejectedCheck && now - rejectedCheck.at < REJECTED_TTL_MS) return rejectedCheck.value;
-
-  const health = await verifyEmailTransport();
-  rejectedCheck = { at: now, value: health.configured && !health.ok };
-  return rejectedCheck.value;
-}
-
 function transport(): Transporter | null {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
@@ -456,14 +431,6 @@ export async function sendConfirmBookingEmail(r: {
 }
 
 /**
- * A fresh link, on request, with no password and no tutor in the loop.
- *
- * This is what makes the two-week link expiry affordable: losing a link is
- * now a self-service problem. The caller must send the same answer whether
- * or not the address matched an account (see /api/request-link), so this
- * never reports "no such family" — it simply is not called in that case.
- */
-/**
  * The nudge after a lesson: one message, to the tutor's own mailbox, with a
  * link into that lesson's report form.
  *
@@ -526,39 +493,6 @@ export async function sendCalendarReminderEmail(message: string): Promise<boolea
       <h2 style="margin:0 0 6px">תזכורת שבועית</h2>
       <p style="margin:0">${esc(message)}</p>
     `),
-  });
-  return true;
-}
-
-export async function sendPortalLinkEmail(
-  to: string,
-  familyName: string,
-  portalLink: string,
-): Promise<boolean> {
-  const tx = transport();
-  if (!tx) return false;
-
-  const text = [
-    'הנה קישור חדש לדף האישי שלכם:',
-    portalLink,
-    '',
-    'הקישור תקף ל־15 דקות ולכניסה אחת. אם לא ביקשתם אותו, אפשר להתעלם מהמייל הזה.',
-  ].join('\n');
-
-  const html = shell(`
-    <h2 style="color:#2563EB;margin:0 0 4px">🔑 הקישור שלכם</h2>
-    <p style="color:#64748B;margin:0 0 16px">${esc(familyName)} · מאה בקליק</p>
-    ${linkBlock(portalLink, '📚 כניסה לדף האישי')}
-    <p style="margin-top:20px;font-size:14px;color:#64748B;line-height:1.8">
-      הקישור תקף ל־15 דקות ולכניסה אחת. אם לא ביקשתם אותו — אפשר להתעלם מהמייל הזה.
-    </p>`);
-
-  await tx.sendMail({
-    from: process.env.GMAIL_USER,
-    to,
-    subject: '🔑 קישור לדף האישי — מאה בקליק',
-    text,
-    html,
   });
   return true;
 }

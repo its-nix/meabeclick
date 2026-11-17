@@ -20,7 +20,7 @@ function sharingHarness() {
     ${js}
     return { issue:loadShare, select:openStudent, state:()=>({currentId,share,shareOpen,shareBusy,shareErr}) };
   `)(() => new Promise(resolve => pending.push(resolve)), async code => ({name:code}), x => x, {}, {replaceState(){}}, {href:'https://example.test/app/parent?s=child-a'});
-  return { ...fixture, respond: (index, name) => pending[index](Response.json({name,link:'/synthetic-only',joinCode:'TEST-ONLY'})) };
+  return { ...fixture, respond: (index, name) => pending[index](Response.json({name,link:'/synthetic-only'})) };
 }
 test('a delayed access response cannot appear on a different child board', async () => {
   const h = sharingHarness();

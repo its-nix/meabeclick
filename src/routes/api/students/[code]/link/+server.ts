@@ -54,6 +54,5 @@ export const POST: RequestHandler = async (event) => {
     scope,
     name: student.name,
     link: credential.link,
-    joinCode: credential.joinCode,
   }, { headers: { 'Cache-Control': 'no-store' } });
 };

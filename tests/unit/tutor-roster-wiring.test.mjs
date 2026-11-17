@@ -81,13 +81,6 @@ test('portal/+page.svelte\'s "כתבו ל..." link names the contact tutor', () 
   assert.doesNotMatch(src, /כתבו לניקול/, 'no hardcoded "כתבו לניקול" left in the portal page');
 });
 
-test('request-link/+server.ts\'s mail-down error names the contact tutor', () => {
-  const src = read('src/routes/api/request-link/+server.ts');
-  assert.match(src, /from ['"]\$lib\/tutors(\.ts)?['"]/, 'imports the roster');
-  assert.match(src, /contactTutor\(\)\.name/, 'the error message reads the contact tutor from the roster');
-  assert.doesNotMatch(src, /פנו לניקול/, 'no hardcoded "פנו לניקול" left in the error message');
-});
-
 /**
  * A repo-wide net, on top of the per-file checks above: every .ts/.svelte
  * source file this session owns must be free of the literal tutor names,

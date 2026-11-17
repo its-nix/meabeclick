@@ -2,15 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-test('the recovery email states the real 15-minute single-use lifetime', () => {
-  const email = readFileSync('src/lib/server/email.ts', 'utf8');
-  const portalEmail = email.slice(email.indexOf('export async function sendPortalLinkEmail'));
-
-  assert.match(portalEmail, /15 דקות/);
-  assert.match(portalEmail, /כניסה אחת/);
-  assert.doesNotMatch(portalEmail, /שבועיים/);
-});
-
 test('the entry screen keeps a retry action only for a pre-consumption network failure', () => {
   const entry = readFileSync('src/routes/enter/+page.svelte', 'utf8');
 
@@ -37,7 +28,7 @@ test('admin access actions name one scope and provide safe single-use handoff gu
   assert.match(dashboard, /role="status"/);
   assert.match(dashboard, /\.copy-btn\s*\{[^}]*min-height:\s*44px/s);
   assert.match(dashboard, /\.toast-close\s*\{[^}]*min-height:\s*44px[^}]*min-width:\s*44px/s);
-  assert.doesNotMatch(dashboard, /קוד צירוף|links\[studentKey\]\.joinCode/, 'join codes are no longer a login path');
+  assert.doesNotMatch(dashboard, /קוד צירוף|joinCode/, 'join codes no longer exist');
   assert.match(dashboard, /@media \(max-width: 600px\)[\s\S]*\.codes-table\s*\{[^}]*min-width:\s*0/s);
   assert.match(dashboard, /@media \(max-width: 600px\)[\s\S]*\.codes-table\s*\{[^}]*inline-size:\s*100%[^}]*max-inline-size:\s*100%/s);
 });

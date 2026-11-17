@@ -328,7 +328,7 @@ One noun each, everywhere — these replace the older, drifting mix of
 
 **Data model.** The entity model (`accounts`, `students_v2`, `teachers`,
 `enrollments`, `bookings_v2`, `payments`, `homework`, `results_v2`,
-`join_codes`, plus the learning-plan and report tables) is authoritative
+plus the learning-plan and report tables) is authoritative
 and wired into every runtime path listed above. `lessons` is the live
 lesson-generation table; its intended successor, `lessons_v2`, exists but
 is unadopted — nothing in production writes it, and reading it is

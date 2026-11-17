@@ -652,7 +652,7 @@
           <thead><tr><th>תאריך</th><th>סוג / משך</th><th>נושא / הערות</th></tr></thead>
           <tbody>
             {#if !sortedSessions.length}
-              <tr><td colspan="3" class="empty-row">עדיין לא נרשמו שיעורים</td></tr>
+              <tr><td colspan="3" class="empty-row">עדיין לא נרשמו שיעורים<br /><a class="empty-book" href="/booking">להזמנת שיעור</a></td></tr>
             {:else}
               {#each sortedSessions as sess}
                 <tr>
@@ -860,6 +860,7 @@
   .empty-row { text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.9rem; }
 
   .hw-list { display: flex; flex-direction: column; gap: 10px; }
+  .empty-book { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; color: var(--accent); font-weight: 700; text-decoration: none; }
   .hw-empty { text-align: center; color: var(--text-muted); padding: 22px; font-size: .9rem; }
   .hw-item { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap; }
   .hw-status-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }

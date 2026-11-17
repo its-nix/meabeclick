@@ -47,3 +47,11 @@ test('the parent can open the child\'s board from their page, and no family page
   assert.doesNotMatch(read('src/routes/app/student/+page.svelte'), /slidesUrl/);
   assert.match(read('src/routes/api/portal/[code]/+server.ts'), /toFamilyLesson\(/);
 });
+
+test('empty states point to the existing booking flow', () => {
+  const student = read('src/routes/app/student/+page.svelte');
+  const day = student.slice(student.indexOf('<div class="dayone">'), student.indexOf('<div class="dayone">') + 700);
+  assert.match(day, /\{#if data\.canSeeParentView\}[\s\S]*href="\/booking"/, 'only a viewer who may book is offered the link');
+  const parent = read('src/routes/app/parent/+page.svelte');
+  assert.match(parent, /עדיין לא נרשמו שיעורים[\s\S]{0,300}href="\/booking"/);
+});

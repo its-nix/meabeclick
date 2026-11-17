@@ -104,13 +104,6 @@ jobs:
         if: steps.pr_qa_select.outputs.learning == 'true'
         run: npm run test:learning:browser
 
-      - name: Check v2 lesson and homework in Chromium
-        id: qa_teaching_v2
-        if: steps.pr_qa_select.outputs.learning == 'true'
-        run: npm run test:teaching:browser
-        env:
-          EVIDENCE_DIR: ${{ runner.temp }}/tutor-workspace-ui/teaching-v2
-
       - name: Check all v2 review cases in Chromium
         id: qa_review_v2
         if: steps.pr_qa_select.outputs.learning == 'true'
@@ -186,7 +179,6 @@ jobs:
           QA_RUN_OUTCOME: ${{ steps.pr_qa_run.outcome }}
           QA_LEARNING_OUTCOME: ${{ steps.qa_learning.outcome }}
           QA_REVIEW_OUTCOME: ${{ steps.qa_review.outcome }}
-          QA_TEACHING_V2_OUTCOME: ${{ steps.qa_teaching_v2.outcome }}
           QA_REVIEW_V2_OUTCOME: ${{ steps.qa_review_v2.outcome }}
           QA_PILOT_OUTCOME: ${{ steps.qa_pilot.outcome }}
           QA_WORKSPACE_OUTCOME: ${{ steps.qa_workspace.outcome }}

@@ -197,6 +197,8 @@ Open item for 2c: rounds carry `objectiveId`, not a plan skill node. First task 
 approval time and store it with the approved copy, rather than widening the Drive
 JSON schema.
 
+**Traced 2026-11-17 (2c).** `objectiveId` is an id local to one bundle (`bundle.objectives[{id,title}]`); nothing links it to `plan_nodes` (stable `key`, `title`, per-student plan). `recordNativeResult` therefore resolves the node on the server from the approved round: exact `plan_nodes.key == objectiveId`, else exact normalised objective title == skill title, among the student's own visible skill nodes (the `assertSkillForStudent` rule, narrowed to the booking's enrollment). Zero or several matches store NULL, never a guess. Consequence for 2b: `approveNativeLesson` does not yet store the node with the copy; resolution happens at record time from `native_lesson_jobs.bundle`. Progress tab: the workspace schema had no `game` evidence type, so `game` was added to `evidence_type` and to the independent-demonstration rule.
+
 New piece: `readReleaseTicks(sheet)` and `writeSiteStatus(sheet, rows)` in the sync, which are the Sheet side of approval.
 
 Dependency order: 042 first. Then 043 plus `approveNativeLesson` (2b) and 044

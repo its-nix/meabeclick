@@ -20,6 +20,7 @@
  * is a caller who can get the order wrong.
  */
 import { handle } from '../db.ts';
+import { nativePlaysForSkill } from '../native-learning/results.ts';
 import type { SkillEvidence, Play, HomeworkEvidence } from './suggest.ts';
 
 export function evidenceForSkill(studentId: number, nodeId: number): SkillEvidence {
@@ -49,7 +50,8 @@ export function evidenceForSkill(studentId: number, nodeId: number): SkillEviden
   `).all(studentId, nodeId) as unknown as (Omit<HomeworkEvidence, 'submitted'> & { submitted_flag: number })[];
 
   return {
-    plays,
+    // results_v2 stays until the removal step; native results join it.
+    plays: [...plays, ...nativePlaysForSkill(studentId, nodeId)].sort((a, b) => a.at.localeCompare(b.at)),
     homework: homework.map(({ submitted_flag, ...h }) => ({ ...h, submitted: submitted_flag === 1 })),
   };
 }

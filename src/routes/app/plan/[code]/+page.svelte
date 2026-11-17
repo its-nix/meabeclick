@@ -440,10 +440,8 @@
       {filter}
       returnTo={page.url.pathname + page.url.search}
       student={{ id: data.student.code, name: data.student.name, subject: data.current?.subject ?? 'תכנית אישית', goals: planRow.goal, level: '', progress: 0 }}
-      lessons={data.activities}
       topics={tree}
       onstatus={handleTreeStatus}
-      library={data.plan?.library ?? {}}
     />
 
     <!-- Kept server-rendered but visually removed while older smoke tests and

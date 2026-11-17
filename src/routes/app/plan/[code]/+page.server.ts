@@ -12,9 +12,6 @@ import { getStudentByCode, enrollmentsForStudent } from '$server/entities.ts';
 import { templatesForSubject, templateById, templateFitsLevel } from '$server/plans/templates.ts';
 import { planForEnrollment, planData, lastLessonAt } from '$server/plans/store.ts';
 import { buildTree } from '$server/plans/view.ts';
-import { readLessons } from '$server/db.ts';
-import { resultsForStudent } from '$server/results.ts';
-import { readyMaster } from '$server/library/use.ts';
 import { FILTER_VALUES, type FilterKind } from '$lib/plan-status.ts';
 import type { PageServerLoad } from './$types';
 
@@ -30,37 +27,6 @@ export const load: PageServerLoad = async (event) => {
 
   const plan = current ? planForEnrollment(current.id) : null;
   const lesson = lastLessonAt(student.id);
-  const gameResults = resultsForStudent(student.id);
-  const bestByDataId = new Map<string, { score: number | null; total: number | null; at: string }>();
-  for (const result of gameResults) {
-    if (!result.data_id || bestByDataId.has(result.data_id)) continue;
-    bestByDataId.set(result.data_id, { score: result.score, total: result.total, at: result.at });
-  }
-
-  // The visual learning map uses the same generated activities as the tutor
-  // dashboard. Normalize legacy and current game records here so the map can
-  // link directly to the real game route without inventing local content.
-  const activities = readLessons(student.name)
-    .filter(item => !current?.subject || item.subject === current.subject)
-    .map(item => ({
-      slug: item.slug,
-      title: item.title,
-      topic: item.topic,
-      context: item.context,
-      homework: item.homework,
-      games: item.games.map((entry, index) => {
-        const game = entry && typeof entry === 'object' ? entry as Record<string, unknown> : {};
-        const title = typeof game.title === 'string' && game.title ? game.title : `משחק ${index + 1}`;
-        const dataId = typeof game.dataId === 'string' ? game.dataId : null;
-        const result = dataId ? bestByDataId.get(dataId) : undefined;
-        if (typeof game.url === 'string') return { title, url: null, dataId, completed: !!result, score: result?.score ?? null, total: result?.total ?? null, lastPlayedAt: result?.at ?? null, broken: false };
-        if (typeof game.template === 'string' && typeof game.dataId === 'string') {
-          try { return { title, url: null, dataId: game.dataId, completed: !!result, score: result?.score ?? null, total: result?.total ?? null, lastPlayedAt: result?.at ?? null, broken: false }; }
-          catch { return { title, url: null, dataId: game.dataId, completed: false, score: null, total: null, lastPlayedAt: null, broken: true }; }
-        }
-        return { title, url: null, dataId: null, completed: false, score: null, total: null, lastPlayedAt: null, broken: true };
-      }),
-    }));
 
   // The report form navigates here with ?filter=changed so the tutor lands
   // on exactly what her report just moved (design spec §6, "after
@@ -91,13 +57,6 @@ export const load: PageServerLoad = async (event) => {
             tree: buildTree(nodes, prereqs, events, lesson),
             events,
             templateReviewed: templateById(plan.template_id)?.reviewed ?? null,
-            /* Each skill's ready library lesson, by plan node: the tutor
-               finds a skill's material from the student too, not only
-               from the library page. */
-            library: Object.fromEntries(nodes.filter(n => n.kind === 'skill').flatMap(n => {
-              const master = readyMaster(plan.template_id, n.key);
-              return master ? [[n.id, master.slug]] : [];
-            })) as Record<number, string>,
           };
         })()
       : null,
@@ -113,6 +72,5 @@ export const load: PageServerLoad = async (event) => {
           fitsLevel: templateFitsLevel(t, current.level),
         }))
       : [],
-    activities,
   };
 };

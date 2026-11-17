@@ -14,10 +14,6 @@
    * ('choose', 'pin', 'main'). Only 'main' survives, and which children it
    * can show comes from the session.
    *
-   * Ruling P13 — same normalization/leading-slash caveat as
-   * src/routes/app/student/+page.svelte; see the comment there. toHref()
-   * ($lib/urls.ts, shared with student/ and dashboard/) is the identical fix.
-   *
    * Not ported: the original's `?demo` mode, a no-op since before the
    * SvelteKit migration (it set `currentId` but never the `CURRENT` the
    * render function read, so the page rendered an empty shell).
@@ -30,7 +26,6 @@
    * child's own rows from the payments table), both backed by the account's
    * actual charge history rather than a hand-maintained ledger.
    */
-  import { toHref } from '$lib/urls.ts';
   import { formatAgorot } from '$lib/plans.ts';
   import type { ProgressFacts } from '$lib/progress-facts.ts';
   import { homeworkState, HOMEWORK_STATE_LABEL, type FamilyHomework } from '$lib/family-homework.ts';

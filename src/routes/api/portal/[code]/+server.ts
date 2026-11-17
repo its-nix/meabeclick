@@ -34,6 +34,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { portalDir } from '$server/paths.ts';
 import { balanceForAccount, chargesForStudent, todayInIsrael } from '$server/payments.ts';
+import { selfPayerFinance } from '$server/self-payer-finance.ts';
 import { nativeFamilyLinks } from '$server/native-family-links.ts';
 import { resolveFamilyAccess, studentInScope } from '$server/family.ts';
 import { getStudentByCode, nextBookingForStudent } from '$server/entities.ts';
@@ -246,6 +247,13 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
         data.balance = balanceForAccount(student.account_id, todayInIsrael());
         data.charges = chargesForStudent(student.id);
       }
+    }
+
+    /* A student who pays for themselves sees their own payment status on their
+       page; a child in a family account never does (the parent view has it). */
+    if (kind === 'student' && !locals.authenticated) {
+      const finance = selfPayerFinance(getStudentByCode(code));
+      if (finance) { data.balance = finance.balance; data.charges = finance.charges; }
     }
 
     return json(nativeFamilyLinks(data, kind), { headers: { 'Cache-Control': 'no-store' } });

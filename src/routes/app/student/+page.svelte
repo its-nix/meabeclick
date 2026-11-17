@@ -3,7 +3,8 @@
   import { GRADE_LABEL } from '$lib/homework-grade.ts';
   import type { FamilyLesson } from '$lib/family-lesson.ts';
   import { homeworkProblems } from '$lib/homework-display.ts';
-  import { TUTOR_PHONE } from '$lib/contact.ts';
+  import { TUTOR_PHONE, PAYBOX_LINK } from '$lib/contact.ts';
+  import { formatAgorot } from '$lib/plans.ts';
   import Icon from '$lib/icons/Icon.svelte';
   import BottomNav, { type NavItem } from '$lib/components/BottomNav.svelte';
   /**
@@ -71,6 +72,8 @@
     progress?: ProgressFacts;
     progressNote?: string; updated?: string;
     homework?: HwItem[]; lessons?: LessonItem[]; games?: GameItem[];
+    /* Only sent when this student is the payer of record (pays for themselves). */
+    balance?: { owedAgorot: number; paidAgorot: number; dueAgorot: number; upcomingAgorot: number } | null;
   }
   interface ChatMsg {
     cls: 'me' | 'bot' | 'sys'; text: string; wa?: string;
@@ -472,6 +475,14 @@
           {#if DATA.progress?.total}
             <div class="student-progress"><Icon name="progress" size={20} /><p>{progressWords}</p></div>
           {/if}
+          {#if DATA.balance}
+            <section class="self-pay" aria-label="התשלום שלי">
+              <div class="card-title"><Icon name="payments" /> התשלום שלי</div>
+              <p class="self-pay-row"><span>לתשלום עכשיו</span><strong>{formatAgorot(DATA.balance.dueAgorot)}</strong></p>
+              <p class="self-pay-row"><span>שולם עד כה</span><strong>{formatAgorot(DATA.balance.paidAgorot)}</strong></p>
+              {#if DATA.balance.dueAgorot > 0}<a class="play" href={PAYBOX_LINK} target="_blank" rel="noopener"><Icon name="payments" size={17} /> לתשלום ב-PayBox</a>{:else}<p class="card-meta">אין כרגע תשלום פתוח.</p>{/if}
+            </section>
+          {/if}
           {#if (DATA.lessons ?? []).length}
             <details class="recent-lessons"><summary>שיעורים אחרונים <span>{(DATA.lessons ?? []).length}</span></summary>
               {#each DATA.lessons ?? [] as l}
@@ -705,6 +716,8 @@
   .next-label,.next-meta{display:block;color:var(--text-muted);font-size:.8125rem}
   .next strong{display:block;font-size:1rem;font-weight:600;margin-block:4px}
   .student-progress{display:flex;align-items:center;gap:12px;padding:8px 4px 24px;color:var(--text-muted-strong);font-size:.875rem}
+  .self-pay{margin-bottom:20px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg)}
+  .self-pay-row{display:flex;justify-content:space-between;gap:12px;margin:8px 0;font-variant-numeric:tabular-nums}
   .recent-lessons{margin-bottom:20px;border-top:1px solid var(--border)}
   .recent-lessons summary{display:flex;align-items:center;justify-content:space-between;min-height:56px;font-size:1rem;font-weight:600;list-style:revert;cursor:pointer}
   .recent-lessons summary span{color:var(--text-muted);font-size:.875rem}

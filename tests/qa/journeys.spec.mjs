@@ -1,6 +1,9 @@
 import { test, expect } from './fixtures.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {seedRetired,receipt as nativeReceipt} from '../learning-archive-fixture.mjs';
+import {visualDeckFixture} from '../visual-deck-fixture.mjs';
+import {exportGamesFile} from '../../src/lib/server/native-learning/games.ts';
+import {REMOVED_ROUTES} from '../../scripts/pr-qa/removed-routes.mjs';
 
 const profilePath = qa => `/app/students/${qa.learner.code}`;
 const studentPath = qa => `/app/student?s=${qa.learner.code}`;
@@ -191,7 +194,7 @@ test('permissions: migrated API boundaries refuse unsigned or unauthorized write
   ['/api/ask','POST',{slug:qa.learner.code,question:'Synthetic question'},401],
   ['/api/calendar-failures/999999/resolve','POST',{},401],
   ['/api/enrollments/999999','PATCH',{teacherId:1},401],
-  ['/api/remind-family','GET',undefined,401],
+  ['/api/remind-family','GET',undefined,401],['/api/remind','GET',undefined,401],
   ['/api/students/import-local','POST',{},401],['/api/teachers/1','PATCH',{},401],
  ];
  const before=qa.row('SELECT count(*) n FROM native_results').n;
@@ -340,4 +343,54 @@ test.describe('personal learning Google forms',()=>{
   await expect(card.getByRole('button',{name:'סנכרון עכשיו',exact:true})).toBeEnabled({timeout:20000});
   await qa.evidence(page,'central-drive-dashboard');
  });
+});
+
+test('permissions: retired lesson, game and join routes no longer exist', async ({ qa }) => {
+  for (const [route, path] of Object.entries(REMOVED_ROUTES)) {
+    const r = await qa.request(path);
+    expect(r.status, `${route} via ${path}`).toBe(404);
+  }
+});
+
+test('learning: public sample game grades on the server and stores nothing', async ({ qa }) => {
+  const before = qa.row('SELECT count(*) n FROM native_results').n;
+  const page = await qa.page('anonymous');
+  const response = await page.goto('/sample-game');
+  expect(response.status()).toBe(200);
+  const round = page.locator('[data-task]').first();
+  await round.locator('[data-choice]').nth(1).click();
+  const attempt = page.waitForResponse(r => r.url().endsWith('/api/sample-game') && r.request().method() === 'POST');
+  await round.locator('[data-task-action="attempt"]').click();
+  expect((await attempt).status()).toBe(200);
+  await expect(round.locator('[data-task-feedback]').filter({ hasText: /\S/ })).toBeVisible();
+  await qa.evidence(page, 'sample-game');
+  const noSession = await qa.request('/api/sample-game', { cookie: '', method: 'POST', json: {} });
+  expect(noSession.status).toBe(409);
+  expect(qa.row('SELECT count(*) n FROM native_results').n).toBe(before);
+});
+
+test('learning: student plays an approved game while parent and anonymous visitors are turned away', async ({ qa }) => {
+  const booking = qa.row('SELECT b.id id, b.student_id studentId FROM bookings_v2 b JOIN students_v2 s ON s.id=b.student_id WHERE s.code=?', qa.learner.code);
+  const file = exportGamesFile(visualDeckFixture(), `booking-${booking.id}`);
+  const db = new DatabaseSync(qa.dbPath);
+  try {
+    db.exec('PRAGMA busy_timeout=5000');
+    for (const g of file.games) db.prepare(`INSERT INTO native_games (material_id,release_id,student_id,booking_id,game_id,kind,content_json,source_file_id,source_revision,content_sha256,approved_at)
+      VALUES ('m1','rel',?,?,?,?,?,'f','1',?,'2028-01-01T00:00:00Z')`).run(booking.studentId, booking.id, g.id, g.kind, JSON.stringify(g), 'a'.repeat(64));
+  } finally { db.close(); }
+  const game = file.games[0];
+  for (const role of ['anonymous', 'parent']) {
+    expect((await qa.request('/app/student/games', { cookie: qa.cookies[role] })).status, role).toBe(302);
+    expect((await qa.request(`/app/student/games/${booking.id}/${game.id}`, { cookie: qa.cookies[role] })).status, role).toBe(302);
+    expect((await qa.request(`/api/student-games/${booking.id}`, { cookie: qa.cookies[role], method: 'POST', json: {} })).status, role).toBe(401);
+  }
+  const page = await qa.page('student');
+  await page.goto('/app/student/games');
+  await expect(page.getByText('המשחקים שלי').first()).toBeVisible();
+  await qa.evidence(page, 'student-games-list');
+  const response = await page.goto(`/app/student/games/${booking.id}/${game.id}`);
+  expect(response.status()).toBe(200);
+  expect(await page.content()).not.toContain('"answer"');
+  await qa.evidence(page, 'student-game-player');
+  expect((await qa.request(`/app/student/games/${booking.id}/nope`, { cookie: qa.cookies.student })).status).toBe(404);
 });

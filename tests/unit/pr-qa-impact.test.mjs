@@ -122,3 +122,13 @@ test('native lesson API and private activity routes select their seeded browser 
   assert.deepEqual(plan.unmappedRoutes,[]);assert.ok(plan.journeys.includes('native-lessons'));
  }
 });
+test('a deleted route needs a declared removal, a live unmapped route still fails', () => {
+  const before = { ...fixture, 'src/routes/api/join/+server.ts': 'export const POST = 1;', 'src/routes/api/mystery/+server.ts': 'export const GET = 1;' };
+  const after = { ...fixture, 'src/routes/api/mystery/+server.ts': 'export const GET = 2;' };
+  const removed = run(['src/routes/api/join/+server.ts'], before, after);
+  assert.deepEqual(removed.unmappedRoutes, []);
+  const live = run(['src/routes/api/mystery/+server.ts'], before, after);
+  assert.deepEqual(live.unmappedRoutes, ['/api/mystery']);
+  const undeclared = run(['src/routes/api/gone/+server.ts'], { ...before, 'src/routes/api/gone/+server.ts': 'x' }, after);
+  assert.deepEqual(undeclared.unmappedRoutes, ['/api/gone']);
+});

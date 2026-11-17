@@ -35,6 +35,8 @@ function walk(dir, out = []) {
 }
 
 const SELF = 'tests/unit/native-links.test.mjs';
+// The QA gate's declared list of deleted routes names them on purpose; each is asserted to 404.
+const REMOVED_LIST = 'scripts/pr-qa/removed-routes.mjs';
 const HISTORY = /^(?:src\/lib\/server\/migrations\/|tests\/unit\/(?:migrations|results-backfill|learning-migrations)\.test\.mjs$)|corpus\.json$/;
 const NO_TRACE = new RegExp([
   String.raw`/app/(?:play|learn|games|lessons|review-game)\b`,
@@ -51,7 +53,7 @@ test('no source, script or test refers to a removed route, module or table (migr
     for (const file of walk(root)) {
       const rel = relative('.', file);
       // Migrations and their tests are history; the review corpora are recorded model output.
-      if (rel === SELF || HISTORY.test(rel)) continue;
+      if (rel === SELF || rel === REMOVED_LIST || HISTORY.test(rel)) continue;
       if (!/\.(ts|svelte|mjs|js|css|json)$/.test(rel)) continue;
       readFileSync(file, 'utf8').split('\n').forEach((line, i) => { if (NO_TRACE.test(line)) hits.push(`${rel}:${i + 1}`); });
     }

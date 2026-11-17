@@ -67,14 +67,14 @@ try {
       return route.fulfill({ json: content });
     });
     const page = await context.newPage(); page.on('pageerror', error => report.errors.push(error.message));
-    const paths = role === 'public' ? ['/', '/booking', '/portal', '/login', '/privacy', '/terms', '/enter', '/not-a-page', `/confirm-booking?t=${encodeURIComponent(confirmationToken)}`, '/confirm-booking?t=invalid', setupPath, setupPath + '?e=denied', '/app/tutor-setup/invalid', '/app/tutor-setup/done', '/sample-game'] : role === 'tutor' ? ['/app/dashboard', '/app/library', '/app/marketing', '/app/metrics', `/app/students/${first.portal.code}`, `/app/plan/${first.portal.code}`, `/app/plan/${second.portal.code}`, `/app/report/${pastBooking}`] : role === 'parent' ? ['/app/parent', `/app/parent?s=${first.portal.code}`, `/app/parent?s=${first.portal.code}&v=progress`, `/app/parent?s=${first.portal.code}&v=payments`] : [`/app/student?s=${first.portal.code}`, `/app/student?s=${first.portal.code}&v=hw`, `/app/student?s=${first.portal.code}&v=games`, `/app/student?s=${first.portal.code}&v=ask`];
+    const paths = role === 'public' ? ['/', '/booking', '/portal', '/login', '/privacy', '/terms', '/enter', '/not-a-page', `/confirm-booking?t=${encodeURIComponent(confirmationToken)}`, '/confirm-booking?t=invalid', setupPath, setupPath + '?e=denied', '/app/tutor-setup/invalid', '/app/tutor-setup/done', '/sample-game'] : role === 'tutor' ? ['/app/dashboard', '/app/library', '/app/marketing', '/app/metrics', `/app/students/${first.portal.code}`, `/app/plan/${first.portal.code}`, `/app/plan/${second.portal.code}`, `/app/report/${pastBooking}`] : role === 'parent' ? ['/app/parent', `/app/parent?s=${first.portal.code}`, `/app/parent?s=${first.portal.code}&v=progress`, `/app/parent?s=${first.portal.code}&v=payments`] : [`/app/student?s=${first.portal.code}`, '/app/student/games', `/app/student?s=${first.portal.code}&v=hw`, `/app/student?s=${first.portal.code}&v=games`, `/app/student?s=${first.portal.code}&v=ask`];
     for (const width of baseline ? [390, 1440, 320] : [390, 768, 1440, 320]) {
       await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
       for (const path of matrixPaths(paths, impact)) {
         const response = await page.goto(server.baseUrl + path);
         assert.ok(response.status() < 500, `${role} ${path} returned ${response.status()}`);
         await page.evaluate(() => document.fonts.ready);
-        if (role === 'student') await page.locator('#app').waitFor();
+        if (role === 'student' && !path.startsWith('/app/student/games')) await page.locator('#app').waitFor();
         if (role === 'parent' && path.includes('?')) await page.locator('.student-header').waitFor();
         const geometry = await page.evaluate(() => ({ viewport: innerWidth, width: document.documentElement.scrollWidth, headings: [...document.querySelectorAll('h1,h2')].map(e => e.textContent) }));
         report.pages.push({ role, appearance, path, width, ...geometry });

@@ -58,8 +58,8 @@ test('loading an old version fills the form and does not publish it', () => {
   assert.doesNotMatch(load, /fetch|send\(/);
 });
 
-test('the dashboard links a generated lesson to its editor', () => {
-  assert.match(read('src/routes/app/dashboard/+page.svelte'), /\{#if l\.status === 'ready'\}<a href="\/app\/lessons\/\{l\.slug\}\/edit">/);
+test('the dashboard no longer links to the legacy lesson editor', () => {
+  assert.doesNotMatch(read('src/routes/app/dashboard/+page.svelte'), /\/app\/lessons\/\{l\.slug\}\/edit/);
 });
 
 test('history times are Israel time', () => {

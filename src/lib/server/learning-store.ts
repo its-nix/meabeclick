@@ -7,6 +7,7 @@ import { experienceProblems, learningFingerprint, renderLearningDocument } from 
 import type { LearningProgress } from '../learning/runtime.ts';
 import type {LessonPlan} from './lesson/prep.ts';
 import {homeworkExperience} from './teaching-display.ts';
+import {STUDENT_GAMES_PATH} from '../native-links.ts';
 
 export function assignLearning(slug: string, studentId: number, hold: {
   bookingId: number | null; heldUntil: string | null; nodeId: number | null;
@@ -146,6 +147,6 @@ export function learningForStudent(studentId: number, mode: 'practice'|'preparat
     const lesson=normal??(mode==='practice'?assignedExperience(a.lesson_slug,'homework'):null);
     if (!lesson) return [];
     const progress = learningProgress(studentId, a.lesson_slug, lesson.fingerprint);
-    return [{ slug: a.lesson_slug, title: lesson.experience.title, url: `/app/learn/${encodeURIComponent(a.lesson_slug)}${normal?'':'/homework'}`, solved: lesson.experience.scenes.filter(s => s.check && progress[s.id]?.solved).length, total: lesson.experience.scenes.filter(s => s.check).length }];
+    return [{ slug: a.lesson_slug, title: lesson.experience.title, url: STUDENT_GAMES_PATH, solved: lesson.experience.scenes.filter(s => s.check && progress[s.id]?.solved).length, total: lesson.experience.scenes.filter(s => s.check).length }];
   });
 }

@@ -43,7 +43,7 @@ test('v2 reports reuse only covered activities and keep preparation history and 
  assert.equal(result,'replaced');assert.equal(calls,0);
  assert.equal(assignedExperience(slug),null);assert.equal(assignedExperience(slug,'homework').experience.scenes.length,1);
  const {presentationExperience}=await import('../../src/lib/server/learning-store.ts');assert.equal(typeof presentationExperience,'function');assert.equal(presentationExperience(slug).experience.title,p.learning.title);
- assert.match(learningForStudent(student.id)[0].url,/\/homework$/);
+ assert.equal(learningForStudent(student.id)[0].url,"/app/student/games");
  assert.equal(JSON.parse(latestPublished(slug,'plan').content).homework.length,2,'original preparation is retained');
  const target=learningMaterialSlug(slug);assert.notEqual(target,slug);
  assert.equal(await afterReport({bookingId,nodeIds:[],note:null,coveredObjectiveIds:['untaught']}),'none');assert.equal(learningMaterialSlug(slug),target);

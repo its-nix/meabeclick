@@ -28,7 +28,7 @@ test('catalog filters and bounded page navigation stay outside its scrolling tab
   assert.match(page, /each pagedRows as row/);
   assert.match(page, /aria-label="עמודי הספרייה"/);
   assert.match(page, /replaceState\(libraryPath/);
-  assert.match(page, /returnTo=\{encodeURIComponent\(libraryPath\)\}/);
+  assert.doesNotMatch(page, /\/app\/lessons\//, 'no link to the legacy lesson editor');
 });
 
 test('preparation needs appear before the catalog and start expanded', () => {

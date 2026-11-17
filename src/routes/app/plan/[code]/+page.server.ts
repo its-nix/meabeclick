@@ -14,7 +14,6 @@ import { planForEnrollment, planData, lastLessonAt } from '$server/plans/store.t
 import { buildTree } from '$server/plans/view.ts';
 import { readLessons } from '$server/db.ts';
 import { resultsForStudent } from '$server/results.ts';
-import { gameUrl } from '$server/urls.ts';
 import { readyMaster } from '$server/library/use.ts';
 import { FILTER_VALUES, type FilterKind } from '$lib/plan-status.ts';
 import type { PageServerLoad } from './$types';
@@ -54,9 +53,9 @@ export const load: PageServerLoad = async (event) => {
         const title = typeof game.title === 'string' && game.title ? game.title : `משחק ${index + 1}`;
         const dataId = typeof game.dataId === 'string' ? game.dataId : null;
         const result = dataId ? bestByDataId.get(dataId) : undefined;
-        if (typeof game.url === 'string') return { title, url: game.url, dataId, completed: !!result, score: result?.score ?? null, total: result?.total ?? null, lastPlayedAt: result?.at ?? null, broken: false };
+        if (typeof game.url === 'string') return { title, url: null, dataId, completed: !!result, score: result?.score ?? null, total: result?.total ?? null, lastPlayedAt: result?.at ?? null, broken: false };
         if (typeof game.template === 'string' && typeof game.dataId === 'string') {
-          try { return { title, url: gameUrl({ template: game.template, dataId: game.dataId, student: student.code }), dataId: game.dataId, completed: !!result, score: result?.score ?? null, total: result?.total ?? null, lastPlayedAt: result?.at ?? null, broken: false }; }
+          try { return { title, url: null, dataId: game.dataId, completed: !!result, score: result?.score ?? null, total: result?.total ?? null, lastPlayedAt: result?.at ?? null, broken: false }; }
           catch { return { title, url: null, dataId: game.dataId, completed: false, score: null, total: null, lastPlayedAt: null, broken: true }; }
         }
         return { title, url: null, dataId: null, completed: false, score: null, total: null, lastPlayedAt: null, broken: true };

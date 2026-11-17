@@ -108,7 +108,6 @@
           <div class="actions">
             {#if d.item?.status === 'ready' && d.item.slug}
               <a href="/lessons/{d.item.slug}" target="_blank" rel="noopener">צפייה</a>
-              <a href="/app/lessons/{d.item.slug}/edit?returnTo={encodeURIComponent(libraryPath)}">עריכה</a>
             {:else if !d.item || !['queued', 'preparing'].includes(d.item.status)}
               <button class="link" disabled={busy[busyKey]} onclick={() => prepare(d.templateId, { skill: d.skillKey }, busyKey)}>
                 {busy[busyKey] ? 'מתחילים…' : d.item ? 'הכנה מחדש' : 'הכנה'}
@@ -177,7 +176,6 @@
             <td><div class="actions">
               {#if row.item?.status === 'ready' && row.item.slug}
                 <a href="/lessons/{row.item.slug}" target="_blank" rel="noopener" aria-label="צפייה: {row.title} — {row.track} (חלון חדש)">צפייה</a>
-                <a href="/app/lessons/{row.item.slug}/edit?returnTo={encodeURIComponent(libraryPath)}" aria-label="עריכה: {row.title} — {row.track}">עריכה</a>
               {/if}
               {#if !row.item || !['queued', 'preparing'].includes(row.item.status)}
                 <button class="link" disabled={busy[busyKey]} onclick={() => prepare(row.templateId, { skill: row.skillKey }, busyKey)}

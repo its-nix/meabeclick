@@ -43,17 +43,17 @@ import { unambiguousLessonsForStudent } from '$server/lessons.ts';
 import { isLibrarySlug } from '$server/library/slug.ts';
 import {isRetiredLesson} from '$server/learning-archive.ts';
 import { resolveStudent, studentRefById } from '$server/results.ts';
-import { gameUrl, lessonUrl } from '$server/urls.ts';
+import { lessonUrl } from '$server/urls.ts';
 import type { RequestHandler } from './$types';
 
 function normalizeLessonGame(entry: unknown, student: string): { title: string; url: string | null; broken: boolean } {
   const e = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {};
   const title = typeof e.title === 'string' && e.title ? e.title : '(ללא שם)';
 
-  if (typeof e.url === 'string') return { title, url: e.url, broken: false }; // old shape: already has a url
+  if (typeof e.url === 'string') return { title, url: null, broken: false };
   if (typeof e.template === 'string' && typeof e.dataId === 'string') {
     try {
-      return { title, url: gameUrl({ template: e.template, dataId: e.dataId, student }), broken: false };
+      return { title, url: null, broken: false }; // no native tutor link to a student's game exists
     } catch {
       return { title, url: null, broken: true }; // invalid template — visible, not vanished
     }

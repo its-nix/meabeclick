@@ -283,7 +283,7 @@
           <div class="library-card">
             <span class="activity-icon">📚</span>
             <span><strong>שיעור מוכן מהספרייה</strong><small>שיעור על המיומנות הזו נבנה ממנו</small></span>
-            <span class="library-links"><a href="/lessons/{libSlug}" target="_blank" rel="noopener">צפייה ↗</a><a href="/app/lessons/{libSlug}/edit?returnTo={encodeURIComponent(returnTo)}">עריכה</a></span>
+            <span class="library-links"><a href="/lessons/{libSlug}" target="_blank" rel="noopener">צפייה ↗</a></span>
           </div>
         {/if}
         {#if assignedFor(selected).length}
@@ -302,9 +302,7 @@
           <div class="drawer-empty"><span>◌</span><strong>עדיין אין פעילות בענף הזה</strong><p>אפשר לבחור פעילות קיימת או לפתוח את מאגר המשחקים כדי לבחור תבנית.</p></div>
         {/if}
         {#if selectedLesson}
-          <a class="catalog-link" href="/app/games?lesson={encodeURIComponent(selectedLesson.slug)}&student={encodeURIComponent(student.id)}{selected.sourceId ? `&node=${selected.sourceId}` : ''}&returnTo={encodeURIComponent(returnTo)}">הוספת משחק לשיעור</a>
         {:else}
-          <a class="catalog-link" href="/app/games?returnTo={encodeURIComponent(returnTo)}">פתיחת מאגר המשחקים</a>
         {/if}
       </aside>
     {/if}

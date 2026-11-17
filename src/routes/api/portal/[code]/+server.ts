@@ -34,7 +34,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { portalDir } from '$server/paths.ts';
 import { balanceForAccount, chargesForStudent, todayInIsrael } from '$server/payments.ts';
-import { gameUrl } from '$server/urls.ts';
+import { nativeFamilyLinks } from '$server/native-family-links.ts';
 import { resolveFamilyAccess, studentInScope } from '$server/family.ts';
 import { getStudentByCode, nextBookingForStudent } from '$server/entities.ts';
 import { lessonWhen, israelDay, israelToday } from '$lib/dates.ts';
@@ -75,7 +75,7 @@ function normalizeGameLike(entry: unknown, studentRef: string): Record<string, u
   if (typeof e.url === 'string') return e; // old shape: already has a url
   if (typeof e.template === 'string' && typeof e.dataId === 'string') {
     try {
-      return { ...e, url: gameUrl({ template: e.template, dataId: e.dataId, student: studentRef }) };
+      return { ...e, url: '/app/student/games' };
     } catch {
       return null; // an invalid template/dataId must not 500 the whole page
     }
@@ -163,7 +163,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
         bestScore: game.bestScore,
         total: game.total,
         lastPlayedAt: game.lastPlayedAt,
-        url: gameUrl({ template: game.template, dataId: game.dataId, student: code }),
+        url: '/app/student/games',
       }));
       const publishedIds = new Set(linked.map(game => game.dataId));
       data.games = [...linked, ...(Array.isArray(data.games) ? data.games : [])
@@ -248,7 +248,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
       }
     }
 
-    return json(data, { headers: { 'Cache-Control': 'no-store' } });
+    return json(nativeFamilyLinks(data, kind), { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return json({ error: 'קובץ הדף פגום' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }

@@ -17,10 +17,10 @@ test('the tutor page passes the ready masters by plan node', () => {
   assert.match(page, /library=\{planRow && data\.plan\?\.library\}|library=\{data\.plan\?\.library \?\? \{\}\}/);
 });
 
-test("the drawer shows a skill's library lesson with view and edit", () => {
+test("the drawer shows a skill's library lesson with view only", () => {
   assert.match(tree, /library\[selected\.sourceId\]/);
   assert.match(tree, /שיעור מוכן מהספרייה/);
-  assert.match(tree, /href="\/app\/lessons\/\{libSlug\}\/edit\?returnTo=\{encodeURIComponent\(returnTo\)\}"/);
+  assert.doesNotMatch(tree, /\/app\/lessons\/\{libSlug\}\/edit/);
   assert.match(tree, /href="\/lessons\/\{libSlug\}"/);
 });
 

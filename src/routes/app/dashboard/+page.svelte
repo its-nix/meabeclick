@@ -1719,12 +1719,11 @@
           {#if l.problem}<div class="lsn-problem">⚠ {l.problem}</div>{/if}
           <div class="lsn-links">
             {#if l.slidesUrl}<a href={l.slidesUrl} target="_blank" rel="noopener">📊 מצגת</a>{/if}
-            <!-- The release valve (PRODUCT.md, Lesson autopilot): only a lesson
-                 that generated has a plan to edit. -->
-            {#if l.status === 'ready'}<a href="/app/lessons/{l.slug}/edit">✏️ עריכה</a>{/if}
             {#each l.games as g}
               {#if g.url}
                 <a href={toHref(g.url)} target="_blank" rel="noopener">🎮 {g.title}</a>
+              {:else if !g.broken}
+                <span>🎮 {g.title}</span>
               {:else}
                 <span class="lsn-broken" title="לא הצלחתי לבנות קישור למשחק הזה">⚠ {g.title} — קישור שבור</span>
               {/if}

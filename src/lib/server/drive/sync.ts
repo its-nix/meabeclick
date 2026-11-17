@@ -89,7 +89,6 @@ async function pass(
 ): Promise<SyncResult> {
   const result: SyncResult = { created: 0, updated: 0, pulled: 0, recreated: 0, failed: 0 };
   const tell = (t: string) => Promise.resolve(notify(t)).catch(() => {});
-  const site = process.env.SITE_URL ?? '';
 
   /** Folder ids already confirmed this pass: a pass creating many lessons
    *  would otherwise re-check the same root and student folder for each. */
@@ -205,7 +204,7 @@ async function pass(
                  publish from the site (the editor) is. */
               putItem({ ...seen, syncedVersion: out.plan.version, blocked: null });
               result.pulled += 1;
-              await tell(`✏️ העריכה בדרייב פורסמה לתלמיד/ה: "${title}". לצפייה ולשחזור גרסה קודמת: ${site}/app/lessons/${lesson.slug}/edit`);
+              await tell(`✏️ העריכה בדרייב פורסמה לתלמיד/ה: "${title}". לשחזור גרסה קודמת היכנסו להיסטוריית הגרסאות בדרייב.`);
               continue;
             }
           }

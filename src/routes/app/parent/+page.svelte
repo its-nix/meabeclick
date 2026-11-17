@@ -691,9 +691,6 @@
                 <div class="hw-task" class:done={state !== 'open'}><FormulaText text={h.task} /></div>
                 {#if h.skill}<div class="hw-meta">מתרגלים: {h.skill}</div>{/if}
                 <div class="hw-meta">ניתן: {formatDateHe(h.date)}</div>
-                {#if h.url}
-                  <a class="hw-play" href={toHref(h.url)} target="_blank" rel="noopener"><Icon name="games" size={17} /> שחקו</a>
-                {/if}
               </div>
               <span class="hw-badge" class:done={state !== 'open'} class:open={state === 'open'}>{state === 'graded' && h.grade ? GRADE_LABEL[h.grade] : HOMEWORK_STATE_LABEL[state]}</span>
             </div>

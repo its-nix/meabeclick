@@ -50,8 +50,7 @@ test('after a report, the covered skill\'s library games reach the child\'s page
       if (!game) await new Promise(r => setTimeout(r, 100));
     }
     assert.ok(game, "on the child's page");
-    /* A signed link to this copy, for this child. (The page itself is
-       checked in a browser: node's fetch of the play page does not end.) */
-    assert.match(game.url, new RegExp(`^/app/play/two-truths\\?d=[^&]+-lib-[a-z0-9-]+-two-truths&s=${booked.portal.code}&t=`));
+    /* Students play on the native games page; the per-game classic link is gone. */
+    assert.equal(game.url, '/app/student/games');
   } finally { await stop(); }
 });

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "rendererHash": "b4788423a53506041f90fa1f934a5cc12930dc74e4852d1ddb7fd7dafb958131",
+  "rendererHash": "634b1ce41b597a395f7a31cfbead3f18a4b689f98d70bdb02ae92412aff48116",
   "files": {
     "Dockerfile": "fb71b2c0f7f81c1e9bfa015d658b9ec18a55d8bb77a402e16d9459ed7ebdc1c7",
     "package-lock.json": "9684bec27da525fe3cc1669b764bf70efa475297575177584112a293ae6cd6cc",
@@ -9,7 +9,7 @@
     "src/lib/learning/deck/normal.ts": "55bbcde5a9b72349154b2e79e33b124725d79f1225345bbb01da1b421bc77c5c",
     "src/lib/learning/deck/runtime.ts": "241781d0b644cf5a81819e24428fca343689eb843a3caf5fa80642612bfa8a78",
     "src/lib/learning/deck/styles.ts": "c323cb4eb6852db5429b3517f2678afe0ef1a3d518a9a5a2da86533907fd5149",
-    "src/lib/learning/math.ts": "833791af9e3dee57a225370b787eb9981d5ba9aef7294e5917c6d9f61cd28a9e",
+    "src/lib/learning/math.ts": "d8270153c99dba940b57e561c519adc8725865fe200c2f30478169ea20d7a677",
     "src/lib/server/lesson/official-question-assets.json": "0aba5fcdd5c2b7db88d47482d428f6b515651f787f65210a08887864889e52a9",
     "src/lib/server/lesson/official-questions.ts": "25d18a6038c5a0288244e354d21d3814b46b4f2df66cfd2531f229db7b25e7c9",
     "src/lib/server/native-learning/bundle.ts": "e28a24b0641f5c3f080fb527cb235e8711e7a70bd1722e442978fc232e9a295c",
@@ -17,7 +17,7 @@
     "src/lib/server/native-learning/names.ts": "e6fdda8fdb7c3e740995dfa96b1c405fa3119a369a2dd00b2c2902991f8a5634",
     "src/lib/server/native-learning/player-evidence.ts": "204088be95741088a6f0f0d8c88daa811956f485f591e662b4ba6151bcaba9ce",
     "src/lib/server/native-learning/review-evidence.ts": "f807b3e86427c565ddb53c80ffdbc3291c4127a29d9318570cda520bf4773da2",
-    "src/lib/server/visual-deck-render.ts": "44386fdffb20ffbce98d79c797e40429e4aced6de4e34cb9ae0f7e97279f047d",
+    "src/lib/server/visual-deck-render.ts": "9db8e30edfcb80e1c10f91d7fd3ae16dcab169569b28f3746a221a3f8dedea73",
     "src/lib/server/visual-pilot.ts": "bfa83555a307e8180322f34f8c68902e92fa190a8e448248b39d9ada09f24e53",
     "static/images/logos/logo-slate.svg": "8600682a9c1052517fa1b07a62d03391408532bddc559ab229f0f371baa348c1",
     "static/learning-assets/native-fonts/Heebo.ttf": "18f930b583fa8fe6b40b2f8263b7ac6afbac07adc91a12467874e7467d3ace30"

@@ -1,5 +1,5 @@
 /**
- * What the tutor's editor may change in a lesson, and how an edit becomes
+ * What a Drive edit may change in a lesson, and how an edit becomes
  * a lesson again.
  *
  * Spec: docs/superpowers/specs/2026-09-25-lesson-editor-design.md. She
@@ -28,12 +28,12 @@ type MatchPair = MatchingGame['pairs'][number];
 /** The games a master's editor offers, beyond its quiz: the four most of
  *  the library's masters have (two truths in every one). The rest —
  *  graphs, labelling, tables — stay as generated. */
-export const EDITABLE_GAMES = {
+const EDITABLE_GAMES = {
   quiz: 'חידון', twoTruths: 'שתי אמיתות ושקר', errorHunt: 'ציד טעויות', sequence: 'סידור רצף', matching: 'משחק התאמה',
 } as const;
 type EditableGame = keyof typeof EDITABLE_GAMES;
 
-export interface PlanEdit {
+interface PlanEdit {
   title: string;
   slides: Slide[];
   examples: WorkedExample[];
@@ -214,60 +214,6 @@ function check(input: unknown): Result {
   return { ok: true, edit };
 }
 
-/**
- * A stored plan, whatever its shape, as the editor form can show it. A
- * version written by the raw `save` verb can hold anything — a null slide,
- * bullets as a string — and the page must show what it can rather than
- * fail to render.
- */
-export function formPlan(raw: unknown): {
-  title: string;
-  slides: { heading: string; bullets: string[]; note: string }[];
-  examples: { problem: string; steps: string[]; answer: string }[];
-  /** Null when the plan has no quiz: there is nothing to edit, and the
-   *  editor must not offer to create one. */
-  quiz: { q: string; options: string[]; answer: number; why: string; hint: string }[] | null;
-  twoTruths: { statements: string[]; lieIndex: number; why: string; hint: string }[] | null;
-  errorHunt: { problem: string; steps: string[]; badStep: number; why: string; hint: string }[] | null;
-  sequence: string[] | null;
-  matching: { left: string; right: string; hint: string }[] | null;
-  homework: { task: string; why: string; answer: string }[];
-} {
-  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const str = (v: unknown) => (typeof v === 'string' ? v : '');
-  const list = (v: unknown) => (Array.isArray(v) ? v.map(str) : typeof v === 'string' && v ? [v] : []);
-  const obj = (v: unknown) => (v && typeof v === 'object' ? v as Record<string, unknown> : {});
-  const games = obj(r.games);
-  const quiz = games.quiz && typeof games.quiz === 'object' ? obj(games.quiz) : null;
-  /** A game the plan has, shaped for the form; null when it has none. */
-  const game = <T,>(key: string, shape: (g: Record<string, unknown>) => T): T | null =>
-    games[key] && typeof games[key] === 'object' ? shape(obj(games[key])) : null;
-  const index = (v: unknown) => (Number.isInteger(v) ? v as number : 0);
-  return {
-    title: str(r.title),
-    slides: (Array.isArray(r.slides) ? r.slides : []).map(obj)
-      .map(s => ({ heading: str(s.heading), bullets: list(s.bullets), note: str(s.note) })),
-    examples: (Array.isArray(r.examples) ? r.examples : []).map(obj)
-      .map(e => ({ problem: str(e.problem), steps: list(e.steps), answer: str(e.answer) })),
-    quiz: quiz ? (Array.isArray(quiz.questions) ? quiz.questions : []).map(obj).map(q => ({
-      q: str(q.q), options: list(q.options), why: str(q.why), hint: str(q.hint),
-      answer: Number.isInteger(q.answer) ? q.answer as number : 0,
-    })) : null,
-    twoTruths: game('twoTruths', g => (Array.isArray(g.rounds) ? g.rounds : []).map(obj).map(x => ({
-      statements: list(x.statements), lieIndex: index(x.lieIndex), why: str(x.why), hint: str(x.hint),
-    }))),
-    errorHunt: game('errorHunt', g => (Array.isArray(g.rounds) ? g.rounds : []).map(obj).map(x => ({
-      problem: str(x.problem), steps: list(x.steps), badStep: index(x.badStep), why: str(x.why), hint: str(x.hint),
-    }))),
-    sequence: game('sequence', g => list(g.steps)),
-    matching: game('matching', g => (Array.isArray(g.pairs) ? g.pairs : []).map(obj).map(x => ({
-      left: str(x.left), right: str(x.right), hint: str(x.hint),
-    }))),
-    homework: (Array.isArray(r.homework) ? r.homework : []).map(obj)
-      .map(h => ({ task: str(h.task), why: str(h.why), answer: str(h.answer) })),
-  };
-}
-
 /** The lesson an edit describes: the base plan with title, slides and
  *  examples replaced — and the quiz's questions and the homework when the
  *  edit carries them — and everything else kept as it was. */
@@ -341,20 +287,10 @@ export function editedPlan(slug: string, rawEdit: unknown):
 }
 
 /**
- * Why a plan may not be published, when the lesson is a library master:
- * every booking copied from it is checked by validateLesson and held on a
- * problem, so a master that fails the check would hold each of them. A
- * student's own lesson is not checked — she is the judge of it.
- */
-export function masterProblems(slug: string, plan: LessonPlan): string[] {
-  return isLibrarySlug(slug) ? validateLesson(plan) : [];
-}
-
-/**
  * Publishes a plan to the student: the plan AND the deck rendered from it,
  * both or neither — a published plan whose deck was not updated would tell
  * the tutor one thing and show the student another. The one way anything
- * publishes an edited plan: the editor's publish-plan and a Drive edit.
+ * publishes an edited plan: a Drive edit.
  */
 export function publishPlan(slug: string, plan: LessonPlan, teacherOnly: string | null):
   { plan: MaterialRow; slides: MaterialRow } {

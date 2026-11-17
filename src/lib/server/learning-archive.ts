@@ -33,7 +33,6 @@ export function completeArchive(receipt:NativeWorkspace,revision:string):void {
   handle().prepare('UPDATE learning_archive SET receipt=? WHERE id=1 AND receipt IS NULL').run(JSON.stringify(receipt));
  });
 }
-export function isRetiredLesson(slug:string):boolean {return !!handle().prepare('SELECT 1 FROM learning_retired_lessons WHERE slug=?').get(slug);}
 export function assertLegacyAuthoring():void {if(nativeWorkspace())throw Error('native_workspace');}
 /** Filesystem writes can finish after an await; retirement cannot race them. */
 export async function withLegacyPublication<T>(write:()=>Promise<T>):Promise<T>{

@@ -13,8 +13,8 @@
  */
 import type { SkillStatus } from './plan-status.ts';
 
-/** One play of a game linked to a skill. `score`/`total` are nullable in
- *  results_v2, and a null is a missing measurement — never a zero. */
+/** One play of a game linked to a skill. `score`/`total` are nullable,
+ *  and a null is a missing measurement — never a zero. */
 export interface Play {
   at: string;
   score: number | null;

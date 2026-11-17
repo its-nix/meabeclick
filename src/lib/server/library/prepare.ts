@@ -91,7 +91,7 @@ export async function prepareSkill(templateId: string, skillKey: string, deps: P
     const published = await publish(slug, plan, meta);
     finishLesson(slug, {
       status: 'ready', title: plan.title, context: plan.gradeContext,
-      slides: `lessons/${slug}/slides.html`, homework: plan.homework, games: published.games,
+      homework: plan.homework,
     });
     return setItem({ templateId, skillKey, slug, status: 'ready' });
   } catch (err) {

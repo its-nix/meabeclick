@@ -1,4 +1,4 @@
-import {isCanonicalLabelling} from '../games/diagrams.ts';
+import {isCanonicalLabelling} from './diagrams.ts';
 import type {LessonPlan} from '../server/lesson/prep.ts';
 import {TEACHING_RULE_VERSION,type TeachingProfile} from './teaching-rules.ts';
 export interface TeachingContext extends TeachingProfile {

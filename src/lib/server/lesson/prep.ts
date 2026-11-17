@@ -22,7 +22,7 @@
  * tutor to review. It goes out under her name.
  */
 
-import {canonicalLabelling,LABELLING_DIAGRAM_IDS} from '../../games/diagrams.ts';
+import {canonicalLabelling,LABELLING_DIAGRAM_IDS} from '../../learning/diagrams.ts';
 import { formulaRuns } from '../../bidi.ts';
 import {resolveOfficialQuestions,officialQuestion,suppliedQuestionId,suppliedSourceIntent,type OfficialQuestion} from './official-questions.ts';
 import {teachingDisplay,homeworkExperience} from '../teaching-display.ts';
@@ -35,7 +35,6 @@ import { LessonGenerationError, engineBin, lessonEngine, claudeBin, opencodeBin 
 import { getRegistry } from './registry.ts';
 import { planFor } from '../../plans.ts';
 import { spawnAgent } from './spawn.ts';
-import { validateLessonGame, GameValidationError } from '../lesson-games.ts';
 import { strictOutputSchema, omitOptionalNulls } from './structured-output.ts';
 import { newFence, sanitizeField } from './prompt.ts';
 /* One source for the palette a deck writes into its own document — see
@@ -600,18 +599,7 @@ export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
     req={...req,officialQuestions:sources.questions,teachingContext:sourceQuestionIds.length||context.sourceQuestionIds?{...context,sourceQuestionIds}:context};
   }
   const generateValidated = async (repair?:LessonGenerationError) => {
-    const plan = dropAmbiguousPairs(balancePositions(await generateOnce(req,repair)));
-    // New output must be playable/editable under the same contract as authored games.
-    // Historical plans remain readable; validation here applies only to fresh generation.
-    for (const [key, body] of Object.entries(plan.games ?? {})) {
-      if (body == null) continue;
-      try { validateLessonGame(TEMPLATE_FILES[key], toTemplateShape(key, body)); }
-      catch (error) {
-        const detail = error instanceof GameValidationError ? error.issues.map(issue => `${issue.path}: ${issue.message}`).join('; ') : String(error);
-        throw new LessonGenerationError('bad-output', `משחק ${key}: ${detail}`);
-      }
-    }
-    return plan;
+    return dropAmbiguousPairs(balancePositions(await generateOnce(req,repair)));
   };
   /* One retry, and only for a plan that came back unusable.
    *
@@ -962,7 +950,7 @@ async function runAgent(prompt: string, cwd: string, planPath: string): Promise<
 
 /** Self-contained RTL deck, site palette, arrow-key navigation. */
 export function renderSlides(plan: LessonPlan, { subject, level, student,slug }: { subject: string; level: string; student?: string;slug?:string }): string {
-  if (plan.learning && !experienceProblems(plan.learning).length) return renderLearningDocument(plan.learning,{teaching:teachingDisplay(plan,slug??'')});
+  if (plan.learning && !experienceProblems(plan.learning).length) return renderLearningDocument(plan.learning,{teaching:teachingDisplay(plan)});
   /* Text with formulas in it: each formula isolated left to right (bidi.ts),
      everything escaped. In this right-to-left document "8-(x+3)" was laid
      out as ")x+3(-8". */

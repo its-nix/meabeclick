@@ -67,8 +67,7 @@ export const STORAGE: Record<string, TableFact> = {
   library_items: { status: 'live', note: 'Which master lesson is the prepared material for a skill of a plan template (migration 023).' },
   pending_bookings: { status: 'live', note: 'A booking with a known family\'s email, held until that family confirms it (migration 021).' },
   payments:      { status: 'live', note: 'Charges in integer agorot. Manual marking, no auto-billing.' },
-  homework:      { status: 'live', note: 'One store for both sides since #86; `done` derives from results_v2.' },
-  results_v2:    { status: 'live', note: 'A game play, keyed on student_id.' },
+  homework:      { status: 'live', note: 'One store for both sides since #86; `done` is the hand-marked submission.' },
   learning_assignments: { status: 'live', note: 'Explicit student ownership, booking/skill, preparation release deadline and the editable practice material target.' },
   learning_progress: { status: 'live', note: 'Attempts, hints and completion per student, lesson content version and scene; not an assertion of skill mastery.' },
   learning_events: { status: 'live', note: 'Idempotent learning actions so offline retries never duplicate attempts.' },
@@ -94,10 +93,6 @@ export const STORAGE: Record<string, TableFact> = {
   plan_prereqs:       { status: 'live', note: 'Which skill needs which.' },
   plan_events:        { status: 'live', note: 'Append-only history: status, coverage, corrections (#85).' },
   lesson_reminders:   { status: 'live', note: 'One row per reminder attempted; UNIQUE (booking, kind) IS the idempotency guarantee.' },
-  game_skills:        { status: 'live', note: 'Which skill a published game practises, per (student, data_id) — the link results_v2 needs to become evidence.' },
-  game_filler:        { status: 'live', note: 'Catalog example exercises. Migration 031 inserts them once; readGameFiller serves them. Per-lesson games stay files.' },
-  lesson_game_assignments: { status: 'live', note: 'Tutor-managed game drafts and the current published revision for a live lesson and student.' },
-  lesson_game_revisions: { status: 'live', note: 'Immutable published lesson-specific game bodies, keyed by data_id.' },
   lesson_reports:     { status: 'live', note: 'The tutor\'s end-of-lesson report.' },
   lesson_report_notes:{ status: 'live', note: 'Free text attached to a report.' },
   report_prompts:     { status: 'live', note: 'Which lessons have already been chased. INSERT OR IGNORE.' },
@@ -141,14 +136,6 @@ export const STORAGE: Record<string, TableFact> = {
     note: 'Pre-entity bookings, unioned into the overlap check so an old '
         + 'hour still blocks its slot. Measured 2026-09-22: zero rows with '
         + 'start in the future, so the union\'s legacy half can go.',
-  },
-  results: {
-    status: 'draining',
-    note: 'Plays that could not be attributed to a student id. It still receives '
-        + 'new rows: /api/game-result calls db.ts writeResult() whenever '
-        + 'resolveStudent() finds no student, so this drains only once every play '
-        + 'can be attributed. Migration 008 MOVED rows rather than copying, so the '
-        + 'union with results_v2 cannot double-count.',
   },
 
   // ── Dead ──────────────────────────────────────────────────────────

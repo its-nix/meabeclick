@@ -1,9 +1,6 @@
 /**
- * Homework results in SQLite. Uses the built-in node:sqlite (Node 22+), so
+ * The site database in SQLite. Uses the built-in node:sqlite (Node 22+), so
  * there is nothing to compile on the server.
- *
- * Schema and aggregation match what vps/server.mjs wrote, so an existing
- * results.db carries over unchanged.
  */
 
 import { DatabaseSync } from 'node:sqlite';
@@ -24,20 +21,6 @@ export type StudentRow = {
   created_at: string;
 };
 
-export type ResultRow = {
-  id: number;
-  student: string;
-  at: string;
-  data_id: string | null;
-  template: string | null;
-  score: number | null;
-  total: number | null;
-  tries: number | null;
-  stars: number | null;
-  seconds: number | null;
-  missed: string | null;
-};
-
 export type LessonRow = {
   id: number;
   slug: string;
@@ -51,9 +34,7 @@ export type LessonRow = {
   lesson_at: string | null;
   status: string;
   problem: string | null;
-  slides: string | null;
   homework: string | null;
-  games: string | null;
 };
 
 export type BookingRow = {
@@ -164,29 +145,6 @@ export function inTransaction<T>(fn: () => T): T {
 }
 
 db.exec(`
-  -- Kept in step with the frozen copy of this DDL in
-  -- migrations/008_results_identity.ts. migrate() (called above, at line 97)
-  -- runs before this db.exec block, so on a FRESH database migration 008's
-  -- CREATE TABLE is the one that actually creates the results table — this
-  -- statement then finds the table already there and, being IF NOT EXISTS,
-  -- is a permanent no-op for that deployment. A column added here without
-  -- also adding it to 008's copy would silently reach upgraded (already
-  -- migrated) deployments but never fresh ones.
-  CREATE TABLE IF NOT EXISTS results (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    student  TEXT    NOT NULL,
-    at       TEXT    NOT NULL,
-    data_id  TEXT,
-    template TEXT,
-    score    INTEGER,
-    total    INTEGER,
-    tries    INTEGER,
-    stars    INTEGER,
-    seconds  INTEGER,
-    missed   TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_results_student ON results(student, at DESC);
-
   -- Generated lessons. Lives here rather than in localStorage so the tutor,
   -- student and parent dashboards can all read the same rows.
   CREATE TABLE IF NOT EXISTS lessons (
@@ -202,9 +160,7 @@ db.exec(`
     lesson_at TEXT,          -- when the lesson itself happens
     status    TEXT NOT NULL, -- generating | ready | held | failed
     problem   TEXT,          -- why it was held or failed
-    slides    TEXT,          -- public URL
-    homework  TEXT,          -- JSON array
-    games     TEXT           -- JSON array of {title,template,dataId}
+    homework  TEXT           -- JSON array
   );
   CREATE INDEX IF NOT EXISTS idx_lessons_student ON lessons(student, at DESC);
 
@@ -270,98 +226,6 @@ db.exec(`UPDATE students SET password = student_pin WHERE password IS NULL`);
    surfaces later as "statement has been finalized" on a previously fine
    handle. At this volume the prepare cost is irrelevant. */
 
-export interface WriteResultInput {
-  student: unknown;
-  dataId?: unknown;
-  template?: unknown;
-  score?: unknown;
-  total?: unknown;
-  tries?: unknown;
-  stars?: unknown;
-  durationSec?: unknown;
-  missed?: unknown;
-}
-
-export function writeResult(b: WriteResultInput): void {
-  db.prepare(`
-    INSERT INTO results (student, at, data_id, template, score, total, tries, stars, seconds, missed)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    String(b.student).trim().slice(0, 60),
-    new Date().toISOString(),
-    str(b.dataId, 120), str(b.template, 40),
-    int(b.score), int(b.total), int(b.tries), int(b.stars), int(b.durationSec),
-    JSON.stringify((Array.isArray(b.missed) ? b.missed : []).slice(0, 40).map(m => String(m).slice(0, 200))),
-  );
-}
-
-export interface StudentResultsSummary {
-  plays: number;
-  lastPlayed: string | null;
-  score: number;
-  total: number;
-  wrong: number;
-  accuracy: number | null;
-  tries: number | null;
-  minutes: number;
-  topMissed: { item: string; times: number }[];
-  games: unknown[];
-}
-
-export function readResults(studentId?: number): Record<string, StudentResultsSummary> {
-  /* Both tables, because migration 008 splits history by whether it could be
-     attributed: results_v2 holds plays with a real student_id, `results` holds
-     the ones whose display name was ambiguous or unknown. They are disjoint —
-     008 MOVES rows rather than copying them — so UNION ALL cannot double-count,
-     and nothing a child played is invisible to the tutor. Keyed by display name
-     either way, so this function's contract (and /api/results, and the
-     dashboard) is unchanged. */
-  const rows = studentId !== undefined ? db.prepare(`
-    SELECT r.id, s.name AS student, r.at, r.data_id, r.template, r.score, r.total,
-           r.tries, r.stars, r.seconds, r.missed
-    FROM results_v2 r JOIN students_v2 s ON s.id = r.student_id
-    WHERE r.student_id = ? ORDER BY r.at DESC
-  `).all(studentId) as ResultRow[] : db.prepare(`
-    SELECT id, student, at, data_id, template, score, total, tries, stars, seconds, missed
-    FROM results
-    UNION ALL
-    SELECT r.id, s.name AS student, r.at, r.data_id, r.template, r.score, r.total,
-           r.tries, r.stars, r.seconds, r.missed
-    FROM results_v2 r
-    JOIN students_v2 s ON s.id = r.student_id
-    ORDER BY at DESC
-  `).all() as ResultRow[];
-
-  const byStudent: Record<string, ResultRow[]> = {};
-  for (const r of rows) {
-    (byStudent[r.student] ||= []).push(r);
-  }
-
-  const out: Record<string, StudentResultsSummary> = {};
-  for (const [name, plays] of Object.entries(byStudent)) {
-    let score = 0, total = 0, tries = 0, seconds = 0;
-    const missCount: Record<string, number> = {};
-    for (const p of plays) {
-      score += p.score || 0; total += p.total || 0;
-      tries += p.tries || 0; seconds += p.seconds || 0;
-      for (const m of safeArr(p.missed)) missCount[m as string] = (missCount[m as string] || 0) + 1;
-    }
-    out[name] = {
-      plays: plays.length,
-      lastPlayed: plays[0]?.at || null,
-      score, total,
-      wrong: Math.max(0, total - score),
-      accuracy: total ? Math.round((score / total) * 100) : null,
-      tries: tries || null,
-      minutes: seconds ? Math.round(seconds / 60) : 0,
-      topMissed: Object.entries(missCount).sort((a, b) => b[1] - a[1]).slice(0, 5)
-                   .map(([item, times]) => ({ item, times })),
-      games: [],
-    };
-  }
-  return out;
-}
-
 /* ── Lessons ──────────────────────────────────────────────────── */
 
 export interface CreateLessonInput {
@@ -386,19 +250,16 @@ export interface FinishLessonInput {
   status: string;
   title?: string | null;
   context?: string | null;
-  slides?: string | null;
   homework?: unknown[] | null;
-  games?: unknown[] | null;
   problem?: string | null;
 }
 
-export function finishLesson(slug: string, { status, title, context, slides, homework, games, problem }: FinishLessonInput): void {
+export function finishLesson(slug: string, { status, title, context, homework, problem }: FinishLessonInput): void {
   db.prepare(`
-    UPDATE lessons SET status=?, title=?, context=?, slides=?, homework=?, games=?, problem=?
+    UPDATE lessons SET status=?, title=?, context=?, homework=?, problem=?
     WHERE slug=?
-  `).run(status, title ?? null, context ?? null, slides ?? null,
+  `).run(status, title ?? null, context ?? null,
          homework ? JSON.stringify(homework) : null,
-         games ? JSON.stringify(games) : null,
          problem ?? null, slug);
 }
 
@@ -414,9 +275,7 @@ export interface LessonSummary {
   lessonAt: string | null;
   status: string;
   problem: string | null;
-  slides: string | null;
   homework: unknown[];
-  games: unknown[];
 }
 
 /** `student` omitted → every lesson, for the tutor dashboard. */
@@ -428,28 +287,15 @@ export function readLessons(student?: string): LessonSummary[] {
   return summarizeLessons(rows);
 }
 
-/** The identity-safe lesson selector supplies slugs; never filter these by
- * display name (two students may share one). Apply the limit after scoping. */
-export function readLessonsForSlugs(slugs: string[]): LessonSummary[] {
-  if (!slugs.length) return [];
-  const rows = db.prepare(`SELECT * FROM lessons WHERE slug IN (${slugs.map(() => '?').join(',')}) ORDER BY at DESC LIMIT 200`)
-    .all(...slugs) as LessonRow[];
-  return summarizeLessons(rows);
-}
-
 function summarizeLessons(rows: LessonRow[]): LessonSummary[] {
   return rows.map(r => ({
     slug: r.slug, student: r.student, subject: r.subject, level: r.level,
     topic: r.topic, title: r.title, context: r.context,
     at: r.at, lessonAt: r.lesson_at, status: r.status, problem: r.problem,
-    slides: r.slides,
     homework: safeArr(r.homework),
-    games: safeArr(r.games),
   }));
 }
 
-const str = (v: unknown, n: number): string | null => (v == null ? null : String(v).slice(0, n));
-const int = (v: unknown): number | null => { const n = Number(v); return Number.isFinite(n) ? Math.round(n) : null; };
 function safeArr(s: unknown): unknown[] { try { const a = JSON.parse(s as string); return Array.isArray(a) ? a : []; } catch { return []; } }
 
 
@@ -526,14 +372,4 @@ export function getStudent(code: string): StudentRow | null {
 
 export function deleteStudent(code: string): boolean {
   return db.prepare(`DELETE FROM students WHERE code = ?`).run(code).changes > 0;
-}
-
-/** Highest score for this student on this game, or null if they have never
- *  played it. Replaces a broken localStorage personal-best that couldn't see
- *  results recorded from another device. */
-export function getBest(student: string, dataId: string): number | null {
-  const row = db.prepare(
-    `SELECT MAX(score) AS best FROM results WHERE student = ? AND data_id = ?`
-  ).get(student, dataId) as { best: number | null } | undefined;
-  return row?.best ?? null;
 }

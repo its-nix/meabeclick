@@ -4,7 +4,7 @@ import { checkEnv, checkDataDir, checkPortalDir, checkGoogleLogin, checkRegistry
 
 // Boot checks apply in production only. `npm run dev` must stay usable for
 // a developer without a full .env — every module these checks cover
-// (auth.ts, urls.ts, content.ts) already degrades gracefully on its own
+// (auth.ts, content.ts) already degrades gracefully on its own
 // (a warned, random session secret; DATA_DIR falling back to ./data), which
 // is exactly the dev-friendly behavior this guard preserves. This is a
 // deliberate, visible choice (not a silent skip): `dev` is SvelteKit's own
@@ -16,10 +16,8 @@ import { checkEnv, checkDataDir, checkPortalDir, checkGoogleLogin, checkRegistry
 // auth.ts warns unconditionally at module load ("ADMIN_PASSWORD is not
 // set...", "SESSION_SECRET is not set...") the moment it's imported. If
 // auth.ts were a static import at the top of this file (as it originally
-// was), those two lines — plus a third from urls.ts, pulled in transitively
-// by boot-checks.ts's DATA_DIR check — would all print immediately before
-// checkEnv() throws over the SAME missing variable: three contradictory
-// lines about one problem. ES modules fully evaluate every static import
+// was), those two lines would print immediately before checkEnv() throws
+// over the SAME missing variable: contradictory lines about one problem. ES modules fully evaluate every static import
 // (side effects included) before the importing module's own body runs, in
 // the order the imports are written, so no amount of reordering import
 // STATEMENTS fixes this — only deferring the import itself does. Hence the

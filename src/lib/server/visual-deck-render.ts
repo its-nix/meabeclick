@@ -7,7 +7,7 @@ import {officialQuestion,officialQuestionAsset,sourceCaption} from './lesson/off
 import {mountVisualDeck} from '../learning/deck/runtime.ts';
 import {writeLearningText} from '../learning/runtime.ts';
 
-export interface DeckRenderOptions {view:'lesson'|'presenter'|'homework'|'game';gameId?:string;baseUrl?:string;version?:string;activitiesOnly?:boolean;actionUrl?:string}
+export interface DeckRenderOptions {view:'lesson'|'presenter'|'homework'|'game';gameId?:string;baseUrl:string;version?:string;activitiesOnly?:boolean;actionUrl?:string}
 const modelMarkup=(m:NormalModel,scope:string,comparison:NormalModel[]=[])=>{const v=normalVisual(m,0,scope,{},comparison);return `<div class="model" data-model="${esc(JSON.stringify(m))}" data-model-scope="${esc(scope)}" data-model-comparison="${esc(JSON.stringify(comparison))}"><div class="model-visual">${v.svg}</div><div class="model-formula math-scroll">${mathFormula(v.formula)}</div><p class="model-caption">${esc(v.caption)}</p>${['bands','cumulative'].includes(m.mode)?'<div class="model-legend"><span>מהמרכז לקצה, בכל צד · קירוב בית־ספרי</span><div dir="ltr">19% · 15% · 9% · 5% · 1.5% · 0.5%</div></div>':''}</div>`;};
 function blockMarkup(b:DeckBlock,scope:string,comparison:NormalModel[]=[]):string{
  let body='';
@@ -26,7 +26,7 @@ function taskMarkup(task:ReturnType<typeof publicVisualLesson>['tasks'][number],
  return `<article class="task-card task-${check?.kind??'reasoning'}" data-task="${esc(task.id)}"><h2>${esc(task.title)}</h2><p class="task-givens">${mathText(task.givens)}</p><p class="task-prompt">${mathText(task.prompt)}</p>${task.model?`<div${check?.kind==='region'?' data-region-model':''}>${modelMarkup({...task.model,states:task.model.states.map(s=>check?.kind==='region'?{...s,lowerZ:null,upperZ:null}:s)},scope)}</div>`:''}<div class="task-input">${input}</div><div class="task-actions">${task.grading==='checked'?'<button class="primary" data-task-action="attempt">בדיקת התשובה</button>':'<button class="primary" data-task-action="attempt">שומרים ניסיון לבדיקה עם המורה</button>'}<button data-task-action="hint">אפשר רמז?</button><button data-task-action="solution">הסבר מלא</button></div><div class="task-feedback" data-task-feedback role="status"></div><p class="review-disclaimer">תצוגת בדיקה · התרגול אינו רושם ציון לתלמיד.</p></article>`;
 }
 export function renderVisualDeck(bundle:VisualLesson,options:DeckRenderOptions):string{
- const base=options.baseUrl??'/app/learning-pilot',publicBundle=publicVisualLesson(bundle);
+ const base=options.baseUrl,publicBundle=publicVisualLesson(bundle);
  const sourceIds=[...new Set(bundle.slides.flatMap(s=>s.blocks.filter(b=>b.type==='source').map(b=>b.sourceId)).filter((id):id is string=>!!id))];
  const dialogs=sourceIds.map(id=>{const q=officialQuestion(id),a=officialQuestionAsset(id);return q&&a?`<dialog class="source-dialog" id="source-${esc(id)}"><header><b>${esc(sourceCaption(id)?.label??'שאלת מקור')}</b><button data-close-source>סגירה ✕</button></header><div class="source-zoom"><img src="${a.image}" alt="${esc(q.accessibleText)}"></div><details><summary>קריאה נגישה של השאלה</summary><p>${mathText(q.transcript).replace(/\n/g,'<br>')}</p></details></dialog>`:'';}).join('');
  let body='';

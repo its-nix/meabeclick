@@ -310,22 +310,11 @@ export function checkLessonEngine(): void {
 }
 
 /**
- * WARNS, does not throw, and names what will be degraded. registry.ts
- * (src/lib/server/lesson/registry.ts) used to do a top-level JSON.parse at
- * module load with no env override — meaning a missing/invalid
- * games/registry.json crashed the moment ANYTHING imported that module,
- * which risked taking down the whole server rather than just the one
- * feature that needs it (a fragility Task 11's review had already flagged
- * and deferred; Task 18 is what actually exercised it, when the games
- * catalog page became registry.ts's first real caller). registry.ts is now
- * lazy (getRegistry(), read and cached on first use, not at import) so
- * that guarantee holds: only /app/games (the catalog) and
- * /app/play/[template] (via isKnownTemplate) fail when someone actually
- * hits them — booking, the revenue path, never touches this file and is
- * unaffected either way. That's the same "don't take down the whole site
- * over one degraded feature" principle already applied to the `codex` CLI
- * check above; this fold-in is the FIX for the earlier version of this
- * function, which threw here instead.
+ * WARNS, does not throw, and names what will be degraded: lesson generation
+ * reads games/registry.json lazily (registry.ts), so a missing or invalid
+ * file fails only when someone actually generates a lesson — booking, the
+ * revenue path, never touches it. The same "don't take down the whole site
+ * over one degraded feature" principle as the `codex` CLI check above.
  */
 export function checkRegistry(): void {
   const path = resolve(process.cwd(), 'games', 'registry.json');
@@ -335,7 +324,7 @@ export function checkRegistry(): void {
     const cause = e instanceof Error ? e.message : String(e);
     console.warn(
       `WARNING: games/registry.json (${path}) is missing or not valid JSON (${cause}) — ` +
-      'the games catalog (/app/games) and lesson generation will fail. Booking and the ' +
+      'lesson generation will fail. Booking and the ' +
       'rest of the site will still work.',
     );
   }

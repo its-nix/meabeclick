@@ -1,7 +1,6 @@
 /**
  * Security headers for the stand-alone HTML documents the app serves from
- * endpoints: a generated lesson deck (/lessons/<slug>) and its draft
- * (/drafts/<slug>/slides.html).
+ * endpoints: a generated lesson deck's draft (/drafts/<slug>/slides.html).
  *
  * SvelteKit's own CSP (svelte.config.js) only covers pages it renders. A
  * deck is a complete HTML file written by the lesson engine, served as

@@ -8,7 +8,7 @@ import {prepareReviewedNativeLesson} from './preparation-review.ts';
 import type {VisualLesson} from '../../learning/deck/model.ts';
 import {claimNativeLessonJob,cacheNativePublication,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,listNativeLessonJobs,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
 import {supportedNativeContext,NORMAL_REVIEW_CONTEXT} from './context.ts';
-import {nativeDraftRecords,appendNativeDraftRecords,validateNativeDraftFiles} from './register.ts';
+import {nativeDraftRecords,appendNativeDraftRecords,validateNativeDraftFiles,writeNativeGamesFile} from './register.ts';
 
 interface Receipt {version:1;state:'draft';sourceHash:string;reviewFolderId:string;slides:{id:string;url:string;mimeType:string};notesLocation?:'slides';tutorNotes?:{id:string;url:string;mimeType:string};homework:{id:string;url:string;mimeType:string};activities:{id:string;title:string;url:string}[];provenance?:{kind:string;bundleVersion:string;sourceIds:string[];context:Record<string,unknown>;generation?:Omit<AuthoredLesson,'bundle'>}}
 interface Options {
@@ -16,7 +16,7 @@ interface Options {
  source:()=>{bundle:VisualLesson;version:string}|null;
  generate?:(job:NativeLessonJob)=>Promise<AuthoredLesson>;
  publish:(input:{bundle:VisualLesson;key:string;activityBaseUrl:string},dependencies:{access:CentralAccess;workspace:NativeWorkspace})=>Promise<Receipt>;
- register:(access:CentralAccess,workspace:NativeWorkspace,job:NativeLessonJob,receipt:Receipt)=>Promise<void>;
+ register:(access:CentralAccess,workspace:NativeWorkspace,job:NativeLessonJob,receipt:Receipt,bundle?:VisualLesson)=>Promise<void>;
  activityBaseUrl:()=>string;
 }
 export const NATIVE_PREPARATION_REASONS:Record<string,string>={
@@ -51,7 +51,7 @@ export function nativeLessonWorker(options:Options){
    const receipt={...published,provenance:{kind:options.generate?'fresh-booking-generation':'tutor-selected-calibration',bundleVersion:source.version,sourceIds:[NORMAL_REVIEW_CONTEXT.sourceId],context:{...NORMAL_REVIEW_CONTEXT,readiness:job.snapshot.brief?.readiness==='tutor-reported'?'tutor-reported':NORMAL_REVIEW_CONTEXT.readiness},...(options.generate?{generation:{version:source.version,model:(source as AuthoredLesson).model,rulesHash:(source as AuthoredLesson).rulesHash,contextHash:(source as AuthoredLesson).contextHash,cliVersion:(source as AuthoredLesson).cliVersion,authoringFingerprint:(source as AuthoredLesson).authoringFingerprint,sources:(source as AuthoredLesson).sources,feedbackPolicyHash:(source as AuthoredLesson).feedbackPolicyHash,validation:(source as AuthoredLesson).validation}}:{})}};
    access.assertCurrent();
    if(!pending&&!cacheNativePublication({bookingId:job.bookingId,attempt:job.attempts,publication:{receipt,sourceVersion:source.version,archiveId:workspace.archiveId}}))throw Error('paused');
-   await options.register(access,workspace,job,receipt);
+   await options.register(access,workspace,job,receipt,source.bundle);
    access.assertCurrent();
    finishNativeLessonJob({bookingId:job.bookingId,attempt:job.attempts,state:'review',bundle:{...receipt,studentDelivery:'blocked-owner-review-required'}});
   }catch(e){
@@ -71,7 +71,7 @@ export function nativeLearningWorker(){return worker??=nativeLessonWorker({
  enabled:()=>process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',workspace:nativeWorkspace,access:()=>learningService().syncAccess(),source:()=>null,generate:prepareReviewedNativeLesson,
  activityBaseUrl:()=>new URL('/app/native-review-activities',process.env.SITE_URL).href,
  async publish(input,dependencies){const{publishNativeReviewBundle}=await import('./bundle.ts');return publishNativeReviewBundle(input,dependencies);},
- async register(access,workspace,job,receipt){
+ async register(access,workspace,job,receipt,bundle){
   const student=getStudentById(job.studentId);if(!student)throw Error('ownership');
   const api=centralDriveApi({access,checkpoint:{read:()=>null,write:()=>{}}});
   await api.prepare();
@@ -84,7 +84,8 @@ export function nativeLearningWorker(){return worker??=nativeLessonWorker({
   if(students.id!==workspace.studentsId)throw Error('conflict');
   const folder=await api.folder(`student:${student.id}`,student.name,students.id);
   const profile=await api.profile({id:student.id,code:student.code,name:student.name,goals:student.goals,style:student.style,notes:student.notes,progress:student.progress,progress_note:student.progress_note,subjects:enrollmentsForStudent(student.id).map(e=>e.subject).join(', ')},folder.id,workspace.indexId);
-  await appendNativeDraftRecords(api,workspace.indexId,nativeDraftRecords(job,receipt,student.name,{profileUrl:centralFileUrl(profile.file),folderUrl:centralFileUrl(folder)}));
+  const gamesFile=bundle?await writeNativeGamesFile(api,receipt.reviewFolderId,bundle,job.bookingId):null;
+  await appendNativeDraftRecords(api,workspace.indexId,nativeDraftRecords(job,receipt,student.name,{profileUrl:centralFileUrl(profile.file),folderUrl:centralFileUrl(folder)},gamesFile));
  },
 });}
 export function queueNativeLessonWork(){nativeLearningWorker().queue();}

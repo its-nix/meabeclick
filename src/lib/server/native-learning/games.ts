@@ -71,3 +71,16 @@ export function approvedGamesForStudent(studentId:number,bookingId:number){
   return publicVisualLesson(shell).games[0];
  });
 }
+
+const shellFor=(games:Game[]):VisualLesson=>({version:1,ruleVersion:'',title:'משחקי תרגול',subtitle:'',durationMin:0,homeworkMinutes:0,objectives:[],agenda:[],slides:[],tasks:[],homework:[],games,sourceSolutions:[]} as unknown as VisualLesson);
+/** Server-only: the approved games with answers, for grading and for the player renderer (which strips them itself). */
+export function approvedGameBundle(studentId:number,bookingId:number,gameId?:string):{bundle:VisualLesson;version:string}|null{
+ const rows=handle().prepare('SELECT game_id,content_json,content_sha256 FROM native_games WHERE student_id=? AND booking_id=? ORDER BY id').all(studentId,bookingId).filter(r=>!gameId||r.game_id===gameId);
+ if(!rows.length)return null;
+ return {bundle:shellFor(rows.map(r=>JSON.parse(String(r.content_json)))),version:String(rows[0].content_sha256)};
+}
+/** Student's approved lessons with their answer-stripped games, newest lesson first. */
+export function approvedGameLessonsForStudent(studentId:number){
+ const ids=handle().prepare('SELECT DISTINCT booking_id FROM native_games WHERE student_id=? ORDER BY booking_id DESC').all(studentId).map(r=>Number(r.booking_id));
+ return ids.map(bookingId=>({bookingId,games:approvedGamesForStudent(studentId,bookingId)}));
+}

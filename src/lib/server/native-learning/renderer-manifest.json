@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "rendererHash": "98de16da3bd6c459626d67e5c237669fe116a2dd0b8e18517c35fdf039110af4",
+  "rendererHash": "8085026cbc651a4f9f83baf5c384e83decd0f1f997ab561b25fa51fa7b3c63ab",
   "files": {
     "Dockerfile": "fb71b2c0f7f81c1e9bfa015d658b9ec18a55d8bb77a402e16d9459ed7ebdc1c7",
     "package-lock.json": "9684bec27da525fe3cc1669b764bf70efa475297575177584112a293ae6cd6cc",
     "src/lib/brand.ts": "2e49484ee043b38b8a47c738820a3c52a1efcb116b9525d101d05e3c809399b8",
-    "src/lib/learning/deck/model.ts": "8b75b2f60a1ee7137b0f2502f95da32e710df4269d2af963ef961f11dfd0f961",
+    "src/lib/learning/deck/model.ts": "569a1e8189bd4cdd649cbf0aa570fc562bc139ba693a9b04d51b0ba20b0bd2b7",
     "src/lib/learning/deck/normal.ts": "55bbcde5a9b72349154b2e79e33b124725d79f1225345bbb01da1b421bc77c5c",
     "src/lib/learning/deck/runtime.ts": "241781d0b644cf5a81819e24428fca343689eb843a3caf5fa80642612bfa8a78",
     "src/lib/learning/deck/styles.ts": "c323cb4eb6852db5429b3517f2678afe0ef1a3d518a9a5a2da86533907fd5149",

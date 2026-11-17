@@ -8,7 +8,7 @@ export interface NormalModel {mode:'population'|'curve'|'spread'|'bands'|'cumula
 export interface DeckBlock {type:'copy'|'equation'|'model'|'source'|'callout';text:string;model:NormalModel|null;sourceId:string|null;reveal:number}
 export interface DeckTask {id:string;title:string;prompt:string;givens:string;objectiveId:string;support:'guided'|'independent';grading:'checked'|'tutor-review';model:NormalModel|null;check:{kind:'number'|'choice'|'region';answer:number|number[];options:string[]}|null;hints:string[];solution:string;success:string;retry:string}
 export interface DeckSlide {id:string;title:string;kicker:string;prompt:string;objectiveId:string;layout:typeof DECK_LAYOUTS[number];blocks:DeckBlock[];taskId:string|null;presenterNotes:PresenterNotes}
-export interface VisualLesson {version:1;ruleVersion:string;title:string;subtitle:string;durationMin:number;homeworkMinutes:number;objectives:{id:string;title:string}[];agenda:{title:string;minutes:number;slideId:string}[];slides:DeckSlide[];tasks:DeckTask[];homework:DeckTask[];games:{id:string;title:string;intro:string;kind:'region'|'axis';rounds:DeckTask[]}[];sourceSolutions:{questionId:string;part:string;slideId:string;answer:string}[]}
+export interface VisualLesson {version:1;ruleVersion:string;title:string;subtitle:string;durationMin:number;homeworkMinutes:number;objectives:{id:string;title:string}[];agenda:{title:string;minutes:number;slideId:string}[];slides:DeckSlide[];tasks:DeckTask[];homework:DeckTask[];games:{id:string;title:string;intro:string;kind:'region'|'axis'|'quiz';rounds:DeckTask[]}[];sourceSolutions:{questionId:string;part:string;slideId:string;answer:string}[]}
 export interface DeckValidation {durationMin?:number;sourceAnswers?:Record<string,Record<string,string>>}
 const object=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const text=(v:unknown,max=600,empty=false)=>typeof v==='string'&&v.length<=max&&(empty||!!v.trim())&&!/(?<!\$)\$(?!\$)/.test(v)&&!mathText(v).includes('data-math-error');
@@ -85,7 +85,7 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
   }
  };
  for(const t of [...tasks,...homework])checkTask(t);
- const gameIds=new Set<string>();for(const g of games){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);for(const t of list(g.rounds,8,3))checkTask(t);}
+ const gameIds=new Set<string>();for(const g of games){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis','quiz'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);for(const t of list(g.rounds,8,3))checkTask(t);}
  for(const s of slides.filter(object))need(s.taskId===null||tasks.some(t=>object(t)&&t.id===s.taskId),'שקף מפנה למשימת כיתה חסרה');
  for(const goal of goals)need([...tasks,...homework].some(t=>object(t)&&t.objectiveId===goal&&t.support==='independent'),'יעד ללא בדיקה עצמאית חדשה');
  const explorations=slides.filter(object).flatMap(s=>Array.isArray(s.blocks)?s.blocks.filter(object).flatMap(b=>object(b.model)?[b.model]:[]):[]);
@@ -102,6 +102,7 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
   if(typeof value==='string'){
    const plain=value.replace(/\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$/g,'');
    if(/\\[a-zA-Z]+/.test(plain)||/(?<!\$)\$(?!\$)/.test(plain)){formatIssues++;errors.push(`TeX בפרוזה דורש delimiters \\( ... \\): ${path}`);}
+   else if(/[\^{}]|(?<![A-Za-z0-9])[A-Za-z]_[A-Za-z0-9{]/.test(plain)){formatIssues++;errors.push(`סימני מקלדת (^ _ { }) בפרוזה: יש לכתוב נוסחה בין \\( ... \\): ${path}`);}
   }else if(Array.isArray(value))value.slice(0,80).forEach((v,i)=>proseMath(v,path+'.'+i,depth+1));
   else if(object(value))for(const [key,v]of Object.entries(value).slice(0,80))if(!(value.type==='equation'&&key==='text'))proseMath(v,path+'.'+key,depth+1);
  };

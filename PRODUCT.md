@@ -83,6 +83,23 @@ for that learner blocks silently repeating the same introductory source.
 This is a review workflow, not a general adaptive engine: automatic student
 release remains blocked until actual owner teaching review and approval.
 
+**Where lesson material lives (Lior, 2026-11-16).** Presentations are Google
+Slides and written homework is a Google Docs worksheet; Drive is the source of
+truth, and we prefer the tools Google already provides over building our own. Homework is a Google Doc shared with the student's (or parent's) Google account, linking to Drive files for tables or figures; link sharing is only a fallback for a student without an account. There is one practice-game system, the Drive-native one: game *types*
+are code in the site (only the site can play them and capture results), and
+the *content* of each game, tailored to the student, is a JSON file in Drive
+that the site renders. When a tutor approves a lesson the site copies that
+JSON into its own database, so a student's session never waits on Google;
+Drive stays the editable source. The older classic system (the twelve
+`/app/play` templates, the `lesson_games` and `game_filler` stores, and the
+site-made lesson pages and editors) is deprecated and is to be removed
+completely, not kept alongside. The site is not yet used by real users, so
+there is no backwards compatibility. This supersedes the cutover design's
+"historical lesson URLs remain valid" and the old-gallery redirects. Removal
+is sequenced behind the Drive-native system covering what the classic one
+does for students: the question types tutors need (including multiple choice
+and open-ended), and result capture tied to plan skills for parent evidence.
+
 Done for phase A: a generated plan, slides, and homework reach the
 student's page without Nikol touching them, for at least 80% of lessons
 (a lesson's homework is generated with it; the strict share). Homework
@@ -189,8 +206,15 @@ without having to ask for it.
 
 **Student.** A school-age child, typically כיתה ז–יב, on their own phone or a
 shared family device. Their job: find out what homework is due and do it — which
-in this product means playing the practice game their tutor assigned, not reading
-a worksheet. They rarely have an email address of their own.
+in this product means opening the homework Google Doc and playing the practice
+game their tutor assigned. Every student has a Google account (Lior,
+2026-11-16): they sign in with it, and its email is captured at sign-in
+(`google_identities`), separate from the family account's booking email, which
+is usually the parent's. Google sign-in is the only login page flow and the only one that creates
+a persistent session; the link-or-code entry on the login page is to be removed.
+The personal link in a booking email still signs the holder in, but only for
+that browser session and never persistently, since it may be opened on a
+stranger's computer (Lior, 2026-11-16).
 
 **Adult self-learner.** Some students are old enough to be their own account
 holder: they book, they pay, and there is no parent in the loop. The data model

@@ -236,7 +236,7 @@ test('invitations: WhatsApp link previews safely and redeems only once', async (
   await expect(parent.getByRole('link', { name: 'צפייה בלוח התלמיד/ה', exact: true })).toBeVisible();
   const child = await qa.page('anonymous');
   await child.goto(invitation);
-  await child.getByRole('button', { name: 'כניסה לדף האישי', exact: true }).click();
+  await child.getByRole('button', { name: 'כניסה במכשיר הזה בלי Google', exact: true }).click();
   await expect(child).toHaveURL(/\/app\/student/);
   await expect(child.getByRole('heading', { name: 'היום שלי', exact: true })).toBeVisible();
   const replay = await qa.page('anonymous');

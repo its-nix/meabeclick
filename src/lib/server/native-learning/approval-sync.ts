@@ -10,7 +10,7 @@ export interface ApprovalSheet {
 export interface ReleaseTick {materialId:string;studentId:number;bookingId:number;releaseId:string;fileId:string;contentSha256:string}
 export interface SiteStatusRow {materialId:string;status:'approved'|'rejected'|'withdrawn';code?:string}
 
-const driveFileId=(url:string)=>{try{const u=new URL(url);return u.pathname.match(/\/(?:file\/)?d\/([\w-]{10,200})/)?.[1]??u.searchParams.get('id')??'';}catch{return '';}};
+export const driveFileId=(url:string)=>{try{const u=new URL(url);return u.pathname.match(/\/(?:file\/)?d\/([\w-]{10,200})/)?.[1]??u.searchParams.get('id')??'';}catch{return '';}};
 const numeric=(value:unknown,prefix:string)=>{const m=String(value??'').match(new RegExp(`^${prefix}-(\\d+)$`));return m?Number(m[1]):null;};
 
 /** Game materials the tutor has approved and published, released to a student through a live assignment.

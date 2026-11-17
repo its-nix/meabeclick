@@ -1,6 +1,8 @@
 import {workspaceTables,workspaceHeader,type WorkspaceCell} from '../../learning/workspace.ts';
 import {syncNativeGameApprovals,type ApprovalSheet} from './approval-sync.ts';
 import type {GamesDrive} from './games.ts';
+import {syncHomeworkShares} from './homework-share.ts';
+import {shareHomeworkWithStudent,revokeHomeworkShare} from '../central-drive/share.ts';
 
 /** The slice of the central Drive client these adapters need (centralDriveApi satisfies it). */
 export interface GoogleApi {scope:string;ownerEmail:string;json:(url:string,init?:RequestInit)=>Promise<any>;request:(url:string,init?:RequestInit,allowed?:number[])=>Promise<Response>}
@@ -65,7 +67,10 @@ export async function runNativeGameApprovals(deps?:{api:()=>Promise<{api:GoogleA
  if(running)return null;
  const job=(async()=>{
   const ctx=await(deps?.api??liveApi)();if(!ctx)return null;
-  return syncNativeGameApprovals({sheet:googleApprovalSheet(ctx.api,ctx.indexId),drive:googleGamesDrive(ctx.api)});
+  const sheet=googleApprovalSheet(ctx.api,ctx.indexId),games=await syncNativeGameApprovals({sheet,drive:googleGamesDrive(ctx.api)});
+  // Homework Docs are shared by named user only; a failure here never undoes the game approvals above.
+  const homework=await syncHomeworkShares({sheet,api:{share:(doc,email)=>shareHomeworkWithStudent(ctx.api,doc,email),revoke:(doc,email)=>revokeHomeworkShare(ctx.api,doc,email)}}).catch(()=>null);
+  return {...games,homework};
  })();
  running=job;
  try{return await job;}finally{running=null;}

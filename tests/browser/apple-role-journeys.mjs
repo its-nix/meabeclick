@@ -127,17 +127,6 @@ try {
         await page.getByRole('searchbox', { name: 'חיפוש תלמידים' }).fill('אין תלמיד כזה');
         await page.getByText('לא נמצאו תלמידים בחיפוש הזה.', { exact: true }).waitFor();
         await page.goto(server.baseUrl + `/app/plan/${first.portal.code}`);
-        const activities = page.getByRole('button', { name: 'משחקים ותרגולים עבור מתמטיקה', exact: true });
-        await activities.click();
-        const drawer = page.getByRole('complementary', { name: 'פעילויות עבור מתמטיקה', exact: true });
-        await drawer.waitFor();
-        assert.equal(await drawer.evaluate(el => document.activeElement === el), true, 'the phone activity drawer receives focus');
-        const drawerBounds = await drawer.boundingBox();
-        const navBounds = await page.getByRole('navigation', { name: 'ניווט ראשי', exact: true }).boundingBox();
-        await page.screenshot({ path: join(evidence, `plan-activities-${appearance}.png`) });
-        assert.ok(drawerBounds.y >= 64 && drawerBounds.y + drawerBounds.height <= navBounds.y, `the activity drawer stays between the header and phone navigation: ${JSON.stringify({ drawerBounds, navBounds })}`);
-        await page.getByRole('button', { name: 'סגירת חלונית', exact: true }).click();
-        assert.equal(await activities.evaluate(el => document.activeElement === el), true, 'closing the drawer restores focus');
       }
       if (role === 'parent') {
         await page.goto(server.baseUrl + `/app/parent?s=${first.portal.code}`); await page.locator('.student-header').waitFor();

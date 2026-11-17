@@ -40,6 +40,9 @@ import { sql as sql037 } from './037_google_onboarding.ts';
 import { sql as sql039 } from './039_learning_archive.ts';
 import { sql as sql040 } from './040_native_lesson_jobs.ts';
 import { sql as sql041 } from './041_learning_feedback.ts';
+import { sql as sql042 } from './042_native_approval.ts';
+import { sql as sql043 } from './043_native_games.ts';
+import { sql as sql044 } from './044_native_results.ts';
 
 export interface Migration {
   version: number;
@@ -99,4 +102,7 @@ export const MIGRATIONS: Migration[] = [
   { version: 39, name: '039_learning_archive', sql: sql039 },
   { version: 40, name: '040_native_lesson_jobs', sql: sql040 },
   { version: 41, name: '041_learning_feedback', sql: sql041 },
+  { version: 42, name: '042_native_approval', sql: sql042 },
+  { version: 43, name: '043_native_games', sql: sql043 },
+  { version: 44, name: '044_native_results', sql: sql044 },
 ];

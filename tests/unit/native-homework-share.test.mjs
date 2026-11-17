@@ -45,7 +45,7 @@ test('withdrawal revokes exactly the recorded grant; a failed revoke is retried'
  assert.deepEqual(calls.at(-1),['revoke','homeworkDocAAAA','Kid@Example.test']);assert.equal(H.homeworkShareStatus(id).status,'revoked');
  const n=calls.length;await H.syncHomeworkShares({sheet,api,emailFor:()=>'kid@example.test'});assert.equal(calls.length,n);
 });
-test('a failed share is recorded, not thrown, and the real adapter refuses invalid addresses',async()=>{
+test('a failed share is recorded, not thrown,',async()=>{
  set('Materials',isHw,'publication_status','published');
  const r=await H.syncHomeworkShares({sheet,api:{...api,async share(){throw Error('permissions');}},emailFor:()=>'kid@example.test'});
  assert.equal(r.failed,1);assert.equal(H.homeworkShareStatus(id).status,'failed');

@@ -1,6 +1,8 @@
 import {workspaceTables,workspaceHeader,type WorkspaceCell} from '../../learning/workspace.ts';
 import {syncNativeGameApprovals,type ApprovalSheet} from './approval-sync.ts';
 import type {GamesDrive} from './games.ts';
+import {appendNativeResultsToProgress,type ProgressSheet,type NativeResult} from './results.ts';
+import {handle} from '../db.ts';
 import {syncHomeworkShares} from './homework-share.ts';
 import {shareHomeworkWithStudent,revokeHomeworkShare} from '../central-drive/share.ts';
 
@@ -61,6 +63,44 @@ export function googleApprovalSheet(api:GoogleApi,indexId:string):ApprovalSheet 
  };
 }
 
+/** The Native Progress tab (same Native-* ownership marker as the other tabs), created on first append. */
+export function googleProgressSheet(api:GoogleApi,indexId:string):ProgressSheet {
+ if(!ID.test(indexId))fail('google_response');
+ const base=`https://sheets.googleapis.com/v4/spreadsheets/${indexId}`,title='Native Progress',marker=`${api.scope}:native-v1:Progress`,header=workspaceTables.Progress.map(workspaceHeader);
+ async function find(){
+  const meta=await api.json(`${base}?fields=sheets(properties,developerMetadata)`);if(!Array.isArray(meta.sheets))fail('google_response');
+  const owned=meta.sheets.filter((x:any)=>x.developerMetadata?.some((m:any)=>m.metadataKey==='meaNativeRecords'&&m.metadataValue===marker));
+  if(owned.length>1||owned[0]&&owned[0].properties.title!==title)fail('conflict');
+  if(!owned.length&&meta.sheets.some((x:any)=>x.properties?.title===title))fail('conflict');
+  const used=new Set(meta.sheets.map((x:any)=>x.properties?.sheetId));let next=1;while(used.has(next))next++;
+  return {sheet:owned[0]??null,nextId:next};
+ }
+ async function values(){const out=await api.json(`${base}/values/${encodeURIComponent(`'${title}'!A1:Z${RANGE_ROWS}`)}?valueRenderOption=UNFORMATTED_VALUE`);return (out.values??[]) as unknown[][];}
+ return {
+  async progressIds(){const {sheet}=await find();if(!sheet)return new Set<string>();return new Set((await values()).slice(1).map(r=>String(r[0]??'')));},
+  async appendProgress(rows){
+   const {sheet,nextId}=await find(),requests:object[]=[];let sheetId=sheet?.properties.sheetId,existing=0;
+   if(sheet)existing=(await values()).length;
+   if(existing+rows.length>RANGE_ROWS-1)fail('source_limit');
+   if(!sheet){sheetId=nextId;requests.push({addSheet:{properties:{sheetId,title,rightToLeft:true,gridProperties:{rowCount:5001,columnCount:header.length,frozenRowCount:1}}}},{createDeveloperMetadata:{developerMetadata:{metadataKey:'meaNativeRecords',metadataValue:marker,visibility:'DOCUMENT',location:{sheetId}}}});}
+   const grid=[...(existing?[]:[header]),...rows.map(r=>workspaceTables.Progress.map(c=>r[c.key]??''))];
+   requests.push({appendCells:{sheetId,rows:grid.map(row=>({values:row.map(v=>({userEnteredValue:typeof v==='boolean'?{boolValue:v}:{stringValue:String(v)}}))})),fields:'userEnteredValue'}});
+   await api.json(`${base}:batchUpdate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requests})});
+  },
+ };
+}
+/** Appends finished game results (not awaiting-review) as evidence rows; idempotent by evidence_id. */
+export async function syncNativeProgress(sheet:ProgressSheet){
+ const students=handle().prepare('SELECT DISTINCT student_id FROM native_results').all().map(r=>Number(r.student_id));
+ const context=(r:NativeResult)=>{
+  if(r.bookingId===null)return null;
+  const job=handle().prepare('SELECT id FROM native_lesson_jobs WHERE booking_id=?').get(r.bookingId);
+  return job?{studentRef:`student-${r.studentId}`,lessonId:`booking-${r.bookingId}`,assignmentId:`native-${job.id}-games-assignment`}:null;
+ };
+ let appended=0;for(const studentId of students)appended+=(await appendNativeResultsToProgress({sheet,studentId,context})).appended;
+ return {appended};
+}
+
 let running:Promise<unknown>|null=null;
 /** One pass of the approval sync over the live central Drive; single-flight. Returns null when no native workspace is connected. */
 export async function runNativeGameApprovals(deps?:{api:()=>Promise<{api:GoogleApi;indexId:string}|null>}) {
@@ -70,7 +110,8 @@ export async function runNativeGameApprovals(deps?:{api:()=>Promise<{api:GoogleA
   const sheet=googleApprovalSheet(ctx.api,ctx.indexId),games=await syncNativeGameApprovals({sheet,drive:googleGamesDrive(ctx.api)});
   // Homework Docs are shared by named user only; a failure here never undoes the game approvals above.
   const homework=await syncHomeworkShares({sheet,api:{share:(doc,email)=>shareHomeworkWithStudent(ctx.api,doc,email),revoke:(doc,email)=>revokeHomeworkShare(ctx.api,doc,email)}}).catch(()=>null);
-  return {...games,homework};
+  const progress=await syncNativeProgress(googleProgressSheet(ctx.api,ctx.indexId)).catch(()=>null);
+  return {...games,homework,progress};
  })();
  running=job;
  try{return await job;}finally{running=null;}

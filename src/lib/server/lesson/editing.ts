@@ -5,33 +5,12 @@
  * Spec: docs/superpowers/specs/2026-09-25-lesson-editor-design.md. She
  * edits the PLAN — title, slides, worked examples — never HTML (D1); the
  * deck is rendered from the plan on publish, so the two cannot drift (D2).
- * Games and homework stay as generated (D5): applyEdit carries them over
- * untouched rather than trusting the client to send them back — except on
- * a library master, whose check questions and homework she may rewrite
- * (docs/superpowers/specs/2026-09-28-prepared-library-design.md): no child
- * has played a master, and every booking copied from it afterwards takes
- * its published plan.
+ * Homework stays as generated (D5): applyEdit carries it over untouched
+ * rather than trusting the client to send it back.
  */
-import {
-  renderSlides, validateLesson, type HomeworkItem, type LessonPlan, type QuizGame, type Slide, type WorkedExample,
-  type TwoTruthsGame, type ErrorHuntGame, type MatchingGame,
-} from './prep.ts';
+import { renderSlides, type LessonPlan, type Slide, type WorkedExample } from './prep.ts';
 import { readLessons, inTransaction } from '../db.ts';
 import { addMaterial, history, type MaterialRow } from '../materials.ts';
-import { isLibrarySlug } from '../library/slug.ts';
-
-type QuizQuestion = QuizGame['questions'][number];
-type TwoTruthsRound = TwoTruthsGame['rounds'][number];
-type ErrorHuntRound = ErrorHuntGame['rounds'][number];
-type MatchPair = MatchingGame['pairs'][number];
-
-/** The games a master's editor offers, beyond its quiz: the four most of
- *  the library's masters have (two truths in every one). The rest —
- *  graphs, labelling, tables — stay as generated. */
-const EDITABLE_GAMES = {
-  quiz: 'חידון', twoTruths: 'שתי אמיתות ושקר', errorHunt: 'ציד טעויות', sequence: 'סידור רצף', matching: 'משחק התאמה',
-} as const;
-type EditableGame = keyof typeof EDITABLE_GAMES;
 
 interface PlanEdit {
   title: string;
@@ -40,15 +19,6 @@ interface PlanEdit {
   /** Notes for the tutor only — stored beside the version, never rendered
    *  into the deck or served to a family (D6). */
   teacherOnly: string | null;
-  /** A master's check questions and homework. Absent means "keep the
-   *  plan's own", which is what every edit of a student's lesson (and
-   *  every Drive edit) sends. */
-  quiz?: QuizQuestion[];
-  twoTruths?: TwoTruthsRound[];
-  errorHunt?: ErrorHuntRound[];
-  sequence?: string[];
-  matching?: MatchPair[];
-  homework?: HomeworkItem[];
 }
 
 const MAX_FIELD = 2000;
@@ -116,122 +86,13 @@ function check(input: unknown): Result {
 
   const edit: PlanEdit = { title, slides, examples, teacherOnly: text(raw.teacherOnly) || null };
 
-  if (raw.quiz !== undefined) {
-    if (!Array.isArray(raw.quiz) || raw.quiz.length === 0) return { ok: false, error: 'צריך לפחות שאלה אחת בחידון' };
-    if (raw.quiz.length > MAX_ITEMS) return { ok: false, error: `יותר מדי שאלות — עד ${MAX_ITEMS}` };
-    edit.quiz = [];
-    for (const [i, x] of raw.quiz.entries()) {
-      const r = (x ?? {}) as Record<string, unknown>;
-      const q = text(r.q);
-      if (!q) return { ok: false, error: `לשאלה ${i + 1} אין טקסט` };
-      if (!Array.isArray(r.options) || r.options.length < 2) return { ok: false, error: `לשאלה ${i + 1} צריך לפחות שתי אפשרויות` };
-      if (r.options.length > MAX_ITEMS) return { ok: false, error: `יותר מדי אפשרויות בשאלה ${i + 1}` };
-      const options = r.options.map(text);
-      /* Refused, not dropped: dropping one would shift every later option,
-         and the marked answer would silently point at a different one. */
-      const blank = options.findIndex(o => !o);
-      if (blank >= 0) return { ok: false, error: `באפשרות ${blank + 1} של שאלה ${i + 1} אין טקסט` };
-      if (!Number.isInteger(r.answer) || (r.answer as number) < 0 || (r.answer as number) >= options.length) {
-        return { ok: false, error: `בשאלה ${i + 1} לא סומנה תשובה נכונה` };
-      }
-      edit.quiz.push({ q, options, answer: r.answer as number, why: text(r.why), hint: text(r.hint) });
-    }
-  }
-
-  /* The other games. As with the quiz, a field left empty is refused,
-     never dropped: dropping a statement or a step would move the marked
-     lie or wrong step onto a different one. */
-  const rows = (v: unknown, name: string, min: number): Record<string, unknown>[] | string => {
-    if (!Array.isArray(v) || v.length < min) return `ב${name} צריך לפחות ${min}`;
-    if (v.length > MAX_ITEMS) return `יותר מדי ב${name} — עד ${MAX_ITEMS}`;
-    return v.map(x => (x && typeof x === 'object' ? x as Record<string, unknown> : {}));
-  };
-  const markedIn = (n: unknown, count: number) => Number.isInteger(n) && (n as number) >= 0 && (n as number) < count;
-
-  if (raw.twoTruths !== undefined) {
-    const rs = rows(raw.twoTruths, 'שתי אמיתות ושקר', 1);
-    if (typeof rs === 'string') return { ok: false, error: rs };
-    edit.twoTruths = [];
-    for (const [i, r] of rs.entries()) {
-      const statements = Array.isArray(r.statements) ? r.statements.map(text) : [];
-      if (statements.length !== 3) return { ok: false, error: `בסבב ${i + 1} של שתי אמיתות ושקר צריך בדיוק שלושה משפטים` };
-      const blank = statements.findIndex(s => !s);
-      if (blank >= 0) return { ok: false, error: `במשפט ${blank + 1} של סבב ${i + 1} אין טקסט` };
-      if (!markedIn(r.lieIndex, 3)) return { ok: false, error: `בסבב ${i + 1} לא סומן המשפט השקרי` };
-      edit.twoTruths.push({ statements, lieIndex: r.lieIndex as number, why: text(r.why), hint: text(r.hint) });
-    }
-  }
-
-  if (raw.errorHunt !== undefined) {
-    const rs = rows(raw.errorHunt, 'ציד טעויות', 1);
-    if (typeof rs === 'string') return { ok: false, error: rs };
-    edit.errorHunt = [];
-    for (const [i, r] of rs.entries()) {
-      const problem = text(r.problem);
-      if (!problem) return { ok: false, error: `לסבב ${i + 1} של ציד טעויות אין תרגיל` };
-      const steps = Array.isArray(r.steps) ? r.steps.map(text) : [];
-      if (steps.length < 2) return { ok: false, error: `בסבב ${i + 1} של ציד טעויות צריך לפחות שני שלבים` };
-      if (steps.length > MAX_ITEMS) return { ok: false, error: `יותר מדי שלבים בסבב ${i + 1}` };
-      const blank = steps.findIndex(s => !s);
-      if (blank >= 0) return { ok: false, error: `בשלב ${blank + 1} של סבב ${i + 1} אין טקסט` };
-      if (!markedIn(r.badStep, steps.length)) return { ok: false, error: `בסבב ${i + 1} לא סומן השלב השגוי` };
-      edit.errorHunt.push({ problem, steps, badStep: r.badStep as number, why: text(r.why), hint: text(r.hint) });
-    }
-  }
-
-  if (raw.sequence !== undefined) {
-    if (!Array.isArray(raw.sequence) || raw.sequence.length < 3) return { ok: false, error: 'בסידור רצף צריך לפחות שלושה שלבים' };
-    if (raw.sequence.length > MAX_ITEMS) return { ok: false, error: `יותר מדי שלבים בסידור רצף — עד ${MAX_ITEMS}` };
-    const steps = raw.sequence.map(text);
-    if (steps.some(s => !s)) return { ok: false, error: 'בסידור רצף יש שלב בלי טקסט' };
-    edit.sequence = steps;
-  }
-
-  if (raw.matching !== undefined) {
-    const rs = rows(raw.matching, 'משחק התאמה', 3);
-    if (typeof rs === 'string') return { ok: false, error: rs };
-    edit.matching = [];
-    for (const [i, r] of rs.entries()) {
-      const left = text(r.left), right = text(r.right);
-      if (!left || !right) return { ok: false, error: `בזוג ${i + 1} של משחק ההתאמה חסר צד` };
-      edit.matching.push({ left, right, hint: text(r.hint) });
-    }
-  }
-
-  if (raw.homework !== undefined) {
-    if (!Array.isArray(raw.homework)) return { ok: false, error: 'שיעורי בית לא תקינים' };
-    if (raw.homework.length > MAX_ITEMS) return { ok: false, error: `יותר מדי משימות — עד ${MAX_ITEMS}` };
-    edit.homework = [];
-    for (const [i, x] of raw.homework.entries()) {
-      const r = (x ?? {}) as Record<string, unknown>;
-      const task = text(r.task);
-      if (!task) return { ok: false, error: `למשימה ${i + 1} אין טקסט` };
-      const answer = text(r.answer);
-      edit.homework.push(answer ? { task, why: text(r.why), answer } : { task, why: text(r.why) });
-    }
-  }
-
   return { ok: true, edit };
 }
 
 /** The lesson an edit describes: the base plan with title, slides and
- *  examples replaced — and the quiz's questions and the homework when the
- *  edit carries them — and everything else kept as it was. */
+ *  examples replaced and everything else kept as it was. */
 export function applyEdit(base: LessonPlan, edit: PlanEdit): LessonPlan {
-  const plan: LessonPlan = { ...base, title: edit.title, slides: edit.slides, examples: edit.examples };
-  const g = base.games;
-  if (g && (edit.quiz || edit.twoTruths || edit.errorHunt || edit.sequence || edit.matching)) {
-    plan.games = {
-      ...g,
-      ...(edit.quiz && g.quiz ? { quiz: { ...g.quiz, questions: edit.quiz } } : {}),
-      ...(edit.twoTruths && g.twoTruths ? { twoTruths: { ...g.twoTruths, rounds: edit.twoTruths } } : {}),
-      ...(edit.errorHunt && g.errorHunt ? { errorHunt: { ...g.errorHunt, rounds: edit.errorHunt } } : {}),
-      ...(edit.sequence && g.sequence ? { sequence: { ...g.sequence, steps: edit.sequence } } : {}),
-      ...(edit.matching && g.matching ? { matching: { ...g.matching, pairs: edit.matching } } : {}),
-    };
-  }
-  if (edit.homework) plan.homework = edit.homework;
-  return plan;
+  return { ...base, title: edit.title, slides: edit.slides, examples: edit.examples };
 }
 
 /** What renderSlides needs to know about the lesson, from its own row —
@@ -275,14 +136,8 @@ export function editedPlan(slug: string, rawEdit: unknown):
   { plan: LessonPlan; teacherOnly: string | null } | { error: string; status: number } {
   const edit = normalizeEdit(rawEdit);
   if (!edit.ok) return { error: edit.error, status: 400 };
-  const games = (Object.keys(EDITABLE_GAMES) as EditableGame[]).filter(k => edit.edit[k]);
-  if ((games.length || edit.edit.homework) && !isLibrarySlug(slug)) {
-    return { error: 'שאלות בדיקה, משחקים ושיעורי בית אפשר לערוך רק בשיעור מהספרייה — בשיעור של תלמיד/ה הם כבר נשלחו', status: 400 };
-  }
   const base = editBase(slug);
   if (!base) return { error: 'לשיעור הזה אין גרסה שאפשר לערוך', status: 409 };
-  const missing = games.find(k => !base.plan.games?.[k]);
-  if (missing) return { error: `בשיעור הזה אין ${EDITABLE_GAMES[missing]}`, status: 400 };
   return { plan: applyEdit(base.plan, edit.edit), teacherOnly: edit.edit.teacherOnly };
 }
 

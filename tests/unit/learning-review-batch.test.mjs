@@ -12,8 +12,7 @@ function setup() {
   const dir=mkdtempSync(join(tmpdir(),'review-batch-test-'));
   const plan={title:'בדיקה',gradeContext:'כיתה ט',learning:PARABOLAS,
     slides:Array.from({length:4},()=>({heading:'שלב',bullets:['הסבר']})),examples:[{problem:'1+1',steps:['חיבור'],answer:'2'}],
-    homework:[{task:'1+1',why:'תרגול',answer:'2'},{task:'2+2',why:'תרגול',answer:'4'}],
-    games:{memory:{title:'זיכרון',subject:'מתמטיקה',pairs:Array.from({length:6},(_,i)=>({a:`${i}+1`,b:String(i+1)}))},quiz:{title:'חידון',subject:'מתמטיקה',questions:[{q:'1+1',options:['2','3'],answer:0,why:'חיבור',hint:'ספרו'},{q:'2+2',options:['3','4'],answer:1,why:'חיבור',hint:'ספרו'},{q:'3+3',options:['6','7'],answer:0,why:'חיבור',hint:'ספרו'},{q:'4+4',options:['7','8'],answer:1,why:'חיבור',hint:'ספרו'}]}}};
+    homework:[{task:'1+1',why:'תרגול',answer:'2'},{task:'2+2',why:'תרגול',answer:'4'}]};
   const fixture=join(dir,'plan.json');writeFileSync(fixture,JSON.stringify(plan));
   const cli=join(dir,'codex-stub');
   writeFileSync(cli,`#!/usr/bin/env node
@@ -105,16 +104,4 @@ test('unknown, missing and repeated flags fail before any generation',()=>{
       const result=s.run(extra);assert.notEqual(result.status,0);assert.equal(existsSync(s.calls),false);
     }
   }finally{s.cleanup();}
-});
-test('an explicitly selected game keeps the reviewed lesson and records both verified sources',async()=>{
- const {teachingFixture}=await import('../teaching-fixture.mjs'),{REVIEW_V2_CASES}=await import('../../scripts/learning-review-v2-cases.mjs'),dir=mkdtempSync(join(tmpdir(),'review-asset-'));
- const writeBatch=(name,plan,only)=>{const out=join(dir,name);mkdirSync(out);const cases=REVIEW_V2_CASES.map(brief=>{const ready=!only||brief.id===only,content=JSON.stringify(plan,null,2)+'\n',planSha256=createHash('sha256').update(content).digest('hex');if(ready)writeFileSync(join(out,brief.id+'.json'),content);return{brief,status:ready?'ready':'pending',...(ready?{planSha256}:{})};});const config={generationVersion:2,ruleVersion:'mea-teaching-v2.1',schemaVersion:'teaching-v2',model:'inert-test',effort:'high',cli:'test',sourceFingerprint:(name==='base'?'a':'b').repeat(64)};writeFileSync(join(out,'manifest.json'),JSON.stringify({version:1,batch:name,syntheticOnly:true,approval:'needs-human-review',config,cases,sourceVerification:{status:'verified',fingerprint:config.sourceFingerprint}}));return out;};
- try{const base=teachingFixture(),donor=structuredClone(base);donor.games.quiz.title='Selected game';donor.learning.title='Must stay out';donor.homework[0].task='Must stay out';
- const from=writeBatch('base',base),replacement=writeBatch('game-source',donor,'08-normal-school'),destination=join(dir,'corpus.json');
- const run=()=>spawnSync(process.execPath,['scripts/package-learning-review.mjs','--from',from,'--replace-game',`08-normal-school:quiz=${replacement}`,'--out',destination],{encoding:'utf8',timeout:30000});
- const result=run();assert.equal(result.status,0,result.stdout+result.stderr);const corpus=JSON.parse(readFileSync(destination,'utf8')),item=corpus.cases[7],meta=corpus.manifest.cases[7];
- assert.equal(item.plan.games.quiz.title,'Selected game');assert.deepEqual(item.plan.learning,base.learning);assert.deepEqual(item.plan.homework,base.homework);assert.equal(meta.assetReplacements[0].sourceBatch,'game-source');assert.equal(corpus.manifest.mixedSourceVersions,true);assert.ok(meta.basePlanSha256);assert.equal(meta.planSha256,createHash('sha256').update(JSON.stringify(item.plan,null,2)+'\n').digest('hex'));
- const oldBytes=readFileSync(destination,'utf8'),bad=JSON.parse(readFileSync(join(replacement,'08-normal-school.json'),'utf8'));bad.teaching.context.request='different profile';const bytes=JSON.stringify(bad);writeFileSync(join(replacement,'08-normal-school.json'),bytes);const manifest=JSON.parse(readFileSync(join(replacement,'manifest.json'),'utf8'));manifest.cases[7].planSha256=createHash('sha256').update(bytes).digest('hex');writeFileSync(join(replacement,'manifest.json'),JSON.stringify(manifest));
- const refused=run();assert.notEqual(refused.status,0);assert.match(refused.stderr,/context/i);assert.equal(readFileSync(destination,'utf8'),oldBytes,'a rejected assembly cannot replace the corpus');
- }finally{rmSync(dir,{recursive:true,force:true});}
 });

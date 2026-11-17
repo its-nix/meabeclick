@@ -1,7 +1,6 @@
 // Round-trip test between the write side (src/lib/server/lesson/queue.ts)
-// and the read side (src/lib/server/content.ts, materials.ts) of generated
-// content: publishDraftOnly() writes a draft where readContent() reads it,
-// and publish() records slides and plan in the versioned store.
+// and the read side (materials.ts) of generated content: publish() records
+// slides and plan in the versioned store.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
@@ -15,9 +14,8 @@ import { join } from 'node:path';
 // ./data/ directory.
 process.env.DATA_DIR = await mkdtemp(join(tmpdir(), 'queue-content-'));
 
-const { readContent } = await import('../../src/lib/server/content.ts');
 const { latestPublished } = await import('../../src/lib/server/materials.ts');
-const { publish, publishDraftOnly } = await import('../../src/lib/server/lesson/queue.ts');
+const { publish } = await import('../../src/lib/server/lesson/queue.ts');
 
 /** A minimal but schema-valid LessonPlan — just enough to exercise the
  *  writing code, no lesson generation (no network call) involved. */
@@ -28,7 +26,6 @@ function fixturePlan() {
     slides: [{ heading: 'a', bullets: ['b'] }],
     examples: [{ problem: 'p', steps: ['s'], answer: 'a' }],
     homework: [{ task: 't', why: 'w' }],
-    games: {},
   };
 }
 
@@ -41,16 +38,4 @@ test('publish() records the slides and the plan as published versions', async ()
 
   assert.ok(latestPublished(slug, 'slides').content.includes('בדיקה'), 'the slides should be the published version');
   assert.equal(JSON.parse(latestPublished(slug, 'plan').content).title, 'בדיקה');
-});
-
-test('publishDraftOnly() writes drafts where readContent() reads them', async () => {
-  const slug = 'roundtrip-draft';
-
-  await publishDraftOnly(slug, fixturePlan(), meta);
-
-  const slides = await readContent('drafts', slug, 'slides.html');
-  assert.ok(slides.toString('utf8').includes('בדיקה'));
-
-  const plan = await readContent('drafts', slug, 'lesson.json');
-  assert.equal(JSON.parse(plan.toString('utf8')).title, 'בדיקה');
 });

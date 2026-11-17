@@ -28,7 +28,7 @@ export function releaseLearningForReport(bookingId: number, nodeIds: number[], r
       // Unknown/untaught material stays preparation rather than becoming homework.
       const materialSlug = replacement ? `${row.lesson_slug}--practice` : null;
       if (replacement && materialSlug) {
-        const plan = {title:replacement.experience.title,gradeContext:'',slides:[],examples:[],homework:[],games:{},learning:replacement.experience};
+        const plan = {title:replacement.experience.title,gradeContext:'',slides:[],examples:[],homework:[],learning:replacement.experience};
         recordGenerated(materialSlug,{plan:JSON.stringify(plan),slides:renderLearningDocument(replacement.experience)});
       }
       handle().prepare(`UPDATE learning_assignments SET practice_state=?,practice_material_slug=?,node_id=?,held_until=NULL WHERE lesson_slug=?`)

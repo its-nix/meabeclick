@@ -10,7 +10,7 @@
 const PATH_SEGMENT = /^[a-z0-9-]+$/;
 
 // Exported so other modules that mint or read filesystem/URL segments
-// (src/lib/server/content.ts) reuse this exact allowlist instead of
+// (src/lib/server/lesson/queue.ts) reuse this exact allowlist instead of
 // maintaining a second copy that could quietly drift out of sync.
 export function assertPathSegment(name: string, value: string): void {
   if (!PATH_SEGMENT.test(value)) {

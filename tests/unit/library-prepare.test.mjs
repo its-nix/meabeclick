@@ -26,14 +26,6 @@ const plan = (title) => ({
   slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['נקודה'] })),
   examples: [{ problem: '2+2', steps: ['מחברים'], answer: '4' }],
   homework: [{ task: 'תרגיל א', why: 'תרגול', answer: 'א' }, { task: 'תרגיל ב', why: 'תרגול', answer: 'ב' }],
-  games: {
-    quiz: { title: 'חידון', questions: [
-      { q: 'שאלה 1', options: ['א', 'ב', 'ג'], answer: 0 },
-      { q: 'שאלה 2', options: ['א', 'ב', 'ג'], answer: 1 },
-      { q: 'שאלה 3', options: ['א', 'ב', 'ג'], answer: 2 },
-    ] },
-    sequence: { title: 'סדר', steps: ['ראשון', 'שני', 'שלישי'] },
-  },
 });
 
 test('a master is named for its skill, and its slug is a legal path segment', () => {

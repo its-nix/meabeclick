@@ -82,57 +82,7 @@ const A_PLAN = {
       "task": "חשבו 2/3 + 1/6",
       "why": "מכנה משותף"
     }
-  ],
-  "games": {
-    "memory": {
-      "title": "זיכרון שברים",
-      "subject": "מתמטיקה",
-      "pairs": [
-        {
-          "a": "1/2",
-          "b": "2/4"
-        },
-        {
-          "a": "1/3",
-          "b": "2/6"
-        },
-        {
-          "a": "1/4",
-          "b": "2/8"
-        },
-        {
-          "a": "2/3",
-          "b": "4/6"
-        },
-        {
-          "a": "3/4",
-          "b": "6/8"
-        },
-        {
-          "a": "1/5",
-          "b": "2/10"
-        }
-      ]
-    },
-    "quiz": {
-      "title": "בדיקת הבנה",
-      "subject": "מתמטיקה",
-      "questions": [
-        {
-          "q": "כמה זה 1/2 + 1/4?",
-          "options": [
-            "3/4",
-            "2/6"
-          ],
-          "answer": 0,
-          "why": "מחברים רבע ושני רבעים"
-        },
-        {"q":"כמה זה 1/3 + 1/3?","options":["1/3","2/3"],"answer":1,"why":"מחברים את המונים"},
-        {"q":"כמה זה 3/4 - 1/4?","options":["1/2","1/4"],"answer":0,"why":"שני רבעים הם חצי"},
-        {"q":"כמה זה 2/5 + 1/5?","options":["2/5","3/5"],"answer":1,"why":"מחברים את המונים"}
-      ]
-    }
-  }
+  ]
 };
 
 /** Same stub shape lesson-engine.test.mjs uses: honours `-o`, drains stdin. */
@@ -202,7 +152,6 @@ test('a generated lesson lands on the student page the family actually reads', a
   assert.equal(data.lessons.length, 1, 'the portal file is the ONLY source /api/portal serves lessons from');
   assert.equal(data.lessons[0].topic, 'שברים');
   assert.equal(data.lessons[0].slug, slug);
-  assert.equal(data.games, undefined, 'games are native, never written into the portal file');
 
   /* Homework moved to the homework table, which both the tutor and the
      student read — writing it here left it invisible to her. */

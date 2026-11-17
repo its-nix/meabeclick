@@ -5,7 +5,7 @@ import {lstat,readdir,realpath,open} from 'node:fs/promises';
 import {join,resolve,relative,extname,basename} from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
 import {handle} from '../db.ts';
-import {dataDir} from '../content.ts';
+import {dataDir} from '../paths.ts';
 
 export interface CentralArtifact {
  key:string;name:string;folders:string[];mimeType:string;sha256:string;md5:string;size:number;
@@ -44,7 +44,7 @@ const columns={
 
 const mime:Record<string,string>={'.html':'text/html','.json':'application/json','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.mp4':'video/mp4','.webm':'video/webm','.mp3':'audio/mpeg','.pdf':'application/pdf','.woff2':'font/woff2','.woff':'font/woff','.ttf':'font/ttf','.txt':'text/plain','.md':'text/markdown'};
 
-export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:string;staticRoot?:string;templatesRoot?:string;gamesRoot?:string}={}):Promise<LearningInventory>{
+export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:string;staticRoot?:string;templatesRoot?:string}={}):Promise<LearningInventory>{
  const db=options.db??handle(),artifacts:CentralArtifact[]=[];
  const records:Record<string,Record<string,any>[]>={};
  for(const[table,list]of Object.entries(columns)){
@@ -77,7 +77,6 @@ export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:stri
   ...['learning-assets','learning-media','learning-sources','question-sources'].map(name=>({root:join(staticRoot,name),key:`resources/${name}`,folders:['Resources',name],role:'resource'})),
   {root:join(staticRoot,'images','logos'),key:'resources/logos',folders:['Resources','Brand'],role:'resource'},
   {root:resolve(options.templatesRoot??'templates/plans'),key:'curriculum',folders:['Curriculum'],role:'curriculum'},
-  {root:resolve(options.gamesRoot??'games'),key:'game-registry',folders:['Game catalogue'],role:'game-template'},
  ];
  for(const source of sources){
   let base;

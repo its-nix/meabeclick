@@ -18,15 +18,6 @@ const PLAN = {
   slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['y = 2x + 1'] })),
   examples: [{ problem: 'y = 3x', steps: ['m = 3'], answer: '3' }],
   homework: [{ task: 'א', why: 'w', answer: 'k' }, { task: 'ב', why: 'w', answer: 'k' }],
-  games: {
-    quiz: { title: 'q', subject: 'm', questions: [
-      { q: '1', options: ['a', 'b', 'c'], answer: 0, why: 'הסבר', hint: '' },
-      { q: '2', options: ['a', 'b', 'c'], answer: 1, why: 'הסבר', hint: '' },
-      { q: '3', options: ['a', 'b', 'c'], answer: 2, why: 'הסבר', hint: '' },
-      { q: '4', options: ['a', 'b', 'c'], answer: 0, why: 'הסבר', hint: '' },
-    ] },
-    sequence: { title: 's', subject: 'm', steps: ['1', '2', '3'] },
-  },
 };
 
 async function setup({ failFirstImports }) {

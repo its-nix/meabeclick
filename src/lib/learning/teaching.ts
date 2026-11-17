@@ -1,4 +1,3 @@
-import {isCanonicalLabelling} from './diagrams.ts';
 import type {LessonPlan} from '../server/lesson/prep.ts';
 import {TEACHING_RULE_VERSION,type TeachingProfile} from './teaching-rules.ts';
 export interface TeachingContext extends TeachingProfile {
@@ -9,12 +8,12 @@ export interface TeachingContext extends TeachingProfile {
  sourceIntent?:'required'|'optional';
  purpose?:'booking'|'library'|'review';skillKey?:string;applicableGrades?:string[];
 }
-export type ActivityKind='scene'|'game'|'homework'|'discussion';
+export type ActivityKind='scene'|'homework'|'discussion';
 export interface TeachingPlan {
  version:2;ruleVersion:string;durationMin:number;homeworkMinutes:number;context?:TeachingContext;
  objectives:Array<{id:string;title:string;evidence:string}>;
  agenda:Array<{id:string;title:string;minutes:number;objectiveId:string;kind:ActivityKind;ref:string}>;
- practice:Array<{asset:'scene'|'game'|'homework';ref:string;objectiveId:string;problemId:string;misconception:string;support:'guided'|'independent';grading:'checked'|'tutor-review'}>;
+ practice:Array<{asset:'scene'|'homework';ref:string;objectiveId:string;problemId:string;misconception:string;support:'guided'|'independent';grading:'checked'|'tutor-review'}>;
  branches:Array<{id:string;title:string;replaces:string;refs:string[]}>;
  sources:Array<{questionId:string;kind:'official'|'adapted';asset:'scene'|'homework';ref:string}>;
 }
@@ -31,9 +30,8 @@ export function teachingProblems(raw:unknown,plan:LessonPlan,context?:TeachingCo
  need(!t.context||t.durationMin===t.context.durationMin,'זמן המתווה אינו תואם להזמנה');
  if(!Array.isArray(t.objectives)||t.objectives.length<1||t.objectives.length>4)return [...errors,'נדרשים 1–4 יעדים'];
  const objectives=new Set<string>();for(const o of t.objectives){need(o&&id(o.id)&&!objectives.has(o.id)&&text(o.title,160)&&text(o.evidence,350),'יעד לא תקין');if(o)objectives.add(o.id);}
- if(plan.games?.labelling)need(isCanonicalLabelling(plan.games.labelling),'משחק תיוג אוטומטי דורש תרשים מקטלוג הגאומטריה המבוקר');
  const scenes=new Map(plan.learning?.scenes?.map(s=>[s.id,s])??[]);
- const exists=(kind:string,ref:string)=>kind==='scene'?scenes.has(ref):kind==='game'?!!plan.games?.[ref as keyof typeof plan.games]:kind==='homework'?/^homework-[1-9]\d*$/.test(ref)&&Number(ref.slice(9))<=homework.length:kind==='discussion'&&ref==='';
+ const exists=(kind:string,ref:string)=>kind==='scene'?scenes.has(ref):kind==='homework'?/^homework-[1-9]\d*$/.test(ref)&&Number(ref.slice(9))<=homework.length:kind==='discussion'&&ref==='';
  const validateRef=(kind:string,ref:string)=>need(exists(kind,ref),'הפניה לפעילות חסרה');
  if(!Array.isArray(t.agenda)||t.agenda.length<1||t.agenda.length>30)return [...errors,'חסר מתווה פעילויות'];
  const agendaIds=new Set<string>();let minutes=0;
@@ -64,12 +62,7 @@ export function teachingProblems(raw:unknown,plan:LessonPlan,context?:TeachingCo
    }
   }
  }
- for(const round of plan.games?.graphMatch?.rounds??[]){
-  const xs=round.xValues;
-  need(Array.isArray(xs)&&xs.length===round.main.length&&xs.length>=2&&xs.every((x,i)=>Number.isFinite(x)&&Math.abs(x)<=1000&&Math.abs(x*100-Math.round(x*100))<1e-7&&(!i||x>xs[i-1]))&&xs.every((x,i)=>i<2||Math.abs((x-xs[i-1])-(xs[1]-xs[0]))<1e-8),'משחק גרפים דורש קואורדינטות דגימה מפורשות ואחידות');
- }
  for(const scene of scenes.values())if(scene.check)need(links.has('scene:'+scene.id),'תרגול במצגת ללא יעד');
- for(const key of Object.keys(plan.games??{}))if(plan.games[key as keyof typeof plan.games])need(links.has('game:'+key),'משחק ללא יעד');
  homework.forEach((_,i)=>need(links.has('homework:homework-'+(i+1)),'משימת בית ללא יעד'));
  for(const o of objectives)need(t.practice.some(p=>p?.objectiveId===o&&p.support==='independent'),'יעד ללא בדיקה עצמאית');
  for(const scene of scenes.values()){

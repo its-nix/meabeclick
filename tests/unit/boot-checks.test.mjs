@@ -16,7 +16,6 @@ const {
   checkGoogleLogin,
   systemCaBundlePath,
   REQUIRED_VARS,
-  checkRegistry,
   envIssues,
 } = await import('../../src/lib/server/boot-checks.ts');
 
@@ -108,7 +107,7 @@ test('PROTOCOL_HEADER value check is case-insensitive (adapter-node lowercases i
 test('checkDataDir passes for a writable directory', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'boot-checks-'));
   process.env.DATA_DIR = dir;
-  await assert.doesNotReject(() => checkDataDir());
+  assert.doesNotThrow(() => checkDataDir());
 });
 
 test('checkDataDir refuses to boot when DATA_DIR is not writable', async () => {
@@ -116,7 +115,7 @@ test('checkDataDir refuses to boot when DATA_DIR is not writable', async () => {
   await chmod(dir, 0o555);
   process.env.DATA_DIR = dir;
   try {
-    await assert.rejects(() => checkDataDir(), /not writable|does not exist/);
+    assert.throws(() => checkDataDir(), /not writable|does not exist/);
   } finally {
     await chmod(dir, 0o755); // restore so the test runner can clean up
   }
@@ -124,7 +123,7 @@ test('checkDataDir refuses to boot when DATA_DIR is not writable', async () => {
 
 test('checkDataDir refuses to boot when DATA_DIR does not exist', async () => {
   process.env.DATA_DIR = '/definitely/does/not/exist/anywhere';
-  await assert.rejects(() => checkDataDir(), /does not exist|not writable/);
+  assert.throws(() => checkDataDir(), /does not exist|not writable/);
 });
 
 test('checkPortalDir passes for a writable directory and logs the resolved path', async () => {
@@ -309,18 +308,6 @@ test('SSL_CERT_FILE names the bundle for an image that keeps it elsewhere', asyn
   }
 });
 
-
-test('checkRegistry passes silently for the real games/registry.json', () => {
-  const original = console.warn;
-  let warned = false;
-  console.warn = () => { warned = true; };
-  try {
-    assert.doesNotThrow(() => checkRegistry());
-  } finally {
-    console.warn = original;
-  }
-  assert.equal(warned, false);
-});
 
 test('CALENDAR_ID is no longer required: each tutor has their own lesson calendar', () => {
   // Migration 029 moved it onto the tutor's row (tutor-settings.ts). A tutor

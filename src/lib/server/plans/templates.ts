@@ -1,9 +1,8 @@
 /**
  * Reviewed skill-tree templates: one per subject and track.
  *
- * These are CONFIG, not content — they live in the repo beside
- * games/registry.json, are read off process.cwd() at runtime, and are copied
- * into the image by their own COPY line in the Dockerfile. They never live
+ * These are CONFIG, not content — they live in the repo, are
+ * read off process.cwd() at runtime, and are copied into the image by their own COPY line in the Dockerfile. They never live
  * under DATA_DIR.
  *
  * validateTemplate() is exported separately from the loader so CI can run it

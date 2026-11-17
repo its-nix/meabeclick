@@ -60,7 +60,7 @@ test('a balance never draws a fractional number of unknown tiles during a transi
   }
 });
 test('new lesson decks use the interactive experience; legacy decks continue rendering', () => {
-  const plan = {title:'test',slides:[],examples:[],homework:[],games:{},learning:PARABOLAS};
+  const plan = {title:'test',slides:[],examples:[],homework:[],learning:PARABOLAS};
   assert.match(renderSlides(plan,{subject:'מתמטיקה',level:'כיתה ט'}), /data-scene="notice"/);
   assert.match(renderSlides({...plan,learning:undefined},{subject:'מתמטיקה',level:'כיתה ט'}), /class="deck"/);
 });

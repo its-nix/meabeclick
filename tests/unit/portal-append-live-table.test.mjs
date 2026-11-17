@@ -62,7 +62,6 @@ const plan = {
   slides: [{ heading: 'a', bullets: ['b'] }],
   examples: [{ problem: 'p', steps: ['s'], answer: 'a' }],
   homework: [{ task: 'צמצמו 18/24', why: 'גורמים משותפים' }],
-  games: {},
 };
 const published = { slug: 'lesson-slug' };
 

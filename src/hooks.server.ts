@@ -1,10 +1,10 @@
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
-import { checkEnv, checkDataDir, checkPortalDir, checkGoogleLogin, checkRegistry, checkLessonEngine, checkPlanTemplates } from '$server/boot-checks.ts';
+import { checkEnv, checkDataDir, checkPortalDir, checkGoogleLogin, checkLessonEngine, checkPlanTemplates } from '$server/boot-checks.ts';
 
 // Boot checks apply in production only. `npm run dev` must stay usable for
 // a developer without a full .env — every module these checks cover
-// (auth.ts, content.ts) already degrades gracefully on its own
+// (auth.ts, paths.ts) already degrades gracefully on its own
 // (a warned, random session secret; DATA_DIR falling back to ./data), which
 // is exactly the dev-friendly behavior this guard preserves. This is a
 // deliberate, visible choice (not a silent skip): `dev` is SvelteKit's own
@@ -21,9 +21,7 @@ import { checkEnv, checkDataDir, checkPortalDir, checkGoogleLogin, checkRegistry
 // (side effects included) before the importing module's own body runs, in
 // the order the imports are written, so no amount of reordering import
 // STATEMENTS fixes this — only deferring the import itself does. Hence the
-// dynamic `await import(...)` below, and boot-checks.ts's own DATA_DIR
-// check dynamically importing content.ts for the same reason (see its
-// header comment).
+// dynamic `await import(...)` below.
 if (!dev) checkEnv();
 
 const { validToken, COOKIE_NAME } = await import('$server/auth.ts');
@@ -35,10 +33,9 @@ const { validToken, COOKIE_NAME } = await import('$server/auth.ts');
 const { readFamilySession } = await import('$server/family-auth.ts');
 
 if (!dev) {
-  await checkDataDir();
+  checkDataDir();
   checkPortalDir();
   checkGoogleLogin();
-  checkRegistry();
   checkLessonEngine();
   checkPlanTemplates();
 

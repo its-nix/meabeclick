@@ -16,8 +16,8 @@ import type {TeachingContext} from '../../learning/teaching.ts';
 import { israelDay, israelToday } from '../../dates.ts';
 import { PLANS } from '../../plans.ts';
 import { TUTOR_PHONE } from '../../contact.ts';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
   generateLesson, renderSlides, validateLesson,
   type LessonPlan,
@@ -31,7 +31,6 @@ import { targetSkillFor, type TargetSkill } from './targeting.ts';
 import { recordGenerated } from '../materials.ts';
 import { assignLearning } from '../learning-store.ts';
 import { portalDir } from '../paths.ts';
-import { contentPath } from '../content.ts';
 import { assertPathSegment } from '../urls.ts';
 import { singleton } from '../singleton.ts';
 import { autopilotCovers } from '../../subjects.ts';
@@ -45,16 +44,6 @@ const MAX_PER_DAY = 20;          // a runaway form must not run up an API bill
 // Wrapped in singleton() so Vite HMR re-evaluating this module in dev cannot
 // silently reset the daily generation cap.
 const recent = singleton('lesson-recent', () => [] as number[]);   // timestamps of generations started today
-
-// Drafts are written through contentPath(), the same
-// resolver src/routes/*/+server.ts reads through — DATA_DIR, not a
-// SITE_ROOT this module tracked independently. That independent tracking
-// (a `SITE_ROOT` set once from server root, mirroring the still-live
-// server/lesson-queue.mjs) is exactly what let the write side and the read
-// side drift: this module was ported before DATA_DIR existed and kept
-// writing to the pre-migration location while the read side (content.ts)
-// was later defined against DATA_DIR. There is deliberately no SITE_ROOT
-// left here to drift again.
 
 export interface Booking {
   name: string;
@@ -278,11 +267,9 @@ async function run(
     recordUse({ lessonSlug: slug, masterSlug: fromLibrary.masterSlug, templateId: target.templateId, skillKey: target.key });
   }
 
-  // Structurally broken material is held rather than published — a game with
-  // badStep out of range would break in a child's hands.
+  // Structurally broken material is held rather than published.
   const problems = validateLesson(plan);
   if (problems.length) {
-    await publishDraftOnly(slug, plan, meta);
     finishLesson(slug, {
       status: 'held', title: plan.title, context: plan.gradeContext,
       problem: problems.join(' · '),
@@ -347,16 +334,6 @@ export async function publish(slug: string, plan: LessonPlan, meta: RunMeta): Pr
   return withLegacyPublication(async()=>{
   recordGenerated(slug, { slides: renderSlides(plan, {...meta,slug}), plan: JSON.stringify(plan) });
   return { slug };
-  });
-}
-
-export async function publishDraftOnly(slug: string, plan: LessonPlan, meta: RunMeta): Promise<void> {
-  return withLegacyPublication(async()=>{
-  const slidesPath = contentPath('drafts', slug, 'slides.html');
-  const planPath   = contentPath('drafts', slug, 'lesson.json');
-  await mkdir(dirname(slidesPath), { recursive: true });
-  await writeFile(slidesPath, renderSlides(plan, {...meta,slug}), 'utf8');
-  await writeFile(planPath, JSON.stringify(plan, null, 2), 'utf8');
   });
 }
 

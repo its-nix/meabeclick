@@ -48,13 +48,9 @@ RUN fc-cache -f
 
 RUN npm install -g @openai/codex@0.149.0
 
-# games/registry.json is read at runtime off process.cwd() (see
-# src/lib/server/lesson/registry.ts) — WORKDIR /app plus this COPY is what
-# keeps that resolution working inside the image.
-COPY --chown=node:node games ./games
-
 # templates/plans/*.json are read at runtime off process.cwd() (see
-# src/lib/server/plans/templates.ts), exactly like games/registry.json above.
+# src/lib/server/plans/templates.ts) — WORKDIR /app plus this COPY is what
+# keeps that resolution working inside the image.
 COPY --chown=node:node templates ./templates
 
 COPY --from=builder --chown=node:node /app/build ./build

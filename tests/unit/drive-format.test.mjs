@@ -74,7 +74,7 @@ test('a lesson written as HTML is right-to-left, escaped, and reads back as itse
     title: 'אחוזים <b>', gradeContext: 'כיתה ט',
     slides: [{ heading: 'מה זה אחוז', bullets: ['חלק ממאה'], note: 'שימו לב' }],
     examples: [{ problem: '20% מ-50', steps: ['0.2·50'], answer: '10' }],
-    homework: [], games: {},
+    homework: [],
   };
   const html = F.planToHtml(plan, { subject: 'מתמטיקה', level: 'כיתה ט', student: 'דנה' });
   assert.match(html, /<html dir="rtl"/);

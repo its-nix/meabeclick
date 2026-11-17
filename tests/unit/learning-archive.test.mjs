@@ -32,7 +32,6 @@ test('retirement commits only its captured lesson set and preserves versions, ed
  await assert.rejects(prepare.prepareSkill('not-a-template','skill'),/native_workspace/);
  assert.throws(()=>prepare.enqueue('not-a-template',['skill']),/native_workspace/);
  await assert.rejects(queue.publish('new-old-format',{},{}),/native_workspace/);
- await assert.rejects(queue.publishDraftOnly('new-old-format',{},{}),/native_workspace/);
  await assert.rejects(queue.appendToPortal(null,{},{}),/native_workspace/);
  const again=A.beginArchive({fingerprint:'b'.repeat(64),slugs:['new-lesson']});assert.equal(again.archiveId,job.archiveId);
  assert.equal(isRetired('new-lesson'),false,'repeated activation cannot retire new work');

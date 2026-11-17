@@ -15,10 +15,9 @@
 | `src/lib/server/` | לוגיקת שרת בלבד — אימות מורה (`auth.ts`), גישת משפחה (`family-auth.ts`, `family.ts`, `join.ts`), SQLite (`db.ts`, `entities.ts`, `migrations/`), תשלומים (`payments.ts`), נתיבי קבצים (`content.ts`, `paths.ts`), נתיבי URL (`urls.ts`), צנרת יצירת שיעורים (`lesson/`) |
 | `src/lib/plans.ts` | סולם השיעורים — משך, שם בעברית ומחיר במקום אחד. טופס ההזמנה, מייל האישור ומסך הסיכום נטענים ממנו |
 | `src/lib/components/` | פריסה ורכיבים משותפים |
-| `games/registry.json` | תצורה סטטית: אילו צורות תוכן משחק מחולל השיעורים מפיק, מה הצורה של נתוניהן, ואיזו צורה מתאימה לאיזו מטרת למידה — נקרא בזמן ריצה, לא נבנה לתוך התמונה בנפרד |
 | `static/` | נכסים סטטיים (תמונות וכו') שמועתקים לתוך ה-build |
 | `server/` | תצורת פריסה עצמית: Dockerfile-adjacent scripts, Caddyfile, גיבוי, ותיעוד ה-VPS המלא — [`server/README.md`](server/README.md) |
-| `scripts/` | כלי שורת פקודה למפתחת (למשל `prepare-lesson.mjs` ליצירת שיעור מהטרמינל) |
+| `scripts/` | כלי שורת פקודה למפתחת (למשל `library-local.mjs`) |
 | `tests/` | `tests/unit` — מבחני יחידה; `tests/characterization` — מריץ את ה-build המלא (`build/index.js`) ומאמת מול ההתנהגות המתועדת |
 | `mea-beclick-kb/` | מסמך הדרישות והחזון הוא `PRODUCT.md` בשורש הריפו; בכספת נשארות רק תיקיות `students/` ו-`pricing/` המקומיות, שאינן במעקב git |
 

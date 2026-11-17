@@ -38,14 +38,6 @@ const plan = (title) => ({
   slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['נקודה'] })),
   examples: [{ problem: '2+2', steps: ['מחברים'], answer: '4' }],
   homework: [{ task: 'תרגיל מהספרייה', why: 'תרגול', answer: 'x=4' }, { task: 'תרגיל שני', why: 'תרגול', answer: 'x=5' }],
-  games: {
-    quiz: { title: 'חידון', questions: [
-      { q: 'שאלה 1', options: ['א', 'ב', 'ג'], answer: 0 },
-      { q: 'שאלה 2', options: ['א', 'ב', 'ג'], answer: 1 },
-      { q: 'שאלה 3', options: ['א', 'ב', 'ג'], answer: 2 },
-    ] },
-    sequence: { title: 'סדר', steps: ['ראשון', 'שני', 'שלישי'] },
-  },
 });
 
 let seq = 0;
@@ -120,8 +112,8 @@ test('a copy that fails validation is held — and still recorded as a copy, nev
   const target = T.targetSkillFor(code, 'מתמטיקה');
   const master = U.readyMaster('math-8', target.key);
   const { addMaterial } = await import('../../src/lib/server/materials.ts');
-  // A published edit that broke it: one game where two are required.
-  const broken = { ...plan('שבור'), games: { quiz: plan('x').games.quiz } };
+  // A published edit that broke it: one homework task where two are required.
+  const broken = { ...plan('שבור'), homework: plan('x').homework.slice(0, 1) };
   addMaterial({ slug: master.slug, kind: 'plan', content: JSON.stringify(broken), origin: 'edited', publish: true });
 
   const c = collector();

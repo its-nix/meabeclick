@@ -24,7 +24,6 @@ const A_PLAN = {
   slides: [{ heading: 'שיפוע', bullets: ['y = mx + b'] }],
   examples: [{ problem: 'y = 2x + 1', steps: ['m = 2'], answer: 'שיפוע 2' }],
   homework: [{ task: 'שרטטו y = x - 3', why: 'תרגול', answer: 'ישר דרך (0,-3)' }],
-  games: {},
 };
 const REQUEST = { subject: 'מתמטיקה', request: 'פונקציה לינארית', level: 'כיתה יא', student: '' };
 

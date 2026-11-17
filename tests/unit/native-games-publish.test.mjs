@@ -35,3 +35,9 @@ test('no games means no file and no Materials row; old call shape unchanged',asy
  assert.equal(await R.writeNativeGamesFile(api,'f',{...getPilot().bundle,games:[]},j.bookingId),null);
  assert.ok(!R.nativeDraftRecords(j,receipt,'S').Materials.some(m=>m.material_id.endsWith('-games-file')));
 });
+test('the games-file Material is a google_drive file, not a website',async()=>{
+ const j=job();
+ const written={url:'https://drive.google.com/file/d/games-file-id-123/view',sha256:'a'.repeat(64)};
+ const records=R.nativeDraftRecords(j,receipt,'S',undefined,written);
+ assert.equal(records.Materials.find(x=>x.material_id.endsWith('-games-file')).provider,'google_drive');
+});

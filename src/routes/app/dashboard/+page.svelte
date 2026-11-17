@@ -1665,11 +1665,9 @@
   .roster-table th:nth-child(2) { width: 22%; }
   .roster-table td:last-child { font-size: 0.875rem; }
   .roster-table td bdi { white-space: nowrap; }
-  .roster-table tbody tr { position: relative; border-top: 1px solid var(--border); }
+  .roster-table tbody tr { border-top: 1px solid var(--border); }
   .roster-table tbody tr:hover, .roster-table tbody tr:focus-within { background: var(--bg-surface); }
   .student-row-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--accent-deep); font-weight: 700; text-decoration:none; }
-  .student-row-link::after { content: ''; position: absolute; inset: 0; }
-  .student-row-link:focus-visible::after { outline: 3px solid var(--accent); outline-offset: -3px; }
   .roster-meta { display: block; color: var(--text-muted-strong); font-size: 0.85rem; line-height: 1.5; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 

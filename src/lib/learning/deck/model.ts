@@ -16,16 +16,8 @@ const id=(v:unknown)=>typeof v==='string'&&/^[a-z0-9-]{1,80}$/.test(v);
 const finite=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)<=10000;
 const axisZ=(v:unknown)=>finite(v)&&Math.abs(Number(v))<=2.5&&Number.isInteger(Number(v)*2);
 const regionZ=(v:unknown)=>v===-4||v===4||axisZ(v);
-export function visualLessonProblems(raw:unknown,options:DeckValidation={}):string[]{
- const errors:string[]=[],need=(v:unknown,msg:string)=>{if(!v)errors.push(msg);};
- if(!object(raw))return ['חבילת המצגת אינה אובייקט'];const p=raw;
- need(p.version===1&&p.ruleVersion===VISUAL_RULE_VERSION,'גרסת מצגת לא נתמכת');
- need(text(p.title,140)&&text(p.subtitle,240),'כותרת מצגת לא תקינה');need([45,90,135].includes(p.durationMin)&&(!options.durationMin||p.durationMin===options.durationMin),'משך שיעור לא תקין');
- need(finite(p.homeworkMinutes)&&p.homeworkMinutes>=10&&p.homeworkMinutes<=15,'משך שיעורי הבית לא תקין');
- const list=(v:unknown,max:number,min=1):any[]=>{if(!Array.isArray(v)||v.length<min||v.length>max){errors.push('רשימת מצגת חסרה או ארוכה מדי');return [];}return v;};
- const objectives=list(p.objectives,4),slides=list(p.slides,p.durationMin===90?30:40,p.durationMin===90?20:8),tasks=list(p.tasks,12),homework=list(p.homework,6),games=list(p.games,2,2),agenda=list(p.agenda,12);
- const goals=new Set<string>(),slideIds=new Set<string>(),taskIds=new Set<string>(),sourceIds=new Set<string>();
- for(const o of objectives){need(object(o)&&id(o.id)&&text(o.title,180)&&!goals.has(o.id),'יעד לא תקין');if(object(o))goals.add(o.id);}
+type Need=(v:unknown,msg:string)=>void;
+function taskCheckers(errors:string[],need:Need,list:(v:unknown,max:number,min?:number)=>any[],goals:Set<string>,taskIds:Set<string>){
  const model=(m:unknown)=>{
   if(!object(m)){errors.push('מודל מתמטי לא תקין');return;}
   need(['population','curve','spread','bands','cumulative','axis','position'].includes(m.mode)&&['none','spread','region','position'].includes(m.interactive)&&typeof m.showProbability==='boolean','מצב המחשה לא נתמך');
@@ -40,23 +32,6 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
    if(m.mode==='axis'&&s.hideZ!==null)need(axisZ(s.hideZ),'מיקום תווית אינו סימון ציר נתמך');
   }
  };
- for(const s of slides){
-  if(!object(s)){errors.push('שקף לא תקין');continue;}
-  need(id(s.id)&&!slideIds.has(s.id),'מזהי שקפים חייבים להיות ייחודיים');slideIds.add(s.id);
-  need(text(s.title,130)&&text(s.kicker,90)&&text(s.prompt,300,true)&&goals.has(s.objectiveId)&&DECK_LAYOUTS.includes(s.layout),'טקסט או פריסה לא תקינים');
-  need(!s.taskId||Array.isArray(s.blocks)&&s.blocks.length===0,'בדיקה עצמאית מוצגת מנתוני המשימה בלבד');
-  for(const b of list(s.blocks,5,s.taskId?0:1)){
-   if(!object(b)){errors.push('תוכן שקף לא תקין');continue;}
-   need(['copy','equation','model','source','callout'].includes(b.type)&&text(b.text,600,true)&&Number.isInteger(b.reveal)&&b.reveal>=0&&b.reveal<=4,'בלוק מצגת לא תקין');
-   if(b.type==='model')model(b.model);
-   if(b.type==='equation'){try{mathFormula(b.text);}catch{errors.push('נוסחת שקף לא תקינה');}}
-   if(b.type==='source'){need(id(b.sourceId)&&Object.hasOwn(options.sourceAnswers??{},b.sourceId),'מקור שקף לא מאומת');sourceIds.add(b.sourceId);}
-  }
-  const n=s.presenterNotes;need(object(n)&&['explanation','ask','expectedAnswer','ifStuck','misconception','transition'].every(k=>text(n[k],900))&&finite(n.minutes)&&n.minutes>0&&n.minutes<=20&&Array.isArray(n.sources)&&n.sources.every(id),'חסרות הערות מורה מלאות');
- }
- need(new Set(slides.filter(object).map(s=>s.layout)).size>=4,'המצגת דורשת פריסות מגוונות');
- let total=0;for(const a of agenda){need(object(a)&&text(a.title,140)&&Number.isInteger(a.minutes)&&a.minutes>0&&slideIds.has(a.slideId),'סדר שיעור לא תקין');if(object(a)&&finite(a.minutes))total+=a.minutes;}
- need(total===p.durationMin,'זמן סדר השיעור אינו שווה למשך השיעור');
  const checkTask=(t:unknown)=>{
   if(!object(t)){errors.push('משימה לא תקינה');return;}
   need(id(t.id)&&!taskIds.has(t.id),'מזהי משימות חייבים להיות ייחודיים');taskIds.add(t.id);
@@ -84,6 +59,36 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
    if(c.kind==='region')need(s.lowerZ===null&&s.upperZ===null,'משימת צביעה חייבת להתחיל בלי צביעה');
   }
  };
+ return {model,checkTask};
+}
+export function visualLessonProblems(raw:unknown,options:DeckValidation={}):string[]{
+ const errors:string[]=[],need=(v:unknown,msg:string)=>{if(!v)errors.push(msg);};
+ if(!object(raw))return ['חבילת המצגת אינה אובייקט'];const p=raw;
+ need(p.version===1&&p.ruleVersion===VISUAL_RULE_VERSION,'גרסת מצגת לא נתמכת');
+ need(text(p.title,140)&&text(p.subtitle,240),'כותרת מצגת לא תקינה');need([45,90,135].includes(p.durationMin)&&(!options.durationMin||p.durationMin===options.durationMin),'משך שיעור לא תקין');
+ need(finite(p.homeworkMinutes)&&p.homeworkMinutes>=10&&p.homeworkMinutes<=15,'משך שיעורי הבית לא תקין');
+ const list=(v:unknown,max:number,min=1):any[]=>{if(!Array.isArray(v)||v.length<min||v.length>max){errors.push('רשימת מצגת חסרה או ארוכה מדי');return [];}return v;};
+ const objectives=list(p.objectives,4),slides=list(p.slides,p.durationMin===90?30:40,p.durationMin===90?20:8),tasks=list(p.tasks,12),homework=list(p.homework,6),games=list(p.games,2,2),agenda=list(p.agenda,12);
+ const goals=new Set<string>(),slideIds=new Set<string>(),taskIds=new Set<string>(),sourceIds=new Set<string>();
+ for(const o of objectives){need(object(o)&&id(o.id)&&text(o.title,180)&&!goals.has(o.id),'יעד לא תקין');if(object(o))goals.add(o.id);}
+ const {model,checkTask}=taskCheckers(errors,need,list,goals,taskIds);
+ for(const s of slides){
+  if(!object(s)){errors.push('שקף לא תקין');continue;}
+  need(id(s.id)&&!slideIds.has(s.id),'מזהי שקפים חייבים להיות ייחודיים');slideIds.add(s.id);
+  need(text(s.title,130)&&text(s.kicker,90)&&text(s.prompt,300,true)&&goals.has(s.objectiveId)&&DECK_LAYOUTS.includes(s.layout),'טקסט או פריסה לא תקינים');
+  need(!s.taskId||Array.isArray(s.blocks)&&s.blocks.length===0,'בדיקה עצמאית מוצגת מנתוני המשימה בלבד');
+  for(const b of list(s.blocks,5,s.taskId?0:1)){
+   if(!object(b)){errors.push('תוכן שקף לא תקין');continue;}
+   need(['copy','equation','model','source','callout'].includes(b.type)&&text(b.text,600,true)&&Number.isInteger(b.reveal)&&b.reveal>=0&&b.reveal<=4,'בלוק מצגת לא תקין');
+   if(b.type==='model')model(b.model);
+   if(b.type==='equation'){try{mathFormula(b.text);}catch{errors.push('נוסחת שקף לא תקינה');}}
+   if(b.type==='source'){need(id(b.sourceId)&&Object.hasOwn(options.sourceAnswers??{},b.sourceId),'מקור שקף לא מאומת');sourceIds.add(b.sourceId);}
+  }
+  const n=s.presenterNotes;need(object(n)&&['explanation','ask','expectedAnswer','ifStuck','misconception','transition'].every(k=>text(n[k],900))&&finite(n.minutes)&&n.minutes>0&&n.minutes<=20&&Array.isArray(n.sources)&&n.sources.every(id),'חסרות הערות מורה מלאות');
+ }
+ need(new Set(slides.filter(object).map(s=>s.layout)).size>=4,'המצגת דורשת פריסות מגוונות');
+ let total=0;for(const a of agenda){need(object(a)&&text(a.title,140)&&Number.isInteger(a.minutes)&&a.minutes>0&&slideIds.has(a.slideId),'סדר שיעור לא תקין');if(object(a)&&finite(a.minutes))total+=a.minutes;}
+ need(total===p.durationMin,'זמן סדר השיעור אינו שווה למשך השיעור');
  for(const t of [...tasks,...homework])checkTask(t);
  const gameIds=new Set<string>();for(const g of games){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis','quiz'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);for(const t of list(g.rounds,8,3))checkTask(t);}
  for(const s of slides.filter(object))need(s.taskId===null||tasks.some(t=>object(t)&&t.id===s.taskId),'שקף מפנה למשימת כיתה חסרה');
@@ -121,4 +126,16 @@ export function publicVisualLesson(p:VisualLesson){
  const model=(m:NormalModel|null)=>m?{mode:m.mode,interactive:m.interactive,showProbability:m.showProbability,states:m.states.map(s=>({mean:s.mean,sd:s.sd,lowerZ:s.lowerZ,upperZ:s.upperZ,pointZ:s.pointZ,hideZ:s.hideZ}))}:null;
  const task=(t:DeckTask)=>({id:t.id,title:t.title,prompt:t.prompt,givens:t.givens,objectiveId:t.objectiveId,support:t.support,grading:t.grading,model:model(t.model),check:t.check?{kind:t.check.kind,options:[...t.check.options]}:null});
  return {version:p.version,ruleVersion:p.ruleVersion,title:p.title,subtitle:p.subtitle,durationMin:p.durationMin,homeworkMinutes:p.homeworkMinutes,objectives:p.objectives.map(o=>({id:o.id,title:o.title})),agenda:p.agenda.map(a=>({title:a.title,minutes:a.minutes,slideId:a.slideId})),slides:p.slides.map(s=>({id:s.id,title:s.title,kicker:s.kicker,prompt:s.prompt,objectiveId:s.objectiveId,layout:s.layout,taskId:s.taskId,blocks:s.blocks.map(b=>({type:b.type,text:b.text,model:model(b.model),sourceId:b.sourceId,reveal:b.reveal}))})),tasks:p.tasks.map(task),homework:p.homework.map(task),games:p.games.map(g=>({id:g.id,title:g.title,intro:g.intro,kind:g.kind,rounds:g.rounds.map(task)}))};
+}
+
+/** Game files are validated with the same task rules as a whole lesson; objectives come from the approved lesson. */
+export function visualGamesProblems(games:unknown,objectives:{id:string}[]):string[]{
+ const errors:string[]=[],need:Need=(v,msg)=>{if(!v)errors.push(msg);};
+ const list=(v:unknown,max:number,min=1):any[]=>{if(!Array.isArray(v)||v.length<min||v.length>max){errors.push('רשימת מצגת חסרה או ארוכה מדי');return [];}return v;};
+ const goals=new Set(objectives.map(o=>o.id)),taskIds=new Set<string>(),{checkTask}=taskCheckers(errors,need,list,goals,taskIds);
+ const gameIds=new Set<string>();
+ for(const g of list(games,4,1)){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis','quiz'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);for(const t of list(g.rounds,8,3))checkTask(t);}
+ const prose=(v:unknown,d=0):void=>{if(d>10)return;if(typeof v==='string'){const plain=v.replace(/\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$/g,'');if(/\\[a-zA-Z]+/.test(plain)||/(?<!\$)\$(?!\$)/.test(plain)||/[\^{}]|(?<![A-Za-z0-9])[A-Za-z]_[A-Za-z0-9{]/.test(plain))errors.push('נוסחה בפרוזה חייבת להיות בין \\( ... \\)');}else if(Array.isArray(v))v.slice(0,80).forEach(x=>prose(x,d+1));else if(object(v))for(const x of Object.values(v).slice(0,80))prose(x,d+1);};
+ prose(games);
+ return [...new Set(errors)];
 }

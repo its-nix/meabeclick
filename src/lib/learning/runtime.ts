@@ -5,7 +5,6 @@ export interface LearningProgress { attempts: number; hints: number; solved: boo
 export interface LearningClientConfig {
   experience: PublicExperience; fingerprint: string; lessonSlug: string | null;
   demo: boolean; demoChecks?: Record<string, LearningCheck>; storageScope?: string;
-  variant?:'homework';
   independentSceneIds?:string[];
 }
 
@@ -48,20 +47,10 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   let params = scenes[0].frames[0].values.slice();
   let selected: number | null = null;
   let manipulated = false;
-  let scope = config.storageScope ?? (config.demo ? 'demo' : 'pending');
+  const scope = config.storageScope ?? (config.demo ? 'demo' : 'local');
   let states: Record<string, LearningProgress> = {};
-  let userNavigated = false;
-  type Pending = { id: string; sceneId: string; action: string; value?: unknown; fingerprint: string };
-  let pending: Pending[] = [];
-  let flushing = false;
-  const mergeProgress = (incoming: Record<string, LearningProgress>) => {
-    for (const [id, next] of Object.entries(incoming)) {
-      const old = progress(id);
-      states[id] = { attempts: Math.max(old.attempts, next.attempts), hints: Math.max(old.hints, next.hints), solved: old.solved || next.solved, visited: old.visited || next.visited,revealed:!!(old.revealed||next.revealed) };
-    }
-  };
-  const slug = config.lessonSlug ?? decodeURIComponent(location.pathname.match(/^\/(?:app\/learn|lessons)\/([^/]+)/)?.[1] ?? '');
-  const endpoint = slug ? `/api/learning/${encodeURIComponent(slug)}${config.variant==='homework'?'?view=homework':''}` : null;
+  const slug = config.lessonSlug ?? '';
+  const localStatus = config.demo ? 'שיעור לדוגמה · ההתקדמות נשמרת במכשיר הזה' : 'ההתקדמות נשמרת במכשיר הזה בלבד';
   const key = () => `meabeclick:learning:${scope}:${slug || 'demo'}:${config.fingerprint}`;
   const progress = (id: string) => states[id] ??= { attempts: 0, hints: 0, solved: false, visited: false };
   const feedback = (text: string, kind = 'success') => {
@@ -69,14 +58,12 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     rich(element, text); element.setAttribute('data-kind', kind);
   };
   const remember = () => {
-    if (scope === 'pending') return;
-    try { localStorage.setItem(key(), JSON.stringify({ active, states, pending })); } catch { status.textContent = 'השמירה במכשיר אינה זמינה בדפדפן הזה.'; }
+    try { localStorage.setItem(key(), JSON.stringify({ active, states })); } catch { status.textContent = 'השמירה במכשיר אינה זמינה בדפדפן הזה.'; }
   };
   const restore = () => {
     try {
       const saved = JSON.parse(localStorage.getItem(key()) ?? '{}');
       if (saved.states && typeof saved.states === 'object') states = saved.states;
-      if (Array.isArray(saved.pending)) pending = saved.pending;
       if (Number.isInteger(saved.active) && saved.active >= 0 && saved.active < scenes.length) active = saved.active;
     } catch { /* Corrupt local state never prevents a lesson opening. */ }
   };
@@ -99,7 +86,6 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     const checked = scenes.filter(s => !!s.check);
     const solved = checked.filter(s => progress(s.id).solved).length;
     const independent = checked.filter(s => independentIds.has(s.id)&&progress(s.id).solved && progress(s.id).hints === 0 && !progress(s.id).revealed && progress(s.id).attempts === 1).length;
-    sections.forEach((section,i)=>{const b=section.querySelector<HTMLButtonElement>('[data-solution]');if(b)b.disabled=progress(scenes[i].id).attempts===0;});
     const summary = query('[data-completion]');
     if (summary) summary.textContent = solved
       ? `פתרתם ${solved} מתוך ${checked.length} אתגרים. בשאלות העצמאיות, ${independent} נפתרו בניסיון הראשון בלי פתיחת רמז או פתרון. אפשר לחזור ולתרגל בכל שלב.`
@@ -171,7 +157,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     }
     sections.forEach((s, i) => s.hidden = i !== active);
     const section = sections[active], scene = scenes[active], state = progress(scene.id);
-    const reasoning=section.querySelector<HTMLTextAreaElement>('[data-reasoning]');if(reasoning&&scope!=='pending')try{reasoning.value=localStorage.getItem(key()+':reason:'+scene.id)??'';}catch{}
+    const reasoning=section.querySelector<HTMLTextAreaElement>('[data-reasoning]');if(reasoning)try{reasoning.value=localStorage.getItem(key()+':reason:'+scene.id)??'';}catch{}
     query('[data-current-step]').textContent = `${String(active + 1).padStart(2, '0')} / ${String(scenes.length).padStart(2, '0')}`;
     query('[data-phase-label]').textContent = ({ discover: 'מגלים', explore: 'מנסים', practice: 'מתרגלים', challenge: 'אתגר', reflect: 'מה לקחנו' })[scene.phase];
     query<HTMLButtonElement>('[data-prev]').disabled = active === 0;
@@ -194,64 +180,21 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     return Number.isFinite(n) && typeof check.answer === 'number' && Math.abs(n-check.answer) < 1e-7;
   };
 
-  async function send(event: Pending): Promise<boolean> {
-    if (!endpoint) return false;
-    const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(event) });
-    if (response.status === 401 || response.status === 403) {
-      status.textContent = 'לשמירה ולבדיקת תשובות, פתחו את הקישור האישי שלכם.';
-      return false;
-    }
-    if (response.status === 409) { status.textContent = 'יש גרסה חדשה לשיעור. רעננו את הדף לפני שממשיכים.'; return false; }
-    if (!response.ok) throw new Error('save failed');
-    const data = await response.json();
-    if (data.progress) mergeProgress(data.progress);
-    status.textContent = 'ההתקדמות נשמרה בדף האישי';
-    if (event.sceneId === scenes[active].id && event.action === 'answer') {
-      feedback(data.feedback, data.correct ? 'success' : 'retry');
-      if (data.correct) { render(); query('[data-next-label]').textContent = 'ממשיכים'; }
-    }
-    if(event.sceneId===scenes[active].id&&event.action==='solution'&&typeof data.solution==='string'){
-      const box=query('[data-worked-solution]',sections[active]);rich(box,'פתרון בשלבים: '+data.solution);box.hidden=false;
-      feedback('עברנו על פתרון עם עזרה. כדי לבדוק הבנה עצמאית, נסו שאלה חדשה.','retry');
-    }
-    updateProgress(); remember();
-    return true;
-  }
-
-  async function record(action: string, value?: unknown): Promise<void> {
+  /** Progress lives on this device only; a lesson page never talks to the server. */
+  function record(action: string, value?: unknown): void {
     const scene = scenes[active], state = progress(scene.id);
-    if (config.demo) {
-      if (action === 'visit') state.visited = true;
-      if (action === 'hint') state.hints = Math.min(scene.check?.hints.length ?? 0, state.hints+1);
-      if (action === 'answer' && config.demoChecks?.[scene.id]) {
-        state.attempts++;
-        const correct = localGrade(config.demoChecks[scene.id], value);
-        state.solved ||= correct;
-        feedback(correct ? config.demoChecks[scene.id].success : scene.check!.retry, correct ? 'success' : 'retry');
-        if (correct) { render(); query('[data-next-label]').textContent = 'ממשיכים'; }
-      }
-      status.textContent = 'שיעור לדוגמה · ההתקדמות נשמרת במכשיר הזה';
-      updateProgress(); remember(); return;
-    }
-    if (scope === 'pending') { status.textContent = 'פותחים את הקישור האישי לשמירת תשובות. נסו שוב בעוד רגע.'; return; }
+    if (action === 'visit') state.visited = true;
     if (action === 'hint') state.hints = Math.min(scene.check?.hints.length ?? 0, state.hints+1);
-    const event: Pending = { id: crypto.randomUUID(), action, sceneId: scene.id, value: structuredClone(value), fingerprint: config.fingerprint };
-    // Persist before sending: a reload or a lost response must not discard work.
-    pending.push(event); remember();
-    await flush();
-    if (pending.some(p => p.id === event.id)) status.textContent = action === 'answer' ? 'התשובה נשמרה במכשיר ותיבדק כשהחיבור יחזור.' : 'ההתקדמות תסתנכרן כשהחיבור יחזור.';
-  }
-
-  async function flush(): Promise<void> {
-    if (config.demo || flushing || !navigator.onLine) return;
-    flushing = true;
-    try {
-      while (pending.length) {
-        if (!await send(pending[0])) break;
-        pending.shift(); remember();
-      }
-    } catch { status.textContent = 'ההתקדמות תסתנכרן כשהחיבור יחזור.'; }
-    finally { flushing = false; }
+    const graded = config.demoChecks?.[scene.id];
+    if (action === 'answer' && graded) {
+      state.attempts++;
+      const correct = localGrade(graded, value);
+      state.solved ||= correct;
+      feedback(correct ? graded.success : scene.check!.retry, correct ? 'success' : 'retry');
+      if (correct) { render(); query('[data-next-label]').textContent = 'ממשיכים'; }
+    }
+    status.textContent = localStatus;
+    updateProgress(); remember();
   }
 
   function tick(time: number): void {
@@ -263,7 +206,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
     if (elapsed >= duration()) pause(); else animation = requestAnimationFrame(tick);
   }
 
-  buttons.forEach((button, index) => button.addEventListener('click', () => { userNavigated = true; show(index, true); }));
+  buttons.forEach((button, index) => button.addEventListener('click', () => show(index, true)));
   sections.forEach((section, sceneIndex) => {
     const scene = scenes[sceneIndex];
     query('[data-play]', section).addEventListener('click', () => {
@@ -304,7 +247,7 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
       selected = Number(option.dataset.option);
       all('[data-option]', section).forEach(o => o.setAttribute('aria-pressed', String(o === option)));
     }));
-    section.querySelector('[data-submit]')?.addEventListener('click', async () => {
+    section.querySelector('[data-submit]')?.addEventListener('click', () => {
       if (!scene.check) return;
       let value: unknown = params;
       if (scene.check.kind === 'choice') {
@@ -315,38 +258,28 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
         value = query<HTMLInputElement>('[data-number-answer]', section).value;
         if (!String(value).trim()) { feedback('כתבו תשובה כדי לבדוק אותה.', 'retry'); return; }
       }
-      const button = query<HTMLButtonElement>('[data-submit]', section);
-      button.disabled = true;
-      try { await record('answer', value); } finally { button.disabled = false; }
+      record('answer', value);
     });
-    section.querySelector('[data-hint]')?.addEventListener('click', async () => {
+    section.querySelector('[data-hint]')?.addEventListener('click', () => {
       if (!scene.check) return;
       const state = progress(scene.id);
       const index = Math.min(state.hints, scene.check.hints.length-1);
       const hint = query('[data-hint-text]', section);
       rich(hint, scene.check.hints[index]); hint.hidden = false;
-      await record('hint');
-    });
-    section.querySelector<HTMLButtonElement>('[data-solution]')?.addEventListener('click',async()=>{
-      if(!progress(scene.id).attempts)return;
-      const b=query<HTMLButtonElement>('[data-solution]',section);b.disabled=true;
-      try{await record('solution');}finally{b.disabled=false;}
+      record('hint');
     });
     section.querySelector<HTMLTextAreaElement>('[data-reasoning]')?.addEventListener('input',event=>{
-      if(scope==='pending')return;
       try{localStorage.setItem(key()+':reason:'+scene.id,(event.target as HTMLTextAreaElement).value);}catch{status.textContent='לא ניתן לשמור את הטיוטה במכשיר הזה.';}
     });
     section.querySelector<HTMLInputElement>('[data-number-answer]')?.addEventListener('keydown', event => {
       if (event.key === 'Enter') query<HTMLButtonElement>('[data-submit]', section).click();
     });
   });
-  query('[data-next]').addEventListener('click', async () => {
-    const id = scenes[active].id;
-    progress(id).visited = true;
-    void record('visit');
-    userNavigated = true; show(active === scenes.length-1 ? 0 : active+1, true);
+  query('[data-next]').addEventListener('click', () => {
+    record('visit');
+    show(active === scenes.length-1 ? 0 : active+1, true);
   });
-  query('[data-prev]').addEventListener('click', () => { userNavigated = true; show(active-1, true); });
+  query('[data-prev]').addEventListener('click', () => show(active-1, true));
   all('[data-print]').forEach(b => b.addEventListener('click', () => window.print()));
   all<HTMLButtonElement>('button[data-mode]').forEach(button => button.addEventListener('click', () => {
     all('button[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
@@ -359,7 +292,6 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   query('[data-film-close]', film).addEventListener('click', () => { query<HTMLVideoElement>('video', film).pause(); film.close(); });
   film.addEventListener('close', () => query<HTMLVideoElement>('video', film).pause());
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-  window.addEventListener('online', () => void flush());
   window.addEventListener('beforeprint', () => {
     pause();
     all<SVGSVGElement>('[data-print-visual]').forEach(svg=>{const [id,index]=svg.dataset.printVisual!.split(':');const s=scenes.find(s=>s.id===id)!;draw(svg,s.visual,s.frames[Number(index)].values,s.xDomain,s.yDomain);});
@@ -379,31 +311,12 @@ export function mountLearning(draw: typeof drawLearningVisual, at: typeof learni
   const linkedScene = () => scenes.findIndex(scene => scene.id === new URLSearchParams(location.hash.slice(1)).get('scene'));
   const showInitial = () => {
     const index = linkedScene();
-    if (index >= 0) { active = index; userNavigated = true; }
+    if (index >= 0) active = index;
     show(active);
   };
   addEventListener('hashchange', () => {
     const index = linkedScene();
-    if (index >= 0) { userNavigated = true; show(index, true); }
+    if (index >= 0) show(index, true);
   });
-  if (config.demo) { restore(); showInitial(); status.textContent = 'שיעור לדוגמה · ההתקדמות נשמרת במכשיר הזה'; }
-  else {
-    if (scope !== 'pending') restore();
-    showInitial();
-    if (endpoint) void fetch(endpoint).then(async response => {
-      if (!response.ok) { status.textContent = 'לשמירה ולבדיקת תשובות, פתחו את הקישור האישי שלכם.'; return; }
-      const data = await response.json();
-      if (data.fingerprint !== config.fingerprint) { status.textContent = 'יש גרסה חדשה לשיעור. רעננו את הדף לפני שממשיכים.'; return; }
-      if (scope !== data.scope) {
-        const visible = active;
-        scope = data.scope; restore();
-        if (userNavigated) active = visible;
-      }
-      mergeProgress(data.progress ?? {});
-      if (!userNavigated) show(active);
-      else updateProgress();
-      status.textContent = 'ההתקדמות נשמרת בדף האישי';
-      void flush();
-    }).catch(() => { status.textContent = 'אין חיבור כרגע. אפשר לצפות בהסבר ולנסות שוב בהמשך.'; });
-  }
+  restore(); showInitial(); status.textContent = localStatus;
 }

@@ -36,9 +36,6 @@ function walk(dir, out = []) {
 
 const SELF = 'tests/unit/native-links.test.mjs';
 const HISTORY = /^(?:src\/lib\/server\/migrations\/|tests\/unit\/(?:migrations|results-backfill)\.test\.mjs$)|corpus\.json$/;
-// Known remainder, tracked in the removal report: the client runtime of the
-// generator's own lesson decks still names the removed progress endpoint.
-const KNOWN_REMAINDER = 'src/lib/learning/runtime.ts';
 const NO_TRACE = new RegExp([
   String.raw`/app/(?:play|learn|games|lessons|review-game)\b`,
   String.raw`["'\x60(]/lessons/`,
@@ -53,7 +50,7 @@ test('no source, script or test refers to a removed route, module or table (migr
     for (const file of walk(root)) {
       const rel = relative('.', file);
       // Migrations and their tests are history; the review corpora are recorded model output.
-      if (rel === SELF || rel === KNOWN_REMAINDER || HISTORY.test(rel)) continue;
+      if (rel === SELF || HISTORY.test(rel)) continue;
       if (!/\.(ts|svelte|mjs|js|css|json)$/.test(rel)) continue;
       readFileSync(file, 'utf8').split('\n').forEach((line, i) => { if (NO_TRACE.test(line)) hits.push(`${rel}:${i + 1}`); });
     }

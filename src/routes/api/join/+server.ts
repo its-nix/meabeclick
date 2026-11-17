@@ -38,7 +38,7 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
     });
   }
 
-  setFamilySession(cookies, { kind: 'student', id: student.id });
+  setFamilySession(cookies, { kind: 'student', id: student.id }, { persistent: false });
 
   return json({ ok: true, code: student.code, name: student.name }, {
     headers: { 'Cache-Control': 'no-store' },

@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
   // The redeemed credential is the requested identity. Always replace any
   // cookie already on the device: retaining an account session after a child
   // redeems their link would leave parent, sibling, and payment scope active.
-  setFamilySession(cookies, identity);
+  setFamilySession(cookies, identity, { persistent: false });
   if (access.canSeeParentView && !access.isSelf) {
     return json({ ok: true, destination: '/app/parent' }, { headers });
   }

@@ -29,8 +29,11 @@
  * ## How long sessions last
  *
  * Entry links are separate, server-stored one-time credentials in
- * access-credentials.ts. This module signs only the six-month session cookie
- * established after a successful exchange.
+ * access-credentials.ts. This module signs only the session cookie
+ * established after a successful exchange. Only a Google sign-in gets the
+ * six-month persistent session; an email link, a booking or a child's code
+ * gets a browser-session cookie whose token also expires within 12 hours,
+ * because it may have been opened on a stranger's computer (Lior, 2026-11-16).
  */
 
 import { createHmac, timingSafeEqual, randomBytes } from 'node:crypto';
@@ -53,6 +56,10 @@ if (!process.env.SESSION_SECRET) {
 export const FAMILY_COOKIE = 'maab_family';
 
 const SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000;  // 6 months
+/** Lior 2026-11-16: a link from an email may be opened on a stranger's computer, so it never
+ *  gets a persistent session. Only a Google sign-in does. The signed token is short-lived too,
+ *  so a copied cookie value stops working within hours, not just when the browser closes. */
+const TEMPORARY_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 export type FamilyKind = 'account' | 'student';
 export interface FamilyIdentity {
@@ -140,13 +147,22 @@ export function verifyPendingToken(token: string | null | undefined): number | n
  * first cross-site hop — the family would land logged out on the very
  * link that was supposed to let them in.
  */
-export function setFamilySession(cookies: Cookies, identity: FamilyIdentity): void {
-  cookies.set(FAMILY_COOKIE, mintSession(identity.kind, identity.id, SESSION_TTL_MS), {
+export function setFamilySession(
+  cookies: Cookies,
+  identity: FamilyIdentity,
+  options: { persistent: boolean },
+): void {
+  /* Required, with no default: every caller must decide, so a new sign-in path cannot
+     quietly become a six-month login. */
+  if (typeof options?.persistent !== 'boolean') throw new TypeError('setFamilySession: persistent must be stated');
+  const ttlMs = options.persistent ? SESSION_TTL_MS : TEMPORARY_SESSION_TTL_MS;
+  cookies.set(FAMILY_COOKIE, mintSession(identity.kind, identity.id, ttlMs), {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: Math.floor(SESSION_TTL_MS / 1000),
+    // No maxAge for a temporary session: the browser drops it when it closes.
+    ...(options.persistent ? { maxAge: Math.floor(SESSION_TTL_MS / 1000) } : {}),
   });
 }
 

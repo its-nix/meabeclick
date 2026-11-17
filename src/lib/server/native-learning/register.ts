@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {workspaceTables,workspaceHeader,workspaceProblems,type WorkspaceSnapshot,type WorkspaceRow} from '../../learning/workspace.ts';
+import {workspaceTables,workspaceSiteColumns,workspaceHeader,workspaceProblems,type WorkspaceSnapshot,type WorkspaceRow} from '../../learning/workspace.ts';
 import type {NativeLessonJob} from './jobs.ts';
 
 interface Receipt {sourceHash:string;slides:{url:string};notesLocation?:'slides';tutorNotes?:{url:string};homework:{url:string};activities:{id:string;title:string;url:string}[];provenance?:{kind?:string;bundleVersion:string;sourceIds:string[]}}
@@ -41,12 +41,19 @@ export async function appendNativeDraftRecords(api:Api,indexId:string,records:Wo
   const owned=meta.sheets.filter((s:any)=>s.developerMetadata?.some((m:any)=>m.metadataKey==='meaNativeRecords'&&m.metadataValue===marker));
   if(owned.length>1)throw Error('conflict');
   let sheet=owned[0],existing:unknown[][]=[];
-  const header=workspaceTables[role].map(workspaceHeader);
+  const base=workspaceTables[role].map(workspaceHeader),site=(workspaceSiteColumns[role]??[]).map(workspaceHeader),header=[...base,...site];
   if(sheet){
    if(sheet.properties.title!==title)throw Error('conflict');
    const result=await api.json(`${base}/values/${encodeURIComponent(`'${title}'!A1:P5002`)}?valueRenderOption=UNFORMATTED_VALUE`);
    existing=result.values??[];
-   if(!Array.isArray(existing)||JSON.stringify(existing[0])!==JSON.stringify(header)||existing.length>5001)throw Error('conflict');
+   const lacksSite=site.length>0&&JSON.stringify(existing?.[0])===JSON.stringify(base);
+   if(!Array.isArray(existing)||existing.length>5001||JSON.stringify(existing[0])!==JSON.stringify(header)&&!lacksSite)throw Error('conflict');
+   if(lacksSite){
+    // Add the site-owned header only into a column nobody has written to.
+    if(existing.some(r=>!Array.isArray(r)||r.length>base.length))throw Error('conflict');
+    if((sheet.properties.gridProperties?.columnCount??0)<header.length)requests.push({appendDimension:{sheetId:sheet.properties.sheetId,dimension:'COLUMNS',length:header.length-(sheet.properties.gridProperties?.columnCount??base.length)}});
+    requests.push({updateCells:{start:{sheetId:sheet.properties.sheetId,rowIndex:0,columnIndex:base.length},rows:[{values:site.map(v=>({userEnteredValue:{stringValue:v}}))}],fields:'userEnteredValue'}});
+   }
   }else{
    if(meta.sheets.some((s:any)=>s.properties?.title===title))throw Error('conflict');
    while(used.has(next))next++;used.add(next);

@@ -93,6 +93,50 @@ test('linked draft records append once after lost response and preserve human ed
  await assert.rejects(appendNativeDraftRecords(api,'native-index-id',records),/conflict/);
 });
 
+function registerDouble(){
+ const sheets=[],batches=[];
+ const api={scope:'synthetic-scope',async json(url,init){
+  if(url.includes(':batchUpdate')){const requests=JSON.parse(init.body).requests;batches.push(requests);for(const request of requests){
+   if(request.addSheet)sheets.push({properties:{...request.addSheet.properties},developerMetadata:[],rows:[]});
+   if(request.createDeveloperMetadata){const d=request.createDeveloperMetadata.developerMetadata;sheets.find(s=>s.properties.sheetId===d.location.sheetId).developerMetadata.push(d);}
+   if(request.appendDimension){const s=sheets.find(s=>s.properties.sheetId===request.appendDimension.sheetId);assert.equal(request.appendDimension.dimension,'COLUMNS');s.properties.gridProperties.columnCount+=request.appendDimension.length;}
+   if(request.updateCells){const u=request.updateCells,s=sheets.find(s=>s.properties.sheetId===u.start.sheetId);u.rows.forEach((r,i)=>r.values.forEach((c,j)=>{s.rows[u.start.rowIndex+i][u.start.columnIndex+j]=c.userEnteredValue.stringValue;}));}
+   if(request.appendCells){const u=request.appendCells,s=sheets.find(s=>s.properties.sheetId===u.sheetId);u.rows.forEach(r=>{s.rows.push(r.values.map(c=>c.userEnteredValue.stringValue??c.userEnteredValue.boolValue));});}
+  }return{};}
+  if(url.includes('/values/')){const title=decodeURIComponent(url.split('/values/')[1].split('?')[0]).match(/^'([^']+)'/)[1];return{values:sheets.find(s=>s.properties.title===title).rows};}
+  return{sheets};
+ }};
+ return{api,sheets,batches,materials:()=>sheets.find(s=>s.properties.title==='Native Materials')};
+}
+const SITE_HEADER='סטטוס אתר [site_status]';
+test('a new Materials register has the optional site_status column from the start',async()=>{
+ const {bookingId}=booking();const records=nativeDraftRecords(J.getNativeLessonJob(bookingId),receipt,'Synthetic');
+ const d=registerDouble();await appendNativeDraftRecords(d.api,'native-index-id',records);
+ assert.equal(d.materials().rows[0].at(-1),SITE_HEADER);
+ assert.equal(d.materials().properties.gridProperties.columnCount,d.materials().rows[0].length);
+ assert.equal(d.sheets.find(s=>s.properties.title==='Native Lessons').rows[0].includes(SITE_HEADER),false);
+});
+test('an existing Materials register gains site_status once, without touching tutor cells',async()=>{
+ const {bookingId}=booking();const records=nativeDraftRecords(J.getNativeLessonJob(bookingId),receipt,'Synthetic');
+ const d=registerDouble();await appendNativeDraftRecords(d.api,'native-index-id',records);
+ const m=d.materials();m.rows[0].pop();m.properties.gridProperties.columnCount-=1;m.rows[1][1]='Human corrected title';
+ const before=m.rows.slice(1).map(r=>[...r]);
+ d.batches.length=0;
+ await appendNativeDraftRecords(d.api,'native-index-id',records);
+ assert.equal(m.rows[0].at(-1),SITE_HEADER);assert.equal(m.rows[1][1],'Human corrected title');
+ assert.deepEqual(m.rows.slice(1),before,'data rows are untouched');
+ assert.equal(m.properties.gridProperties.columnCount,m.rows[0].length);
+ d.batches.length=0;await appendNativeDraftRecords(d.api,'native-index-id',records);
+ assert.equal(d.batches.length,0,'a second run writes nothing');
+});
+test('site_status is never added over a populated column',async()=>{
+ const {bookingId}=booking();const records=nativeDraftRecords(J.getNativeLessonJob(bookingId),receipt,'Synthetic');
+ const d=registerDouble();await appendNativeDraftRecords(d.api,'native-index-id',records);
+ const m=d.materials();m.rows[0].pop();m.rows[2][14]='tutor typed here';
+ await assert.rejects(appendNativeDraftRecords(d.api,'native-index-id',records),/conflict/);
+ assert.equal(m.rows[2][14],'tutor typed here');assert.equal(m.rows[0].length,14);
+});
+
 test('embedded-note decks are staff material, with no phantom notes Doc or student assignment',()=>{
  const {bookingId}=booking();const combined={...receipt,notesLocation:'slides'};delete combined.tutorNotes;
  const records=nativeDraftRecords(J.getNativeLessonJob(bookingId),combined,'Synthetic');

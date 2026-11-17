@@ -118,6 +118,12 @@ export function linkedGoogleIdentity(subject: string): FamilyIdentity | null {
 export function hasGoogleIdentity(identity: FamilyIdentity): boolean {
   return !!handle().prepare('SELECT 1 FROM google_identities WHERE scope_kind = ? AND scope_id = ?').get(identity.kind, identity.id);
 }
+/** Email captured at Google sign-in for a student's own Google identity (null if none linked). */
+export function studentGoogleEmail(studentId: number): string | null {
+  const row = handle().prepare(`SELECT email FROM google_identities WHERE scope_kind = 'student' AND scope_id = ?`)
+    .get(studentId) as { email: string } | undefined;
+  return row?.email ?? null;
+}
 const same = (a: FamilyIdentity, b: FamilyIdentity) => a.kind === b.kind && a.id === b.id;
 
 export function linkGoogleIdentity(profile: GoogleProfile, identity: FamilyIdentity): void {

@@ -96,7 +96,7 @@ test('a student session reaches its own board but not the parent view', async ()
   } finally { await stop(); }
 });
 
-test('a join code admits a child once and never again', async () => {
+test('join-code login is gone: /api/join no longer admits anyone', async () => {
   const { baseUrl, stop } = await startServer();
   try {
     const portal = await bookFamily(baseUrl);
@@ -107,26 +107,13 @@ test('a join code admits a child once and never again', async () => {
       body: JSON.stringify({ code: portal.code }),
     })).json();
 
-    const redeem = body => fetch(`${baseUrl}/api/join`, {
+    const redeem = await fetch(`${baseUrl}/api/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ code: share.joinCode }),
     });
-
-    // Typed the way a child would: lowercase, with the display hyphen.
-    const first = await redeem({ code: share.joinCode.toLowerCase() });
-    assert.equal(first.status, 200);
-    assert.equal((await first.json()).code, portal.code);
-    assert.ok(first.headers.getSetCookie().some(c => c.startsWith('maab_family=')));
-
-    const second = await redeem({ code: share.joinCode });
-    assert.equal(second.status, 401, 'a spent code must not admit a second device');
-
-    const bogus = await redeem({ code: 'ZZZZZZ' });
-    assert.equal(bogus.status, 401);
-    // Unknown and spent must be indistinguishable, or the codespace becomes
-    // walkable: a different message would say "right code, wrong moment".
-    assert.deepEqual(await bogus.json(), await second.json());
+    assert.equal(redeem.status, 404, 'a valid code must not open a session');
+    assert.ok(!redeem.headers.getSetCookie().some(c => c.startsWith('maab_family=')));
   } finally { await stop(); }
 });
 

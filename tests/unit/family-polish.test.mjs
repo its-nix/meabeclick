@@ -49,10 +49,9 @@ test('a child is greeted by first name', () => {
   assert.match(read('src/routes/app/student/+page.svelte'), /היי \$\{firstName\(DATA\.name\)\}!/);
 });
 
-test('a parent without WhatsApp is given an address to type, not a path', () => {
+test('the parent page no longer tells a child to type a join code at /portal', () => {
   const p = read('src/routes/app/parent/+page.svelte');
-  assert.doesNotMatch(p, /ב-<span dir="ltr">\/portal<\/span>/);
-  assert.match(p, /<span dir="ltr">\{page\.url\.host\}\/portal<\/span>/);
+  assert.doesNotMatch(p, /קוד צירוף|joinCode/);
 });
 
 test('small copy: «לתיאום», and the next lesson is named once', () => {

@@ -47,6 +47,7 @@ import { portalDir } from './paths.ts';
 // cannot reintroduce the duplicate-warning ordering problem.
 import { codexHome, engineBin, engineHasCredentials } from './lesson/engine.ts';
 import { loadTemplates } from './plans/templates.ts';
+import { googleLoginConfig } from './google-login-config.ts';
 
 interface RequiredVar {
   key: string;
@@ -160,6 +161,21 @@ export function checkEnv(): void {
   const lines = issues.map(({ key, message }) => `  - ${key}: ${message}`);
   throw new Error(
     `refusing to start — missing or invalid required environment variable(s):\n${lines.join('\n')}`,
+  );
+}
+
+/**
+ * Throws unless Google sign-in is configured. It is the only login the
+ * portal page offers, so a deployment without it has no way in - fail the boot
+ * rather than serve a login page with nothing on it. Uses the DB-free config
+ * module so it can run before the database opens.
+ */
+export function checkGoogleLogin(): void {
+  if (googleLoginConfig()) return;
+  throw new Error(
+    'refusing to start - Google sign-in is not configured: set GOOGLE_LOGIN_CLIENT_ID and ' +
+    'GOOGLE_LOGIN_CLIENT_SECRET (both; or GOOGLE_WEB_CLIENT_ID/GOOGLE_WEB_CLIENT_SECRET when the ' +
+    'Meet client is reused) together with SITE_URL. Students and parents have no other login.',
   );
 }
 

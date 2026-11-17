@@ -467,7 +467,7 @@
         </div>
 
         {#if isDayOne}
-          <div class="dayone"><div class="dayone-title">הכל מוכן לשיעור הראשון</div><p class="dayone-sub">אחרי השיעור יופיעו כאן הסיכום, המצגת ומשחקי התרגול.</p></div>
+          <div class="dayone"><div class="dayone-title">הכל מוכן לשיעור הראשון</div><p class="dayone-sub">אחרי השיעור יופיעו כאן הסיכום ומשחקי התרגול.</p>{#if data.canSeeParentView}<a class="backlink" href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור</a>{/if}</div>
         {:else}
           {#if DATA.progress?.total}
             <div class="student-progress"><Icon name="progress" size={20} /><p>{progressWords}</p></div>
@@ -477,7 +477,6 @@
               {#each DATA.lessons ?? [] as l}
                 <article class="lesson-row"><div class="card-title">{l.topic}</div><div class="card-meta">{l.upcoming ? 'לקראת השיעור · ' : ''}{fmtDate(l.date)}</div>
                   {#if l.summary}<p class="card-body">{l.summary}</p>{/if}
-                  {#if l.slidesUrl}<a class="lesson-link" href={toHref(l.slidesUrl)}><Icon name="slides" size={17} /> המצגת</a>{/if}
                 </article>
               {/each}
             </details>

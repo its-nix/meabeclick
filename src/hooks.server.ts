@@ -1,6 +1,6 @@
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
-import { checkEnv, checkDataDir, checkPortalDir, checkRegistry, checkLessonEngine, checkPlanTemplates } from '$server/boot-checks.ts';
+import { checkEnv, checkDataDir, checkPortalDir, checkGoogleLogin, checkRegistry, checkLessonEngine, checkPlanTemplates } from '$server/boot-checks.ts';
 
 // Boot checks apply in production only. `npm run dev` must stay usable for
 // a developer without a full .env — every module these checks cover
@@ -39,6 +39,7 @@ const { readFamilySession } = await import('$server/family-auth.ts');
 if (!dev) {
   await checkDataDir();
   checkPortalDir();
+  checkGoogleLogin();
   checkRegistry();
   checkLessonEngine();
   checkPlanTemplates();

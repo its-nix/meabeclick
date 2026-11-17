@@ -177,8 +177,8 @@ Todoist: label `@Infra`
   planning should start from that fact.
 - **No PIN, no family password.** Identity travels in signed links: an
   `account` link reaches the whole family, a `student` link reaches one
-  child's board, and a short join code is the fallback for a device with
-  no WhatsApp. This was a deliberate decision, not a temporary compromise.
+  child's board. The join code that used to be the fallback for a device
+  with no WhatsApp was removed on 2026-11-17 with the login page's code entry. This was a deliberate decision, not a temporary compromise.
 - **Payments are recorded by hand.** The product keeps a ledger; it does
   not collect money. Automatic collection (Bit/PayBox) was evaluated and
   explicitly rejected on 2026-08-23.
@@ -211,7 +211,12 @@ game their tutor assigned. Every student has a Google account (Lior,
 2026-11-16): they sign in with it, and its email is captured at sign-in
 (`google_identities`), separate from the family account's booking email, which
 is usually the parent's. Google sign-in is the only login page flow and the only one that creates
-a persistent session; the link-or-code entry on the login page is to be removed.
+a persistent session; the link-or-code entry on the login page was removed on 2026-11-17 (join-code
+login, `/api/join`, is gone; Google is configured-or-fail at boot). A Google
+account that is neither gmail nor Workspace cannot claim an existing family by
+email (`email-proof`): it is told to open its personal link and connect Google
+there, or to write the tutor. A new-family sign-up from such an account is still
+allowed, since it claims nothing.
 The personal link in a booking email still signs the holder in, but only for
 that browser session and never persistently, since it may be opened on a
 stranger's computer (Lior, 2026-11-16).
@@ -259,8 +264,7 @@ a shared engine against per-lesson JSON.
 - **קישור אישי** (personal/magic link) — how identity travels now that there
   is no password. An `account` link reaches the whole family; a `student`
   link reaches one child's own board.
-- **קוד צירוף** (join code) — a short, one-time fallback a parent hands to a
-  child's device that has no WhatsApp, when a link can't be sent directly.
+- **קוד צירוף** (join code) — retired 2026-11-17; no longer a way in.
 - **חשבון** — the account holder: a parent, or a self-paying adult learner.
 - **תלמיד/ה** — a student under an account. A family is one חשבון with one
   or more תלמידים.

@@ -1624,11 +1624,10 @@
                       {:else if linkReveal[studentKey] === 'visible'}
                         <code class="raw-access-link" dir="ltr">{links[studentKey].link}</code>
                       {/if}
-                      <span class="rs-join">אין וואטסאפ? פתחו את <span dir="ltr">meabeclick.com/portal</span> והקלידו קוד צירוף: <b dir="ltr">{links[studentKey].joinCode}</b></span>
-                      <span class="rs-sub">הזמנה ל־48 שעות · קוד ל־15 דקות · כניסה אחת.</span>
+                      <span class="rs-sub">הזמנה ל־48 שעות · כניסה אחת.</span>
                     {:else if linkConfirm === studentKey}
                       <strong>הכנת כניסה חדשה ל{rs.name} בלבד</strong>
-                      <span class="rs-sub">קישור וקוד צירוף קודמים לתלמיד/ה שעדיין לא שימשו יפסיקו לעבוד.</span>
+                      <span class="rs-sub">קישור קודם לתלמיד/ה שעדיין לא שימשו יפסיקו לעבוד.</span>
                       <div class="rs-links">
                         <button class="copy-btn" disabled={linkBusy === studentKey} onclick={() => loadLink(rs.code, rs.account_id, 'student')}>הכנת כניסה חדשה</button>
                         <button class="copy-btn" disabled={linkBusy === studentKey} onclick={() => { linkConfirm = ''; }}>ביטול</button>
@@ -2106,8 +2105,6 @@
   .rs-scope { display: grid; gap: 8px; min-width: 0; }
   .rs-links { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .access-status { margin: 0; font-weight: 700; }
-  .rs-join { font-size: .82rem; color: var(--text-muted); }
-  .rs-join b { direction: ltr; unicode-bidi: isolate; letter-spacing: .08em; color: var(--accent-deep); }
   .raw-access-link { display: block; max-width: 100%; overflow-wrap: anywhere; unicode-bidi: isolate; }
   .codes-table { width: 100%; border-collapse: collapse; font-size: .9rem; min-width: 560px; }
   .codes-table thead th { text-align: right; color: var(--text-muted); font-size: .78rem; padding: 10px 12px; }

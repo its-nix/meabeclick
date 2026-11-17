@@ -13,6 +13,7 @@ const {
   checkDataDir,
   checkPortalDir,
   checkLessonEngine,
+  checkGoogleLogin,
   systemCaBundlePath,
   REQUIRED_VARS,
   checkRegistry,
@@ -337,5 +338,23 @@ test('no required var carries a personal address as its default', () => {
   for (const d of defaults) {
     assert.doesNotMatch(d, /@(gmail|googlemail)\.com/i,
       `a personal address is being used as a fallback: ${d}`);
+  }
+});
+
+// Google sign-in is the only login page flow (owner decision 2026-11-16), so a
+// production boot without it would be a site nobody can sign in to.
+test('checkGoogleLogin refuses to boot without Google login credentials',  () => {
+  const keys = ['GOOGLE_LOGIN_CLIENT_ID', 'GOOGLE_LOGIN_CLIENT_SECRET', 'GOOGLE_WEB_CLIENT_ID', 'GOOGLE_WEB_CLIENT_SECRET', 'SITE_URL'];
+  const saved = Object.fromEntries(keys.map(k => [k, process.env[k]]));
+  try {
+    for (const k of keys) delete process.env[k];
+    process.env.SITE_URL = 'https://example.test';
+    assert.throws(() => checkGoogleLogin(), /Google sign-in is not configured/);
+    process.env.GOOGLE_LOGIN_CLIENT_ID = 'id.apps.googleusercontent.com';
+    assert.throws(() => checkGoogleLogin(), /Google sign-in is not configured/, 'half a pair is still unconfigured');
+    process.env.GOOGLE_LOGIN_CLIENT_SECRET = 'secret';
+    checkGoogleLogin();
+  } finally {
+    for (const k of keys) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
   }
 });

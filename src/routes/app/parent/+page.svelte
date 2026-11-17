@@ -266,7 +266,7 @@
   /* ── Handing a child their own way in ──────────────────────────────────
      The parent's link opens the parent view; a child needs a session
      scoped to themselves. Both artifacts are minted server-side. */
-  interface Share { name: string; link: string; joinCode: string }
+  interface Share { name: string; link: string }
   let share = $state<Share | null>(null);
   let shareOpen = $state(false);
   let shareBusy = $state(false);
@@ -541,13 +541,8 @@
           </div>
           {#if showLink}<div class="share-link" dir="ltr">{share.link}</div>{/if}
 
-          <div class="share-code">
-            <div class="share-code-label">אין וואטסאפ? פתחו את <span dir="ltr">{page.url.host}/portal</span> והקלידו קוד צירוף:</div>
-            <div class="share-code-value" dir="ltr">{share.joinCode}</div>
-            <div class="share-code-note">תקף ל־15 דקות ולכניסה אחת.</div>
-          </div>
           <button class="share-secondary" onclick={loadShare} disabled={shareBusy}>{shareBusy ? 'מכינים…' : 'הכנת הזמנה חדשה'}</button>
-          <p class="share-intro">הזמנה חדשה מחליפה קישורים וקודים שטרם שימשו. מכשירים שכבר נכנסו נשארים מחוברים.</p>
+          <p class="share-intro">הזמנה חדשה מחליפה קישורים שטרם שימשו. מכשירים שכבר נכנסו נשארים מחוברים.</p>
           {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
         {/if}
       </div>
@@ -1007,16 +1002,6 @@
     word-break: break-all; background: var(--bg-base);
     border-radius: 8px; padding: 0.5rem 0.6rem; user-select: all;
   }
-  .share-code {
-    margin-top: 1rem; padding-top: 0.9rem; border-top: 1px dashed var(--border-strong);
-    text-align: center;
-  }
-  .share-code-label { font-size: 0.85rem; color: var(--text-muted); }
-  .share-code-value {
-    font-size: 1.7rem; font-weight: 700; letter-spacing: 0.14em;
-    color: var(--accent); margin: 0.35rem 0 0.2rem; user-select: all;
-  }
-  .share-code-note { font-size: 0.78rem; color: var(--text-muted); }
 
   .pay-note { font-size: 0.82rem; color: var(--text-muted); margin: 0.7rem 0 0.2rem; }
   .pay-btn {

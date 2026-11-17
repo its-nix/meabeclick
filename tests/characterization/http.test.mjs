@@ -15,8 +15,9 @@ import { startServer } from './harness.mjs';
 const MALFORMED = '{not valid json';
 
 // /api/verify-account was removed with the password model; /api/request-link
-// and /api/join are the routes that replaced it as the family's way in.
-const POST_ROUTES = ['/api/login', '/api/game-result', '/api/request-link', '/api/join', '/api/book'];
+// replaced it. /api/join (join-code login) was removed with the login page's
+// code entry - Google sign-in is the only login page flow.
+const POST_ROUTES = ['/api/login', '/api/game-result', '/api/request-link', '/api/book'];
 
 for (const route of POST_ROUTES) {
   test(`POST ${route} with malformed JSON answers 400, not 500`, async () => {

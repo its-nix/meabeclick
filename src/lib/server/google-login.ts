@@ -1,5 +1,7 @@
 /** Google proves a subject; existing family authorization still decides access. */
 import { GOOGLE_LOGIN_DEPLOYMENT } from './google-login-settings.ts';
+import { googleLoginConfig } from './google-login-config.ts';
+export { googleLoginConfig };
 import { createHash, randomBytes } from 'node:crypto';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { FamilyIdentity } from './family-auth.ts';
@@ -15,18 +17,6 @@ const TTL_MS = 10 * 60 * 1000;
 export const randomSecret = () => randomBytes(32).toString('base64url');
 export const hashSecret = (value: string) => createHash('sha256').update(value).digest('base64url');
 
-export function googleLoginConfig() {
-  // A dedicated pair must be complete. Reusing Meet is an explicit deployment
-  // setting, enabled only after its client registered the login callback.
-  const dedicated = !!(process.env.GOOGLE_LOGIN_CLIENT_ID || process.env.GOOGLE_LOGIN_CLIENT_SECRET);
-  const clientId = dedicated ? process.env.GOOGLE_LOGIN_CLIENT_ID
-    : GOOGLE_LOGIN_DEPLOYMENT.reuseMeetClient ? process.env.GOOGLE_WEB_CLIENT_ID : undefined;
-  const clientSecret = dedicated ? process.env.GOOGLE_LOGIN_CLIENT_SECRET
-    : GOOGLE_LOGIN_DEPLOYMENT.reuseMeetClient ? process.env.GOOGLE_WEB_CLIENT_SECRET : undefined;
-  const site = process.env.SITE_URL?.replace(/\/+$/, '');
-  if (!clientId || !clientSecret || !site) return null;
-  return { clientId, clientSecret, redirectUri: `${site}/auth/google/callback` };
-}
 export const googleEnabled = () => googleLoginConfig() !== null;
 export function tutorGoogleEnabled() {
   return googleEnabled() && tutorGoogleEmails().length > 0;
@@ -208,12 +198,12 @@ export function familyDestination(identity: FamilyIdentity, next = '/portal'): s
   return student ? `/app/student?s=${encodeURIComponent(student.code)}` : '/app/parent';
 }
 export const GOOGLE_ERRORS: Record<string, string> = {
-  cancelled: 'הכניסה בוטלה. אפשר לנסות שוב או להיכנס בדרך אחרת.',
-  unavailable: 'הכניסה עם Google אינה זמינה כרגע. אפשר להיכנס עם קישור אישי.',
+  cancelled: 'הכניסה בוטלה. אפשר לנסות שוב.',
+  unavailable: 'הכניסה עם Google אינה זמינה כרגע. נסו שוב בעוד רגע, או כתבו למורה.',
   google: 'לא הצלחנו להשלים את הכניסה עם Google. נסו שוב.',
-  expired: 'הכניסה כבר לא תקפה. פתחו שוב את ההזמנה או בקשו קישור חדש.',
+  expired: 'הכניסה כבר לא תקפה. נסו להיכנס שוב, או פתחו שוב את ההזמנה.',
   'parent-account': 'נבחר חשבון ההורה. פתחו שוב את ההזמנה ובחרו את חשבון Google של התלמיד/ה.',
   conflict: 'חשבון Google הזה או הדף הזה כבר מחוברים לחשבון אחר. בחרו את החשבון המתאים או פנו למורה.',
-  'email-proof': 'כדי לחבר את החשבון הקיים, היכנסו פעם אחת דרך קישור למייל ואז בחרו חיבור Google בדף שלכם.',
+  'email-proof': 'חשבון Google הזה אינו חשבון gmail או חשבון ארגוני של Google, ולכן איננו יכולים לאמת דרכו שהמייל שלכם. פתחו את הקישור האישי שקיבלתם (במייל או בוואטסאפ) ובחרו שם חיבור Google, או כתבו למורה.',
   tutor: 'חשבון Google הזה אינו מורשה ללוח המורה. בחרו את חשבון המורה או השתמשו בסיסמה.',
 };

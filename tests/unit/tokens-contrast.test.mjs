@@ -185,15 +185,12 @@ test('library working status is AA-safe plain text on its table and hover surfac
 
 test('white text clears AA on every primary button, hover and gradient fill role', () => {
   const booking = source('src/routes/booking/+page.svelte');
-  const portal = source('src/routes/portal/+page.svelte');
   const parent = source('src/routes/app/parent/+page.svelte');
   const roles = [
     ['booking submit', booking, /\.btn-primary\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
     ['booking submit hover', booking, /\.btn-primary:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
     ['booking handoff', booking, /\.handoff-primary\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
     ['booking handoff hover', booking, /\.handoff-primary:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
-    ['portal submit', portal, /\.go\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
-    ['portal submit hover', portal, /\.go:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
     ['parent booking CTA', parent, /\.fam-book\s*\{[^}]*background:\s*var\(--([^)]+)\)[^}]*color:\s*#fff/s],
     ['parent booking CTA hover', parent, /\.fam-book:hover\s*\{[^}]*background:\s*var\(--([^)]+)\)/s],
   ];

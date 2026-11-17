@@ -37,8 +37,7 @@ test('admin access actions name one scope and provide safe single-use handoff gu
   assert.match(dashboard, /role="status"/);
   assert.match(dashboard, /\.copy-btn\s*\{[^}]*min-height:\s*44px/s);
   assert.match(dashboard, /\.toast-close\s*\{[^}]*min-height:\s*44px[^}]*min-width:\s*44px/s);
-  assert.match(dashboard, /<b dir="ltr">\{links\[studentKey\]\.joinCode\}<\/b>/);
-  assert.match(dashboard, /\.rs-join b\s*\{[^}]*unicode-bidi:\s*isolate/s);
+  assert.doesNotMatch(dashboard, /קוד צירוף|links\[studentKey\]\.joinCode/, 'join codes are no longer a login path');
   assert.match(dashboard, /@media \(max-width: 600px\)[\s\S]*\.codes-table\s*\{[^}]*min-width:\s*0/s);
   assert.match(dashboard, /@media \(max-width: 600px\)[\s\S]*\.codes-table\s*\{[^}]*inline-size:\s*100%[^}]*max-inline-size:\s*100%/s);
 });
@@ -55,11 +54,10 @@ test('admin access groups one account action above its per-student actions', () 
   assert.match(dashboard, /בחשבון של \{account\.accountName\}/);
 });
 
-test('portal pending feedback and narrow reflow remain explicit', () => {
+test('portal narrow reflow and touch targets remain explicit', () => {
   const portal = readFileSync('src/routes/portal/+page.svelte', 'utf8');
 
-  assert.match(portal, /linkState === 'sending'.*role="status"/s);
   assert.match(portal, /\.brand\s*\{[^}]*min-height:\s*44px/s);
-  assert.match(portal, /\.tab\s*\{[^}]*min-width:\s*0/s);
+  assert.doesNotMatch(portal, /request-link|api\/join/, 'no link or code entry on the login page');
   assert.match(portal, /\.links a\s*\{[^}]*min-height:\s*44px/s);
 });

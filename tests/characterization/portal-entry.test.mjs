@@ -1,33 +1,37 @@
-// The portal entry page has two doors, and each must say who it is for.
+// The portal page is the Google sign-in page and nothing else.
 //
-// A parent or an adult learner gets in by email link; a child gets in
-// with the one-time code their parent prepared. The old tabs read
-// "הורה / תלמיד בוגר" and "יש לי קוד", and the second one never said it
-// was the CHILD's way in — so a parent holding a code, or a child holding
-// nothing, could pick the wrong door. This pins the server-rendered copy
-// so both doors stay labelled; the code pane itself renders client-side
-// and is covered by a browser check, not here.
+// Owner decision 2026-11-16: the "link or code" section is not part of the
+// login flow. A parent or student who holds a personal link opens it (that
+// is /enter, not this page); a child no longer types a join code. The page
+// must offer Google, a way to book, and a way to reach the tutor - and must
+// not render a second door, an email box, or a code box.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer } from './harness.mjs';
 
-test('the portal entry page names both doors and who each is for', async () => {
+test('the portal page offers Google sign-in and no link or code entry', async () => {
   const { baseUrl, stop } = await startServer();
   try {
     const html = await (await fetch(`${baseUrl}/portal`)).text();
 
-    // Door one: parents and adult learners, by email.
-    assert.match(html, /הורים ותלמידים בוגרים/, 'the email door must name parents and adult learners');
-    assert.match(html, /כניסה דרך המייל/, 'the email door must say it works by email');
-    assert.match(html, /המייל שאיתו הזמנתם/, 'the email field keeps its label');
+    assert.match(html, /action="\/auth\/google\/start"/, 'Google sign-in is the login');
+    assert.match(html, /href="\/booking"/, 'booking stays reachable');
 
-    // Door two: students, by code.
-    assert.match(html, /<button[^>]*>[\s\S]*?תלמידים[\s\S]*?כניסה עם קוד[\s\S]*?<\/button>/,
-      'the code door must say it is for students and works with a code');
+    for (const gone of [/כניסה עם קישור או קוד/, /כניסה בלי סיסמה/, /כניסה עם קוד/,
+      /כניסה דרך המייל/, /קוד הצירוף/, /המייל שאיתו הזמנתם/, /שליחת קישור אישי/, /id="join-code"/, /id="portal-email"/]) {
+      assert.doesNotMatch(html, gone, `${gone} must not be on the login page`);
+    }
+  } finally {
+    await stop();
+  }
+});
 
-    // The old ambiguous labels are gone, not merely joined by new ones.
-    assert.doesNotMatch(html, /יש לי קוד/, 'the old "I have a code" label no longer appears');
-    assert.doesNotMatch(html, /הורה \/ תלמיד בוגר/, 'the old slash label no longer appears');
+test('an expired personal link lands on a page that does not offer to email a new one', async () => {
+  const { baseUrl, stop } = await startServer();
+  try {
+    const html = await (await fetch(`${baseUrl}/portal?expired=1`)).text();
+    assert.match(html, /הקישור כבר לא תקף/);
+    assert.doesNotMatch(html, /לקבל חדש למייל/);
   } finally {
     await stop();
   }

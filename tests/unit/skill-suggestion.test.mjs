@@ -119,7 +119,7 @@ test('every suggestion carries checkable evidence, not a confidence score', () =
 });
 
 test('plays with no score are not counted as zeros', () => {
-  // results_v2.score and .total are nullable. Treating a null as 0 would
+  // A play's score and total are nullable. Treating a null as 0 would
   // manufacture a failing play out of a missing one and flag a child for
   // review over a logging gap.
   const ev = {

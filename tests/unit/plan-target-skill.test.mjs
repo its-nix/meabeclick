@@ -12,8 +12,8 @@
 // asked to emit a node id can emit one that does not exist, or one
 // belonging to another student's plan; the pipeline already knows which
 // skills it asked about, so the link is a fact rather than an output to be
-// trusted. That is the same reasoning as games/registry.json's data-only
-// templates: let the model produce content, never identity.
+// trusted. That is the same reasoning as keeping templates data-only:
+// let the model produce content, never identity.
 //
 // Pure, like the rest of plans/view.ts — this is a judgement a tutor acts
 // on, so it is tested directly rather than through a route.

@@ -127,6 +127,10 @@ export async function startServer({ env = {}, ports = [], fakeGoogle = false } =
       // Nikol's lesson calendar and busy feed: her row takes both over at
       // boot (adoptEnvCalendar). The calendar is never written to:
       // GOOGLE_SERVICE_ACCOUNT_* are in BLOCKED, so no test reaches Google.
+      // Google sign-in is the only login page flow, so boot-checks.ts refuses to
+      // start without it. Tests that exercise Google override these via `env`.
+      GOOGLE_LOGIN_CLIENT_ID: 'harness-login-client.apps.googleusercontent.com',
+      GOOGLE_LOGIN_CLIENT_SECRET: 'harness-synthetic-secret',
       CALENDAR_ID: 'test-calendar@example.com',
       CALENDAR_ICS_URLS: await emptyFeedUrl(),
       ...env,

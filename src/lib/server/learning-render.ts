@@ -61,7 +61,7 @@ export function renderLearningDocument(e: LearningExperience, options: {
   const config: LearningClientConfig = {
     experience: publicExperience(e), fingerprint: learningFingerprint(e), lessonSlug: options.slug ?? null,
     demo: !!options.demo || !!options.preview, storageScope: options.storageScope,
-    variant:options.variant,independentSceneIds,
+    independentSceneIds,
     ...(options.demo || options.preview ? { demoChecks: Object.fromEntries(e.scenes.filter(s => s.check).map(s => {const {solution:_private,...check}=s.check!;return [s.id,check];})) } : {}),
   };
   const data = JSON.stringify(config).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
@@ -86,9 +86,8 @@ export function renderLearningDocument(e: LearningExperience, options: {
       ${check ? `<div class="check-card"><span class="check-kicker">${independent ? 'מנסים לבד' : 'תורכם לנסות'}</span>${homeworkStimulus(s)}<h2 class="check-question">${mathText(check.question)}</h2>
         ${check.kind === 'choice' ? `<div class="choices" role="group" aria-label="אפשרויות תשובה">${check.options.map((o, j) => `<button class="choice" data-option="${j}" aria-pressed="false"><span class="choice-key">${['א', 'ב', 'ג', 'ד'][j]}</span><span>${mathText(o)}</span></button>`).join('')}</div>` : ''}
         ${check.kind === 'number' ? `<label class="answer-label" for="answer-${s.id}">התשובה שלי</label><input class="number-answer" id="answer-${s.id}" data-number-answer type="text" inputmode="decimal" autocomplete="off" maxlength="80" placeholder="אפשר גם שבר, למשל 1/2">` : ''}
-        <div class="check-actions"><button class="primary-button" data-submit>בדיקת התשובה <span aria-hidden="true">←</span></button><button class="hint-button" data-hint>אפשר רמז?</button>${check.solution&&!options.preview&&!options.demo?'<button class="hint-button" data-solution disabled>פתרון בשלבים</button>':''}</div>
+        <div class="check-actions"><button class="primary-button" data-submit>בדיקת התשובה <span aria-hidden="true">←</span></button><button class="hint-button" data-hint>אפשר רמז?</button></div>
       </div>` : ''}
-      ${check?.solution?'<div class="worked-solution" data-worked-solution hidden role="status" aria-live="polite"></div>':''}
       ${check&&options.solutions?`<details class="worked-solution"><summary>תשובון למורה בלבד</summary><p>${check.solution?mathText(check.solution):mathText(check.kind==='choice'?check.options[Number(check.answer)]:String(check.answer))}</p></details>`:''}
       ${s.tutorReview?`<div class="check-card"><span class="check-kicker">לבדיקת מורה</span><label class="answer-label" for="reason-${s.id}">הדרך והנימוק שלי</label><textarea id="reason-${s.id}" data-reasoning maxlength="3000" rows="5"></textarea><p class="print-note">הטיוטה נשמרת במכשיר הזה בלבד. הביאו את הדרך לשיעור; המורה תעבור עליה איתכם.</p></div>`:''}
       <p class="hint-text" data-hint-text hidden></p><p class="feedback" data-feedback role="status" aria-live="polite"></p>

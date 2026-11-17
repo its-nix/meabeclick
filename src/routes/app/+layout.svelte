@@ -8,9 +8,9 @@
    *
    * IMPORTANT — do not add auth here. `/app/` is a PWA-scope and
    * in-app-navigation boundary, not an authentication boundary (spec §6):
-   * /app/dashboard and /app/games require a tutor session, but
-   * /app/parent, /app/student and /app/play/* are public (PIN-checked
-   * client-side against /api/portal/:code). A blanket guard in
+   * /app/dashboard requires a tutor session, but /app/parent and
+   * /app/student are public (PIN-checked client-side against
+   * /api/portal/:code). A blanket guard in
    * +layout.server.ts — or here — would lock children out of their own
    * homework. Each page that needs a session calls requireAuth(event) in
    * its own +page.server.ts instead. Do not "tidy" this upward.

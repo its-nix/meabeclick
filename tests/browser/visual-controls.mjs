@@ -7,7 +7,7 @@ const server=await startServer(),browser=await chromium.launch({executablePath:p
 try{
  const page=await browser.newPage({reducedMotion:'reduce'}),bundle=visualDeckFixture();
  const staged=bundle.slides[2].blocks[0].model;staged.mode='population';staged.interactive='none';staged.states=[staged.states[0],structuredClone(staged.states[0]),structuredClone(staged.states[0])];
- await page.route('**/visual-controls',r=>r.fulfill({contentType:'text/html',body:renderVisualDeck(bundle,{view:'lesson'})}));
+ await page.route('**/visual-controls',r=>r.fulfill({contentType:'text/html',body:renderVisualDeck(bundle,{view:'lesson',baseUrl:'/visual-controls'})}));
  await page.goto(server.baseUrl+'/visual-controls');
  await page.evaluate(()=>document.fonts.ready);
  const model=page.locator('[data-slide]:visible [data-model]').first(),lower=model.locator('[data-live-param="lowerZ"]'),upper=model.locator('[data-live-param="upperZ"]');

@@ -10,7 +10,7 @@ import {assertLegacyAuthoring,withLegacyPublication} from '../learning-archive.t
  */
 import { createLesson, finishLesson, handle } from '../db.ts';
 import { generateLesson, validateLesson, type LessonPlan, type LessonRequest } from '../lesson/prep.ts';
-import { publish, publishDraftOnly, messageForFailure } from '../lesson/queue.ts';
+import { publish, messageForFailure } from '../lesson/queue.ts';
 import { templateById, type PlanTemplate, type TemplateSkill } from '../plans/templates.ts';
 import {generationVersion} from '../../learning/teaching-rules.ts';
 import {teachingContextFor} from '../lesson/teaching-context.ts';
@@ -83,7 +83,6 @@ export async function prepareSkill(templateId: string, skillKey: string, deps: P
     const plan = await generate(meta);
     const problems = validateLesson(plan);
     if (problems.length) {
-      await publishDraftOnly(slug, plan, meta);
       const problem = problems.join(' · ');
       finishLesson(slug, { status: 'held', title: plan.title, context: plan.gradeContext, problem });
       return setItem({ templateId, skillKey, slug, status: 'held', problem });
@@ -91,7 +90,7 @@ export async function prepareSkill(templateId: string, skillKey: string, deps: P
     const published = await publish(slug, plan, meta);
     finishLesson(slug, {
       status: 'ready', title: plan.title, context: plan.gradeContext,
-      slides: `lessons/${slug}/slides.html`, homework: plan.homework, games: published.games,
+      homework: plan.homework,
     });
     return setItem({ templateId, skillKey, slug, status: 'ready' });
   } catch (err) {

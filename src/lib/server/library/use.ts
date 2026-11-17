@@ -43,9 +43,3 @@ export function recordUse(u: { lessonSlug: string; masterSlug: string; templateI
     VALUES (?, ?, ?, ?, ?)
   `).run(u.lessonSlug, u.masterSlug, u.templateId, u.skillKey, new Date().toISOString());
 }
-
-/** The master a lesson was copied from, or null for a generated one. */
-export function librarySourceOf(lessonSlug: string): string | null {
-  const r = handle().prepare(`SELECT master_slug FROM library_uses WHERE lesson_slug = ?`).get(lessonSlug) as { master_slug: string } | undefined;
-  return r?.master_slug ?? null;
-}

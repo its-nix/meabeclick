@@ -17,7 +17,6 @@ const P = await import('../../src/lib/server/library/prepare.ts');
 const S = await import('../../src/lib/server/library/store.ts');
 const { readLessons } = await import('../../src/lib/server/db.ts');
 const { latestPublished } = await import('../../src/lib/server/materials.ts');
-const { readContent } = await import('../../src/lib/server/content.ts');
 const { assertPathSegment } = await import('../../src/lib/server/urls.ts');
 const { LessonGenerationError } = await import('../../src/lib/server/lesson/engine.ts');
 
@@ -27,14 +26,6 @@ const plan = (title) => ({
   slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['נקודה'] })),
   examples: [{ problem: '2+2', steps: ['מחברים'], answer: '4' }],
   homework: [{ task: 'תרגיל א', why: 'תרגול', answer: 'א' }, { task: 'תרגיל ב', why: 'תרגול', answer: 'ב' }],
-  games: {
-    quiz: { title: 'חידון', questions: [
-      { q: 'שאלה 1', options: ['א', 'ב', 'ג'], answer: 0 },
-      { q: 'שאלה 2', options: ['א', 'ב', 'ג'], answer: 1 },
-      { q: 'שאלה 3', options: ['א', 'ב', 'ג'], answer: 2 },
-    ] },
-    sequence: { title: 'סדר', steps: ['ראשון', 'שני', 'שלישי'] },
-  },
 });
 
 test('a master is named for its skill, and its slug is a legal path segment', () => {
@@ -56,11 +47,11 @@ test("preparing a skill generates its master once, at the template's grade, aime
   assert.equal(asked[0].level, 'כיתה ח');
   assert.equal(asked[0].subject, 'מתמטיקה');
 
-  // An ordinary lesson underneath: row, published plan, slides on disk.
+  // An ordinary lesson underneath: row, published plan and slides.
   const row = readLessons().find(l => l.slug === item.slug);
   assert.equal(row.status, 'ready');
   assert.equal(JSON.parse(latestPublished(item.slug, 'plan').content).title, 'שאלות מילוליות');
-  assert.match((await readContent('lessons', item.slug)).toString('utf8'), /שקף 1/);
+  assert.match(latestPublished(item.slug, 'slides').content, /שקף 1/);
   assert.equal(S.itemFor('math-8', 'alg.eq.word').slug, item.slug);
 });
 

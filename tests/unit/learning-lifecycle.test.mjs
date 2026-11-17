@@ -11,9 +11,13 @@ const E=await import('../../src/lib/server/entities.ts');
 const P=await import('../../src/lib/server/plans/store.ts');
 const {handle,createLesson}=await import('../../src/lib/server/db.ts');
 const {recordGenerated,latestPublished}=await import('../../src/lib/server/materials.ts');
-const {assignLearning,learningForStudent,assignedExperience,learningMaterialSlug}=await import('../../src/lib/server/learning-store.ts');
+const {assignLearning}=await import('../../src/lib/server/learning-store.ts');
 const {afterReport}=await import('../../src/lib/server/reports/after.ts');
 const{addHomework,homeworkForStudent}=await import('../../src/lib/server/lessons.ts');
+/** The assignment row's state, and the material its practice currently lives in. */
+const practiceState=slug=>handle().prepare('SELECT practice_state s FROM learning_assignments WHERE lesson_slug=?').get(slug)?.s;
+const learningMaterialSlug=slug=>handle().prepare('SELECT practice_material_slug m FROM learning_assignments WHERE lesson_slug=?').get(slug)?.m??slug;
+const practicePlan=slug=>JSON.parse(latestPublished(learningMaterialSlug(slug),'plan').content);
 const template={id:'learning-test',version:1,subject:'מתמטיקה',track:'',reviewed:null,topics:[{key:'t',title:'נושא',branches:[{key:'t.b',title:'ענף',skills:[
   {key:'t.b.a',title:'הזזת פרבולה',requires:[]},{key:'t.b.b',title:'פרבולה נוספת',requires:[]},
 ]}]}]};
@@ -41,9 +45,8 @@ test('v2 reports reuse only covered activities and keep preparation history and 
  addHomework({studentId:student.id,task:'הכנה מוחזקת',bookingId,nodeId:skills[0].id,assignedAt:new Date().toISOString(),heldUntil:'2099-01-01T00:00:00.000Z'});
  let calls=0;const result=await afterReport({bookingId,nodeIds:[skills[0].id],note:null,coveredObjectiveIds:['o1']},{generate:async()=>{calls++;throw Error('should reuse');}});
  assert.equal(result,'replaced');assert.equal(calls,0);
- assert.equal(assignedExperience(slug),null);assert.equal(assignedExperience(slug,'homework').experience.scenes.length,1);
- const {presentationExperience}=await import('../../src/lib/server/learning-store.ts');assert.equal(typeof presentationExperience,'function');assert.equal(presentationExperience(slug).experience.title,p.learning.title);
- assert.match(learningForStudent(student.id)[0].url,/\/homework$/);
+ assert.equal(practiceState(slug),'assigned');assert.equal(practicePlan(slug).homework.length,1);
+ assert.equal(JSON.parse(latestPublished(slug,'plan').content).learning.title,p.learning.title,'the presentation keeps its own material');
  assert.equal(JSON.parse(latestPublished(slug,'plan').content).homework.length,2,'original preparation is retained');
  const target=learningMaterialSlug(slug);assert.notEqual(target,slug);
  assert.equal(await afterReport({bookingId,nodeIds:[],note:null,coveredObjectiveIds:['untaught']}),'none');assert.equal(learningMaterialSlug(slug),target);
@@ -69,40 +72,31 @@ test('a report crossing the release deadline cannot delete visible submitted hom
  }});
  assert.equal(result,'none');assert.ok(handle().prepare('SELECT submitted_at FROM homework WHERE id=?').get(original.id)?.submitted_at);assert.equal(learningMaterialSlug(slug),slug);
 });
-test('booking preparation is available before class without appearing as released homework',async()=>{
-  const {student,bookingId,skills}=setup();
-  assert.equal(learningForStudent(student.id).length,0);
-  assert.equal(learningForStudent(student.id,'preparation').length,1);
+test('booking preparation is held until the report assigns it',async()=>{
+  const {bookingId,skills,slug}=setup();
+  assert.equal(practiceState(slug),'held');
   await afterReport({bookingId,note:null,nodeIds:[skills[0].id]});
-  assert.equal(learningForStudent(student.id).length,1);
-  assert.equal(learningForStudent(student.id,'preparation').length,0);
+  assert.equal(practiceState(slug),'assigned');
 });
 test('a changed taught skill gets its published library experience and a distinct editable history',async()=>{
-  const {student,bookingId,skills,slug}=setup();
+  const {bookingId,skills,slug}=setup();
   const replacement={...structuredClone(PARABOLAS),title:'תרגול לפי השיעור שהתקיים'};
   const master=`library-life-${serial}`;
   handle().prepare("INSERT INTO library_items (template_id,skill_key,slug,status,updated_at) VALUES ('learning-test','t.b.b',?,'ready',?)").run(master,new Date().toISOString());
   recordGenerated(master,{plan:JSON.stringify({learning:replacement})});
   await afterReport({bookingId,note:null,nodeIds:[skills[1].id]});
-  assert.equal(learningForStudent(student.id)[0].title,replacement.title);
-  assert.equal(assignedExperience(slug).experience.title,replacement.title);
+  assert.equal(practiceState(slug),'assigned');
+  assert.equal(practicePlan(slug).learning.title,replacement.title);
   assert.equal(learningMaterialSlug(slug),`${slug}--practice`);
   assert.equal(JSON.parse(latestPublished(slug,'plan').content).learning.title,PARABOLAS.title,'preparation history is preserved');
   await afterReport({bookingId,note:null,nodeIds:[skills[0].id]});
-  assert.equal(assignedExperience(slug).experience.title,replacement.title,'repeated reports do not retract released work');
+  assert.equal(practicePlan(slug).learning.title,replacement.title,'repeated reports do not retract released work');
 });
 test('untaught material with no ready replacement stays out of homework',async()=>{
-  const {student,bookingId,skills}=setup();
+  const {bookingId,skills,slug}=setup();
   handle().prepare("DELETE FROM library_items WHERE template_id='learning-test'").run();
   await afterReport({bookingId,note:null,nodeIds:[skills[1].id]});
-  assert.equal(learningForStudent(student.id).length,0);
-});
-test('no-report fallback releases after 24h; cancellation does not release preparation',()=>{
-  const one=setup(),two=setup();
-  handle().prepare("UPDATE bookings_v2 SET status='cancelled' WHERE id=?").run(two.bookingId);
-  assert.equal(learningForStudent(one.student.id,'practice','2100-01-01T00:00:00.000Z').length,1);
-  assert.equal(learningForStudent(two.student.id,'practice','2100-01-01T00:00:00.000Z').length,0);
-  assert.equal(learningForStudent(two.student.id,'preparation').length,0);
+  assert.equal(practiceState(slug),'withdrawn');
 });
 test('booking and skill identity cannot be borrowed from another student',()=>{
   const one=setup(),two=setup();

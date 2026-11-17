@@ -109,65 +109,6 @@ export function history(slug: string, kind: MaterialKind): MaterialRow[] {
 }
 
 /**
- * Publishes one version.
- *
- * This is the single place `published_at` is ever set after insert, and it
- * refuses to move one that is already set: a published version is a thing
- * that went out to a student at a particular moment, and rewriting that
- * timestamp would make the history lie about when.
- *
- * Publishing an OLDER version than the newest published one is allowed —
- * that is what rolling back a bad publish looks like, and latestPublished()
- * orders by version, so see restoreVersion() for how a rollback is made to
- * take effect.
- */
-export function publishVersion(slug: string, kind: MaterialKind, version: number): MaterialRow | null {
-  const row = byVersion(slug, kind, version);
-  if (!row) return null;
-  if (row.published_at) return row;
-  handle().prepare(`UPDATE lesson_materials SET published_at = ? WHERE id = ?`).run(now(), row.id);
-  return byVersion(slug, kind, version);
-}
-
-/**
- * Brings an old version back as a NEW version.
- *
- * Not "publish the old row": latestPublished() takes the highest version
- * number, so re-publishing version 2 while version 5 is published would
- * change nothing a student sees. Copying it forward is also the honest
- * record — the history then says "on Tuesday she went back to what version
- * 2 said", which is what happened, instead of silently making version 2
- * look like it had been current all along.
- */
-export function restoreVersion(
-  slug: string, kind: MaterialKind, version: number, opts: { publish?: boolean } = {},
-): MaterialRow | null {
-  const source = byVersion(slug, kind, version);
-  if (!source) return null;
-  return addMaterial({
-    slug, kind,
-    content: source.content,
-    teacherOnly: source.teacher_only,
-    origin: 'restored',
-    publish: opts.publish ?? false,
-  });
-}
-
-/**
- * Whether regeneration would land on top of work the tutor did.
- *
- * Generation never overwrites — it appends like everything else — so this
- * is not a safety check. It is what lets the caller SAY so: "there is an
- * edit of yours newer than the last generated version" is worth telling her
- * before she regenerates, and worth telling her afterwards so she can find
- * her way back to it.
- */
-export function hasUnpublishedEdits(slug: string, kind: MaterialKind): boolean {
-  const row = latest(slug, kind);
-  return !!row && row.origin !== 'generated' && row.published_at === null;
-}
-
-/**
  * Records what generation produced, without ever displacing a tutor's work.
  *
  * This function is why the module's two opening rules are now true rather
@@ -198,14 +139,3 @@ export function recordGenerated(
   }
 }
 
-/**
- * What a student may be shown, or null when this lesson predates the
- * versioned store.
- *
- * Null is not an error and must not 404 a real lesson: every lesson
- * generated before migration 012 has slides on disk and no rows here. The
- * caller falls back to the file, which is exactly what it served before.
- */
-export function publishableSlides(slug: string): string | null {
-  return latestPublished(slug, 'slides')?.content ?? null;
-}

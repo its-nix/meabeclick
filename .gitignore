@@ -10,11 +10,9 @@ node_modules/
 # accident. This is also the app's writable bind mount on the VPS, so
 # NOTHING under it may be git-tracked: a tracked file living inside a
 # writable mount is exactly what let a live student record (portal/
-# noga.json, pre-move) and a dozen games-data fixtures dirty the VPS
+# noga.json, pre-move) and a dozen game-data fixtures dirty the VPS
 # working tree and block `git pull` on deploy (see server/README.md's
-# Cutover section). Those demo fixtures later left git entirely: migration
-# 031 inserts them into game_filler. seed/games-data/ now holds only the
-# speed-drill example, which is still copied into data/games-data/ once.
+# Cutover section).
 /data/
 # Real student portal records. The app reads them from PORTAL_DIR under the
 # data mount (backed up nightly), never from here; the last tracked one

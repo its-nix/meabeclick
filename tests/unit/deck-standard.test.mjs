@@ -24,31 +24,24 @@ const plan = (over = {}) => ({
   ],
   examples: [{ problem: 'פתרו 2(x + 4) = 18', steps: ['2x + 8 = 18', '2x = 10'], answer: 'x = 5' }],
   homework: [],
-  games: { quiz: { title: 'חידון', subject: '', questions: [
-    { q: 'כמה זה 3(x - 2) כש-x=4?', options: ['6', '10', '2'], answer: 0, why: '3·2=6', hint: '' },
-  ] } },
   ...over,
 });
 
 const html = (p = plan()) => renderSlides(p, { subject: 'מתמטיקה', level: 'כיתה ח' });
 const headings = (h) => [...h.matchAll(/<h2>([\s\S]*?)<\/h2>/g)].map(m => m[1].replace(/<[^>]+>/g, ''));
 
-test('the lesson runs explanation → worked example → check yourself → summary', () => {
-  assert.deepEqual(headings(html()), ['מה נלמד היום?', 'פתיחת סוגריים', 'דוגמה 1', 'בדקו את עצמכם', 'סיכום: מתכון לפתרון']);
+test('the lesson runs explanation → worked example → summary', () => {
+  assert.deepEqual(headings(html()), ['מה נלמד היום?', 'פתיחת סוגריים', 'דוגמה 1', 'סיכום: מתכון לפתרון']);
 });
 
-test('a deck with no summary slide keeps its slides in order and ends with the check', () => {
+test('a deck with no summary slide keeps its slides in order and ends with the example', () => {
   const p = plan({ slides: plan().slides.slice(0, 2) });
-  assert.deepEqual(headings(html(p)), ['מה נלמד היום?', 'פתיחת סוגריים', 'דוגמה 1', 'בדקו את עצמכם']);
+  assert.deepEqual(headings(html(p)), ['מה נלמד היום?', 'פתיחת סוגריים', 'דוגמה 1']);
 });
 
-test('no quiz, no check slide — nothing is invented', () => {
-  assert.ok(!headings(html(plan({ games: {} }))).includes('בדקו את עצמכם'));
-});
-
-test('every formula keeps its own left-to-right direction, in bullets, examples and the check', () => {
+test('every formula keeps its own left-to-right direction, in bullets and examples', () => {
   const h = html();
-  for (const f of ['2x + 3 = 11', '8-(x+3)', '2(x + 4) = 18', '2x + 8 = 18', 'x = 5', '3(x - 2)']) {
+  for (const f of ['2x + 3 = 11', '8-(x+3)', '2(x + 4) = 18', '2x + 8 = 18', 'x = 5']) {
     assert.ok(h.includes(`<bdi dir="ltr">${f}</bdi>`), f);
   }
 });
@@ -62,20 +55,11 @@ test("an example's steps and answer wait behind «הצגת הפתרון»; the p
   assert.match(after, /class="answer"/);
 });
 
-test('the check asks the first quiz question and keeps its answer closed', () => {
-  const check = html().split('<h2>בדקו את עצמכם</h2>')[1].split('</section>')[0];
-  const [before, after] = check.split('<details');
-  assert.match(before, /כמה זה/);
-  assert.match(before, /<li>(<bdi dir="ltr">)?10(<\/bdi>)?<\/li>/, 'the options are shown');
-  assert.match(after, /<summary>הצגת התשובה<\/summary>/);
-  assert.match(after, /3·2=6/, 'with its why');
-});
-
 test('printing opens every closed solution, and the numbering counts every slide', () => {
   const h = html();
   assert.match(h, /beforeprint/);
-  assert.ok(h.includes('5 / 5'));
-  assert.ok(!h.includes('/ 4<'), 'no stale total');
+  assert.ok(h.includes('4 / 4'));
+  assert.ok(!h.includes('/ 3<'), 'no stale total');
 });
 
 test('the data is still escaped inside a formula', () => {

@@ -75,16 +75,6 @@ export function numericAnswer(raw: unknown): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-export function gradeLearningCheck(check: LearningCheck, input: unknown): boolean {
-  if (check.kind === 'graph-target') {
-    return Array.isArray(check.answer) && Array.isArray(input) && input.length === check.answer.length
-      && check.answer.every((n, i) => typeof input[i] === 'number' && Number.isFinite(input[i]) && Math.abs(input[i] - n) < 0.025);
-  }
-  const value = numericAnswer(input);
-  return typeof check.answer === 'number' && value !== null
-    && (check.kind === 'choice' ? Number.isInteger(value) && value === check.answer : Math.abs(value - check.answer) < 1e-7);
-}
-
 /** Shape and engine semantics. Formula compilation is checked separately by the renderer. */
 export function learningProblems(raw: unknown, options: { requirePresenterNotes?: boolean;mode?:'homework' } = {}): string[] {
   const errors: string[] = [];

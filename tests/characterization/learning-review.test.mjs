@@ -5,9 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 import corpus from '../../src/lib/server/learning-review-corpus.json' with { type:'json' };
 import { startServer, login } from './harness.mjs';
 import { seedLearning } from './learning-fixture.mjs';
-import { TEMPLATE_FILES } from '../../src/lib/server/lesson/prep.ts';
 
-const tables=['lessons','lesson_materials','library_items','library_uses','lesson_game_assignments','learning_assignments','learning_progress','learning_events','results_v2'];
+const tables=['lessons','lesson_materials','library_items','library_uses','learning_assignments','native_results'];
 export function reviewCounts(path) {
   const db=new DatabaseSync(path);try{return Object.fromEntries(tables.map(table=>[table,db.prepare(`SELECT count(*) AS n FROM ${table}`).get().n]));}finally{db.close();}
 }
@@ -27,7 +26,6 @@ test('ten review bundles are tutor-only, private, playable and isolated from cus
     for(const item of corpus.cases){
       const id=item.brief.id;
       paths.push(...['lesson','presenter','homework'].map(view=>`/app/learning-review?case=${id}&view=${view}`));
-      for(const [key,body]of Object.entries(item.plan.games))if(body)paths.push(`/app/review-game/${id}/${TEMPLATE_FILES[key]}`);
     }
     for(const path of paths){
       for(const cookie of ['',pupil.cookie])assert.equal((await get(path,cookie)).status,302,`must require tutor ${path}`);
@@ -43,7 +41,6 @@ test('ten review bundles are tutor-only, private, playable and isolated from cus
     }
     assert.equal((await get('/app/learning-review?case=../../private')).status,404);
     assert.equal((await get('/app/learning-review?case=01-fractions&view=unknown')).status,404);
-    assert.equal((await get('/app/review-game/01-fractions/unknown')).status,404);
     assert.deepEqual(reviewCounts(server.dbPath),before,'review GETs must not create reusable masters, assignments, scores or progress');
   }finally{await server.stop();}
 });

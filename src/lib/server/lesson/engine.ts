@@ -87,12 +87,9 @@ export class LessonGenerationError extends Error {
    *
    * This must never reach `lessons.problem`. Agent output can carry
    * filesystem paths, config, and echoed prompt content, and that column is
-   * served over HTTP (see src/routes/api/lessons/+server.ts) — which was for
-   * a long time to ANY client, that route having been unauthenticated until
-   * the leak was closed. A durable database column read over HTTP is not
-   * where a subprocess's raw output belongs, and the guarantee should not
-   * rest on one route's guard staying correct. queue.ts maps `kind` to fixed
-   * Hebrew copy for that column and logs `detail` separately.
+   * shown to people. A durable database column is not where a subprocess's
+   * raw output belongs. queue.ts maps `kind` to fixed Hebrew copy for that
+   * column and logs `detail` separately.
    */
   readonly detail: string;
 

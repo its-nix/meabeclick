@@ -9,13 +9,11 @@
 // runs the Node build directly), which is exactly why CSP and
 // Permissions-Policy live in the app and not the proxy.
 //
-// Two documents are exceptions on purpose: a generated lesson deck and a
-// draft are stand-alone HTML files with their own inline script, so their
-// endpoints send a policy that allows inline for THAT document only.
+// The stand-alone lesson and activity documents are an exception on purpose:
+// they are HTML files with their own inline script, so their endpoints send a
+// policy that allows inline for THAT document only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { startServer, login } from './harness.mjs';
 
 /** Parse "a b c; d e" into { a: ['b','c'], d: ['e'] }. */
@@ -27,8 +25,6 @@ function directives(header) {
   }
   return out;
 }
-
-const DECK = '<!doctype html><html lang="he"><body><h1>שיעור</h1><script>document.title="deck"</script></body></html>';
 
 test('an app page carries an enforcing CSP with a per-request script nonce', async () => {
   const { baseUrl, stop } = await startServer();
@@ -109,41 +105,18 @@ test('Permissions-Policy denies the capabilities the site never uses', async () 
   }
 });
 
-test('a generated lesson deck gets its own inline-allowing policy, still same-origin only', async () => {
-  const { baseUrl, dataDir, stop } = await startServer();
+test('a stand-alone activity document gets its own inline-allowing policy, still same-origin only', async () => {
+  const { baseUrl, stop } = await startServer();
   try {
-    await mkdir(join(dataDir, 'lessons', 'test-deck'), { recursive: true });
-    await writeFile(join(dataDir, 'lessons', 'test-deck', 'slides.html'), DECK);
-
-    const res = await fetch(`${baseUrl}/lessons/test-deck`);
-    assert.equal(res.status, 200);
-    const csp = res.headers.get('content-security-policy');
-    assert.ok(csp, 'deck must send a CSP');
-    assert.equal(res.headers.get('content-security-policy-report-only'), null);
-    const d = directives(csp);
-    assert.deepEqual(d['default-src'], ["'self'"]);
-    assert.ok(d['script-src'].includes("'unsafe-inline'"), 'the deck\'s own inline script must run');
-    assert.ok(!d['script-src'].some(v => v.startsWith('http')), 'but no remote scripts');
-    assert.deepEqual(d['frame-ancestors'], ["'self'"]);
-    assert.deepEqual(d['object-src'], ["'none'"]);
-    assert.ok(res.headers.get('permissions-policy'), 'deck carries Permissions-Policy');
-  } finally {
-    await stop();
-  }
-});
-
-test('a draft deck gets the same document policy as a published one', async () => {
-  const { baseUrl, dataDir, stop } = await startServer();
-  try {
-    const cookie = await login(baseUrl);
-    await mkdir(join(dataDir, 'drafts', 'test-draft'), { recursive: true });
-    await writeFile(join(dataDir, 'drafts', 'test-draft', 'slides.html'), DECK);
-
-    const res = await fetch(`${baseUrl}/drafts/test-draft/slides.html`, { headers: { Cookie: cookie } });
+    const res = await fetch(`${baseUrl}/sample-game`);
     assert.equal(res.status, 200);
     const d = directives(res.headers.get('content-security-policy') ?? '');
-    assert.ok(d['script-src']?.includes("'unsafe-inline'"), 'draft deck allows its own inline script');
+    assert.ok(d['script-src']?.includes("'unsafe-inline'"), 'the document allows its own inline script');
+    assert.ok(!d['script-src'].some(v => v.startsWith('http')), 'but no remote scripts');
+    assert.deepEqual(d['default-src'], ["'self'"]);
     assert.deepEqual(d['frame-ancestors'], ["'self'"]);
+    assert.deepEqual(d['object-src'], ["'none'"]);
+    assert.ok(res.headers.get('permissions-policy'), 'document carries Permissions-Policy');
   } finally {
     await stop();
   }

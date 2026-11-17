@@ -2,34 +2,20 @@
   import Icon from '$lib/icons/Icon.svelte';
   import BrandMark from '$lib/components/BrandMark.svelte';
   /**
-   * The app-wide error page. Before this file existed, ANY `error(...)`
-   * thrown anywhere in the app — not just /app/play/[template] — fell
-   * through to SvelteKit's built-in default error page: unstyled, English,
-   * LTR. Placed at the routes root (not under /app/play) so it covers
-   * every route, since nothing here is play-specific; it renders inside
-   * the root +layout.svelte (src/routes/+layout.svelte), which has no
-   * `load` of its own to fail, so it always gets tokens.css and the Heebo
-   * font for free regardless of which route errored. app.html's
-   * `<html lang="he" dir="rtl">` covers the rest.
-   *
-   * The two real cases this exists for both come from
-   * /app/play/[template]/+page.server.ts, and are exactly the
-   * stale-WhatsApp-link scenario: a child opens homework from an old
-   * message after the tutor issued a new one, or after the underlying
-   * game data was replaced/removed.
-   *   - 403: a missing/tampered/expired `&t=` signature (verifyGameSignature)
-   *   - 404: an unknown template, or a data file that no longer exists
-   * Copy for both is adapted from games/game.js's own Hebrew messages
-   * (`חסר מזהה משחק בכתובת`, `לא נמצא קובץ המשחק ...`) rather than
-   * invented fresh — same audience, same tone, just reframed for a child/
-   * parent reader instead of echoing a status code or a filesystem path.
+   * The app-wide error page. Without it, ANY `error(...)` thrown anywhere
+   * in the app falls through to SvelteKit's built-in default error page:
+   * unstyled, English, LTR. Placed at the routes root so it covers every
+   * route; it renders inside the root +layout.svelte
+   * (src/routes/+layout.svelte), which has no `load` of its own to fail,
+   * so it always gets tokens.css and the Heebo font for free regardless of
+   * which route errored. app.html's `<html lang="he" dir="rtl">` covers the
+   * rest.
    */
   import { page } from '$app/state';
 
   const status = $derived(page.status);
   const detail = $derived(page.error?.message ?? '');
-  const isGame = $derived(page.url.pathname.startsWith('/app/play/'));
-  const isFamily = $derived(isGame || /^\/app\/(parent|student)(\/|$)/.test(page.url.pathname));
+  const isFamily = $derived(/^\/app\/(parent|student)(\/|$)/.test(page.url.pathname));
   const recovery = $derived(isFamily
     ? { href: '/portal', label: 'חזרה לכניסה האישית' }
     : page.url.pathname.startsWith('/app/')
@@ -44,15 +30,7 @@
 <main class="error-wrap">
   <div class="error-card">
     <div class="page-brand"><BrandMark height={28} /></div>
-    {#if status === 403 && isGame}
-      <div class="error-emoji" aria-hidden="true"><Icon name="key" size={40} /></div>
-      <h1>הקישור הזה כבר לא בתוקף</h1>
-      <p>ייתכן שזה קישור ישן מהודעה קודמת. בקשו מהמורה או מההורה קישור מעודכן למשחק.</p>
-    {:else if status === 404 && isGame}
-      <div class="error-emoji" aria-hidden="true"><Icon name="faq" size={40} /></div>
-      <h1>לא מצאנו את המשחק הזה</h1>
-      <p>ייתכן שהקישור שגוי, או שהמשחק כבר לא קיים. בקשו קישור מעודכן.</p>
-    {:else if status === 403}
+    {#if status === 403}
       <h1>אין גישה לעמוד הזה</h1>
       <p>ייתכן שנדרשת כניסה לחשבון המתאים. חזרו לסביבת העבודה או בקשו מהמורה עזרה.</p>
     {:else if status === 404}

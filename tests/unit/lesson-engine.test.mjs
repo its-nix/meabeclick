@@ -76,7 +76,6 @@ const A_PLAN = {
   slides: [{ heading: 'מה זה שבר', bullets: ['חלק מתוך שלם'] }],
   examples: [{ problem: '1/2 + 1/4', steps: ['מכנה משותף'], answer: '3/4' }],
   homework: [{ task: 'תרגיל 1', why: 'תרגול' }],
-  games: {},
 };
 
 const REQUEST = { subject: 'מתמטיקה', request: 'שברים', level: 'כיתה ז', student: 'יובל' };
@@ -150,9 +149,8 @@ test('each failure kind gets its own message, and none of them leak output', () 
 
   assert.equal(new Set(messages).size, kinds.length, 'the kinds must be distinguishable on the dashboard');
   for (const m of messages) {
-    // This column is served over HTTP by /api/lessons — tutor-only now, but
-    // it was unauthenticated for a long time, and this guarantee should not
-    // depend on that guard staying correct.
+    // This column is shown to people, and this guarantee should not depend
+    // on any one reader's guard staying correct.
     assert.ok(!m.includes(secret), 'engine output must never reach lessons.problem');
     assert.ok(!m.includes('sk-'), 'no credential fragment may reach lessons.problem');
   }
@@ -234,7 +232,7 @@ test('an answer that is prose rather than a plan is bad-output, and is logged', 
   });
 });
 
-test('Codex generation enforces a strict schema without requiring every game to be selected', async () => {
+test('Codex generation enforces a strict schema without requiring optional fields', async () => {
   const capture=join(await mkdtemp(join(tmpdir(),'lesson-schema-')),'schema.json');
   const {script}=await stubAgent(`test -s "$schema" || exit 9
 cp "$schema" "${capture}"
@@ -251,7 +249,7 @@ JSON`);
   check(schema);
   assert.ok(schema.required.includes('learning'));
   assert.ok(schema.properties.learning.properties.scenes.items.required.includes('presenterNotes'));
-  assert.deepEqual(schema.properties.games.properties.quiz.anyOf.at(-1),{type:'null'});
+  assert.equal(schema.properties.games,undefined);
   assert.deepEqual(schema.properties.slides.items.properties.note.anyOf.at(-1),{type:'null'});
   assert.equal(schema.properties.learning.properties.scenes.items.properties.check.anyOf[0].type,'null');
 });
@@ -267,13 +265,12 @@ JSON`);
   });
 });
 
-test('strict-output null games and optional notes are removed while nullable learning checks remain', async()=>{
-  const wire={...structuredClone(A_PLAN),slides:[{heading:'כותרת',bullets:['תוכן'],note:null}],games:{quiz:null,matching:null}};
+test('strict-output optional notes are removed while nullable learning checks remain', async()=>{
+  const wire={...structuredClone(A_PLAN),slides:[{heading:'כותרת',bullets:['תוכן'],note:null}]};
   const {script}=await stubAgent(`cat > "$out" <<'JSON'
 ${JSON.stringify(wire)}
 JSON`);
   const plan=await withEnv({CODEX_BIN:script},()=>generateLesson(REQUEST));
-  assert.deepEqual(plan.games,{});
   assert.equal(Object.hasOwn(plan.slides[0],'note'),false);
   assert.equal(plan.learning.scenes[0].check,null);
 });
@@ -407,20 +404,10 @@ test('the request text is sanitized and stays inside the data fence', async () =
   assert.doesNotMatch(inside, /[<>]/, 'sanitizeField must strip angle brackets from the request');
 });
 
-test('the prompt a 135-minute booking sends asks for its plan\'s deck and the registry\'s game rules', async () => {
+test('the prompt a 135-minute booking sends asks for its plan\'s deck', async () => {
   const prompt = await promptFor({ subject: 'מתמטיקה', level: 'כיתה ז', student: 'יובל', durationMin: 135 });
   assert.match(prompt, /שקפים: בערך 14 שקפים/);
-  assert.match(prompt, /find the faulty step → errorHunt/, 'the first registry rule, under the plan key');
-  assert.match(prompt, /אם אף כלל לא מתאים — quiz/);
+  assert.doesNotMatch(prompt, /errorHunt|twoTruths|משחק/, 'a lesson plan no longer asks for classic games');
   const short = await promptFor({ subject: 'מתמטיקה', level: 'כיתה ז', durationMin: 45 });
   assert.match(short, /שקפים: בערך 8 שקפים/);
-});
-
-test('fresh games obey template limits with one bounded retry while historical lessons remain readable',async()=>{
-  const short={...structuredClone(A_PLAN),games:{twoTruths:{title:'בדיקה',subject:'מתמטיקה',rounds:[{statements:['א','ב','ג'],lieIndex:1,why:'הסבר',hint:'חשבו'}]}}};
-  const {script}=await stubAgent(`printf 'x\\n' >> "$0.calls"\ncat > "$out" <<'JSON'\n${JSON.stringify(short)}\nJSON\nexit 0`);
-  await withEnv({CODEX_BIN:script},()=>assert.rejects(generateLesson(REQUEST),error=>error.kind==='bad-output'&&/twoTruths.*rounds/.test(error.message)));
-  assert.equal((await readFile(script+'.calls','utf8')).trim().split('\n').length,2);
-  const {renderSlides}=await import('../../src/lib/server/lesson/prep.ts');
-  assert.match(renderSlides(short,{subject:'מתמטיקה',level:'כיתה ז'}),/data-scene=/,'historical read remains supported');
 });

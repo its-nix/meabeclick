@@ -16,10 +16,10 @@ import type {TeachingContext} from '../../learning/teaching.ts';
 import { israelDay, israelToday } from '../../dates.ts';
 import { PLANS } from '../../plans.ts';
 import { TUTOR_PHONE } from '../../contact.ts';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
-  generateLesson, renderSlides, validateLesson, TEMPLATE_FILES, toTemplateShape,
+  generateLesson, renderSlides, validateLesson,
   type LessonPlan,
 } from './prep.ts';
 import { createLesson, finishLesson } from '../db.ts';
@@ -27,11 +27,10 @@ import { createLesson, finishLesson } from '../db.ts';
    `FROM students`, the table students_v2 retired. See appendToPortal. */
 import { getStudentByCode } from '../entities.ts';
 import { addHomework } from '../lessons.ts';
-import { targetSkillFor, linkGameToSkill, type TargetSkill } from './targeting.ts';
+import { targetSkillFor, type TargetSkill } from './targeting.ts';
 import { recordGenerated } from '../materials.ts';
 import { assignLearning } from '../learning-store.ts';
 import { portalDir } from '../paths.ts';
-import { contentPath } from '../content.ts';
 import { assertPathSegment } from '../urls.ts';
 import { singleton } from '../singleton.ts';
 import { autopilotCovers } from '../../subjects.ts';
@@ -45,16 +44,6 @@ const MAX_PER_DAY = 20;          // a runaway form must not run up an API bill
 // Wrapped in singleton() so Vite HMR re-evaluating this module in dev cannot
 // silently reset the daily generation cap.
 const recent = singleton('lesson-recent', () => [] as number[]);   // timestamps of generations started today
-
-// Lessons, game data and drafts are written through contentPath(), the same
-// resolver src/routes/*/+server.ts reads through — DATA_DIR, not a
-// SITE_ROOT this module tracked independently. That independent tracking
-// (a `SITE_ROOT` set once from server root, mirroring the still-live
-// server/lesson-queue.mjs) is exactly what let the write side and the read
-// side drift: this module was ported before DATA_DIR existed and kept
-// writing to the pre-migration location while the read side (content.ts)
-// was later defined against DATA_DIR. There is deliberately no SITE_ROOT
-// left here to drift again.
 
 export interface Booking {
   name: string;
@@ -185,12 +174,10 @@ export function triggerForBooking(booking: Booking, opts: TriggerOpts = {}): Tri
 /**
  * What the tutor is told, keyed by what actually broke.
  *
- * These strings are the ONLY thing allowed onto `lessons.problem`. That
- * column is served over HTTP (see src/routes/api/lessons/+server.ts, tutor
- * session required — it was unauthenticated until the leak was closed).
- * Fixed copy, no interpolation: the engine's own output can carry paths,
- * config and echoed prompt content, and it goes to the server log instead,
- * so this holds even if that route's guard is ever weakened again.
+ * These strings are the ONLY thing allowed onto `lessons.problem`, which
+ * is shown to people. Fixed copy, no interpolation: the engine's own output
+ * can carry paths, config and echoed prompt content, and it goes to the
+ * server log instead.
  *
  * Distinguishing them is the entire point. Every one of these previously
  * rendered as "שגיאה טכנית ביצירת השיעור" — so a cancelled subscription, a
@@ -280,11 +267,9 @@ async function run(
     recordUse({ lessonSlug: slug, masterSlug: fromLibrary.masterSlug, templateId: target.templateId, skillKey: target.key });
   }
 
-  // Structurally broken material is held rather than published — a game with
-  // badStep out of range would break in a child's hands.
+  // Structurally broken material is held rather than published.
   const problems = validateLesson(plan);
   if (problems.length) {
-    await publishDraftOnly(slug, plan, meta);
     finishLesson(slug, {
       status: 'held', title: plan.title, context: plan.gradeContext,
       problem: problems.join(' · '),
@@ -321,7 +306,7 @@ async function run(
 
   finishLesson(slug, {
     status: 'ready', title: plan.title, context: plan.gradeContext,
-    slides: `lessons/${slug}/slides.html`, homework: plan.homework, games: published.games,
+    homework: plan.homework,
     problem: onPortal ? null : NOT_DELIVERED,
   });
 
@@ -332,83 +317,23 @@ async function run(
  });
 }
 
-interface PublishedGame {
-  title: string;
-  template: string;
-  dataId: string;
-}
-
 interface Published {
   slug: string;
-  games: PublishedGame[];
 }
 
 /**
- * Writes slides and game data where the routes in src/routes read them
- * from. Exported (in addition to being called by run(), above) so
+ * Records a generated lesson's slides and plan in the versioned store.
+ * Exported (in addition to being called by run(), above) so
  * tests/unit/queue-content.test.mjs can exercise the real write path
- * directly, without paying for a live lesson generation, and assert it
- * agrees with readContent() — the two having independently drifted apart
- * once already is the whole reason this function takes a contentPath
- * instead of a directory it computed itself.
+ * directly, without paying for a live lesson generation.
+ *
+ * recordGenerated keeps the new version either way and declines to make it
+ * publishable when the tutor has edited (materials.ts's two opening rules).
  */
 export async function publish(slug: string, plan: LessonPlan, meta: RunMeta): Promise<Published> {
   return withLegacyPublication(async()=>{
-  /* Games FIRST, before the slides: they are the part that must never be
-     overwritten (see the 'wx' below), so a refused republish stops here
-     having touched nothing.
-
-     Whichever templates the plan chose — the catalog is open to the generator,
-     so a lesson gets the games that suit its material rather than a fixed three. */
-  const games: PublishedGame[] = [];
-  for (const [key, data] of Object.entries(plan.games ?? {})) {
-    const template = TEMPLATE_FILES[key];
-    if (!template || !data) continue;
-    const dataId = `${slug}-${template}`;
-    const dataPath = contentPath('games-data', dataId);
-    await mkdir(dirname(dataPath), { recursive: true });
-    /* 'wx': never overwrite. A result in results_v2 names its game by
-       dataId, and this file is the only record of which questions were
-       asked — rewriting it would silently re-point every earlier answer at
-       questions the child never saw. Changing a game means a new dataId.
-       Slugs carry a timestamp, so a collision means a bug; it throws and
-       run() records the lesson as failed rather than quietly clobbering. */
-    await writeFile(dataPath, JSON.stringify(toTemplateShape(key, data), null, 2), { encoding: 'utf8', flag: 'wx' });
-    // Records store facts, not URLs — the URL is derived at render time by
-    // src/lib/server/urls.ts (gameUrl), never baked in here. Baking it here
-    // would persist routing decisions into portal/lessons data again, which
-    // is exactly the bug this shape change closes.
-    games.push({ title: data.title, template, dataId });
-  }
-
-  const slidesHtml = renderSlides(plan, {...meta,slug});
-  const slidesPath = contentPath('lessons', slug);
-  await mkdir(dirname(slidesPath), { recursive: true });
-  await writeFile(slidesPath, slidesHtml, 'utf8');
-
-  /* And into the versioned store, which is what makes materials.ts's two
-     opening rules true rather than merely stated. Until now that table had
-     one consumer — the tutor's own editor API — while this function wrote
-     the file the student reads, so a regeneration silently overwrote her
-     correction.
-  
-     recordGenerated keeps the new version either way and declines to make
-     it publishable when she has edited. The file above is still written
-     because every lesson generated before migration 012 is served from
-     disk, and the route falls back to it. */
-  recordGenerated(slug, { slides: slidesHtml, plan: JSON.stringify(plan) });
-
-  return { slug, games };
-  });
-}
-
-export async function publishDraftOnly(slug: string, plan: LessonPlan, meta: RunMeta): Promise<void> {
-  return withLegacyPublication(async()=>{
-  const slidesPath = contentPath('drafts', slug, 'slides.html');
-  const planPath   = contentPath('drafts', slug, 'lesson.json');
-  await mkdir(dirname(slidesPath), { recursive: true });
-  await writeFile(slidesPath, renderSlides(plan, {...meta,slug}), 'utf8');
-  await writeFile(planPath, JSON.stringify(plan, null, 2), 'utf8');
+  recordGenerated(slug, { slides: renderSlides(plan, {...meta,slug}), plan: JSON.stringify(plan) });
+  return { slug };
   });
 }
 
@@ -429,12 +354,11 @@ export async function publishDraftOnly(slug: string, plan: LessonPlan, meta: Run
  * null, this returned false, and the caller dropped it.
  *
  * What that cost: four lessons generated at minutes of billed agent time
- * each, slides.html and game data on disk, `status: ready` in the database
- * — and every portal file holding `lessons: [], homework: [], games: []`,
- * which is the only place /api/portal/[code] reads those three from. The
+ * each, the slides recorded, `status: ready` in the database
+ * — and every portal file holding `lessons: []`,
+ * which is the only place /api/portal/[code] reads lessons from. The
  * tutor and the student both saw an empty page and nothing reported a
- * failure. db.ts already carries a warning about this exact two-functions-
- * one-name hazard for getBest; this is the same trap, sprung.
+ * failure.
  *
  * Exported so it can be tested directly against a student that exists in
  * students_v2 and not in the legacy table — production's actual shape.
@@ -454,8 +378,6 @@ export async function appendToPortal(
   try { data = JSON.parse(await readFile(path, 'utf8')); } catch { return false; }
   if (plan.learning) assignLearning(published.slug, student.id, {...hold,nodeId:target?.id ?? null});
 
-  data.games = [...published.games, ...(data.games ?? [])].slice(0, 20);
-
   /* Homework goes to the `homework` TABLE, not into this file.
      
      It used to go only here, and homework the tutor typed went only to the
@@ -468,26 +390,10 @@ export async function appendToPortal(
      The table is the better home for a second reason: it DERIVES `done`
      from the student's own game results, matched per student, which a flat
      array in a JSON file cannot do. */
-  /* Generated homework is OFFLINE work, and carries no game.
-   
-     Every task used to be given published.games[0] — the first game in the
-     lesson, whatever the task said. Verified against real Codex output on
-     2026-09-22: all four tasks were written exercises ("מחיר מעיל 300 ש״ח,
-     הנחה של 20% ואז 10%…") and all four pointed at the matching game. So
-     finishing the quiz ticked nothing, finishing matching would have ticked
-     all four at once, and the student page rendered four "התחילו" buttons
-     that all led to the same unrelated game.
-   
-     The link is removed rather than repaired, because no play event can
-     legitimately complete a pen-and-paper exercise. The lesson's games are
-     still published and still reachable: the student page has its own Games
-     section, which is where a game belongs. An explicitly game-backed
-     assignment is a different feature, and it needs the generator to be
-     ASKED which task a game completes — it never has been. */
   const assignedAt = new Date().toISOString(); // one batch, one stamp: see addHomework
   for (const h of plan.homework) {
     addHomework({
-      studentId: student.id, task: h.task, template: null, dataId: null, assignedAt,
+      studentId: student.id, task: h.task, assignedAt,
       /* The tutor's answer key; never on a family route. */
       answer: h.answer ?? null,
       /* The skill the lesson was generated for. Null when the student has
@@ -496,15 +402,6 @@ export async function appendToPortal(
       nodeId: target?.id ?? null,
       bookingId: hold.bookingId, heldUntil: hold.heldUntil,
     });
-  }
-
-  /* The lesson's games are published separately and are NOT homework rows
-     (generated homework is offline work, carrying no data_id — see the
-     comment above). So their link to a skill lives in its own table, keyed
-     per student because a data id identifies a game, not a child's copy of
-     one. */
-  if (target) {
-    for (const g of published.games) linkGameToSkill(student.id, g.dataId, target.id);
   }
 
   data.lessons = [

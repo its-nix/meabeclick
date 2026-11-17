@@ -44,7 +44,7 @@ export const actions: Actions = {
       return fail(409, { ...values, error: 'לא ניתן להשלים את ההרשמה כרגע. אם כבר נרשמתם, חזרו לכניסה כדי לפתוח את הדף הקיים.' });
     }
     cookies.delete(GOOGLE_PENDING_COOKIE, { path: '/onboarding' });
-    setFamilySession(cookies, identity);
+    setFamilySession(cookies, identity, { persistent: true });
     redirect(303, familyDestination(identity, pending.flow.next_path));
   },
 };

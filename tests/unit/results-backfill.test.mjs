@@ -7,6 +7,9 @@ import { join } from 'node:path';
 import { migrate } from '../../src/lib/server/migrations/index.ts';
 import { MIGRATIONS } from '../../src/lib/server/migrations/list.ts';
 
+/** Migration 008 is the subject; 047 later drops the tables it fills. */
+const THROUGH_8 = MIGRATIONS.filter(m => m.version <= 8);
+
 async function freshDb() {
   const dir = await mkdtemp(join(tmpdir(), 'results-backfill-'));
   const db = new DatabaseSync(join(dir, 'test.db'));
@@ -63,7 +66,7 @@ test('backfill: a result under a unique display name moves to results_v2', async
   const lizaId = seedStudent(db, { code: 'noga', name: 'נוגה' });
   seedResult(db, 'נוגה', 'noga-quiz', '2026-05-01T10:00:00.000Z');
 
-  migrate(db);
+  migrate(db, THROUGH_8);
 
   const moved = db.prepare(`SELECT * FROM results_v2`).all();
   assert.equal(moved.length, 1);
@@ -84,7 +87,7 @@ test('backfill: a result under a shared display name stays in the legacy table',
   seedStudent(db, { code: 'or-b', name: 'אור' });
   seedResult(db, 'אור', 'or-quiz', '2026-05-02T10:00:00.000Z');
 
-  migrate(db);
+  migrate(db, THROUGH_8);
 
   assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM results_v2`).get().n, 0);
   const left = db.prepare(`SELECT * FROM results`).all();
@@ -99,7 +102,7 @@ test('backfill: a result under an unknown name stays in the legacy table', async
   seedStudent(db, { code: 'noga', name: 'נוגה' });
   seedResult(db, 'מישהו אחר', 'ghost-quiz', '2026-05-03T10:00:00.000Z');
 
-  migrate(db);
+  migrate(db, THROUGH_8);
 
   assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM results_v2`).get().n, 0);
   assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM results`).get().n, 1);
@@ -112,7 +115,7 @@ test('backfill: a result under a code moves too', async () => {
   const lizaId = seedStudent(db, { code: 'noga', name: 'נוגה' });
   seedResult(db, 'noga', 'by-code', '2026-05-04T10:00:00.000Z');
 
-  migrate(db);
+  migrate(db, THROUGH_8);
 
   const moved = db.prepare(`SELECT * FROM results_v2`).all();
   assert.equal(moved.length, 1);
@@ -133,7 +136,7 @@ test('backfill: the two tables are disjoint and nothing is lost', async () => {
   seedResult(db, 'רפאל', 'd', '2026-05-04T00:00:00.000Z');      // unknown
   const seeded = 4;
 
-  migrate(db);
+  migrate(db, THROUGH_8);
 
   const inV2 = db.prepare(`SELECT COUNT(*) AS n FROM results_v2`).get().n;
   const inLegacy = db.prepare(`SELECT COUNT(*) AS n FROM results`).get().n;
@@ -152,6 +155,6 @@ test('migrate succeeds on a database where the legacy results table never existe
   // runs inside db.ts's singleton factory BEFORE the db.exec block that
   // creates the legacy table, so a migration reading `results` without
   // creating it first makes the app refuse to boot.
-  assert.doesNotThrow(() => migrate(db));
+  assert.doesNotThrow(() => migrate(db, THROUGH_8));
   assert.equal(db.prepare(`SELECT COUNT(*) AS n FROM results_v2`).get().n, 0);
 });

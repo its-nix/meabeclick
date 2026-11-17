@@ -14,10 +14,6 @@
    * ('choose', 'pin', 'main'). Only 'main' survives, and which children it
    * can show comes from the session.
    *
-   * Ruling P13 — same normalization/leading-slash caveat as
-   * src/routes/app/student/+page.svelte; see the comment there. toHref()
-   * ($lib/urls.ts, shared with student/ and dashboard/) is the identical fix.
-   *
    * Not ported: the original's `?demo` mode, a no-op since before the
    * SvelteKit migration (it set `currentId` but never the `CURRENT` the
    * render function read, so the page rendered an empty shell).
@@ -30,7 +26,6 @@
    * child's own rows from the payments table), both backed by the account's
    * actual charge history rather than a hand-maintained ledger.
    */
-  import { toHref } from '$lib/urls.ts';
   import { formatAgorot } from '$lib/plans.ts';
   import type { ProgressFacts } from '$lib/progress-facts.ts';
   import { homeworkState, HOMEWORK_STATE_LABEL, type FamilyHomework } from '$lib/family-homework.ts';
@@ -96,7 +91,7 @@
     return `${d} ${MONTHS_HE[m - 1]} ${y} (${DAYS_HE[date.getDay()]})`;
   }
 
-  interface Session { date: string; type: string; notes: string; amount: number; paid: boolean; slidesUrl?: string | null }
+  interface Session { date: string; type: string; notes: string; amount: number; paid: boolean }
   type Hw = FamilyHomework & { date?: string | null; url?: string | null };
   interface Balance {
     owedAgorot: number; paidAgorot: number;
@@ -126,7 +121,7 @@
       sessions: (d.lessons ?? []).filter(l => !l.upcoming).map(l => ({
         date: l.date, type: 'שיעור',
         notes: [l.topic, l.summary].filter(Boolean).join(' — '),
-        amount: 0, paid: false, slidesUrl: l.slidesUrl,
+        amount: 0, paid: false,
       })),
       homework: (d.homework ?? []).map(h => ({ ...h, date: h.assigned ?? h.due })),
     };
@@ -266,7 +261,7 @@
   /* ── Handing a child their own way in ──────────────────────────────────
      The parent's link opens the parent view; a child needs a session
      scoped to themselves. Both artifacts are minted server-side. */
-  interface Share { name: string; link: string; joinCode: string }
+  interface Share { name: string; link: string }
   let share = $state<Share | null>(null);
   let shareOpen = $state(false);
   let shareBusy = $state(false);
@@ -541,13 +536,8 @@
           </div>
           {#if showLink}<div class="share-link" dir="ltr">{share.link}</div>{/if}
 
-          <div class="share-code">
-            <div class="share-code-label">אין וואטסאפ? פתחו את <span dir="ltr">{page.url.host}/portal</span> והקלידו קוד צירוף:</div>
-            <div class="share-code-value" dir="ltr">{share.joinCode}</div>
-            <div class="share-code-note">תקף ל־15 דקות ולכניסה אחת.</div>
-          </div>
           <button class="share-secondary" onclick={loadShare} disabled={shareBusy}>{shareBusy ? 'מכינים…' : 'הכנת הזמנה חדשה'}</button>
-          <p class="share-intro">הזמנה חדשה מחליפה קישורים וקודים שטרם שימשו. מכשירים שכבר נכנסו נשארים מחוברים.</p>
+          <p class="share-intro">הזמנה חדשה מחליפה קישורים שטרם שימשו. מכשירים שכבר נכנסו נשארים מחוברים.</p>
           {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
         {/if}
       </div>
@@ -657,7 +647,7 @@
           <thead><tr><th>תאריך</th><th>סוג / משך</th><th>נושא / הערות</th></tr></thead>
           <tbody>
             {#if !sortedSessions.length}
-              <tr><td colspan="3" class="empty-row">עדיין לא נרשמו שיעורים</td></tr>
+              <tr><td colspan="3" class="empty-row">עדיין לא נרשמו שיעורים<br /><a class="empty-book" href="/booking">להזמנת שיעור</a></td></tr>
             {:else}
               {#each sortedSessions as sess}
                 <tr>
@@ -665,7 +655,6 @@
                   <td><span class="pill">{sess.type || 'שיעור'}</span></td>
                   <td>
                     <div class="lesson-topic">{sess.notes || '—'}</div>
-                    {#if sess.slidesUrl}<a class="lesson-slides" href={toHref(sess.slidesUrl)} target="_blank" rel="noopener">המצגת</a>{/if}
                   </td>
                 </tr>
               {/each}
@@ -697,9 +686,6 @@
                 <div class="hw-task" class:done={state !== 'open'}><FormulaText text={h.task} /></div>
                 {#if h.skill}<div class="hw-meta">מתרגלים: {h.skill}</div>{/if}
                 <div class="hw-meta">ניתן: {formatDateHe(h.date)}</div>
-                {#if h.url}
-                  <a class="hw-play" href={toHref(h.url)} target="_blank" rel="noopener"><Icon name="games" size={17} /> שחקו</a>
-                {/if}
               </div>
               <span class="hw-badge" class:done={state !== 'open'} class:open={state === 'open'}>{state === 'graded' && h.grade ? GRADE_LABEL[h.grade] : HOMEWORK_STATE_LABEL[state]}</span>
             </div>
@@ -866,6 +852,7 @@
   .empty-row { text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.9rem; }
 
   .hw-list { display: flex; flex-direction: column; gap: 10px; }
+  .empty-book { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; color: var(--accent); font-weight: 700; text-decoration: none; }
   .hw-empty { text-align: center; color: var(--text-muted); padding: 22px; font-size: .9rem; }
   .hw-item { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap; }
   .hw-status-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }
@@ -980,7 +967,6 @@
 
   .nl-contact { display: inline-block; margin-top: 6px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent-deep); text-decoration: none; }
   .board-link { display: inline-block; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent); text-decoration: none; }
-  .lesson-slides { font-size: .82rem; color: var(--accent); font-weight: 600; }
   .share-intro { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 0.8rem; }
   .share-open {
     background: var(--action-fill); color: #fff; border: 0; border-radius: 12px;
@@ -1007,16 +993,6 @@
     word-break: break-all; background: var(--bg-base);
     border-radius: 8px; padding: 0.5rem 0.6rem; user-select: all;
   }
-  .share-code {
-    margin-top: 1rem; padding-top: 0.9rem; border-top: 1px dashed var(--border-strong);
-    text-align: center;
-  }
-  .share-code-label { font-size: 0.85rem; color: var(--text-muted); }
-  .share-code-value {
-    font-size: 1.7rem; font-weight: 700; letter-spacing: 0.14em;
-    color: var(--accent); margin: 0.35rem 0 0.2rem; user-select: all;
-  }
-  .share-code-note { font-size: 0.78rem; color: var(--text-muted); }
 
   .pay-note { font-size: 0.82rem; color: var(--text-muted); margin: 0.7rem 0 0.2rem; }
   .pay-btn {

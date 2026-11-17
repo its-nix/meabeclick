@@ -13,9 +13,9 @@ const {
   checkDataDir,
   checkPortalDir,
   checkLessonEngine,
+  checkGoogleLogin,
   systemCaBundlePath,
   REQUIRED_VARS,
-  checkRegistry,
   envIssues,
 } = await import('../../src/lib/server/boot-checks.ts');
 
@@ -107,7 +107,7 @@ test('PROTOCOL_HEADER value check is case-insensitive (adapter-node lowercases i
 test('checkDataDir passes for a writable directory', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'boot-checks-'));
   process.env.DATA_DIR = dir;
-  await assert.doesNotReject(() => checkDataDir());
+  assert.doesNotThrow(() => checkDataDir());
 });
 
 test('checkDataDir refuses to boot when DATA_DIR is not writable', async () => {
@@ -115,7 +115,7 @@ test('checkDataDir refuses to boot when DATA_DIR is not writable', async () => {
   await chmod(dir, 0o555);
   process.env.DATA_DIR = dir;
   try {
-    await assert.rejects(() => checkDataDir(), /not writable|does not exist/);
+    assert.throws(() => checkDataDir(), /not writable|does not exist/);
   } finally {
     await chmod(dir, 0o755); // restore so the test runner can clean up
   }
@@ -123,7 +123,7 @@ test('checkDataDir refuses to boot when DATA_DIR is not writable', async () => {
 
 test('checkDataDir refuses to boot when DATA_DIR does not exist', async () => {
   process.env.DATA_DIR = '/definitely/does/not/exist/anywhere';
-  await assert.rejects(() => checkDataDir(), /does not exist|not writable/);
+  assert.throws(() => checkDataDir(), /does not exist|not writable/);
 });
 
 test('checkPortalDir passes for a writable directory and logs the resolved path', async () => {
@@ -309,18 +309,6 @@ test('SSL_CERT_FILE names the bundle for an image that keeps it elsewhere', asyn
 });
 
 
-test('checkRegistry passes silently for the real games/registry.json', () => {
-  const original = console.warn;
-  let warned = false;
-  console.warn = () => { warned = true; };
-  try {
-    assert.doesNotThrow(() => checkRegistry());
-  } finally {
-    console.warn = original;
-  }
-  assert.equal(warned, false);
-});
-
 test('CALENDAR_ID is no longer required: each tutor has their own lesson calendar', () => {
   // Migration 029 moved it onto the tutor's row (tutor-settings.ts). A tutor
   // without one is never offered and never assigned, so there is no global
@@ -337,5 +325,23 @@ test('no required var carries a personal address as its default', () => {
   for (const d of defaults) {
     assert.doesNotMatch(d, /@(gmail|googlemail)\.com/i,
       `a personal address is being used as a fallback: ${d}`);
+  }
+});
+
+// Google sign-in is the only login page flow (owner decision 2026-11-16), so a
+// production boot without it would be a site nobody can sign in to.
+test('checkGoogleLogin refuses to boot without Google login credentials',  () => {
+  const keys = ['GOOGLE_LOGIN_CLIENT_ID', 'GOOGLE_LOGIN_CLIENT_SECRET', 'GOOGLE_WEB_CLIENT_ID', 'GOOGLE_WEB_CLIENT_SECRET', 'SITE_URL'];
+  const saved = Object.fromEntries(keys.map(k => [k, process.env[k]]));
+  try {
+    for (const k of keys) delete process.env[k];
+    process.env.SITE_URL = 'https://example.test';
+    assert.throws(() => checkGoogleLogin(), /Google sign-in is not configured/);
+    process.env.GOOGLE_LOGIN_CLIENT_ID = 'id.apps.googleusercontent.com';
+    assert.throws(() => checkGoogleLogin(), /Google sign-in is not configured/, 'half a pair is still unconfigured');
+    process.env.GOOGLE_LOGIN_CLIENT_SECRET = 'secret';
+    checkGoogleLogin();
+  } finally {
+    for (const k of keys) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
   }
 });

@@ -28,7 +28,6 @@ try {
     { id: 101, task: '1. במשולש ABC. הנתונים: AB = 3.5, AC = 4; A(2, 3)\nהשאלה: חשבו את ההיקף.\n2. פתרו x + 2 = 7', skill: 'משולשים', assigned: '2026-10-30', due: '2026-11-05', submitted: false, graded: false },
     { id: 102, task: 'פתרו 8-x-3=5-x', submitted: true, graded: false },
     { id: 103, task: 'תרגיל שנבדק', submitted: false, graded: true, grade: 'ok' },
-    { id: 104, task: 'משחק תרגול', url: '/app/play/quiz?d=synthetic', submitted: false, graded: false },
     { task: '<img src=x onerror=alert(1)>\nטקסט קודם ללא מזהה', submitted: false, graded: false },
   ];
   let fixtureMode = true;
@@ -40,7 +39,6 @@ try {
     const url = new URL(request.url());
     if (url.origin !== server.baseUrl) return route.abort();
     if (!fixtureMode) return route.continue();
-    if (url.pathname === '/app/play/quiz') return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<html lang="he" dir="rtl"><h1>משחק סינתטי</h1></html>' });
     if (url.pathname === `/api/portal/${portal.code}`) return route.fulfill({ json: { name: 'תלמיד בדיקה', homework: tasks, lessons: [], games: [], progress: { kind: 'skills', done: 9, total: 10, percent: 90 } } });
     if (url.pathname.endsWith('/homework') && request.method() === 'PATCH') {
       patchCount++;
@@ -63,17 +61,7 @@ try {
   assert.equal(await writtenProgress.getAttribute('max'), '4');
   assert.equal(await writtenProgress.getAttribute('value'), '2');
   assert.equal(await page.getByRole('progressbar', { name: 'ההתקדמות שלי', exact: true }).getAttribute('aria-valuenow'), '9');
-  // Navigation/play history is not submission or grading evidence.
-  await page.goto(new URL(await page.locator('.homework-card').nth(3).getByRole('link').getAttribute('href'), server.baseUrl).href);
-  await page.getByRole('heading', { name: 'משחק סינתטי', exact: true }).waitFor();
-  tasks[3].plays = 1;
-  tasks[3].lastPlayedAt = '2026-10-31T10:00:00Z';
-  await page.goBack();
-  await page.getByRole('heading', { name: 'שיעורי הבית שלי', exact: true }).waitFor();
-  assert.match(await progress.textContent(), /2 מתוך 4 מטלות בכתב הוגשו או נבדקו/);
-  assert.equal(await writtenProgress.getAttribute('max'), '4');
-  assert.equal(await writtenProgress.getAttribute('value'), '2');
-  assert.equal(await page.locator('.homework-card').count(), 5);
+  assert.equal(await page.locator('.homework-card').count(), 4);
   const first = page.locator('.homework-card').first();
   assert.equal(await first.locator('.problem').count(), 2);
   assert.deepEqual(await first.locator('.datum').allTextContents(), ['AB = 3.5', 'AC = 4', 'A(2, 3)']);
@@ -84,7 +72,6 @@ try {
   assert.match(await page.locator('.homework-card').last().textContent(), /<img src=x onerror=alert\(1\)>/);
   assert.equal(await page.locator('.homework-card').nth(2).getByRole('button').count(), 0);
   assert.equal(await page.locator('.homework-card').last().getByRole('button').count(), 0);
-  assert.match(await page.locator('.homework-card').nth(3).getByRole('link').getAttribute('href'), /^\/app\/play\//);
   for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const dimensions = await page.evaluate(() => ({ viewport: innerWidth, page: document.documentElement.scrollWidth }));
@@ -170,7 +157,7 @@ try {
   report.keyboardAndServerConfirmedSaveUndoFailure = 'PASS';
   report.legacyGradedGameEmptyAndSafeText = 'PASS';
   report.accessibleNamesInitialPendingSubmittedUndo = 'PASS';
-  report.writtenOnlyAggregateUnplayedAndReturnedGameExcluded = 'PASS';
+  report.writtenOnlyAggregate = 'PASS';
   await writeFile(join(evidenceDir, 'browser-report.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ ...report, evidenceDir }, null, 2));
 } finally {

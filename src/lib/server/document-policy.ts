@@ -1,12 +1,11 @@
 /**
  * Security headers for the stand-alone HTML documents the app serves from
- * endpoints: a generated lesson deck (/lessons/<slug>) and its draft
- * (/drafts/<slug>/slides.html).
+ * endpoints: the lesson and activity players (/app/learning-review,
+ * /app/student/games/..., /sample-game).
  *
  * SvelteKit's own CSP (svelte.config.js) only covers pages it renders. A
- * deck is a complete HTML file written by the lesson engine, served as
- * bytes, with the navigation script inlined by the template in
- * src/lib/server/lesson/prep.ts. So it needs its own policy, and that
+ * player is a complete HTML file with its runtime inlined by the renderers in
+ * src/lib/server. So it needs its own policy, and that
  * policy has to allow inline script and style for THAT document — the one
  * place 'unsafe-inline' for scripts appears anywhere in the app. The way
  * out is to hash the fixed template script and drop the inline allowance;

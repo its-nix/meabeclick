@@ -38,6 +38,8 @@ function tablesInSchema() {
     join(root, 'src/lib/server/migrations/index.ts'),
   ];
   const found = new Set();
+  const dropped = new Set();
+  const renamedTo = new Set();
   for (const f of files) {
     // Strip SQL line comments first: db.ts has a comment reading
     // "-- CREATE TABLE is the one that actually creates…", which otherwise
@@ -46,7 +48,16 @@ function tablesInSchema() {
     for (const m of src.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?([a-z_0-9]+)/g)) {
       found.add(m[1]);
     }
+    for (const m of src.matchAll(/DROP TABLE (?:IF EXISTS )?([a-z_0-9]+)/g)) {
+      dropped.add(m[1]);
+    }
+    for (const m of src.matchAll(/RENAME TO ([a-z_0-9]+)/g)) {
+      renamedTo.add(m[1]);
+    }
   }
+  // A table a migration drops is gone, unless the same migration renames a
+  // rebuilt copy over it.
+  for (const name of dropped) if (!renamedTo.has(name)) found.delete(name);
   // `*_new` tables are the scratch half of a SQLite table rebuild: created,
   // filled, then renamed over the original inside one migration. They never
   // outlive it, so they are not storage.
@@ -159,13 +170,9 @@ test('every status carries a reason, not just a label', () => {
   }
 });
 
-test('the two legacy tables db.ts still writes are described as written', () => {
+test('the legacy calendar-failure table db.ts still writes is described as live', () => {
   // The draining-writer test above skips db.ts on purpose, so it cannot see
-  // these two. calendar_failures is the only calendar-failure table anyone
-  // uses (its _v2 is dead), so it is live. results cannot be live while
-  // results_v2 is (see the pair rule), but its note must not read as
-  // "never written": unattributable plays still land there.
+  // this one. calendar_failures is the only calendar-failure table anyone
+  // uses (its _v2 is dead), so it is live.
   assert.equal(STORAGE.calendar_failures.status, 'live');
-  assert.match(STORAGE.results.note, /still (receives|written)/i);
-  assert.match(STORAGE.results.note, /writeResult/);
 });

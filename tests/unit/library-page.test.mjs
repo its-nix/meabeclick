@@ -15,12 +15,6 @@ test('poll failure labels last-known data and offers an explicit retry', () => {
   assert.match(page, /onclick=\{refresh\}/);
 });
 
-test('the standalone game catalog has a safe contextual return', () => {
-  const games = readFileSync('src/routes/app/games/+page.svelte', 'utf8');
-  assert.match(games, /safeTutorReturn/);
-  assert.match(games, /href=\{returnTo\}/);
-});
-
 test('catalog filters and bounded page navigation stay outside its scrolling table', () => {
   for (const id of ['library-search', 'library-template', 'library-topic', 'library-status']) {
     assert.ok(page.indexOf('id="' + id + '"') < page.indexOf('<div class="table-wrap"'), id);
@@ -28,7 +22,7 @@ test('catalog filters and bounded page navigation stay outside its scrolling tab
   assert.match(page, /each pagedRows as row/);
   assert.match(page, /aria-label="עמודי הספרייה"/);
   assert.match(page, /replaceState\(libraryPath/);
-  assert.match(page, /returnTo=\{encodeURIComponent\(libraryPath\)\}/);
+  assert.doesNotMatch(page, /\/(app\/)?lessons\//, 'no link to a site-made lesson page');
 });
 
 test('preparation needs appear before the catalog and start expanded', () => {

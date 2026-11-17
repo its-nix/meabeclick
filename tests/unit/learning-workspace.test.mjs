@@ -39,3 +39,11 @@ test('validation rejects duplicate IDs, invalid dates, unsafe links and partial 
 test('context never includes another learner even when demo access is explicit',async()=>{
  const m=await import(modulePath),s=base();s.Students.push({...s.Students[0],student_id:'demo-002'});s.Lessons.push({...s.Lessons[0],lesson_id:'lesson-002',student_id:'demo-002'});const c=m.learningContext(s,'demo-001',{includeDemo:true});assert.equal(c.lessons.length,1);assert.equal(c.lessons[0].lesson_id,'lesson-001');assert.throws(()=>m.learningContext(s,'unknown',{includeDemo:true}),/not found/);
 });
+test('google_drive is a Materials provider and needs a Drive file URL',async()=>{
+ const m=await import(modulePath),s=base();
+ s.Materials[0].provider='google_drive';s.Materials[0].url='https://drive.google.com/file/d/abc_123-x/view';
+ assert.deepEqual(m.workspaceProblems(s),[]);
+ for(const url of ['https://example.com/file/d/abc/view','https://drive.google.com/drive/folders/abc','https://docs.google.com/document/d/abc','http://drive.google.com/file/d/abc/view','https://drive.google.com/file/d/']){
+  s.Materials[0].url=url;assert.match(m.workspaceProblems(s).join(';'),/Materials\.url/,url);
+ }
+});

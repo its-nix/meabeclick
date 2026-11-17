@@ -8,20 +8,15 @@
  * this resolves to exactly the on-disk path every caller used before this
  * override existed — nothing about production behavior changes.
  *
- * This is the seed of the centralized content module (`src/lib/server/
- * content.ts`) the SvelteKit migration introduces once portal/ moves under
- * DATA_DIR — see docs/superpowers/specs/2026-08-27-sveltekit-migration-design.md.
+ * `dataDir()` is the runtime data directory (DATA_DIR, `./data` when unset).
+ * Read from process.env, not `$env/dynamic/private`: that import is a Vite
+ * virtual module and would make this file unimportable by `node --test`.
  *
- * NOT expressed in terms of content.ts's `contentPath('portal', code)`,
- * even though the shapes look identical (`<dir>/portal/<code>.json`):
- * folding it in would change the default, PORTAL_DIR-unset path. Today
- * that default is `<repo root>/portal` (via SITE, computed from this
- * file's own location); `contentPath`'s default root is `dataDir()`,
- * which falls back to `./data` relative to the process's cwd — a
- * different directory. Silently moving where student PII portal files
- * resolve to, for every deployment that leaves PORTAL_DIR unset, is
- * exactly the kind of drift this module exists to prevent, so this
- * function is left alone on purpose.
+ * `portalDir()` is deliberately NOT expressed in terms of `dataDir()`: its
+ * unset default is `<repo root>/portal`, a different directory from
+ * `./data` relative to the process's cwd. Silently moving where student PII
+ * portal files resolve to, for every deployment that leaves PORTAL_DIR
+ * unset, is exactly the kind of drift this module exists to prevent.
  */
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,3 +26,5 @@ const SITE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 export function portalDir(): string {
   return process.env.PORTAL_DIR || join(SITE, 'portal');
 }
+
+export const dataDir = (): string => process.env.DATA_DIR ?? './data';

@@ -539,7 +539,7 @@ async function confirmHeld(token: string, cookies: Cookies): Promise<Response> {
     heardFromDetail: sanitizeHeardDetail(heardDetail, confirmedHeardFrom),
     heldTutorId: held.teacherId, calendar,
   });
-  if (res.status === 200) setFamilySession(cookies, { kind: 'account', id: held.accountId });
+  if (res.status === 200) setFamilySession(cookies, { kind: 'account', id: held.accountId }, { persistent: false });
   return res;
 }
 
@@ -796,7 +796,7 @@ async function completeBooking(body: ConfirmedBookBody, ctx: CompleteCtx): Promi
      Only when this booking created the account; see BookResult for why that
      restriction is load-bearing rather than cautious. */
   if (result.signInAccountId !== null) {
-    setFamilySession(cookies, { kind: 'account', id: result.signInAccountId });
+    setFamilySession(cookies, { kind: 'account', id: result.signInAccountId }, { persistent: false });
   }
 
   /* enrollmentFailed means enrollFromBooking threw. Its DB writes (account,

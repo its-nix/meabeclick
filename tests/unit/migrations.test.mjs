@@ -26,8 +26,12 @@ test('migrate creates the entity tables and records the version', async () => {
     `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`
   ).all().map(r => r.name);
 
-  for (const t of ['accounts', 'enrollments', 'homework', 'payments', 'teachers', 'join_codes', 'game_filler']) {
+  for (const t of ['accounts', 'enrollments', 'homework', 'payments', 'teachers', 'access_credentials', 'native_results']) {
     assert.ok(tables.includes(t), `expected table ${t}, got ${tables.join(', ')}`);
+  }
+  assert.ok(!tables.includes('join_codes'), 'join_codes is retired by 045');
+  for (const gone of ['results', 'results_v2', 'game_skills', 'game_filler', 'lesson_game_assignments', 'lesson_game_revisions']) {
+    assert.ok(!tables.includes(gone), `${gone} is retired by 047`);
   }
   assert.equal(db.prepare(`SELECT MAX(version) AS v FROM schema_version`).get().v, LATEST);
 });
@@ -100,13 +104,12 @@ test('a failing 002 leaves no half-backfilled database behind', async () => {
       ('noga', 'נוגה', 'מתמטיקה', 'כיתה יב', '1234', '5678', NULL, 'pw', '2026-04-07T10:00:00Z');
   `);
 
-  // Collide on join_codes, the LAST statement in 002 — so the columns, the
-  // indexes, the tutor seed and the whole backfill have already succeeded
-  // inside the transaction when the failure hits. This is the state an
-  // operator would actually be left holding, and a half-migrated family
-  // model is far worse than an unmigrated one: accounts would exist with no
-  // way to hand a child a code.
-  db.exec(`CREATE TABLE join_codes (bogus TEXT)`);
+  // Collide on idx_join_codes_student, the LAST statement in 002 — so the
+  // columns, the tables, the tutor seed and the whole backfill have already
+  // succeeded inside the transaction when the failure hits. This is the
+  // state an operator would actually be left holding, and a half-migrated
+  // family model is far worse than an unmigrated one.
+  db.exec(`CREATE TABLE idx_join_codes_student (bogus TEXT)`);
   assert.throws(() => migrate(db));
 
   // 001 committed in its own transaction and stays; 002 must be entirely gone.
@@ -277,7 +280,6 @@ test('version 31 applies when 30 is absent, and a later 30 still applies', async
   migrate(db, before30);
   assert.equal(versions(db).includes(30), false);
   assert.equal(versions(db).includes(31), true);
-  assert.ok(db.prepare(`SELECT COUNT(*) AS c FROM game_filler`).get().c > 0);
   assert.equal(hasColumn(db, 'bookings_v2', 'heard_from_detail'), false);
 
   // The shipped list, reversed on purpose: pending() sorts by version,
@@ -288,9 +290,9 @@ test('version 31 applies when 30 is absent, and a later 30 still applies', async
   assert.equal(versions(db).includes(30), has30());
   assert.equal(versions(db).includes(31), true);
   assert.equal(hasColumn(db, 'bookings_v2', 'heard_from_detail'), has30());
-  const rows = db.prepare(`SELECT COUNT(*) AS c FROM game_filler`).get().c;
+  const applied = versions(db).length;
   migrate(db, shipped);
-  assert.equal(db.prepare(`SELECT COUNT(*) AS c FROM game_filler`).get().c, rows);
+  assert.equal(versions(db).length, applied, 'a second run applies nothing');
 });
 
 test('version 31 still applies when every lower version is already recorded', async () => {
@@ -301,11 +303,9 @@ test('version 31 still applies when every lower version is already recorded', as
   assert.equal(versions(db).includes(30), has30());
   assert.equal(versions(db).includes(31), false);
   assert.equal(hasColumn(db, 'bookings_v2', 'heard_from_detail'), has30());
-  assert.equal(db.prepare(`SELECT name FROM sqlite_master WHERE name = 'game_filler'`).get(), undefined);
 
   migrate(db, [...MIGRATIONS].reverse());
   assert.equal(versions(db).includes(31), true);
-  assert.ok(db.prepare(`SELECT COUNT(*) AS c FROM game_filler`).get().c > 0);
   assert.equal(hasColumn(db, 'bookings_v2', 'heard_from_detail'), has30());
 });
 
@@ -321,4 +321,45 @@ test('003 leaves the foreign keys biting after the table rebuild', async () => {
     INSERT INTO payments (account_id, student_id, booking_id, date, kind, amount_agorot, status, note)
     VALUES (999, 999, NULL, '2026-09-01', 'single', 12000, 'owed', NULL)
   `).run(), /FOREIGN KEY|constraint/i);
+});
+
+test('047 removes the classic game system and keeps the homework it touched', async () => {
+  const db = await freshDb();
+  migrate(db, MIGRATIONS.filter(m => m.version <= 46));
+  assert.equal(versions(db).includes(47), false);
+
+  // Sample rows in every table 047 drops, and a homework task that named a
+  // classic game. Parents are not seeded: the rows only have to exist.
+  db.exec('PRAGMA foreign_keys = OFF');
+  db.exec(`
+    INSERT INTO accounts (id, name, credential, created_at) VALUES (1, 'family', 'x', '2026-01-01');
+    INSERT INTO students_v2 (id, code, name, account_id, credential, created_at) VALUES (1, 'noga', 'Noga', 1, 'x', '2026-01-01');
+    INSERT INTO results_v2 (student_id, at, data_id, template, score, total) VALUES (1, '2026-01-02', 'noga-quiz', 'quiz', 8, 10);
+    INSERT INTO results (student, at, data_id, template, score, total) VALUES ('unknown', '2026-01-02', 'x-quiz', 'quiz', 1, 2);
+    INSERT INTO game_skills (student_id, data_id, node_id, at) VALUES (1, 'noga-quiz', 5, '2026-01-02');
+    INSERT INTO game_filler (id, body) VALUES ('example-a', '{}');
+    INSERT INTO lesson_game_assignments (id, lesson_id, student_id, template, title, status, draft_body, created_at, updated_at)
+      VALUES ('a1', 1, 1, 'quiz', 'Quiz', 'published', '{}', '2026-01-02', '2026-01-02');
+    INSERT INTO lesson_game_revisions (data_id, assignment_id, body, published_at) VALUES ('noga-quiz', 'a1', '{}', '2026-01-02');
+    INSERT INTO homework (id, student_id, task, template, data_id, assigned_at, answer)
+      VALUES (1, 1, 'play the quiz', 'quiz', 'noga-quiz', '2026-01-02', 'key');
+  `);
+  db.exec('PRAGMA foreign_keys = ON');
+
+  migrate(db);
+  assert.equal(versions(db).at(-1), 48);
+
+  const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all().map(r => r.name);
+  for (const gone of ['results', 'results_v2', 'game_skills', 'game_filler', 'lesson_game_assignments', 'lesson_game_revisions']) {
+    assert.ok(!tables.includes(gone), `${gone} should be dropped`);
+  }
+  assert.equal(hasColumn(db, 'homework', 'template'), false);
+  assert.equal(hasColumn(db, 'homework', 'data_id'), false);
+  assert.deepEqual(
+    { ...db.prepare(`SELECT id, student_id, task, answer FROM homework`).get() },
+    { id: 1, student_id: 1, task: 'play the quiz', answer: 'key' },
+    'the homework task itself survives',
+  );
+  assert.equal(db.prepare(`SELECT COUNT(*) AS c FROM students_v2`).get().c, 1);
+  for (const kept of ['native_results', 'native_games']) assert.ok(tables.includes(kept), `${kept} stays`);
 });

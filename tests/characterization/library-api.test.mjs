@@ -54,8 +54,5 @@ test('the library is the tutor’s: API, page, and a cron key to prepare from th
     });
     assert.equal(item.status, 'failed', 'no engine here: a recorded failure');
     assert.ok(item.problem);
-
-    const lessons = await (await fetch(`${baseUrl}/api/lessons`, { headers: { Cookie: tutor } })).json();
-    assert.ok(!lessons.lessons.some(l => l.slug.startsWith('lib-')), 'masters are not in the lessons feed');
   } finally { await stop(); }
 });

@@ -1,8 +1,8 @@
 /**
  * Lesson preparation — generates a whole lesson from a topic.
  *
- * Produces a slide deck, worked examples, homework, and playable games in one
- * pass, then writes them where the site already looks for them.
+ * Produces the interactive learning experience, slide deck, worked examples
+ * and homework in one pass.
  *
  * NotebookLM is deliberately not involved: it needs a browser session and
  * minutes of polling, so it can never run unattended. A headless coding
@@ -22,7 +22,6 @@
  * tutor to review. It goes out under her name.
  */
 
-import {canonicalLabelling,LABELLING_DIAGRAM_IDS} from '../../games/diagrams.ts';
 import { formulaRuns } from '../../bidi.ts';
 import {resolveOfficialQuestions,officialQuestion,suppliedQuestionId,suppliedSourceIntent,type OfficialQuestion} from './official-questions.ts';
 import {teachingDisplay,homeworkExperience} from '../teaching-display.ts';
@@ -32,10 +31,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { LessonGenerationError, engineBin, lessonEngine, claudeBin, opencodeBin } from './engine.ts';
-import { getRegistry } from './registry.ts';
 import { planFor } from '../../plans.ts';
 import { spawnAgent } from './spawn.ts';
-import { validateLessonGame, GameValidationError } from '../lesson-games.ts';
 import { strictOutputSchema, omitOptionalNulls } from './structured-output.ts';
 import { newFence, sanitizeField } from './prompt.ts';
 /* One source for the palette a deck writes into its own document — see
@@ -86,110 +83,6 @@ export interface HomeworkItem {
   answer?: string;
 }
 
-export interface GameStimulus {stimulus?:string}
-export interface MemoryGame extends GameStimulus {
-  title: string;
-  subject: string;
-  pairs: { a: string; b: string }[];
-}
-
-export interface TwoTruthsGame extends GameStimulus {
-  title: string;
-  subject: string;
-  rounds: { statements: string[]; lieIndex: number; why: string; hint: string }[];
-}
-
-export interface ErrorHuntGame extends GameStimulus {
-  title: string;
-  subject: string;
-  rounds: { problem: string; steps: string[]; badStep: number; why: string; hint: string }[];
-}
-
-export interface QuizGame extends GameStimulus {
-  title: string;
-  subject: string;
-  questions: { q: string; options: string[]; answer: number; why: string; hint: string }[];
-}
-
-export interface MatchingGame extends GameStimulus {
-  title: string;
-  subject: string;
-  pairs: { left: string; right: string; hint: string }[];
-}
-
-export interface SequenceGame extends GameStimulus {
-  title: string;
-  subject: string;
-  steps: string[];
-}
-
-export interface SortGame extends GameStimulus {
-  title: string;
-  subject: string;
-  categories: string[];
-  items: { text: string; category: string }[];
-}
-
-export interface TableGame extends GameStimulus {
-  title: string;
-  subject: string;
-  columns: string[];
-  rows: { label: string; cells: { text: string; blank: boolean }[] }[];
-}
-
-export interface SpeedDrillGame extends GameStimulus {
-  title: string;
-  subject: string;
-  seconds: number;
-  items: { q: string; a: string; options: string[] }[];
-}
-
-export interface LabellingGame extends GameStimulus {
-  diagram?:string;
-  title: string;
-  subject: string;
-  svg: string;
-  targets: { id: string; label: string }[];
-}
-
-export interface GraphMatchGame extends GameStimulus {
-  title: string;
-  subject: string;
-  rounds: {
-    prompt: string;
-    mainLabel: string;
-    main: number[];
-    xValues?:number[];
-    options: number[][];
-    answer: number;
-    why: string;
-    hint: string;
-  }[];
-}
-
-export interface NumberLineGame extends GameStimulus {
-  title: string;
-  subject: string;
-  min: number;
-  max: number;
-  rounds: { target: number; label: string; tolerance: number; why: string; hint: string }[];
-}
-
-export interface GamesMap {
-  memory?: MemoryGame;
-  twoTruths?: TwoTruthsGame;
-  errorHunt?: ErrorHuntGame;
-  quiz?: QuizGame;
-  matching?: MatchingGame;
-  sequence?: SequenceGame;
-  sort?: SortGame;
-  table?: TableGame;
-  speedDrill?: SpeedDrillGame;
-  labelling?: LabellingGame;
-  graphMatch?: GraphMatchGame;
-  numberLine?: NumberLineGame;
-}
-
 export interface LessonPlan {
   teaching?: TeachingPlan;
   title: string;
@@ -197,7 +90,6 @@ export interface LessonPlan {
   slides: Slide[];
   examples: WorkedExample[];
   homework: HomeworkItem[];
-  games: GamesMap;
   /** Absent only on lessons generated before the interactive scene contract. */
   learning?: LearningExperience;
 }
@@ -244,13 +136,10 @@ export interface LessonRequest {
   durationMin?: number;
 }
 
-/* The three "ready" game types that cover the most ground: recall,
-   misconception, and diagnosis. Schemas match games/registry.json exactly, so
-   generated data drops straight into the existing templates. */
 const LESSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['title', 'gradeContext', 'slides', 'examples', 'homework', 'games', 'learning'],
+  required: ['title', 'gradeContext', 'slides', 'examples', 'homework', 'learning'],
   properties: {
     learning: LEARNING_SCHEMA,
     title:        { type: 'string' },
@@ -292,187 +181,6 @@ const LESSON_SCHEMA = {
         properties: { task: { type: 'string' }, why: { type: 'string' }, answer: { type: 'string' } },
       },
     },
-    games: {
-      type: 'object',
-      additionalProperties: false,
-      description: 'Fill 2-3 templates that suit this material. Leave the rest out.',
-      properties: {
-        memory: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'pairs'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            pairs: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['a', 'b'],
-              properties: { a: { type: 'string' }, b: { type: 'string' } } } },
-          },
-        },
-        twoTruths: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'rounds'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            rounds: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['statements', 'lieIndex', 'why', 'hint'],
-              properties: {
-                statements: { type: 'array', items: { type: 'string' } },
-                lieIndex:   { type: 'integer' },
-                why:        { type: 'string' },
-                hint:       { type: 'string', description: 'A nudge toward the method. Never the answer.' } } } },
-          },
-        },
-        errorHunt: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'rounds'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            rounds: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['problem', 'steps', 'badStep', 'why', 'hint'],
-              properties: {
-                problem: { type: 'string' },
-                steps:   { type: 'array', items: { type: 'string' } },
-                badStep: { type: 'integer' },
-                why:     { type: 'string' },
-                hint:    { type: 'string', description: 'A nudge toward the method. Never the answer.' } } } },
-          },
-        },
-        quiz: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'questions'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            questions: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['q', 'options', 'answer', 'why', 'hint'],
-              properties: {
-                q:       { type: 'string' },
-                options: { type: 'array', items: { type: 'string' } },
-                answer:  { type: 'integer' },
-                why:     { type: 'string' },
-                hint:    { type: 'string', description: 'A nudge toward the method. Never the answer.' } } } },
-          },
-        },
-        matching: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'pairs'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            pairs: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['left', 'right', 'hint'],
-              properties: {
-                left:  { type: 'string' }, right: { type: 'string' },
-                hint:  { type: 'string' } } } },
-          },
-        },
-        sequence: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'steps'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            steps: { type: 'array', items: { type: 'string' } },
-          },
-        },
-        sort: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'categories', 'items'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            categories: { type: 'array', items: { type: 'string' } },
-            items: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['text', 'category'],
-              properties: { text: { type: 'string' }, category: { type: 'string' } } } },
-          },
-        },
-        table: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'columns', 'rows'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            columns: { type: 'array', items: { type: 'string' } },
-            rows: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['label', 'cells'],
-              properties: {
-                label: { type: 'string' },
-                cells: { type: 'array', items: {
-                  type: 'object', additionalProperties: false,
-                  required: ['text', 'blank'],
-                  properties: {
-                    text:  { type: 'string', description: 'given text, or the answer when blank is true' },
-                    blank: { type: 'boolean' } } } } } } },
-          },
-        },
-        speedDrill: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'seconds', 'items'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            seconds: { type: 'integer' },
-            items: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['q', 'a', 'options'],
-              properties: {
-                q: { type: 'string' }, a: { type: 'string' },
-                options: { type: 'array', items: { type: 'string' } } } } },
-          },
-        },
-        labelling: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'svg', 'targets'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            svg: { type: 'string', description: 'A small inline SVG with id="..." on every element that gets labelled.' },
-            targets: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['id', 'label'],
-              properties: {
-                id:    { type: 'string', description: 'Must match an id="..." inside svg exactly.' },
-                label: { type: 'string' } } } },
-          },
-        },
-        graphMatch: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'rounds'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            rounds: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['prompt', 'mainLabel', 'main', 'options', 'answer', 'why', 'hint'],
-              properties: {
-                prompt:    { type: 'string' },
-                mainLabel: { type: 'string' },
-                main:      { type: 'array', items: { type: 'number' }, description: 'y-samples of the function, evenly spaced in x' },
-                options:   { type: 'array', items: { type: 'array', items: { type: 'number' } },
-                             description: 'Each option is a y-sample array of the SAME length as main.' },
-                answer:    { type: 'integer' },
-                why:       { type: 'string' },
-                hint:      { type: 'string', description: 'A nudge toward the method. Never the answer.' } } } },
-          },
-        },
-        numberLine: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'subject', 'min', 'max', 'rounds'],
-          properties: {
-            title: { type: 'string' }, subject: { type: 'string' },
-            min: { type: 'number' }, max: { type: 'number' },
-            rounds: { type: 'array', items: {
-              type: 'object', additionalProperties: false,
-              required: ['target', 'label', 'tolerance', 'why', 'hint'],
-              properties: {
-                target:    { type: 'number', description: 'Must fall within [min, max].' },
-                label:     { type: 'string', description: 'How it is written, e.g. "2½".' },
-                tolerance: { type: 'number' },
-                why:       { type: 'string' },
-                hint:      { type: 'string', description: 'A nudge toward the method. Never the answer.' } } } },
-          },
-        },
-      },
-    },
   },
 };
 
@@ -481,9 +189,6 @@ export function lessonOutputSchema(){
  if(generationVersion()!==2)return LESSON_SCHEMA;
  const schema=structuredClone(LESSON_SCHEMA) as Record<string,any>;
  for(const legacy of ['slides','examples']){delete schema.properties[legacy];schema.required=schema.required.filter((key:string)=>key!==legacy);}
- schema.properties.games.properties.labelling={type:'object',required:['title','subject','diagram'],properties:{title:{type:'string'},subject:{type:'string'},diagram:{type:'string',enum:[...LABELLING_DIAGRAM_IDS]}}};
- const graph=schema.properties.games.properties.graphMatch.properties.rounds.items;
- graph.required.push('xValues');graph.properties.xValues={type:'array',items:{type:'number'},description:'Explicit equally spaced x coordinates shared by main and every option; same length as y samples.'};
  schema.required.push('teaching');schema.properties.teaching=TEACHING_SCHEMA;
  schema.properties.learning.properties.scenes.items.properties.visual.enum.push('fraction','geometry','data-bars','normal','normal-school');
  const notes=schema.properties.learning.properties.scenes.items.properties.presenterNotes;
@@ -493,40 +198,7 @@ export function lessonOutputSchema(){
  check.properties.solution={type:'string'};check.required.push('solution');
  schema.properties.homework.items.properties.check={anyOf:[{type:'null'},structuredClone(check)]};
  schema.properties.homework.items.required.push('check');
- for(const game of Object.values(schema.properties.games.properties) as Array<Record<string,any>>){game.properties.stimulus={type:'string',description:'Shared givens needed to play this game independently; empty only if every round is fully self-contained.'};(game.required??=[]).push('stimulus');}
  return schema;
-}
-
-
-/**
- * Which game fits which goal, as the prompt states it — generated from
- * games/registry.json's selection rules, the one place that mapping lives.
- *
- * The prompt used to carry its own hand-written Hebrew paraphrase of it
- * while the registry claimed to be enforced and was read by nothing
- * (measured 2026-09-24: 3 of 4 repeated briefs came back with a different
- * game set). Lior decided on 2026-09-25 to wire the rules in rather than
- * delete them: which game teaches which goal is the judgement being sold.
- *
- * Rules name templates by FILE ('error-hunt'); the plan's schema names them
- * by key ('errorHunt'). Both come from TEMPLATE_FILES, so a rule naming a
- * game the schema cannot produce throws here rather than asking the model
- * for something it has no field for.
- */
-export function gameSelectionLines(): string[] {
-  const { rules, fallback } = getRegistry().selection;
-  const keyFor = Object.fromEntries(Object.entries(TEMPLATE_FILES).map(([k, t]) => [t, k]));
-  const key = (template: string): string => {
-    const k = keyFor[template];
-    if (!k) throw new Error(`games/registry.json names ${template}, which no plan key produces`);
-    return k;
-  };
-  return [
-    'משחקים — בוחרים 2-3 שמתאימים לחומר, לא את כולם.',
-    'עבור/עברי על הכללים הבאים לפי הסדר (הספציפי ביותר ראשון), ובחר/י את המשחקים שהכלל שלהם מתאר מטרה של השיעור הזה:',
-    ...rules.map(r => `- ${r.when} → ${key(r.use)}`),
-    `אם אף כלל לא מתאים — ${key(fallback)}.`,
-  ];
 }
 
 /** The slide instruction for a lesson of `durationMin` minutes. A duration
@@ -552,28 +224,7 @@ function buildSystem({ subject, level, durationMin }: { subject: string; level: 
     '- שיעורי בית: 3-4 משימות, ולכל אחת הסבר קצר למה היא חשובה, ו-answer: תשובון למורה בלבד — התשובה הסופית לכל סעיף, ופתרון קצר כשהוא עוזר לבדוק. לא בתוך המשימה: התלמיד/ה לא רואה אותו.',
     '- אל תמציא/י עובדות. אם משהו לא בטוח — השמט/י אותו.',
     '',
-    ...gameSelectionLines(),
-    '',
-    'הנחיות לנתונים של כל משחק:',
-    `- כמות הפריטים בכל משחק שנבחר חייבת להתאים לטווח שלו: ${Object.entries(TEMPLATE_FILES).map(([key,template]) => `${key}: ${(getRegistry().templates[template]?.itemRange ?? []).join('–')}`).join('; ')}. אל תקצר/י משחק לסבב בודד.`,
     ...LEARNING_INSTRUCTIONS,
-    '- בחידון, ב-twoTruths, ב-errorHunt, ב-graphMatch וב-numberLine: לכל שאלה או סבב יש hint.',
-    '  hint הוא רמז שמכוון לדרך בלי לגלות את התשובה — שאלה מנחה או תזכורת לכלל, לא התשובה ולא האפשרות הנכונה.',
-    '- memory: שינון מונחים ונוסחאות. לפחות 6 זוגות.',
-    '- matching: מונח מול הגדרה, כלל מול תוצאה. hint הוא משפט הסבר קצר.',
-    '- sequence: סדר שלבים בתהליך או בפתרון. כתוב/כתבי אותם בסדר הנכון — המשחק מערבב.',
-    '- sort: מיון פריטים ל-2-3 קבוצות. category חייב להיות אחד מ-categories בדיוק.',
-    '- table: השלמת טבלה. cells הם אובייקטים: blank=false לתא נתון, blank=true לתא שהתלמיד ממלא ו-text הוא התשובה.',
-    '- quiz: בדיקת הבנה בסוף שיעור. answer הוא האינדקס (מ-0) של התשובה הנכונה ב-options.',
-    '- twoTruths: איתור תפיסות שגויות. השקר חייב להיות טעות שתלמידים באמת עושים, לא שטות ברורה. בדיוק 3 משפטים בכל סבב.',
-    '- errorHunt: פתרון שנראה סביר עם שגיאה אחת בדיוק. badStep הוא האינדקס שלה (מ-0).',
-    '- speedDrill: שליפה מהירה של כלל שכבר הובן. a חייב להופיע גם ב-options.',
-    generationVersion()===2?'- labelling: title,subject,diagram בלבד; diagram הוא right-triangle או cylinder, מתוך קטלוג תרשימים מבוקרים.':'- labelling: תיוג חלקים בתרשים או בגרף. svg הוא SVG קטן ופשוט (קווים/עיגולים/טקסט בלבד, viewBox סביר),',
-    generationVersion()===2?'  אין ליצור SVG או targets: הם נבנים מקוד מאומת. אם אין תרשים מתאים לחומר, בוחרים משחק אחר.':'  עם id="..." על כל אלמנט שמתויג. targets מכיל את אותם id-ים בדיוק, עם התווית הנכונה לכל אחד. עד 6 תוויות.',
-    '- graphMatch: התאמת פונקציה לגרף שלה (או לנגזרת שלה) — רק לרמות שכבר למדו את הנושא. main וכל איבר ב-options',
-    '  הם מערכי y באותו האורך בדיוק, נדגמים במרווחים שווים לאורך x. answer הוא האינדקס (מ-0) של האפשרות הנכונה.',
-    '- numberLine: מיקום וגודל על ציר מספרים — שברים, עשרוניים, מספרים שליליים; לרמות יסוד/חטיבה. target',
-    '  חייב להיות בתוך הטווח [min, max]. tolerance הוא טווח הטעות המותר סביב התשובה.',
   ].join('\n');
 }
 
@@ -599,20 +250,6 @@ export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
     const sourceQuestionIds=sources.questions.map(q=>q.id);
     req={...req,officialQuestions:sources.questions,teachingContext:sourceQuestionIds.length||context.sourceQuestionIds?{...context,sourceQuestionIds}:context};
   }
-  const generateValidated = async (repair?:LessonGenerationError) => {
-    const plan = dropAmbiguousPairs(balancePositions(await generateOnce(req,repair)));
-    // New output must be playable/editable under the same contract as authored games.
-    // Historical plans remain readable; validation here applies only to fresh generation.
-    for (const [key, body] of Object.entries(plan.games ?? {})) {
-      if (body == null) continue;
-      try { validateLessonGame(TEMPLATE_FILES[key], toTemplateShape(key, body)); }
-      catch (error) {
-        const detail = error instanceof GameValidationError ? error.issues.map(issue => `${issue.path}: ${issue.message}`).join('; ') : String(error);
-        throw new LessonGenerationError('bad-output', `משחק ${key}: ${detail}`);
-      }
-    }
-    return plan;
-  };
   /* One retry, and only for a plan that came back unusable.
    *
    * A language model emitting a few thousand characters of JSON gets it
@@ -627,73 +264,14 @@ export async function generateLesson(req: LessonRequest): Promise<LessonPlan> {
    * changes nothing — for quota it actively makes things worse by spending
    * what little is left. */
   try {
-    return await generateValidated();
+    return await generateOnce(req);
   } catch (err) {
     const kind = err instanceof LessonGenerationError ? err.kind : null;
     if (kind !== 'bad-output' && kind !== 'no-output') throw err;
     console.warn(`lesson: ${kind} from the engine (${(err as Error).message}), retrying once`);
     if(process.env.LESSON_DIAGNOSTIC_DIR){try{await mkdir(process.env.LESSON_DIAGNOSTIC_DIR,{recursive:true,mode:0o700});await writeFile(join(process.env.LESSON_DIAGNOSTIC_DIR,`${Date.now()}-rejected.json`),JSON.stringify({issues:(err as Error).message,output:(err as LessonGenerationError).detail??''}),{mode:0o600});}catch{console.warn('lesson: synthetic diagnostic could not be saved');}}
-    return await generateValidated(err as LessonGenerationError);
+    return await generateOnce(req, err as LessonGenerationError);
   }
-}
-
-/**
- * Spreads out a key that never moves, when the model put every correct
- * quiz option, or every lie of "two truths and a lie", in one position.
- *
- * validateLesson rejects that ("a key that never moves is a key the child
- * learns") and holds the lesson — which costs a new engine run and breaks
- * the gate's streak, for something fixable in place: two of six skills in
- * the library trial (2026-09-28) were held for exactly this. Question i is
- * rotated by i positions, so the keys differ and each still points at the
- * same text. Keys that already vary are left exactly as they were: rotating
- * those could line them up.
- */
-/**
- * Drops a matching pair whose left or right side repeats an earlier one.
- *
- * A matching game where two pairs share a side cannot be played: both
- * «∠B = ∠C» and «AB = AC» lead to «המשולש שווה שוקיים», and the child
- * cannot tell which goes where. Each pair is correct maths; the game can
- * only hold one. The later duplicate goes when at least three pairs remain
- * (validateLesson's own minimum) — otherwise the game is left as it was,
- * for validation to hold. Found in the library, 2026-09-30.
- */
-export function dropAmbiguousPairs(plan: LessonPlan): LessonPlan {
-  const m = plan.games?.matching;
-  if (!m?.pairs?.length) return plan;
-  const lefts = new Set<string>(), rights = new Set<string>();
-  const kept = m.pairs.filter(p => {
-    const l = String(p.left ?? '').trim(), r = String(p.right ?? '').trim();
-    if (lefts.has(l) || rights.has(r)) return false;
-    lefts.add(l); rights.add(r);
-    return true;
-  });
-  if (kept.length < m.pairs.length && kept.length >= 3) m.pairs = kept;
-  return plan;
-}
-
-export function balancePositions(plan: LessonPlan): LessonPlan {
-  const rotate = <T>(xs: T[], by: number): T[] => xs.map((_, j) => xs[(j - by + xs.length * 4) % xs.length]);
-  const stuck = (keys: number[]) => keys.length >= 3 && new Set(keys).size === 1;
-
-  const quiz = plan.games?.quiz;
-  if (quiz?.questions && stuck(quiz.questions.map(q => q.answer))) {
-    quiz.questions = quiz.questions.map((q, i) => {
-      const n = q.options?.length ?? 0;
-      if (n < 2) return q;
-      return { ...q, options: rotate(q.options, i), answer: (q.answer + i) % n };
-    });
-  }
-  const tt = plan.games?.twoTruths;
-  if (tt?.rounds && stuck(tt.rounds.map(r => r.lieIndex))) {
-    tt.rounds = tt.rounds.map((r, i) => {
-      const n = r.statements?.length ?? 0;
-      if (n < 2) return r;
-      return { ...r, statements: rotate(r.statements, i), lieIndex: (r.lieIndex + i) % n };
-    });
-  }
-  return plan;
 }
 
 async function generateOnce(req: LessonRequest,repair?:LessonGenerationError): Promise<LessonPlan> {
@@ -730,7 +308,6 @@ async function generateOnce(req: LessonRequest,repair?:LessonGenerationError): P
       );
     }
     const plan = omitOptionalNulls(parsed, lessonOutputSchema()) as Record<string, unknown>;
-    if(generationVersion()===2){const games=plan.games as Record<string,unknown>|undefined;if(games?.labelling){const resolved=canonicalLabelling(games.labelling);if(!resolved)throw new LessonGenerationError('bad-output','labelling דורש diagram מאומת: right-triangle או cylinder',raw);games.labelling=resolved;}}
     if (!plan.learning) {
       throw new LessonGenerationError('bad-output', 'lesson output omitted the interactive learning experience');
     }
@@ -887,9 +464,8 @@ export function buildPrompt({ subject, level, request, student, skill, durationM
  *                                `ps` to every process on the box.
  *
  * --output-schema enforces valid JSON and required learning fields. Strict
- * output requires every property to be required, so optional fields and
- * unselected games become nullable in CODEX_LESSON_SCHEMA. generateOnce
- * removes only those optional nulls; the model still chooses its games.
+ * output requires every property to be required, so optional fields become
+ * nullable in CODEX_LESSON_SCHEMA. generateOnce removes only those optional nulls.
  */
 /**
  * The JSON object in an agent's reply, as text, or null. Claude Code and
@@ -962,7 +538,7 @@ async function runAgent(prompt: string, cwd: string, planPath: string): Promise<
 
 /** Self-contained RTL deck, site palette, arrow-key navigation. */
 export function renderSlides(plan: LessonPlan, { subject, level, student,slug }: { subject: string; level: string; student?: string;slug?:string }): string {
-  if (plan.learning && !experienceProblems(plan.learning).length) return renderLearningDocument(plan.learning,{teaching:teachingDisplay(plan,slug??'')});
+  if (plan.learning && !experienceProblems(plan.learning).length) return renderLearningDocument(plan.learning,{teaching:teachingDisplay(plan)});
   /* Text with formulas in it: each formula isolated left to right (bidi.ts),
      everything escaped. In this right-to-left document "8-(x+3)" was laid
      out as ")x+3(-8". */
@@ -970,13 +546,12 @@ export function renderSlides(plan: LessonPlan, { subject, level, student,slug }:
     .map(r => (r.ltr ? `<bdi dir="ltr">${esc(r.text)}</bdi>` : esc(r.text))).join('');
 
   /* The order a lesson is taught in (Todoist 6hRhqRXHcGj9m98H):
-     explanation → worked example → check yourself → summary. The plan's
+     explanation → worked example → summary. The plan's
      closing «סיכום» used to come before the worked examples, because the
      examples were simply appended after every plan slide. */
   const last = plan.slides[plan.slides.length - 1];
   const hasSummary = !!last && /סיכום/.test(last.heading);
   const explanation = hasSummary ? plan.slides.slice(0, -1) : plan.slides;
-  const check = plan.games?.quiz?.questions?.[0];
 
   const slideBody = (s: Slide) => `
       <h2>${rich(s.heading)}</h2>
@@ -993,21 +568,9 @@ export function renderSlides(plan: LessonPlan, { subject, level, student,slug }:
         <div class="answer">תשובה: ${rich(e.answer)}</div>
       </details>`;
 
-  /* A comprehension question from the lesson's own quiz — nothing new is
-     generated, and without a quiz there is no such slide. */
-  const checkBody = (q: QuizGame['questions'][number]) => `
-      <h2>בדקו את עצמכם</h2>
-      <div class="problem">${rich(q.q)}</div>
-      <ol class="options">${q.options.map(o => `<li>${rich(o)}</li>`).join('')}</ol>
-      <details><summary>הצגת התשובה</summary>
-        <div class="answer">${rich(q.options[q.answer])}</div>
-        ${q.why ? `<p class="why">${rich(q.why)}</p>` : ''}
-      </details>`;
-
   const bodies = [
     ...explanation.map(slideBody),
     ...plan.examples.map(exampleBody),
-    ...(check ? [checkBody(check)] : []),
     ...(hasSummary ? [slideBody(last)] : []),
   ];
   const total = bodies.length;
@@ -1079,79 +642,7 @@ export function renderSlides(plan: LessonPlan, { subject, level, student,slug }:
 <\/script></body></html>`;
 }
 
-export interface SaveLessonMeta {
-  subject: string;
-  level: string;
-  topic: string;
-  student?: string;
-}
-
-export interface SavedGameRef {
-  template: string;
-  dataId: string;
-}
-
-export interface SaveLessonResult {
-  slug: string;
-  dir: string;
-  files: string[];
-  games: SavedGameRef[];
-}
-
-/**
- * Writes the deck and the three game data files into a draft folder, plus the
- * homework list. Returns paths and the URLs the games will live at.
- */
-export async function saveLesson(plan: LessonPlan, meta: SaveLessonMeta, root: string): Promise<SaveLessonResult> {
-  const slug  = `${slugify(meta.student || 'lesson')}-${slugify(meta.topic)}`;
-  const draft = join(root, 'drafts', slug);
-  await mkdir(join(draft, 'data'), { recursive: true });
-
-  const files: Record<string, string> = {
-    'slides.html':   renderSlides(plan, meta),
-    'homework.json': JSON.stringify(plan.homework, null, 2),
-    'lesson.json':   JSON.stringify(plan, null, 2),
-  };
-  const games: SavedGameRef[] = [];
-  for (const [key, data] of Object.entries(plan.games ?? {})) {
-    const template = TEMPLATE_FILES[key];
-    if (!template || !data) continue;
-    files[`data/${template}.json`] = JSON.stringify(toTemplateShape(key, data), null, 2);
-    games.push({ template, dataId: `${slug}-${template}` });
-  }
-
-  for (const [name, body] of Object.entries(files)) {
-    await writeFile(join(draft, name), body, 'utf8');
-  }
-
-  return { slug, dir: draft, files: Object.keys(files), games };
-}
-
-/** Schema key → the template file that plays it. */
-export const TEMPLATE_FILES: Record<string, string> = {
-  memory: 'memory', twoTruths: 'two-truths', errorHunt: 'error-hunt',
-  quiz: 'quiz', matching: 'matching', sequence: 'sequence', sort: 'sort',
-  table: 'table', speedDrill: 'speed-drill',
-  labelling: 'labelling', graphMatch: 'graph-match', numberLine: 'number-line',
-};
-
-/* The table template reads a blank cell as { answer }, but a schema cannot hold
-   two shapes in one array, so the model sends { text, blank } and it is
-   converted here. */
-export function toTemplateShape(key: string, data: unknown): unknown {
-  if (key !== 'table') return data;
-  const table = data as TableGame;
-  return {
-    ...table,
-    rows: (table.rows ?? []).map(r => ({
-      label: r.label,
-      cells: (r.cells ?? []).map(c => (c.blank ? { answer: c.text } : c.text)),
-    })),
-  };
-}
-
-/** Structural checks that do not need the model — cheap to run, catches the
- *  failure modes that would break a template at play time. */
+/** Structural checks that do not need the model. */
 export function validateLesson(plan: LessonPlan): string[] {
   const problems: string[] = plan.teaching ? teachingProblems(plan.teaching,plan) : [];
   if (plan.learning !== undefined) problems.push(...experienceProblems(plan.learning));
@@ -1161,130 +652,8 @@ export function validateLesson(plan: LessonPlan): string[] {
   need(plan.examples?.length >= 1, 'אין דוגמאות פתורות');
   need(plan.homework?.length >= 2, 'פחות מ-2 משימות');
 
-  const games: GamesMap = plan.games ?? {};
-  const chosen = (Object.keys(games) as (keyof GamesMap)[]).filter(k => games[k]);
-  need(chosen.length >= 2, 'צריך לפחות שני משחקים');
-  chosen.forEach(k => need(TEMPLATE_FILES[k], `משחק לא מוכר: ${k}`));
-
-  const g = games;
-  if (g.memory)   need(g.memory.pairs?.length >= 6, 'משחק זיכרון צריך לפחות 6 זוגות');
-  if (g.matching) need(g.matching.pairs?.length >= 3, 'משחק התאמה צריך לפחות 3 זוגות');
-  if (g.sequence) need(g.sequence.steps?.length >= 3, 'סידור רצף צריך לפחות 3 שלבים');
-
-  g.twoTruths?.rounds?.forEach((r, i) => {
-    need(r.statements?.length === 3, `סבב ${i + 1}: צריך בדיוק 3 משפטים`);
-    need(r.lieIndex >= 0 && r.lieIndex < (r.statements?.length ?? 0),
-      `סבב ${i + 1}: lieIndex מחוץ לתחום`);
-  });
-  g.errorHunt?.rounds?.forEach((r, i) => {
-    need(r.badStep >= 0 && r.badStep < (r.steps?.length ?? 0),
-      `ציד טעויות ${i + 1}: badStep מחוץ לתחום`);
-  });
-  g.quiz?.questions?.forEach((q, i) => {
-    need(q.options?.length >= 2, `חידון ${i + 1}: צריך לפחות שתי אפשרויות`);
-    need(q.answer >= 0 && q.answer < (q.options?.length ?? 0),
-      `חידון ${i + 1}: answer מחוץ לתחום`);
-  });
-  g.sort?.items?.forEach((it, i) => {
-    need((g.sort!.categories ?? []).includes(it.category),
-      `מיון ${i + 1}: הקטגוריה "${it.category}" לא ברשימת הקבוצות`);
-  });
-  g.speedDrill?.items?.forEach((it, i) => {
-    need((it.options ?? []).includes(it.a), `קרב מהירות ${i + 1}: התשובה לא מופיעה באפשרויות`);
-  });
-  if (g.table) {
-    const blanks = (g.table.rows ?? []).flatMap(r => (r.cells ?? []).filter(c => c.blank));
-    need(blanks.length >= 2, 'טבלה צריכה לפחות שני תאים למילוי');
-  }
-
-  /* Beyond shape: a game can satisfy every structural rule above and still
-     teach nothing, or mark a correct answer wrong. These come from grading
-     12 real generations against docs/quality/lesson-generation-rubric.md.
-     None of them fired on that corpus — they guard regressions, not a
-     current defect, and the rubric says which is which. */
-
-  // A key that never moves is a key the child learns instead of the
-  // material. Three is the threshold: two questions share an index by
-  // chance often enough that rejecting it would fail good lessons.
-  const allSame = (xs: number[]) => xs.length >= 3 && new Set(xs).size === 1;
-
-  if (g.quiz?.questions?.length) {
-    need(!allSame(g.quiz.questions.map(q => q.answer)),
-      'חידון: כל התשובות הנכונות באותו מקום');
-    g.quiz.questions.forEach((q, i) => {
-      const opts = (q.options ?? []).map(o => String(o).trim());
-      need(new Set(opts).size === opts.length,
-        `חידון ${i + 1}: יש אפשרויות זהות, ולכן התשובה הנכונה אינה יחידה`);
-    });
-  }
-  /* A hint is a nudge, not the answer. Only the quiz can be checked
-     mechanically — its correct option is text the hint can contain. Short
-     options ("5", "כן") are skipped: they occur inside ordinary sentences. */
-  g.quiz?.questions?.forEach((q, i) => {
-    const right = String(q.options?.[q.answer] ?? '').trim();
-    if (right.length >= 4 && typeof q.hint === 'string' && q.hint.includes(right)) {
-      problems.push(`חידון ${i + 1}: הרמז חושף את התשובה`);
-    }
-  });
-  if (g.twoTruths?.rounds?.length) {
-    need(!allSame(g.twoTruths.rounds.map(r => r.lieIndex)),
-      'שתי אמיתות ושקר: המשפט השקרי תמיד באותו מקום');
-  }
-
-  /* Ambiguity. A repeated face or side means a child can be told their
-     correct answer is wrong, which is worse than an unhelpful game. Note
-     the two templates do NOT share a pair shape — matching is left/right,
-     memory is a/b — and reading the wrong key compares empty strings and
-     flags every lesson. */
-  if (g.matching?.pairs?.length) {
-    const lefts = g.matching.pairs.map(p => String(p.left ?? '').trim());
-    const rights = g.matching.pairs.map(p => String(p.right ?? '').trim());
-    need(new Set(lefts).size === lefts.length, 'משחק התאמה: יש פריטים זהים בצד אחד');
-    need(new Set(rights).size === rights.length, 'משחק התאמה: יש פריטים זהים בצד השני');
-  }
-  if (g.memory?.pairs?.length) {
-    const as = g.memory.pairs.map(p => String(p.a ?? '').trim());
-    const bs = g.memory.pairs.map(p => String(p.b ?? '').trim());
-    need(new Set(as).size === as.length && new Set(bs).size === bs.length,
-      'משחק זיכרון: יש קלפים זהים, ולכן יותר מהתאמה אחת נכונה');
-  }
-  if (g.sequence?.steps?.length) {
-    const steps = g.sequence.steps.map(x => String(x).trim());
-    need(new Set(steps).size === steps.length,
-      'סידור רצף: יש שלבים זהים, ולכן אין סדר נכון יחיד');
-  }
-
-  if (g.labelling) {
-    need(g.labelling.svg?.includes('<svg'), 'תיוג תרשים: svg לא תקין');
-    need((g.labelling.targets?.length ?? 0) >= 3, 'תיוג תרשים צריך לפחות 3 תוויות');
-    g.labelling.targets?.forEach((t, i) => {
-      need(g.labelling!.svg?.includes(`id="${t.id}"`), `תיוג תרשים: יעד ${i + 1} ("${t.id}") לא נמצא ב-svg`);
-    });
-  }
-  if (g.graphMatch) {
-    need((g.graphMatch.rounds?.length ?? 0) >= 2, 'התאמת גרפים צריכה לפחות 2 סבבים');
-    g.graphMatch.rounds?.forEach((r, i) => {
-      need(r.answer >= 0 && r.answer < (r.options?.length ?? 0),
-        `התאמת גרפים ${i + 1}: answer מחוץ לתחום`);
-      need((r.main?.length ?? 0) >= 2 && (r.options ?? []).every(o => o?.length === r.main?.length),
-        `התאמת גרפים ${i + 1}: אורך הדגימות לא עקבי בין main ל-options`);
-    });
-  }
-  if (g.numberLine) {
-    need(typeof g.numberLine.min === 'number' && typeof g.numberLine.max === 'number' && g.numberLine.min < g.numberLine.max,
-      'ציר המספרים: min/max חסרים או הפוכים');
-    need((g.numberLine.rounds?.length ?? 0) >= 3, 'ציר המספרים צריך לפחות 3 סבבים');
-    g.numberLine.rounds?.forEach((r, i) => {
-      need(r.target >= g.numberLine!.min && r.target <= g.numberLine!.max,
-        `ציר המספרים ${i + 1}: target מחוץ לטווח min-max`);
-    });
-  }
-
   return problems;
 }
 
 const esc = (s: unknown): string => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-
-const slugify = (s: unknown): string => String(s).trim().toLowerCase()
-  .replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, 40);

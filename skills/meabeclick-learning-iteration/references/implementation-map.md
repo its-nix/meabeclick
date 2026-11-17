@@ -10,7 +10,7 @@ Paths are relative to the MeaBeclick checkout. Verify current callers before edi
 | Presentation, interactive practice and print | `src/lib/server/learning-render.ts`, `src/lib/learning/{runtime,visual,styles,math}.ts` |
 | Private notes | `src/lib/server/presenter-notes.ts`, tutor presenter route |
 | Versioning, assignments, evidence, progress | `src/lib/server/learning-store.ts`; inspect current exports |
-| Games | `games/registry.json`, `src/lib/server/lesson-games.ts`, `src/lib/games/`, `src/routes/app/play/[template]/` |
+| Game content shapes | `games/registry.json`, `src/lib/server/lesson/registry.ts` |
 | Fresh versus reused lessons | `src/lib/server/lesson/queue.ts` and its library lookup imports; inspect actual reuse before changing it |
 | Synthetic review briefs and runner | `scripts/learning-review-cases.mjs`, `generate-learning-review.mjs`, `package-learning-review.mjs` |
 | Versioned synthetic corpus and protected review routes | `src/lib/server/learning-review*`, `src/routes/app/learning-review/`, `src/routes/app/review-game/` |
@@ -35,9 +35,9 @@ Teaching feedback still needed: ...
 
 For batch/resume/replacement commands and stale-lock recovery, read `docs/quality/learning-review.md`. Prior released review corpora are preserved in Git history; temporary generation folders alone are not durable evidence.
 
-V2 contracts: `learning/teaching*.ts`, `server/lesson/teaching-context.ts`, `official-questions.ts`, `server/teaching-display.ts`. Report coverage and safe release: `server/reports/teaching-coverage.ts`, `server/lesson/taught-bundle.ts`, migration038. Actual publication navigation: `server/assigned-teaching.ts`; original-class versus assigned-homework routing: `server/learning-store.ts`. Use both unit tests and live `teaching-lifecycle` / `teaching-report-coverage` characterization tests for changes at these seams.
+V2 contracts: `learning/teaching*.ts`, `server/lesson/teaching-context.ts`, `official-questions.ts`, `server/teaching-display.ts`. Report coverage and safe release: `server/reports/teaching-coverage.ts`, `server/lesson/taught-bundle.ts`, migration038. Original-class versus assigned-homework routing: `server/learning-store.ts`. Use both unit tests and the live `teaching-report-coverage` characterization test for changes at these seams.
 
-Checked game geometry lives in `src/lib/games/diagrams.ts`; v2 wire output is expanded by `lesson/prep.ts` before validation. Shared graph axes live in `src/lib/games/graph-plot.ts`. Keep catalogue IDs stable for already published material; add versioned IDs for changes.
+Checked game geometry lives in `src/lib/learning/diagrams.ts`; v2 wire output is expanded by `lesson/prep.ts` before validation. Keep catalogue IDs stable for already published material; add versioned IDs for changes.
 
 ## Composed visual calibration
 

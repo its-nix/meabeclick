@@ -84,32 +84,11 @@ export const EXPECTED_CHANGES = [
     why: 'p2 bug — a raw IP in a parent inbox; missing config should fail loudly at boot',
   },
   {
-    id: 'todoist-6hJh32VVc5VH2jVq',
-    route: 'POST /api/game-result',
-    was: 'accepts any anonymous body, so results can be forged',
-    now: 'requires a valid &t=<hmac> signature over {dataId, student}; unsigned posts are rejected',
-    why: 'p2 bug — cheap to fix once URL construction is centralized in urls.ts',
-  },
-  {
-    id: 'todoist-6hJh337GrfGQj5Hq',
-    route: 'games/speed-drill',
-    was: "personal best kept in localStorage, wiped by WhatsApp's in-app WebView between opens",
-    now: 'personal best read from the results table via getBest(student, dataId)',
-    why: 'p3 bug — the data was already server-side; localStorage never survived the delivery channel',
-  },
-  {
     id: 'page-urls',
     route: 'all pages',
     was: '/booking.html, /login.html, /portal.html',
     now: '/booking, /login, /portal',
     why: 'SvelteKit routing; no live users depend on the old URLs',
-  },
-  {
-    id: 'game-urls',
-    route: 'games',
-    was: '/games/<template>.html?d=&s=',
-    now: '/app/play/<template>?d=&s=&t=',
-    why: 'spec §6 — puts the homework loop inside a future PWA scope',
   },
   {
     id: 'json-error-body',

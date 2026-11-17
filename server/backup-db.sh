@@ -18,7 +18,7 @@
 # with no board behind it.
 #
 # So the file state ships too: portal/ (every student's record, their
-# homework and lesson log), games-data/ and lessons/ (generated material a
+# homework and lesson log), lessons/ (generated material a
 # child is linked to), and drafts/ (lessons held for the tutor to review,
 # which exist nowhere else at all).
 #
@@ -51,7 +51,7 @@ sqlite3 data/results.db ".backup '$DEST/results-$STAMP.db'"
 # The file state, in one archive per day. Missing directories are skipped
 # rather than failing the run — a fresh box legitimately has no drafts yet.
 PRESENT=()
-for d in portal games-data lessons drafts; do
+for d in portal lessons drafts; do
   [ -d "data/$d" ] && PRESENT+=("$d")
 done
 if [ ${#PRESENT[@]} -gt 0 ]; then

@@ -96,40 +96,6 @@ test('a student session reaches its own board but not the parent view', async ()
   } finally { await stop(); }
 });
 
-test('a join code admits a child once and never again', async () => {
-  const { baseUrl, stop } = await startServer();
-  try {
-    const portal = await bookFamily(baseUrl);
-    const parentCookie = await familySession(portal.link);
-    const share = await (await fetch(`${baseUrl}/api/student-link`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Cookie: parentCookie },
-      body: JSON.stringify({ code: portal.code }),
-    })).json();
-
-    const redeem = body => fetch(`${baseUrl}/api/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    // Typed the way a child would: lowercase, with the display hyphen.
-    const first = await redeem({ code: share.joinCode.toLowerCase() });
-    assert.equal(first.status, 200);
-    assert.equal((await first.json()).code, portal.code);
-    assert.ok(first.headers.getSetCookie().some(c => c.startsWith('maab_family=')));
-
-    const second = await redeem({ code: share.joinCode });
-    assert.equal(second.status, 401, 'a spent code must not admit a second device');
-
-    const bogus = await redeem({ code: 'ZZZZZZ' });
-    assert.equal(bogus.status, 401);
-    // Unknown and spent must be indistinguishable, or the codespace becomes
-    // walkable: a different message would say "right code, wrong moment".
-    assert.deepEqual(await bogus.json(), await second.json());
-  } finally { await stop(); }
-});
-
 test('the roster is tutor-only, and never carries a credential', async () => {
   const { baseUrl, stop } = await startServer();
   try {
@@ -177,75 +143,6 @@ test('a portal file missing name does not silently drop new-shape entries', asyn
     // 'nameless-portal-file' entry in expected-changes.mjs.
     assert.equal(r.status, 500);
     assert.deepEqual(await r.json(), { error: 'קובץ הדף פגום' });
-  } finally { await stop(); }
-});
-
-test('a portal game link carries the student code, not the Hebrew display name', async () => {
-  const { baseUrl, dataDir, stop } = await startServer();
-  try {
-    // The name is deliberately distinctive (and would be trivially visible
-    // in a URL if it leaked) so an assertion against it cannot pass by
-    // accident.
-    const displayName = 'ילד עם שם מזוהה';
-    const portal = await bookFamily(baseUrl, { name: displayName });
-    const cookie = await familySession(portal.link);
-
-    // Same technique as the nameless-portal-file test above: overwrite the
-    // portal file enroll.ts wrote with one carrying a new-shape ({title,
-    // template, dataId}) game entry, whose url the route derives at read
-    // time via urls.ts's gameUrl (see normalizeGameLike in
-    // src/routes/api/portal/[code]/+server.ts).
-    const file = join(dataDir, 'portal', `${portal.code}.json`);
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, JSON.stringify({
-      name: displayName,
-      subject: 'מתמטיקה', level: 'כיתה י',
-      games: [{ title: 'משחק', template: 'memory', dataId: 'x-memory' }],
-    }));
-
-    const r = await fetch(`${baseUrl}/api/portal/${portal.code}`, { headers: { Cookie: cookie } });
-    assert.equal(r.status, 200);
-    const { games } = await r.json();
-    assert.equal(games.length, 1);
-
-    // The headline change this branch makes: links are minted from the
-    // student's stable code, never from the Hebrew display name a portal
-    // file happens to carry. A revert back to normalizeGameLike(g, data.name)
-    // would put the display name here instead, and two children sharing a
-    // name would again collide on write — see results.ts's header comment.
-    const url = new URL(games[0].url, baseUrl);
-    assert.equal(url.searchParams.get('s'), portal.code);
-    assert.ok(
-      !games[0].url.includes(displayName),
-      `game link must not carry the Hebrew display name, got: ${games[0].url}`,
-    );
-  } finally { await stop(); }
-});
-
-test('requesting a link answers the same for a known and an unknown address', async () => {
-  const { baseUrl, stop } = await startServer();
-  try {
-    await bookFamily(baseUrl, { email: 'known@example.com' });
-
-    const ask = email => fetch(`${baseUrl}/api/request-link`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-
-    const known = await ask('known@example.com');
-    const unknown = await ask('nobody@example.com');
-
-    // Any difference here — status, body, or which one errors — turns this
-    // endpoint into a way to check whether a given family uses the tutor.
-    assert.equal(known.status, 200);
-    assert.equal(unknown.status, 200);
-    assert.deepEqual(await known.json(), await unknown.json());
-
-    // A malformed address is about the request, not about who exists, so it
-    // may be answered differently.
-    const bad = await ask('not-an-address');
-    assert.equal(bad.status, 400);
   } finally { await stop(); }
 });
 

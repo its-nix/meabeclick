@@ -1,81 +1,11 @@
 <script lang="ts">
   import GoogleSignIn from '$lib/components/GoogleSignIn.svelte';
-  import Icon from '$lib/icons/Icon.svelte';
   import BrandMark from '$lib/components/BrandMark.svelte';
   import { contactTutor } from '$lib/tutors.ts';
   import { TUTOR_PHONE } from '$lib/contact.ts';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
-
-  /* Two doors, not one gate. A parent who lost their link asks for a new
-     one; a child who was given a code types it. Neither is a password, and
-     neither requires the tutor. */
-  let mode = $state<'link' | 'code'>('link');
-
-  let email = $state('');
-  let linkState = $state<'idle' | 'sending' | 'sent'>('idle');
-  let linkError = $state('');
-
-  let joinCode = $state('');
-  let joinBusy = $state(false);
-  let joinError = $state('');
-
-  async function requestLink() {
-    linkError = '';
-    const value = email.trim();
-    if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      linkError = 'צריך כתובת מייל תקינה';
-      return;
-    }
-
-    linkState = 'sending';
-    try {
-      const r = await fetch('/api/request-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: value }),
-      });
-      if (!r.ok) {
-        const body = await r.json().catch(() => ({}));
-        linkError = body.error || 'משהו השתבש. נסו שוב.';
-        linkState = 'idle';
-        return;
-      }
-      /* Deliberately the same confirmation whether or not the address is on
-         file. Saying "we don't know that address" would turn this box into
-         a way to check which families use the tutor. */
-      linkState = 'sent';
-    } catch {
-      linkError = 'לא הצלחנו להתחבר. נסו שוב.';
-      linkState = 'idle';
-    }
-  }
-
-  async function submitCode() {
-    joinError = '';
-    const value = joinCode.trim();
-    if (!value) return;
-
-    joinBusy = true;
-    try {
-      const r = await fetch('/api/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: value }),
-      });
-      const body = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        joinError = body.error || 'הקוד לא נכון.';
-        joinBusy = false;
-        return;
-      }
-      location.href = `/app/student?s=${encodeURIComponent(body.code)}`;
-    } catch {
-      joinError = 'לא הצלחנו להתחבר. נסו שוב.';
-      joinBusy = false;
-    }
-  }
 </script>
 
 <svelte:head>
@@ -94,7 +24,7 @@
            record that is gone. One message, because the next step is the
            same in all three cases. -->
       <p class="notice" role="status">
-        הקישור כבר לא תקף. אפשר לקבל חדש למייל — זה לוקח רגע.
+        הקישור כבר לא תקף. היכנסו עם Google, או בקשו מהמורה קישור חדש.
       </p>
     {/if}
 
@@ -105,86 +35,12 @@
     {#if data.googleEnabled}
       <GoogleSignIn />
       <p class="hint">כניסה והרשמה באותו מקום. הדף שלכם מחכה בפנים.</p>
-    {/if}
-    <details class="alternatives" open={!data.googleEnabled}>
-      <summary>{data.googleEnabled ? 'כניסה עם קישור או קוד' : 'כניסה בלי סיסמה'}</summary>
-
-    <!-- Each door says who it is for AND how it works, so a child holding a
-         code and a parent holding nothing both pick the right one without
-         reading further. Two lines per tab keeps both abreast at 320px. -->
-    <div class="tabs" aria-label="דרכי כניסה">
-      <button
-        type="button" class="tab" class:active={mode === 'link'} aria-pressed={mode === 'link'}
-        onclick={() => (mode = 'link')}
-      >
-        <span class="tab-who"><Icon name="family" size={18} /> הורים ותלמידים בוגרים</span>
-        <span class="tab-how">כניסה דרך המייל</span>
-      </button>
-      <button
-        type="button" class="tab" class:active={mode === 'code'} aria-pressed={mode === 'code'}
-        onclick={() => (mode = 'code')}
-      >
-        <span class="tab-who"><Icon name="student" size={18} /> תלמידים</span>
-        <span class="tab-how">כניסה עם קוד</span>
-      </button>
-    </div>
-
-    {#if mode === 'link'}
-      <div class="pane" id="pane-link">
-        {#if linkState === 'sent'}
-          <div class="done" role="status">
-            <div class="done-icon"><Icon name="email" size={40} /></div>
-            <p class="done-title">הקישור בדרך</p>
-            <p class="done-sub">
-              אם הכתובת רשומה אצלנו, נשלח אליה קישור אישי. הוא תקף ל־15 דקות ולכניסה אחת. בדקו גם בספאם.
-            </p>
-            <button class="ghost" onclick={() => { linkState = 'idle'; }}>שליחה לכתובת אחרת</button>
-          </div>
-        {:else}
-          <label for="portal-email">המייל שאיתו הזמנתם</label>
-          <input
-            id="portal-email" type="email" inputmode="email" autocomplete="email"
-            dir="ltr" placeholder="name@example.com" bind:value={email}
-            aria-invalid={!!linkError} aria-describedby={linkError ? 'err-email' : undefined}
-            onkeydown={(e) => e.key === 'Enter' && requestLink()}
-          />
-          <div class="live" role="alert">
-            {#if linkError}<p class="err" id="err-email">{linkError}</p>{/if}
-          </div>
-          <button type="button" class="go" onclick={requestLink} disabled={linkState === 'sending'}>
-            {linkState === 'sending' ? 'שולחים…' : 'שליחת קישור אישי'}
-          </button>
-          {#if linkState === 'sending'}<p class="sending" role="status">שולחים…</p>{/if}
-          <p class="hint">
-            נשלח קישור שפותח את הדף — בלי סיסמה ובלי לחכות לתשובה.
-          </p>
-        {/if}
-      </div>
+      <p class="hint">יש לכם קישור אישי מהמייל או מהוואטסאפ? פשוט פתחו אותו.</p>
     {:else}
-      <div class="pane" id="pane-code">
-        <label for="join-code">קוד הצירוף שקיבלתם מההורה</label>
-        <input
-          id="join-code" type="text" inputmode="text" autocomplete="one-time-code"
-          dir="ltr" placeholder="K7M2-9QPX" maxlength="12" bind:value={joinCode}
-          aria-invalid={!!joinError} aria-describedby={joinError ? 'err-code' : undefined}
-          onkeydown={(e) => e.key === 'Enter' && submitCode()}
-        />
-        <div class="live" role="alert">
-          {#if joinError}<p class="err" id="err-code">{joinError}</p>{/if}
-        </div>
-        <button type="button" class="go" onclick={submitCode} disabled={joinBusy}>
-          {joinBusy ? '...בודק' : 'כניסה'}
-        </button>
-        <!-- The parent's page titles that section "כניסה ל<שם>", so point at
-             it by shape rather than by a name it does not have. -->
-        <p class="hint">
-          ההורה מכין את הקוד בדף שלו, בקטע «כניסה ל…» עם השם שלך.
-          הקוד תקף ל־15 דקות ולכניסה אחת.
-        </p>
-      </div>
+      <!-- Production refuses to boot without Google (boot-checks.ts); this is
+           only reachable in dev, where it says so rather than hiding the page. -->
+      <p class="notice" role="alert">הכניסה עם Google אינה מוגדרת בשרת הזה.</p>
     {/if}
-
-    </details>
 
     <div class="links">
       <a href="/booking">להזמנת שיעור</a>
@@ -195,8 +51,6 @@
 </div>
 
 <style>
-  .alternatives { margin-top: 20px; }
-  .alternatives > summary { min-height:44px; cursor:pointer; color:var(--text-muted); font-weight:600; padding-block:12px; }
   .auth-page {
     min-height: 100vh;
     min-height: 100dvh;
@@ -247,115 +101,10 @@
     text-align: center; margin-top: 0.35rem; margin-bottom: 1.1rem;
   }
 
-  .tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.4rem;
-    background: var(--bg-base);
-    border-radius: 12px;
-    padding: 0.3rem;
-    margin-bottom: 1.2rem;
-    min-width: 0;
-  }
-  .tab {
-    border: none;
-    background: transparent;
-    border-radius: 9px;
-    padding: 0.6rem 0.4rem;
-    min-height: 44px;
-    min-width: 0;
-    font-family: inherit;
-    font-size: 0.87rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    cursor: pointer;
-  }
-  .tab.active { background: var(--bg-card); color: var(--accent); box-shadow: 0 1px 4px var(--shadow); }
-  /* Two lines: who the door is for, then how it opens. */
-  .tab { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; line-height: 1.25; }
-  .tab-who { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; min-width: 0; overflow-wrap: anywhere; }
-  .tab-how { font-size: 0.76rem; font-weight: 500; color: var(--text-muted); }
-  .tab.active .tab-how { color: var(--accent-deep); }
-
-  .pane label {
-    display: block;
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.35rem;
-  }
-
-  .pane input {
-    width: 100%;
-    /* 1rem so iOS Safari does not zoom the viewport on focus. */
-    font-size: 1rem;
-    padding: 0.75rem 0.9rem;
-    min-height: 50px;
-    border: 1.5px solid var(--border-strong);
-    border-radius: var(--r-sm);
-    font-family: inherit;
-    background: var(--bg-card);
-    color: var(--text-primary);
-    outline: none;
-  }
-  #join-code {
-    text-align: center;
-    letter-spacing: 0.12em;
-    font-weight: 700;
-    font-size: 1.2rem;
-    text-transform: uppercase;
-  }
-  .pane input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
-  .pane input[aria-invalid='true'] { border-color: var(--danger); }
-
-  /* Reserves no space until there is something to say, so the button does
-     not jump when an error appears — but the error still lands above the
-     button, where the eye already is. */
-  .live:empty { display: none; }
-  .err { color: var(--danger); font-size: 0.85rem; font-weight: 600; margin-top: 0.4rem; }
-
-  .go {
-    width: 100%;
-    margin-top: 0.8rem;
-    background: var(--action-fill);
-    color: #fff;
-    border: 0;
-    padding: 0.8rem;
-    min-height: 52px;
-    border-radius: 12px;
-    font-weight: 700;
-    font-size: 1rem;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .go:hover { background: var(--action-hover); }
-  .go:disabled { opacity: 0.6; cursor: default; }
-
   .hint {
     font-size: 0.8rem; color: var(--text-muted);
     margin-top: 0.6rem; line-height: 1.55; text-align: center;
   }
-  .sending { margin-top: 0.45rem; text-align: center; color: var(--text-muted); }
-
-  .done { text-align: center; padding: 0.5rem 0; }
-  .done-icon { font-size: 2.2rem; }
-  .done-title { font-weight: 700; font-size: 1.05rem; margin-top: 0.4rem; }
-  .done-sub { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.35rem; line-height: 1.6; }
-  .ghost {
-    margin-top: 0.9rem;
-    background: transparent;
-    border: 1.5px solid var(--border-strong);
-    border-radius: 999px;
-    padding: 0.55rem 1.1rem;
-    min-height: 44px;
-    font-family: inherit;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-muted);
-    cursor: pointer;
-  }
-  .ghost:hover { border-color: var(--accent); color: var(--accent); }
-
   .links {
     margin-top: 1.4rem;
     padding-top: 1rem;
@@ -375,15 +124,11 @@
   @media (max-height: 740px) {
     .card { padding-block: 0.75rem; }
     .brand { margin-bottom: 0.25rem; }
-    .sub, .tabs { margin-bottom: 0.5rem; }
+    .sub { margin-bottom: 0.5rem; }
     .links { margin-top: 0.5rem; padding-top: 0.25rem; }
   }
 
-  /* At the reflow boundary, 200% text makes the longest Hebrew tab label
-     wider than half the card. Stack the two ordinary buttons instead of
-     letting their min-content width push the whole page sideways. */
   @media (max-width: 360px) {
     .card { padding-inline: 0.75rem; }
-    .tabs { grid-template-columns: minmax(0, 1fr); }
   }
 </style>

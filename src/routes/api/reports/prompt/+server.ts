@@ -62,10 +62,9 @@ export const POST: RequestHandler = async (event) => {
      On 2026-09-20 the Gmail app password was being refused with
      `535-5.7.8 … BadCredentials` — revoked, most likely when the account
      holder changed their Google password. It had worked two days earlier.
-     Nothing reported it: booking mail and the portal link both swallow
-     send failures deliberately (a booking must not be lost because mail
-     failed, and /api/request-link must not confirm which addresses are on
-     file), so the only symptom was families not receiving things.
+     Nothing reported it: booking mail swallows send failures deliberately
+     (a booking must not be lost because mail failed), so the only symptom
+     was families not receiving things.
 
      A run that sent something has proved the transport, so only a run that
      sent nothing checks. Unconfigured stays a 200 — that is every dev

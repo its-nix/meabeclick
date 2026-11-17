@@ -1,5 +1,5 @@
 /**
- * Teaching material as versions: drafts, publishing, history, restore, and
+ * Teaching material as versions: drafts, publishing and history, and
  * the two rules that make an editor safe to give a tutor.
  *
  *   A student may only ever be shown a version with published_at set.
@@ -55,25 +55,6 @@ test('a student only ever sees the newest PUBLISHED version', () => {
     'while the tutor keeps working on it');
 });
 
-test('publishing the draft is what changes what the student sees', () => {
-  const id = freshLesson();
-  M.addMaterial({ slug: id, kind: 'plan', content: content('v1'), origin: 'generated', publish: true });
-  const draft = M.addMaterial({ slug: id, kind: 'plan', content: content('v2'), origin: 'edited' });
-
-  M.publishVersion(id, 'plan', draft.version);
-  assert.equal(JSON.parse(M.latestPublished(id, 'plan').content).title, 'v2');
-});
-
-test('publishing twice does not rewrite when it went out', () => {
-  const id = freshLesson();
-  const row = M.addMaterial({ slug: id, kind: 'plan', content: content('v1'), origin: 'generated' });
-  const first = M.publishVersion(id, 'plan', row.version);
-  const again = M.publishVersion(id, 'plan', row.version);
-  // A published version went to a student at a particular moment; moving
-  // that timestamp would make the history lie about when.
-  assert.equal(again.published_at, first.published_at);
-});
-
 test('regenerating never destroys the tutor\'s correction', () => {
   const id = freshLesson();
   M.addMaterial({ slug: id, kind: 'plan', content: content('generated-1'), origin: 'generated', publish: true });
@@ -88,30 +69,6 @@ test('regenerating never destroys the tutor\'s correction', () => {
   // And the new generation is a draft, so regenerating alone cannot change
   // what the student is looking at.
   assert.equal(JSON.parse(M.latestPublished(id, 'plan').content).title, 'her-fix');
-});
-
-test('a caller can ask whether regenerating would land on unpublished work', () => {
-  const id = freshLesson();
-  M.addMaterial({ slug: id, kind: 'plan', content: content('g'), origin: 'generated', publish: true });
-  assert.equal(M.hasUnpublishedEdits(id, 'plan'), false);
-
-  M.addMaterial({ slug: id, kind: 'plan', content: content('wip'), origin: 'edited' });
-  assert.equal(M.hasUnpublishedEdits(id, 'plan'), true, 'worth telling her before she regenerates');
-});
-
-test('restoring copies an old version forward rather than reviving it', () => {
-  const id = freshLesson();
-  M.addMaterial({ slug: id, kind: 'plan', content: content('good'), origin: 'generated', publish: true });
-  M.addMaterial({ slug: id, kind: 'plan', content: content('bad'), origin: 'edited', publish: true });
-
-  const restored = M.restoreVersion(id, 'plan', 1, { publish: true });
-
-  assert.equal(restored.version, 3, 'a new version, not a resurrected one');
-  assert.equal(restored.origin, 'restored');
-  assert.equal(JSON.parse(M.latestPublished(id, 'plan').content).title, 'good');
-  // Re-publishing version 1 in place would have changed nothing, because
-  // latestPublished takes the highest version number.
-  assert.equal(M.history(id, 'plan').length, 3, 'and the bad version is still in the history');
 });
 
 test('teacher-only content is not returned by the student-facing read', () => {
@@ -151,12 +108,6 @@ test('one lesson\'s material never appears under another', () => {
   assert.equal(M.latest(b, 'plan'), null);
   assert.equal(M.latestPublished(b, 'plan'), null);
   assert.deepEqual(M.history(b, 'plan'), []);
-});
-
-test('publishing or restoring a version that does not exist answers null', () => {
-  const id = freshLesson();
-  assert.equal(M.publishVersion(id, 'plan', 99), null);
-  assert.equal(M.restoreVersion(id, 'plan', 99), null);
 });
 
 test('migration 012 names every writer of lesson_materials that exists', async () => {

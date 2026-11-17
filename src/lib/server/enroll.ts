@@ -189,7 +189,6 @@ export function writePortalFile(student: StudentRow, booking: BookingInput, tuto
     progressNote: '',
     lessons: [],
     homework: [],
-    games: [],
   }, null, 2), 'utf8');
 }
 

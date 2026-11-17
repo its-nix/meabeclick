@@ -30,27 +30,6 @@
    *   These share no identity (a local student's `id` is a client-generated
    *   `stu_<timestamp>`, unrelated to a real student's `code`) and never did.
    *
-   * Ruling P13: the old dashboard.html:725 rendered a lesson's game links as
-   * `href="/${g.url}"` unguarded — a new-shape {template,dataId} entry (no
-   * `url`) rendered `href="/undefined"`. Fixed at the source: GET
-   * /api/lessons (src/routes/api/lessons/+server.ts) now normalizes every
-   * game entry the same way /api/portal/[code] already did, and — because
-   * this is the tutor's own admin view rather than a child's — keeps a
-   * malformed entry visible with `broken: true` instead of dropping it, so
-   * a bad link is never silently missing. See that file's header comment
-   * for the full reasoning, including why `slidesUrl` is derived via
-   * lessonUrl(slug) rather than trusting the stored `slides` string (always
-   * a fresh lessonUrl() call, never a stored value — nothing to normalize).
-   *
-   * `g.url` itself is still mixed-shape the same way parent/student's `url`
-   * field is (an old-shape entry has no leading slash; a new-shape one,
-   * already run through gameUrl() by the endpoint above, does) — rendering
-   * it raw would resolve a legacy link relative to /app/dashboard instead
-   * of root, a third silent-failure mode (a real but wrong URL, no visible
-   * sign anything's off) that P13 exists to rule out just as much as the
-   * other two. toHref() ($lib/urls.ts, shared with parent/ and student/)
-   * reconciles it — see that file's header for the full shape writeup.
-   *
    * Scoped-CSS trap inventory (every class the old inline <script> toggled
    * via classList after initial render) — all converted to reactive
    * `class:` directives, none left to a bare classList.toggle():
@@ -64,7 +43,6 @@
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { SvelteSet } from 'svelte/reactivity';
-  import { toHref } from '$lib/urls.ts';
   import { formatAgorot } from '$lib/plans.ts';
   import { idsForPanel, dueAgorot } from '$lib/payments-selection.ts';
   import { computeImportCandidates, buildImportPayload, type ImportCandidate } from '$lib/import-candidates.ts';
@@ -545,7 +523,6 @@
     name?: string;
     accountName?: string;
     link: string;
-    joinCode?: string;
   }
   // Seeded from the server load so a first, JS-free GET already carries the
   // roster (and the plan link on each row); loadCodes() below still keeps
@@ -910,71 +887,6 @@
     loadCalendarFailures();
   }
 
-  /* ═══════════════════ homework results (/api/results) ═══════════════════ */
-  interface TopMissed { item: string; times: number }
-  interface ResultsStudent { plays: number; lastPlayed: string | null; accuracy: number | null; wrong: number; tries: number | null; minutes: number; topMissed: TopMissed[] }
-  let hwResults = $state<Record<string, ResultsStudent> | null>(null);
-  let hwLoading = $state(true);
-  let hwError = $state('');
-
-  async function loadHomeworkResults() {
-    hwLoading = true;
-    hwError = '';
-    try {
-      const r = await api(`/api/results${selectedStudentCode ? `?studentCode=${encodeURIComponent(selectedStudentCode)}` : ''}`, { credentials: 'same-origin' });
-      const j = await r.json();
-      if (r.status === 401) { location.href = '/login'; return; }
-      if (r.status !== 200) throw new Error(j.error || String(r.status));
-      hwResults = j.students ?? {};
-    } catch {
-      hwError = 'לא הצלחתי לטעון תוצאות כרגע';
-    } finally {
-      hwLoading = false;
-    }
-  }
-  function accuracyColor(acc: number | null): string {
-    if (acc === null) return 'var(--text-muted)';
-    if (acc >= 80) return 'var(--accent3-strong)';
-    if (acc >= 55) return 'var(--accent2-strong)';
-    return 'var(--danger)';
-  }
-
-  /* ═══════════════════ auto-generated lessons (/api/lessons) ═══════════════════ */
-  interface LessonGame { title: string; url: string | null; previewUrl: string | null; broken: boolean }
-  interface LessonEntry {
-    slug: string; student: string; subject: string | null; title: string | null; topic: string | null;
-    context: string | null; status: string; problem: string | null; slidesUrl: string | null;
-    homework: unknown[]; games: LessonGame[]; level: string | null; lessonAt: string | null;
-  }
-  let lessons = $state<LessonEntry[]>([]);
-  let lessonsLoading = $state(true);
-  let lessonsError = $state('');
-
-  const LESSON_BADGE: Record<string, [string, string, string]> = {
-    generating: ['בתהליך…', 'var(--text-muted)', 'var(--bg-surface)'],
-    ready:      ['מוכן',    'var(--accent3-strong)', 'var(--accent3-dim)'],
-    held:       ['לבדיקה',  'var(--accent2-strong)', 'var(--accent2-dim)'],
-    failed:     ['נכשל',    'var(--danger)', 'rgba(220,38,38,0.08)'],
-  };
-  function lessonBadge(status: string): [string, string, string] {
-    return LESSON_BADGE[status] ?? LESSON_BADGE.generating;
-  }
-
-  async function loadLessons() {
-    lessonsLoading = true;
-    lessonsError = '';
-    try {
-      const r = await api(`/api/lessons${selectedStudentCode ? `?studentCode=${encodeURIComponent(selectedStudentCode)}` : ''}`, { credentials: 'same-origin' });
-      const j = await r.json();
-      if (!r.ok) throw new Error(String(r.status));
-      lessons = (j.lessons ?? []) as LessonEntry[];
-    } catch {
-      lessonsError = 'לא הצלחתי לטעון שיעורים';
-    } finally {
-      lessonsLoading = false;
-    }
-  }
-
   let studentSearch = $state('');
   const visibleStudents = $derived(realStudents.filter(student =>
     `${student.name} ${student.subjects ?? ''} ${tutorsOf(student)}`.toLocaleLowerCase().includes(studentSearch.trim().toLocaleLowerCase()),
@@ -998,10 +910,6 @@
     loadCodes();
     loadActivities();
     loadAllBalance();
-    if (selectedStudentCode) {
-      loadHomeworkResults();
-      loadLessons();
-    }
     loadCalendarFailures();
   });
 </script>
@@ -1341,10 +1249,6 @@
               <LearningPlanTree
                 returnTo={'/app/students/' + encodeURIComponent(s.code) + '?tab=learning-plan'}
                 student={{ id: s.code, name: s.name, subject: s.subjects || '', goals: s.goals || '', level: '', progress: s.progress }}
-                lessons={lessons.filter((lesson) => lesson.student === s.name).map((lesson) => ({
-                  slug: lesson.slug, title: lesson.title, topic: lesson.topic, context: lesson.context,
-                  homework: lesson.homework, games: lesson.games,
-                }))}
                 topics={dashboardPlans[s.code]?.topics ?? []}
                 onstatus={(nodeId, status) => updateDashboardPlanStatus(s.code, nodeId, status)}
               />
@@ -1624,11 +1528,10 @@
                       {:else if linkReveal[studentKey] === 'visible'}
                         <code class="raw-access-link" dir="ltr">{links[studentKey].link}</code>
                       {/if}
-                      <span class="rs-join">אין וואטסאפ? פתחו את <span dir="ltr">meabeclick.com/portal</span> והקלידו קוד צירוף: <b dir="ltr">{links[studentKey].joinCode}</b></span>
-                      <span class="rs-sub">הזמנה ל־48 שעות · קוד ל־15 דקות · כניסה אחת.</span>
+                      <span class="rs-sub">הזמנה ל־48 שעות · כניסה אחת.</span>
                     {:else if linkConfirm === studentKey}
                       <strong>הכנת כניסה חדשה ל{rs.name} בלבד</strong>
-                      <span class="rs-sub">קישור וקוד צירוף קודמים לתלמיד/ה שעדיין לא שימשו יפסיקו לעבוד.</span>
+                      <span class="rs-sub">קישור קודם לתלמיד/ה שעדיין לא שימשו יפסיקו לעבוד.</span>
                       <div class="rs-links">
                         <button class="copy-btn" disabled={linkBusy === studentKey} onclick={() => loadLink(rs.code, rs.account_id, 'student')}>הכנת כניסה חדשה</button>
                         <button class="copy-btn" disabled={linkBusy === studentKey} onclick={() => { linkConfirm = ''; }}>ביטול</button>
@@ -1644,102 +1547,6 @@
           {/each}
         </tbody>
       </table>
-    {/if}
-  </div>
-
-  <div class="sec-header" style="margin-top:2.2rem">
-    <div>
-      <div class="sec-label2">שיעורי בית</div>
-      <h2 class="sec-h2">מצב שיעורי בית 🎮</h2>
-    </div>
-    <button class="btn-ghost" style="align-self:center" onclick={loadHomeworkResults}>רענון ↻</button>
-  </div>
-  <div id="hw-results">
-    {#if hwLoading}
-      <div class="empty">טוען תוצאות…</div>
-    {:else if hwError}
-      <div class="empty">{hwError}</div>
-    {:else if !hwResults || !Object.keys(hwResults).length}
-      <div class="empty">עדיין אין תוצאות משחקים לתלמיד/ה.</div>
-    {:else}
-      {#each Object.entries(hwResults) as [name, res] (name)}
-        <div class="hwr-card">
-          <div class="hwr-head">
-            <div class="hwr-name">{name}</div>
-            <div class="hwr-when">{res.lastPlayed ? 'משחק אחרון: ' + formatDate(israelDay(res.lastPlayed)) : ''}</div>
-          </div>
-          <div class="hwr-stats">
-            <div class="hwr-stat"><div class="hwr-val">{res.plays}</div><div class="hwr-lbl">משחקים</div></div>
-            <div class="hwr-stat"><div class="hwr-val" style="color:{accuracyColor(res.accuracy)}">{res.accuracy === null ? '—' : res.accuracy + '%'}</div><div class="hwr-lbl">דיוק</div></div>
-            <div class="hwr-stat"><div class="hwr-val" style="color:var(--danger)">{res.wrong}</div><div class="hwr-lbl">טעויות</div></div>
-            {#if res.tries !== null}
-              <div class="hwr-stat"><div class="hwr-val">{res.tries}</div><div class="hwr-lbl">ניסיונות</div></div>
-            {/if}
-            <div class="hwr-stat"><div class="hwr-val">{res.minutes}</div><div class="hwr-lbl">דקות</div></div>
-          </div>
-          {#if res.topMissed.length}
-            <div class="hwr-missed">
-              <div class="hwr-missed-title">🔁 מה חוזר על עצמו כטעות</div>
-              {#each res.topMissed as m}
-                <div class="hwr-miss"><span>{m.item}</span><span class="hwr-miss-n">×{m.times}</span></div>
-              {/each}
-            </div>
-          {:else}
-            <div class="hwr-missed"><div class="hwr-missed-title" style="color:var(--accent3-strong)">✅ אין טעויות חוזרות</div></div>
-          {/if}
-        </div>
-      {/each}
-    {/if}
-  </div>
-
-  <div class="sec-header" style="margin-top:2.2rem">
-    <div>
-      <div class="sec-label2">אוטומטי</div>
-      <h2 class="sec-h2">שיעורים שנוצרו ✨</h2>
-    </div>
-    <button class="btn-ghost" style="align-self:center" onclick={loadLessons}>רענון ↻</button>
-  </div>
-  <div id="lessons-list">
-    {#if lessonsLoading}
-      <div class="empty">טוען…</div>
-    {:else if lessonsError}
-      <div class="empty">{lessonsError}</div>
-    {:else if !lessons.length}
-      <div class="empty">עדיין אין שיעורים משויכים לתלמיד/ה.</div>
-    {:else}
-      {#each lessons as l (l.slug)}
-        {@const b = lessonBadge(l.status)}
-        <div class="lsn-card">
-          <div class="lsn-head">
-            <div>
-              <div class="lsn-title">{l.title || l.topic || '—'}</div>
-              <div class="lsn-meta">{l.student} · {l.subject || ''} {l.level || ''}</div>
-              <!-- The booked lesson time, never when generation finished (`at`). -->
-              <div class="lsn-meta">{#if l.lessonAt}מועד השיעור: <bdi>{formatDateTime(l.lessonAt)}</bdi>{:else}טרם נקבע מועד לשיעור{/if}</div>
-            </div>
-            <span class="lsn-badge" style="color:{b[1]};background:{b[2]}">{b[0]}</span>
-          </div>
-          {#if l.context}<div class="lsn-context">{l.context}</div>{/if}
-          {#if l.problem}<div class="lsn-problem">⚠ {l.problem}</div>{/if}
-          <div class="lsn-links">
-            {#if l.slidesUrl}<a href={l.slidesUrl} target="_blank" rel="noopener">📊 מצגת</a>{/if}
-            <!-- The release valve (PRODUCT.md, Lesson autopilot): only a lesson
-                 that generated has a plan to edit. -->
-            {#if l.status === 'ready'}<a href="/app/lessons/{l.slug}/edit">✏️ עריכה</a>{/if}
-            {#each l.games as g}
-              {#if g.previewUrl}
-                <!-- Tutor preview: never the child's signed play link. -->
-                <a href={g.previewUrl} target="_blank" rel="noopener">🎮 {g.title}</a>
-              {:else if g.url}
-                <a href={toHref(g.url)} target="_blank" rel="noopener">🎮 {g.title}</a>
-              {:else}
-                <span class="lsn-broken" title="לא הצלחתי לבנות קישור למשחק הזה">⚠ {g.title} — קישור שבור</span>
-              {/if}
-            {/each}
-          </div>
-          {#if l.homework.length}<div class="lsn-hw">📝 {l.homework.length} משימות</div>{/if}
-        </div>
-      {/each}
     {/if}
   </div>
   {/if}
@@ -1923,38 +1730,6 @@
   .sec-label2 { font-size: .75rem; color: var(--accent2-strong); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 4px; }
   .sec-h2 { font-size: 1.3rem; font-weight: 700; }
 
-  /* ── Homework results ── */
-  /* min(340px, 100%): a card wants 340px, but on a phone narrower than that
-     the column must shrink to the container instead of pushing the page
-     into horizontal scroll. Same for #lessons-list below. */
-  #hw-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; }
-  .hwr-card { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 18px 20px; box-shadow: 0 2px 12px var(--shadow); }
-  .hwr-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
-  .hwr-name { font-size: 1.05rem; font-weight: 700; }
-  .hwr-when { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
-  .hwr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 8px; margin-bottom: 14px; }
-  .hwr-stat { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 4px; text-align: center; }
-  .hwr-val { font-size: 1.25rem; font-weight: 700; line-height: 1.15; }
-  .hwr-lbl { font-size: .68rem; color: var(--text-muted); margin-top: 2px; }
-  .hwr-missed { border-top: 1px solid var(--border); padding-top: 10px; }
-  .hwr-missed-title { font-size: .76rem; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; }
-  .hwr-miss { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.28); border-radius: var(--r-sm); padding: 5px 10px; margin-bottom: 5px; font-size: .82rem; }
-  .hwr-miss-n { font-weight: 700; color: var(--danger); flex-shrink: 0; }
-  /* ── Auto-generated lessons ── */
-  #lessons-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; }
-  .lsn-card { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 16px 18px; box-shadow: 0 2px 12px var(--shadow); }
-  .lsn-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-  .lsn-title { font-size: 1rem; font-weight: 700; line-height: 1.35; }
-  .lsn-meta { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
-  .lsn-badge { font-size: .7rem; font-weight: 700; border-radius: 999px; padding: 2px 10px; white-space: nowrap; flex-shrink: 0; }
-  .lsn-context { font-size: .82rem; color: var(--text-muted); margin-top: 8px; line-height: 1.6; }
-  .lsn-problem { font-size: .8rem; color: var(--danger); background: rgba(220,38,38,0.08); border-radius: var(--r-sm); padding: 6px 10px; margin-top: 8px; }
-  .lsn-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .lsn-links a { font-size: .78rem; font-weight: 700; text-decoration: none; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(37,99,235,0.22); border-radius: 999px; padding: 4px 11px; }
-  .lsn-links a:hover { background: var(--action-fill); color: #fff; }
-  .lsn-broken { font-size: .78rem; font-weight: 700; background: rgba(220,38,38,0.08); color: var(--danger); border: 1px solid rgba(220,38,38,0.28); border-radius: 999px; padding: 4px 11px; }
-  .lsn-hw { font-size: .78rem; color: var(--text-muted); margin-top: 8px; }
-
   /* ── Students grid ── */
   .students-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 
@@ -2109,8 +1884,6 @@
   .rs-scope { display: grid; gap: 8px; min-width: 0; }
   .rs-links { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   .access-status { margin: 0; font-weight: 700; }
-  .rs-join { font-size: .82rem; color: var(--text-muted); }
-  .rs-join b { direction: ltr; unicode-bidi: isolate; letter-spacing: .08em; color: var(--accent-deep); }
   .raw-access-link { display: block; max-width: 100%; overflow-wrap: anywhere; unicode-bidi: isolate; }
   .codes-table { width: 100%; border-collapse: collapse; font-size: .9rem; min-width: 560px; }
   .codes-table thead th { text-align: right; color: var(--text-muted); font-size: .78rem; padding: 10px 12px; }

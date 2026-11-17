@@ -51,25 +51,6 @@ test('public booking rejects hostile and overlong email values before writing st
   }
 });
 
-test('public link requests reject the same hostile and overlong email values', async () => {
-  const { baseUrl, stop } = await startServer();
-  try {
-    const statuses = [];
-    for (const [name, email] of hostileAddresses) {
-      const response = await fetch(`${baseUrl}/api/request-link`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      statuses.push([name, response.status]);
-    }
-
-    assert.deepEqual(statuses, hostileAddresses.map(([name]) => [name, 400]));
-  } finally {
-    await stop();
-  }
-});
-
 test('tutor student creation cannot persist an address Nodemailer may reinterpret', async () => {
   const { baseUrl, dbPath, stop } = await startServer();
   try {

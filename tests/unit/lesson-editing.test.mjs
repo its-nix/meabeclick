@@ -50,13 +50,12 @@ test('not an object at all is refused, not thrown', () => {
 test('an edit changes title, slides and examples — and keeps everything else', () => {
   const base = {
     title: 'old', gradeContext: 'כיתה ז', slides: [{ heading: 'h', bullets: ['b'] }],
-    examples: [], homework: [{ task: 't', why: 'w' }], games: { quiz: { title: 'q', subject: 's', questions: [] } },
+    examples: [], homework: [{ task: 't', why: 'w' }],
   };
   const r = normalizeEdit(good());
   const merged = applyEdit(base, r.edit);
   assert.equal(merged.title, 'שברים');
   assert.equal(merged.slides[0].heading, 'מה זה שבר');
-  assert.deepEqual(merged.games, base.games, 'games are not the editor\'s to drop');
   assert.deepEqual(merged.homework, base.homework);
   assert.equal(merged.gradeContext, 'כיתה ז');
   assert.equal('teacherOnly' in merged, false, 'internal notes never enter the plan the deck is rendered from');
@@ -70,7 +69,7 @@ test('the edit base skips an unpublished regeneration, and a version that does n
   const M = await import('../../src/lib/server/materials.ts');
   const { editBase } = await import('../../src/lib/server/lesson/editing.ts');
   const slug = 'base-rule';
-  const plan = (title) => JSON.stringify({ title, slides: [], examples: [], homework: [], games: {} });
+  const plan = (title) => JSON.stringify({ title, slides: [], examples: [], homework: [] });
 
   M.recordGenerated(slug, { plan: plan('generated v1') });                                   // v1 published
   M.addMaterial({ slug, kind: 'plan', content: plan('her edit'), origin: 'edited', publish: true }); // v2
@@ -102,13 +101,16 @@ test('text over the limit is refused with a reason, never cut silently', () => {
   assert.match(r2.error, /40/);
 });
 
-test('a malformed stored plan is shaped for the form instead of crashing it', async () => {
-  const { formPlan } = await import('../../src/lib/server/lesson/editing.ts');
-  assert.deepEqual(formPlan({ title: 7, slides: [null, { heading: 'h', bullets: 'לא רשימה', note: 3 }], examples: 'x' }), {
-    title: '', slides: [{ heading: '', bullets: [], note: '' }, { heading: 'h', bullets: ['לא רשימה'], note: '' }], examples: [],
-    quiz: null, twoTruths: null, errorHunt: null, sequence: null, matching: null, homework: [],
-  });
-  assert.deepEqual(formPlan(null), {
-    title: '', slides: [], examples: [], quiz: null, twoTruths: null, errorHunt: null, sequence: null, matching: null, homework: [],
-  });
+
+test('editedPlan applies title, slides and examples to the stored plan and keeps its homework', async () => {
+  process.env.DB_PATH = join(process.env.DATA_DIR, 'results.db');
+  const M = await import('../../src/lib/server/materials.ts');
+  const { editedPlan } = await import('../../src/lib/server/lesson/editing.ts');
+  const stored = { title: 'מקור', gradeContext: 'כיתה ח', slides: [], examples: [], homework: [{ task: 't', why: 'w' }] };
+  M.addMaterial({ slug: 'noga-2027-02-01', kind: 'plan', content: JSON.stringify(stored), origin: 'generated', publish: true });
+  const r = editedPlan('noga-2027-02-01', { ...good(), homework: [{ task: 'ignored' }] });
+  assert.equal(r.error, undefined);
+  assert.equal(r.plan.title, 'שברים');
+  assert.deepEqual(r.plan.homework, stored.homework, 'homework is not part of an edit');
+  assert.equal(editedPlan('no-such-lesson', good()).status, 409);
 });

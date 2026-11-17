@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-let root,db,A,D,M,S;
+let root,db,A,D,M,S,isRetired;
 before(async()=>{
  root=await mkdtemp(join(tmpdir(),'learning-archive-'));process.env.DB_PATH=join(root,'results.db');process.env.DATA_DIR=root;process.env.PORTAL_DIR=join(root,'portal');
  process.env.SESSION_SECRET='archive-test-session-secret-long-enough';process.env.CODEX_HOME=join(root,'no-codex');delete process.env.OPENAI_API_KEY;
- D=await import('../../src/lib/server/db.ts');db=D.handle();M=await import('../../src/lib/server/materials.ts');
+ D=await import('../../src/lib/server/db.ts');db=D.handle();isRetired=slug=>!!db.prepare('SELECT 1 FROM learning_retired_lessons WHERE slug=?').get(slug);M=await import('../../src/lib/server/materials.ts');
  S=await import('../../src/lib/server/library/store.ts');A=await import('../../src/lib/server/learning-archive.ts');
 });
 after(async()=>{db?.close();if(root)await rm(root,{recursive:true,force:true});});
@@ -20,7 +20,7 @@ test('retirement commits only its captured lesson set and preserves versions, ed
  const job=A.beginArchive({fingerprint,slugs:['old-master','assigned-lesson']});
  assert.equal(A.nativeWorkspace(),null);assert.equal(S.itemFor('test-template','skill').slug,'old-master');
  A.completeArchive({...receipt,archiveId:job.archiveId},A.sourceRevision());
- assert.equal(A.isRetiredLesson('old-master'),true);assert.equal(A.isRetiredLesson('new-lesson'),false);
+ assert.equal(isRetired('old-master'),true);assert.equal(isRetired('new-lesson'),false);
  assert.equal(S.itemFor('test-template','skill'),null);assert.deepEqual(S.itemsForTemplate('test-template'),[]);
  assert.equal(M.latestPublished('old-master','plan').content,'{"title":"teacher correction"}');
  assert.ok(D.readLessons().some(l=>l.slug==='assigned-lesson'),'historical store remains intact');
@@ -32,10 +32,9 @@ test('retirement commits only its captured lesson set and preserves versions, ed
  await assert.rejects(prepare.prepareSkill('not-a-template','skill'),/native_workspace/);
  assert.throws(()=>prepare.enqueue('not-a-template',['skill']),/native_workspace/);
  await assert.rejects(queue.publish('new-old-format',{},{}),/native_workspace/);
- await assert.rejects(queue.publishDraftOnly('new-old-format',{},{}),/native_workspace/);
  await assert.rejects(queue.appendToPortal(null,{},{}),/native_workspace/);
  const again=A.beginArchive({fingerprint:'b'.repeat(64),slugs:['new-lesson']});assert.equal(again.archiveId,job.archiveId);
- assert.equal(A.isRetiredLesson('new-lesson'),false,'repeated activation cannot retire new work');
+ assert.equal(isRetired('new-lesson'),false,'repeated activation cannot retire new work');
 });
 test('changed database revision and unverified receipts cannot retire content',()=>{
  db.exec('DELETE FROM learning_retired_lessons; DELETE FROM learning_archive');
@@ -43,7 +42,7 @@ test('changed database revision and unverified receipts cannot retire content',(
  const revision=A.sourceRevision();
  db.prepare('UPDATE lessons SET title=? WHERE slug=?').run('Changed during archive','assigned-lesson');
  assert.throws(()=>A.completeArchive({...receipt,archiveId:job.archiveId,lessonCount:1},revision),/source_changed/);
- assert.equal(A.nativeWorkspace(),null);assert.equal(A.isRetiredLesson('assigned-lesson'),false);
+ assert.equal(A.nativeWorkspace(),null);assert.equal(isRetired('assigned-lesson'),false);
  assert.throws(()=>A.completeArchive({...receipt,archiveId:job.archiveId,lessonCount:1,fingerprint:'c'.repeat(64)},A.sourceRevision()),/source_changed/);
  assert.equal(A.nativeWorkspace(),null);
  const revision2=A.sourceRevision();const other=new (db.constructor)(process.env.DB_PATH);other.prepare('UPDATE lessons SET title=? WHERE slug=?').run('External writer','assigned-lesson');other.close();

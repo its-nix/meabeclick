@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PARABOLAS } from '../../src/lib/learning/parabolas.ts';
-import { gradeLearningCheck, numericAnswer, publicExperience, learningProblems } from '../../src/lib/learning/model.ts';
+import { numericAnswer, publicExperience, learningProblems } from '../../src/lib/learning/model.ts';
 import { learningFrameAt, formulaForVisual } from '../../src/lib/learning/visual.ts';
 import { mathText, mathFormula } from '../../src/lib/learning/math.ts';
 import { experienceProblems, renderLearningDocument, learningFingerprint } from '../../src/lib/server/learning-render.ts';
@@ -18,11 +18,6 @@ test('the reference lesson has valid math and an independent challenge', () => {
 test('numeric answers accept equivalent fractions and decimal notation without evaluating code', () => {
   for (const input of ['1/2', '0.5', '0,5', '١/٢']) assert.equal(numericAnswer(input), .5);
   for (const input of ['1/0', 'Infinity', 'NaN', 'alert(1)', '2**3', '1/2/3', {}, '']) assert.equal(numericAnswer(input), null);
-});
-test('the plotted target checks every parameter and rejects extra or nonnumeric values', () => {
-  const check = PARABOLAS.scenes.find(s => s.id === 'target').check;
-  assert.equal(gradeLearningCheck(check, [1,2,1]), true);
-  for (const value of [[1,2,0], [1,2,1,4], ['1',2,1], [1,Infinity,1]]) assert.equal(gradeLearningCheck(check, value), false);
 });
 test('answer keys stay out of assigned documents and the public lesson payload', () => {
   assert.equal(JSON.stringify(publicExperience(PARABOLAS)).includes('"answer":'), false);
@@ -65,7 +60,7 @@ test('a balance never draws a fractional number of unknown tiles during a transi
   }
 });
 test('new lesson decks use the interactive experience; legacy decks continue rendering', () => {
-  const plan = {title:'test',slides:[],examples:[],homework:[],games:{},learning:PARABOLAS};
+  const plan = {title:'test',slides:[],examples:[],homework:[],learning:PARABOLAS};
   assert.match(renderSlides(plan,{subject:'מתמטיקה',level:'כיתה ט'}), /data-scene="notice"/);
   assert.match(renderSlides({...plan,learning:undefined},{subject:'מתמטיקה',level:'כיתה ט'}), /class="deck"/);
 });

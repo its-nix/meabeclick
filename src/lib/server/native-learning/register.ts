@@ -1,6 +1,21 @@
 import {createHash} from 'node:crypto';
-import {workspaceTables,workspaceHeader,workspaceProblems,type WorkspaceSnapshot,type WorkspaceRow} from '../../learning/workspace.ts';
+import {workspaceTables,workspaceSiteColumns,workspaceHeader,workspaceProblems,type WorkspaceSnapshot,type WorkspaceRow} from '../../learning/workspace.ts';
 import type {NativeLessonJob} from './jobs.ts';
+import {exportGamesFile,gamesFileText} from './games.ts';
+import type {VisualLesson} from '../../learning/deck/model.ts';
+import type {CentralArtifact} from '../central-drive/source.ts';
+import {centralFileUrl,type CentralFile} from '../central-drive/api.ts';
+
+export interface GamesFileReceipt {id:string;url:string;sha256:string}
+/** Writes the editable games JSON next to the review Slides/Docs (private folder; answers stay in it). Idempotent: the blob key includes the content hash. */
+export async function writeNativeGamesFile(api:{blob:(a:CentralArtifact,parent:string)=>Promise<{file:CentralFile}>},folderId:string,bundle:VisualLesson,bookingId:number):Promise<GamesFileReceipt|null> {
+ if(!bundle?.games?.length)return null;
+ const buffer=Buffer.from(gamesFileText(exportGamesFile(bundle,`booking-${bookingId}`)),'utf8');
+ const sha256=createHash('sha256').update(buffer).digest('hex'),md5=createHash('md5').update(buffer).digest('hex');
+ const artifact:CentralArtifact={key:`native-games:${bookingId}:${sha256}`,name:`משחקים — שיעור ${bookingId}.json`,folders:[],mimeType:'application/json',sha256,md5,size:buffer.length,role:'game',lesson:null,version:null,read:async(offset=0,length=buffer.length)=>buffer.subarray(offset,offset+length)} as CentralArtifact;
+ const {file}=await api.blob(artifact,folderId);
+ return {id:file.id,url:centralFileUrl(file),sha256};
+}
 
 interface Receipt {sourceHash:string;slides:{url:string};notesLocation?:'slides';tutorNotes?:{url:string};homework:{url:string};activities:{id:string;title:string;url:string}[];provenance?:{kind?:string;bundleVersion:string;sourceIds:string[]}}
 interface Api {scope:string;json:(url:string,init?:RequestInit)=>Promise<any>}
@@ -19,11 +34,11 @@ export async function validateNativeDraftFiles(api:Api&{privateFolder:(id:string
  }
 }
 const roles=['Students','Lessons','Materials','Assignments'] as const;
-export function nativeDraftRecords(job:NativeLessonJob,receipt:Receipt,studentName:string,studentLinks?:{profileUrl:string;folderUrl:string}):WorkspaceSnapshot {
+export function nativeDraftRecords(job:NativeLessonJob,receipt:Receipt,studentName:string,studentLinks?:{profileUrl:string;folderUrl:string},gamesFile?:GamesFileReceipt|null):WorkspaceSnapshot {
  const studentId=`student-${job.studentId}`,lessonId=`booking-${job.bookingId}`,prefix=`native-${job.id}`,demo=false;
  const material=(suffix:string,title:string,kind:string,provider:string,url:string,audience:string):WorkspaceRow=>({material_id:`${prefix}-${suffix}`,title,kind,provider,url,review_status:'review',publication_status:'draft',audience,student_id:studentId,topic:`התפלגות נורמלית · 35372 · מקור: ${receipt.provenance?.sourceIds.join(', ')??'moe-2025a-35372-3'}`,education_level:'תיכון · 3 יחידות',release_id:'',content_sha256:receipt.sourceHash,is_demo:demo});
- const materials=[material('slides',receipt.notesLocation==='slides'?'מצגת למורה — הערות ופתרונות':'מצגת — טיוטה לבדיקה','presentation','google_slides',receipt.slides.url,receipt.notesLocation==='slides'?'staff':'student'),...(receipt.tutorNotes?[material('notes','הערות ופתרונות למורה','lesson_brief','google_docs',receipt.tutorNotes.url,'staff')]:[]),material('homework','תרגול לבית — טיוטה','homework','google_docs',receipt.homework.url,'student'),...receipt.activities.map(a=>material(`game-${createHash('sha256').update(a.id).digest('hex').slice(0,12)}`,a.title,'game','website',a.url,'staff'))];
- const snapshot:WorkspaceSnapshot={version:1,Students:[{student_id:studentId,display_name:studentName,subject:job.snapshot.subject??'מתמטיקה',education_level:'תיכון',track:'3',goals:'הכנת שיעור — ללא טענת שליטה',profile_url:studentLinks?.profileUrl??'',folder_url:studentLinks?.folderUrl??'',status:'active',is_demo:demo}],Lessons:[{lesson_id:lessonId,student_id:studentId,date:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(job.snapshot.start)),goals:job.snapshot.brief?.request??'התפלגות נורמלית · שאלון 35372 · 90 דקות',status:'planned',tutor_note:'טיוטה פרטית; נדרשת בדיקת מורה לפני כל שימוש עם תלמיד/ה.',is_demo:demo}],Materials:materials,Assignments:materials.filter(m=>m.kind==='homework').map(m=>({assignment_id:`${prefix}-homework-assignment`,student_id:studentId,lesson_id:lessonId,material_id:m.material_id,due_date:'',status:'draft',is_demo:demo})),Progress:[]};
+ const materials=[...(gamesFile?[{...material('games-file','משחקי תרגול — קובץ לאישור','game','google_drive',gamesFile.url,'student'),content_sha256:gamesFile.sha256}]:[]),material('slides',receipt.notesLocation==='slides'?'מצגת למורה — הערות ופתרונות':'מצגת — טיוטה לבדיקה','presentation','google_slides',receipt.slides.url,receipt.notesLocation==='slides'?'staff':'student'),...(receipt.tutorNotes?[material('notes','הערות ופתרונות למורה','lesson_brief','google_docs',receipt.tutorNotes.url,'staff')]:[]),material('homework','תרגול לבית — טיוטה','homework','google_docs',receipt.homework.url,'student'),...receipt.activities.map(a=>material(`game-${createHash('sha256').update(a.id).digest('hex').slice(0,12)}`,a.title,'game','website',a.url,'staff'))];
+ const snapshot:WorkspaceSnapshot={version:1,Students:[{student_id:studentId,display_name:studentName,subject:job.snapshot.subject??'מתמטיקה',education_level:'תיכון',track:'3',goals:'הכנת שיעור — ללא טענת שליטה',profile_url:studentLinks?.profileUrl??'',folder_url:studentLinks?.folderUrl??'',status:'active',is_demo:demo}],Lessons:[{lesson_id:lessonId,student_id:studentId,date:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(job.snapshot.start)),goals:job.snapshot.brief?.request??'התפלגות נורמלית · שאלון 35372 · 90 דקות',status:'planned',tutor_note:'טיוטה פרטית; נדרשת בדיקת מורה לפני כל שימוש עם תלמיד/ה.',is_demo:demo}],Materials:materials,Assignments:materials.filter(m=>m.kind==='homework'||m.material_id===`${prefix}-games-file`).map(m=>({assignment_id:`${prefix}-${m.kind==='game'?'games':'homework'}-assignment`,student_id:studentId,lesson_id:lessonId,material_id:m.material_id,due_date:'',status:'draft',is_demo:demo})),Progress:[]};
  if(job.snapshot.brief?.priorKnowledge)snapshot.Lessons[0].tutor_note+=` ידע קודם — דיווח מורה: ${job.snapshot.brief.priorKnowledge}.`;
  snapshot.Lessons[0].tutor_note+=` מקור חבילה: ${receipt.provenance?.bundleVersion??receipt.sourceHash}; ${receipt.provenance?.kind==='fresh-booking-generation'?'טיוטה חדשה לפי בקשת המורה; טרם אושרה להוראה.':'חבילת כיול שנבחרה במפורש, ללא התאמה אוטומטית או אישור הוראה.'}`;
  const problems=workspaceProblems(snapshot);if(problems.length)throw Error('native_register_schema');return snapshot;
@@ -41,12 +56,19 @@ export async function appendNativeDraftRecords(api:Api,indexId:string,records:Wo
   const owned=meta.sheets.filter((s:any)=>s.developerMetadata?.some((m:any)=>m.metadataKey==='meaNativeRecords'&&m.metadataValue===marker));
   if(owned.length>1)throw Error('conflict');
   let sheet=owned[0],existing:unknown[][]=[];
-  const header=workspaceTables[role].map(workspaceHeader);
+  const base=workspaceTables[role].map(workspaceHeader),site=(workspaceSiteColumns[role]??[]).map(workspaceHeader),header=[...base,...site];
   if(sheet){
    if(sheet.properties.title!==title)throw Error('conflict');
    const result=await api.json(`${base}/values/${encodeURIComponent(`'${title}'!A1:P5002`)}?valueRenderOption=UNFORMATTED_VALUE`);
    existing=result.values??[];
-   if(!Array.isArray(existing)||JSON.stringify(existing[0])!==JSON.stringify(header)||existing.length>5001)throw Error('conflict');
+   const lacksSite=site.length>0&&JSON.stringify(existing?.[0])===JSON.stringify(base);
+   if(!Array.isArray(existing)||existing.length>5001||JSON.stringify(existing[0])!==JSON.stringify(header)&&!lacksSite)throw Error('conflict');
+   if(lacksSite){
+    // Add the site-owned header only into a column nobody has written to.
+    if(existing.some(r=>!Array.isArray(r)||r.length>base.length))throw Error('conflict');
+    if((sheet.properties.gridProperties?.columnCount??0)<header.length)requests.push({appendDimension:{sheetId:sheet.properties.sheetId,dimension:'COLUMNS',length:header.length-(sheet.properties.gridProperties?.columnCount??base.length)}});
+    requests.push({updateCells:{start:{sheetId:sheet.properties.sheetId,rowIndex:0,columnIndex:base.length},rows:[{values:site.map(v=>({userEnteredValue:{stringValue:v}}))}],fields:'userEnteredValue'}});
+   }
   }else{
    if(meta.sheets.some((s:any)=>s.properties?.title===title))throw Error('conflict');
    while(used.has(next))next++;used.add(next);

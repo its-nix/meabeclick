@@ -1,10 +1,11 @@
 import { posix } from 'node:path';
 import ts from 'typescript';
 import { JOURNEYS, JOURNEY_IDS } from './catalog.mjs';
+import { REMOVED_ROUTES } from './removed-routes.mjs';
 
 const SOURCE = /\.(?:[cm]?[jt]s|svelte|css)$/;
 const GLOBAL = /^(?:package(?:-lock)?\.json|Dockerfile|\.dockerignore$|(?:ts|js)config\.json$|docker-compose\.yml|svelte\.config\.|vite\.config\.|src\/(?:hooks\.|app\.)|static\/|server\/Caddyfile|\.github\/workflows\/|scripts\/pr-qa\/|tests\/(?:qa\/|characterization\/(?:harness|learning-fixture|fake-google)\.mjs)|playwright\.qa\.config\.)/;
-const RUNTIME = /^(?:src\/|static\/|server\/|scripts\/|games\/|templates\/|seed\/|tests\/browser\/|tests\/qa\/|\.github\/|package(?:-lock)?\.json$|Dockerfile$|docker-compose\.yml$|(?:svelte|vite)\.config\.|playwright\.qa\.config\.)/;
+const RUNTIME = /^(?:src\/|static\/|server\/|scripts\/|templates\/|tests\/browser\/|tests\/qa\/|\.github\/|package(?:-lock)?\.json$|Dockerfile$|docker-compose\.yml$|(?:svelte|vite)\.config\.|playwright\.qa\.config\.)/;
 
 function routeOf(path) {
   if (!path.startsWith('src/routes/')) return null;
@@ -70,7 +71,10 @@ export function selectImpact({ changedFiles, baseFiles = {}, headFiles = {}, for
     if (!resolved) { full = true; reasons.push(`unresolved runtime dependency: ${file}`); }
   }
   const runtime = full || changed.some(path => RUNTIME.test(path));
-  const unmappedRoutes = [...routes].filter(route => !JOURNEYS.some(journey => journey.routes.includes(route))).sort();
+  // A route with no remaining page/server file is a deletion. It needs no
+  // positive journey, but must be a declared REMOVED_ROUTE whose 404 is asserted.
+  const live = new Set(Object.keys(headFiles).map(file => routeOf(file)).filter(route => route && !route.layout).map(route => route.path));
+  const unmappedRoutes = [...routes].filter(route => (live.has(route) || !Object.hasOwn(REMOVED_ROUTES, route)) && !JOURNEYS.some(journey => journey.routes.includes(route))).sort();
   if (unmappedRoutes.length) { full = true; reasons.push(`unmapped route requires coverage: ${unmappedRoutes.join(', ')}`); }
   if (runtime && !routes.size && !full) { full = true; reasons.push('runtime change has no statically resolved route; expand coverage'); }
   if (!runtime) return { version: 1, mode: 'skip', changedFiles: changed, routes: [], unmappedRoutes: [], journeys: [], reasons: ['no runtime changes; UI verification explicitly skipped'] };

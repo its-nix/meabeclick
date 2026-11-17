@@ -60,7 +60,6 @@ test('cancellation fences claims, reviewer completion, acceptance and future col
  const id=file(bookingId),q=ready(id),c=S.claimFeedbackReview({id:q.id});E.cancelBooking(bookingId);
  assert.equal(S.getFeedbackArtifact(id).state,'cancelled');assert.equal(S.getFeedbackReview(q.id).state,'cancelled');assert.equal(S.claimFeedbackReview({id:q.id}),null);
  assert.equal(S.completeFeedbackReview({id:q.id,attempt:c.attempts,proposal,validation:{status:'pass'}}),null);assert.throws(()=>S.ingestFeedbackComments(id,[]),/cancelled/);
- assert.equal(handle().prepare('SELECT count(*) n FROM learning_progress').get().n,0);
 });
 test('source identity changes invalidate a pending proposal and mismatched ownership is rejected',()=>{
  const id=file(),r=reviewed(id),a=S.getFeedbackArtifact(id);

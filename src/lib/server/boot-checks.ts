@@ -5,7 +5,7 @@
  * bitten by config that fails silently instead of loudly — a mount() helper
  * that warned and moved on (booking 404s on a "healthy" server), calendar
  * writes that failed invisibly until a dashboard banner was bolted on, and
- * several modules (auth.ts, urls.ts, email.ts, content.ts) that fall back to
+ * several modules (auth.ts, urls.ts, email.ts, paths.ts) that fall back to
  * a plausible-looking default rather than refusing to start. Each check
  * below traces to one of those defects; see the inline comment on each for
  * which one.
@@ -13,20 +13,13 @@
  * process.env, not `$env/dynamic/private`: that import is a Vite virtual
  * module and would make this file unimportable by `node --test`, which is
  * how tests/unit/boot-checks.test.mjs loads it directly — same reasoning as
- * urls.ts and content.ts.
+ * urls.ts and paths.ts.
  *
- * checkDataDir dynamically imports content.ts (rather than a static
- * top-level import) so that merely importing THIS module never pulls in
- * content.ts → urls.ts, which warns unconditionally at module load if
- * SESSION_SECRET is unset ("using a random one..."). If this module
- * statically imported content.ts, that warning — plus auth.ts's own two
- * module-load warnings — would print immediately before checkEnv() gets a
- * chance to throw over the exact same missing variable, reading as three
- * contradictory lines about one problem. src/hooks.server.ts relies on
- * this: it calls checkEnv() before dynamically importing auth.ts, and this
- * module's own DATA_DIR check needed the same treatment to keep that
- * ordering guarantee intact. See hooks.server.ts's comment for the other
- * half of this.
+ * This module never statically imports urls.ts or auth.ts: they warn
+ * unconditionally at module load if SESSION_SECRET is unset, and that
+ * warning would print immediately before checkEnv() gets a chance to throw
+ * over the exact same missing variable. src/hooks.server.ts relies on this:
+ * it calls checkEnv() before dynamically importing auth.ts.
  *
  * Dev-mode: these checks are NOT called at all under `vite dev` — see the
  * `if (!dev)` guard in src/hooks.server.ts, not anything in this file. This
@@ -36,17 +29,16 @@
 import { execFileSync } from 'node:child_process';
 import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-// Static import, unlike content.ts below: paths.ts has zero side effects at
-// module load (no console output, no throwing, just a computed constant),
-// so importing it here can't reproduce the "three contradictory warnings"
-// problem the dynamic content.ts import exists to avoid — see this file's
-// header comment.
-import { portalDir } from './paths.ts';
+// paths.ts has zero side effects at module load (no console output, no
+// throwing, just computed constants), so importing it here cannot reproduce
+// the duplicate-warning ordering problem — see this file's header comment.
+import { dataDir, portalDir } from './paths.ts';
 // Same reasoning as paths.ts above: engine.ts is a pure lookup over env and
 // one existsSync, with no module-load side effects, so importing it here
 // cannot reintroduce the duplicate-warning ordering problem.
 import { codexHome, engineBin, engineHasCredentials } from './lesson/engine.ts';
 import { loadTemplates } from './plans/templates.ts';
+import { googleLoginConfig } from './google-login-config.ts';
 
 interface RequiredVar {
   key: string;
@@ -116,8 +108,8 @@ export const REQUIRED_VARS: RequiredVar[] = [
   },
   {
     key: 'DATA_DIR',
-    why: 'the absolute directory generated content (lesson slides, game data, drafts, ' +
-      "portal files) lives under — unset, content.ts falls back to the CWD-relative " +
+    why: 'the absolute directory generated content (lesson slides, drafts, ' +
+      "portal files) lives under — unset, paths.ts falls back to the CWD-relative " +
       "'./data', and adapter-node's runtime cwd is not guaranteed to be the repo root",
   },
 ];
@@ -163,15 +155,28 @@ export function checkEnv(): void {
   );
 }
 
+/**
+ * Throws unless Google sign-in is configured. It is the only login the
+ * portal page offers, so a deployment without it has no way in - fail the boot
+ * rather than serve a login page with nothing on it. Uses the DB-free config
+ * module so it can run before the database opens.
+ */
+export function checkGoogleLogin(): void {
+  if (googleLoginConfig()) return;
+  throw new Error(
+    'refusing to start - Google sign-in is not configured: set GOOGLE_LOGIN_CLIENT_ID and ' +
+    'GOOGLE_LOGIN_CLIENT_SECRET (both; or GOOGLE_WEB_CLIENT_ID/GOOGLE_WEB_CLIENT_SECRET when the ' +
+    'Meet client is reused) together with SITE_URL. Students and parents have no other login.',
+  );
+}
+
 /** Throws unless DATA_DIR resolves to a directory this process can write
  *  to. Logs the RESOLVED ABSOLUTE PATH (not the raw env value, which may be
  *  relative) so a misconfigured deploy is visible in boot logs without
  *  anyone having to reproduce dataDir()'s resolution by hand.
  *
- *  Dynamically imports content.ts — see this module's header comment for
- *  why that import can't be static. */
-export async function checkDataDir(): Promise<void> {
-  const { dataDir } = await import('./content.ts');
+ */
+export function checkDataDir(): void {
   const dir = resolve(dataDir());
   console.log(`[boot] DATA_DIR resolved to ${dir}`);
   try {
@@ -293,39 +298,7 @@ export function checkLessonEngine(): void {
   }
 }
 
-/**
- * WARNS, does not throw, and names what will be degraded. registry.ts
- * (src/lib/server/lesson/registry.ts) used to do a top-level JSON.parse at
- * module load with no env override — meaning a missing/invalid
- * games/registry.json crashed the moment ANYTHING imported that module,
- * which risked taking down the whole server rather than just the one
- * feature that needs it (a fragility Task 11's review had already flagged
- * and deferred; Task 18 is what actually exercised it, when the games
- * catalog page became registry.ts's first real caller). registry.ts is now
- * lazy (getRegistry(), read and cached on first use, not at import) so
- * that guarantee holds: only /app/games (the catalog) and
- * /app/play/[template] (via isKnownTemplate) fail when someone actually
- * hits them — booking, the revenue path, never touches this file and is
- * unaffected either way. That's the same "don't take down the whole site
- * over one degraded feature" principle already applied to the `codex` CLI
- * check above; this fold-in is the FIX for the earlier version of this
- * function, which threw here instead.
- */
-export function checkRegistry(): void {
-  const path = resolve(process.cwd(), 'games', 'registry.json');
-  try {
-    JSON.parse(readFileSync(path, 'utf8'));
-  } catch (e) {
-    const cause = e instanceof Error ? e.message : String(e);
-    console.warn(
-      `WARNING: games/registry.json (${path}) is missing or not valid JSON (${cause}) — ` +
-      'the games catalog (/app/games) and lesson generation will fail. Booking and the ' +
-      'rest of the site will still work.',
-    );
-  }
-}
-
-/** Warns, like checkRegistry: a broken template disables plan creation for that
+/** Warns rather than throws: a broken template disables plan creation for that
  *  track and nothing else, so it must not stop the site from booting. CI is the
  *  real gate (tests/unit/plan-template-content.test.mjs). */
 export function checkPlanTemplates(): void {

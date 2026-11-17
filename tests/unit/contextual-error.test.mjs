@@ -2,10 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const page = readFileSync('src/routes/+error.svelte', 'utf8');
-test('game error wording is scoped to actual play routes', () => {
-  assert.match(page, /page.url.pathname.startsWith\('\/app\/play\/'\)/);
-  assert.match(page, /status === 403 && isGame/);
-  assert.match(page, /status === 404 && isGame/);
+test('error wording is generic: no page-specific game copy', () => {
+  assert.doesNotMatch(page, /isGame|\/app\/play\//);
   assert.match(page, /לא מצאנו את העמוד הזה/);
   assert.match(page, /אין גישה לעמוד הזה/);
 });

@@ -3,7 +3,8 @@
   import { GRADE_LABEL } from '$lib/homework-grade.ts';
   import type { FamilyLesson } from '$lib/family-lesson.ts';
   import { homeworkProblems } from '$lib/homework-display.ts';
-  import { TUTOR_PHONE } from '$lib/contact.ts';
+  import { TUTOR_PHONE, PAYBOX_LINK } from '$lib/contact.ts';
+  import { formatAgorot } from '$lib/plans.ts';
   import Icon from '$lib/icons/Icon.svelte';
   import BottomNav, { type NavItem } from '$lib/components/BottomNav.svelte';
   /**
@@ -15,26 +16,14 @@
    * refused anything under four characters with `צריך 4 ספרות` — a rule
    * inherited from the retired 4-digit PIN model, which locked out every
    * family whose password was not four digits.
-   *
-   * Ruling P13: /api/portal/[code] already normalizes mixed-shape game/
-   * homework records into a single `url` field, so this page never inspects
-   * `template`/`dataId` itself. But that normalized `url` is NOT
-   * consistently shaped: an old-shape entry's `url` is the raw baked string
-   * with no leading slash ("games/memory.html?d=..."), while a new-shape
-   * entry's `url` comes from src/lib/server/urls.ts's gameUrl(), which
-   * already returns an absolute path ("/app/play/..."). The old page always
-   * prepended "/" (`href="/${h.url}"`), which is correct for the old shape
-   * and would double-slash the new one. toHref() ($lib/urls.ts, shared with
-   * parent/ and dashboard/) normalizes both instead of assuming either
-   * shape, per the ruling.
    */
   import { onMount, tick } from 'svelte';
   import type { ProgressFacts } from '$lib/progress-facts.ts';
   import { appendMessage, removeMessage } from '$lib/chat-log.js';
   import MathText from '$lib/math/MathText.svelte';
   import FormulaText from '$lib/components/FormulaText.svelte';
-  import { toHref } from '$lib/urls.ts';
   import { israelToday } from '$lib/dates.ts';
+  import { STUDENT_GAMES_PATH } from '$lib/native-links.ts';
   import { firstName } from '$lib/names.ts';
   import type { PageData } from './$types';
 
@@ -45,7 +34,7 @@
   type View = 'loading' | 'app' | 'error';
 
   interface HwItem {
-    id?: number; task: string; assigned?: string | null; skill?: string | null; due?: string | null; url?: string | null;
+    id?: number; task: string; assigned?: string | null; skill?: string | null; due?: string | null;
     /* Two stages, because they are different claims: the student says they
        finished it, and someone judged it. One flag cannot say "I did it and
        nobody has looked yet", which is where homework spends most of its
@@ -55,22 +44,16 @@
     [k: string]: unknown;
   }
   type LessonItem = FamilyLesson;
-  interface GameItem {
-    title: string; url?: string | null; assignmentId?: string; lessonSlug?: string;
-    lessonTitle?: string; lessonAt?: string | null; skill?: string | null;
-    plays?: number; bestScore?: number | null; total?: number | null;
-    lastPlayedAt?: string | null; [k: string]: unknown;
-  }
   interface StudentData {
-    learning?: Array<{ slug: string; title: string; url: string; solved: number; total: number }>;
-    learningPreparation?: Array<{ slug: string; title: string; url: string; solved: number; total: number }>;
     name: string; emoji?: string; subject?: string; level?: string; tutor?: string; tutorPhone?: string;
     nextLesson?: { date?: string; time?: string; type?: string } | null;
     /* Computed by the server (see src/lib/server/progress.ts), not a
        hand-typed integer — that one was 0 for every student, forever. */
     progress?: ProgressFacts;
     progressNote?: string; updated?: string;
-    homework?: HwItem[]; lessons?: LessonItem[]; games?: GameItem[];
+    homework?: HwItem[]; lessons?: LessonItem[];
+    /* Only sent when this student is the payer of record (pays for themselves). */
+    balance?: { owedAgorot: number; paidAgorot: number; dueAgorot: number; upcomingAgorot: number } | null;
   }
   interface ChatMsg {
     cls: 'me' | 'bot' | 'sys'; text: string; wa?: string;
@@ -192,16 +175,10 @@
   });
 
   /** Still open means not handed in. A graded task is finished either way. */
-  const hwOpen = $derived((DATA?.homework ?? []).filter(h => !h.submitted && !h.graded).length
-    + (DATA?.learning ?? []).filter(l => l.solved < l.total).length);
-  // Game links have no reliable task-level completion evidence here.
-  const writtenHomework = $derived((DATA?.homework ?? []).filter(h => !h.url));
+  const hwOpen = $derived((DATA?.homework ?? []).filter(h => !h.submitted && !h.graded).length);
+  const writtenHomework = $derived(DATA?.homework ?? []);
   const writtenSubmitted = $derived(writtenHomework.filter(h => h.submitted || h.graded).length);
   const today = israelToday();
-
-
-  const nextLearning = $derived(DATA?.learning?.find(lesson => lesson.solved < lesson.total) ?? DATA?.learningPreparation?.[0] ?? null);
-  const otherPreparation = $derived((DATA?.learningPreparation ?? []).filter(lesson => lesson.slug !== nextLearning?.slug));
 
   function hwStatus(h: HwItem): { cls: string; label: string } {
     /* Three states, not two, and the middle one is the point: a child who
@@ -380,32 +357,12 @@
     if (e.key === 'Enter') ask();
   }
 
-  /** A first-day board has no lessons, no homework and no games. Saying so
+  /** A first-day board has no lessons and no homework. Saying so
    *  beats three separate "empty" messages, one of which used to be a
    *  celebration emoji aimed at a child who had just enrolled. */
   const isDayOne = $derived(!!DATA
     && !(DATA.homework ?? []).length
-    && !(DATA.learning ?? []).length
-    && !(DATA.lessons ?? []).filter(l => !l.upcoming).length
-    && !(DATA.games ?? []).length);
-  const gameGroups = $derived.by(() => {
-    const groups = new Map<string, { key: string; title: string; at: string | null; games: GameItem[] }>();
-    for (const game of DATA?.games ?? []) {
-      const key = game.lessonSlug ?? 'legacy';
-      const group = groups.get(key) ?? {
-        key, title: game.lessonTitle ?? 'משחקים קודמים', at: game.lessonAt ?? null, games: [],
-      };
-      group.games.push(game);
-      groups.set(key, group);
-    }
-    return [...groups.values()];
-  });
-
-  function playedLabel(game: GameItem): string {
-    if (!game.plays) return 'חדש · עוד לא שוחק';
-    const when = game.lastPlayedAt ? new Date(game.lastPlayedAt).toLocaleDateString('he-IL') : '';
-    return `שוחק${when ? ' ב־' : ''}`;
-  }
+    && !(DATA.lessons ?? []).filter(l => !l.upcoming).length);
 </script>
 
 <svelte:head>
@@ -436,24 +393,12 @@
     <div id="app">
       {#if activeView === 'home'}
         <div class="student-page-heading"><p class="eyebrow">הלמידה שלך, בקצב שלך</p><h1>היום שלי</h1></div>
-        {#if nextLearning}
-          <article class="continue-card">
-            <p class="eyebrow">ממשיכים מכאן</p>
-            <h2>{nextLearning.title}</h2>
-            <p>{nextLearning.solved} מתוך {nextLearning.total} אתגרים נפתרו</p>
-            <a class="continue-action" href={nextLearning.url}>המשך תרגול <span aria-hidden="true">←</span></a>
-          </article>
-        {:else if hwOpen > 0}
+        {#if hwOpen > 0}
           <article class="continue-card">
             <p class="eyebrow">ממשיכים מכאן</p>
             <h2>התרגול הבא שלך</h2>
             <p>{hwOpen} משימות מחכות לך</p>
             <button class="continue-action" type="button" onclick={() => selectView('hw')}>לשיעורי הבית <span aria-hidden="true">←</span></button>
-          </article>
-        {:else if (DATA.games ?? []).length}
-          <article class="continue-card">
-            <p class="eyebrow">ממשיכים מכאן</p><h2>לומדים תוך כדי משחק</h2>
-            <button class="continue-action" type="button" onclick={() => selectView('games')}>למשחקי התרגול <span aria-hidden="true">←</span></button>
           </article>
         {/if}
 
@@ -467,37 +412,33 @@
         </div>
 
         {#if isDayOne}
-          <div class="dayone"><div class="dayone-title">הכל מוכן לשיעור הראשון</div><p class="dayone-sub">אחרי השיעור יופיעו כאן הסיכום, המצגת ומשחקי התרגול.</p></div>
+          <div class="dayone"><div class="dayone-title">הכל מוכן לשיעור הראשון</div><p class="dayone-sub">אחרי השיעור יופיעו כאן הסיכום ומשחקי התרגול.</p>{#if data.canSeeParentView}<a class="backlink" href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור</a>{/if}</div>
         {:else}
           {#if DATA.progress?.total}
             <div class="student-progress"><Icon name="progress" size={20} /><p>{progressWords}</p></div>
+          {/if}
+          {#if DATA.balance}
+            <section class="self-pay" aria-label="התשלום שלי">
+              <div class="card-title"><Icon name="payments" /> התשלום שלי</div>
+              <p class="self-pay-row"><span>לתשלום עכשיו</span><strong>{formatAgorot(DATA.balance.dueAgorot)}</strong></p>
+              <p class="self-pay-row"><span>שולם עד כה</span><strong>{formatAgorot(DATA.balance.paidAgorot)}</strong></p>
+              {#if DATA.balance.dueAgorot > 0}<a class="play" href={PAYBOX_LINK} target="_blank" rel="noopener"><Icon name="payments" size={17} /> לתשלום ב-PayBox</a>{:else}<p class="card-meta">אין כרגע תשלום פתוח.</p>{/if}
+            </section>
           {/if}
           {#if (DATA.lessons ?? []).length}
             <details class="recent-lessons"><summary>שיעורים אחרונים <span>{(DATA.lessons ?? []).length}</span></summary>
               {#each DATA.lessons ?? [] as l}
                 <article class="lesson-row"><div class="card-title">{l.topic}</div><div class="card-meta">{l.upcoming ? 'לקראת השיעור · ' : ''}{fmtDate(l.date)}</div>
                   {#if l.summary}<p class="card-body">{l.summary}</p>{/if}
-                  {#if l.slidesUrl}<a class="lesson-link" href={toHref(l.slidesUrl)}><Icon name="slides" size={17} /> המצגת</a>{/if}
                 </article>
               {/each}
             </details>
           {/if}
         {/if}
-        {#if otherPreparation.length}
-          <details class="recent-lessons"><summary>לקראת השיעור</summary>{#each otherPreparation as lesson}<a class="lesson-link" href={lesson.url}>{lesson.title} <span aria-hidden="true">←</span></a>{/each}</details>
-        {/if}
       {/if}
 
       {#if activeView === 'hw'}
         <h1 class="view-title">שיעורי הבית שלי</h1>
-        {#each DATA.learning ?? [] as lesson}
-          <article class="card">
-            <div class="card-title">{lesson.title}</div>
-            <p class="card-body">הסברים בתנועה, ניסויים קטנים ואתגרים בקצב שלכם.</p>
-            <p class="card-meta">{lesson.solved} מתוך {lesson.total} אתגרים נפתרו</p>
-            <a class="play" href={lesson.url}>ממשיכים לתרגל <span aria-hidden="true">←</span></a>
-          </article>
-        {/each}
         <div class="card" dir="rtl">
           <p class="progress-words" role="status" aria-atomic="true">
             {writtenSubmitted} מתוך {writtenHomework.length} מטלות בכתב הוגשו או נבדקו
@@ -530,7 +471,7 @@
                «מוצגת להורים בלבד»), not shown to the child. -->
         </div>
         {/if}
-        {#if !(DATA.homework ?? []).length && !(DATA.learning ?? []).length}
+        {#if !(DATA.homework ?? []).length}
           <div class="msg-empty">
             {isDayOne
               ? 'עוד אין שיעורי בית — הם יופיעו כאן אחרי השיעור הראשון.'
@@ -564,9 +505,7 @@
                   </li>
                 {/each}
               </ol>
-              {#if h.url}
-                <a class="play" href={toHref(h.url)}><Icon name="games" size={17} /> {h.submitted ? 'לשחק שוב' : 'התחילו'}</a>
-              {:else if !h.graded && h.id != null}
+              {#if !h.graded && h.id != null}
                 <button
                   type="button"
                   class="hw-submit"
@@ -588,31 +527,10 @@
 
       {#if activeView === 'games'}
         <h1 class="view-title">משחקי התרגול</h1>
-        {#if !(DATA.games ?? []).length}
-          <div class="msg-empty">{isDayOne ? 'אחרי השיעור הראשון יופיעו כאן משחקי התרגול.' : 'אין משחקי תרגול פתוחים כרגע. כשיהיה משחק חדש הוא יופיע כאן.'}</div>
-        {:else}
-          {#each gameGroups as group (group.key)}
-            <section class="game-group">
-              <h2 class="view-title">{group.title}{#if group.at} · <bdi dir="ltr">{new Date(group.at).toLocaleDateString('he-IL')}</bdi>{/if}</h2>
-              {#each group.games as g (g.assignmentId ?? g.url ?? g.title)}
-                <article class="card">
-                  <div class="card-title"><Icon name="games" /> <FormulaText text={g.title} /></div>
-                  {#if g.skill}<div class="card-meta">מתרגלים: {g.skill}</div>{/if}
-                  <div class="card-meta">
-                    {playedLabel(g)}{#if g.plays && g.lastPlayedAt}<bdi dir="ltr">{new Date(g.lastPlayedAt).toLocaleDateString('he-IL')}</bdi>{/if}
-                    {#if g.plays && g.bestScore != null && g.total != null} · השיא: <bdi dir="ltr">{g.bestScore}/{g.total}</bdi>{/if}
-                  </div>
-                  {#if g.url}
-                    <a class="play" href={toHref(g.url)}>{g.plays ? 'לשחק שוב' : 'מתחילים'}</a>
-                  {:else}
-                    <div class="game-unavailable">המשחק לא זמין כרגע. לא איבדתם שום תוצאה.</div>
-                    <button type="button" class="retry" onclick={load}>לנסות שוב</button>
-                  {/if}
-                </article>
-              {/each}
-            </section>
-          {/each}
-        {/if}
+        <article class="card">
+          <p class="card-body">משחקי התרגול שהמורה אישרה נמצאים בעמוד נפרד.</p>
+          <a class="play" href={STUDENT_GAMES_PATH}><Icon name="games" size={17} /> למשחקים שלי</a>
+        </article>
       {/if}
 
       {#if activeView === 'ask'}
@@ -706,6 +624,8 @@
   .next-label,.next-meta{display:block;color:var(--text-muted);font-size:.8125rem}
   .next strong{display:block;font-size:1rem;font-weight:600;margin-block:4px}
   .student-progress{display:flex;align-items:center;gap:12px;padding:8px 4px 24px;color:var(--text-muted-strong);font-size:.875rem}
+  .self-pay{margin-bottom:20px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg)}
+  .self-pay-row{display:flex;justify-content:space-between;gap:12px;margin:8px 0;font-variant-numeric:tabular-nums}
   .recent-lessons{margin-bottom:20px;border-top:1px solid var(--border)}
   .recent-lessons summary{display:flex;align-items:center;justify-content:space-between;min-height:56px;font-size:1rem;font-weight:600;list-style:revert;cursor:pointer}
   .recent-lessons summary span{color:var(--text-muted);font-size:.875rem}

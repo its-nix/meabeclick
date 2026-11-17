@@ -7,18 +7,21 @@ const id=(key:string,label:string)=>col(key,label,{required:true});
 const demo=col('is_demo','רשומת הדגמה',{required:true,kind:'boolean'});
 export const workspaceTables:Record<string,readonly WorkspaceColumn[]>={
  Students:[id('student_id','מזהה תלמיד'),id('display_name','שם התלמיד'),id('subject','מקצוע'),id('education_level','שלב לימוד'),col('track','מסלול'),col('goals','מטרות'),col('profile_url','פרופיל למורה',{kind:'url'}),col('folder_url','תיקיית התלמיד',{kind:'url'}),col('status','מצב',{required:true,options:['active','paused','archived']}),demo],
- Materials:[id('material_id','מזהה חומר'),id('title','שם החומר'),col('kind','סוג',{required:true,options:['presentation','homework','game','lesson_brief','teacher_guide']}),col('provider','מערכת',{required:true,options:['google_slides','google_docs','website']}),col('url','קישור לחומר',{required:true,kind:'url'}),col('review_status','בדיקת תוכן',{required:true,options:['draft','review','approved','retired']}),col('publication_status','פרסום',{required:true,options:['draft','published','retired']}),col('audience','קהל',{required:true,options:['staff','student']}),col('student_id','מיועד לתלמיד'),id('topic','נושא'),col('education_level','שלב לימוד'),col('release_id','מזהה מהדורה'),col('content_sha256','טביעת תוכן'),demo],
+ Materials:[id('material_id','מזהה חומר'),id('title','שם החומר'),col('kind','סוג',{required:true,options:['presentation','homework','game','lesson_brief','teacher_guide']}),col('provider','מערכת',{required:true,options:['google_slides','google_docs','google_drive','website']}),col('url','קישור לחומר',{required:true,kind:'url'}),col('review_status','בדיקת תוכן',{required:true,options:['draft','review','approved','retired']}),col('publication_status','פרסום',{required:true,options:['draft','published','retired']}),col('audience','קהל',{required:true,options:['staff','student']}),col('student_id','מיועד לתלמיד'),id('topic','נושא'),col('education_level','שלב לימוד'),col('release_id','מזהה מהדורה'),col('content_sha256','טביעת תוכן'),demo],
  Lessons:[id('lesson_id','מזהה שיעור'),id('student_id','מזהה תלמיד'),col('date','תאריך',{required:true,kind:'date'}),id('goals','מטרות השיעור'),col('status','מצב',{required:true,options:['planned','delivered','cancelled']}),col('tutor_note','הערת המורה'),demo],
  Assignments:[id('assignment_id','מזהה הקצאה'),id('student_id','מזהה תלמיד'),id('lesson_id','מזהה שיעור'),id('material_id','מזהה חומר'),col('due_date','תאריך יעד',{kind:'date'}),col('status','מצב',{required:true,options:['draft','assigned','submitted','reviewed','cancelled']}),demo],
- Progress:[id('evidence_id','מזהה תצפית'),id('student_id','מזהה תלמיד'),id('skill','מיומנות'),id('lesson_id','מזהה שיעור'),col('assignment_id','מזהה הקצאה'),col('outcome','תוצאה',{required:true,options:['needs_review','practising','demonstrated']}),col('support','רמת תמיכה',{required:true,options:['none','guided','independent']}),col('evidence_type','מקור התצפית',{required:true,options:['planning_note','tutor_observation','checked_answer']}),col('evidence_url','קישור לראיה',{kind:'url'}),id('note','תיאור הראיה'),col('observed_at','מועד התצפית',{required:true,kind:'instant'}),demo]
+ Progress:[id('evidence_id','מזהה תצפית'),id('student_id','מזהה תלמיד'),id('skill','מיומנות'),id('lesson_id','מזהה שיעור'),col('assignment_id','מזהה הקצאה'),col('outcome','תוצאה',{required:true,options:['needs_review','practising','demonstrated']}),col('support','רמת תמיכה',{required:true,options:['none','guided','independent']}),col('evidence_type','מקור התצפית',{required:true,options:['planning_note','tutor_observation','checked_answer','game']}),col('evidence_url','קישור לראיה',{kind:'url'}),id('note','תיאור הראיה'),col('observed_at','מועד התצפית',{required:true,kind:'instant'}),demo]
 };
+/** Columns the site owns. Optional in the Sheet; the site writes only these and never reads them back as tutor input. */
+export const workspaceSiteColumns:Record<string,readonly WorkspaceColumn[]>={Materials:[col('site_status','סטטוס אתר')]};
 export type WorkspaceTable=keyof typeof workspaceTables;
 export interface WorkspaceSnapshot {version:1;Students:WorkspaceRow[];Materials:WorkspaceRow[];Lessons:WorkspaceRow[];Assignments:WorkspaceRow[];Progress:WorkspaceRow[]}
 const names=Object.keys(workspaceTables) as (keyof Omit<WorkspaceSnapshot,'version'>)[];
 export const workspaceHeader=(column:WorkspaceColumn)=>`${column.label} [${column.key}]`;
 /** Sheets DATE cells are civil calendar fields, not instants for display in Israel. */
 function sheetCivilDate(date:Date){return [String(date.getUTCFullYear()).padStart(4,'0'),String(date.getUTCMonth()+1).padStart(2,'0'),String(date.getUTCDate()).padStart(2,'0')].join('-');}
-export function decodeWorkspace(grids:Record<string,WorkspaceCell[][]>,version:number):WorkspaceSnapshot {
+/** `tolerateRuleViolations` keeps structural checks (headers, types) but returns rows that break cross-record rules, so a sync can withdraw access instead of failing wholesale. */
+export function decodeWorkspace(grids:Record<string,WorkspaceCell[][]>,version:number,options:{tolerateRuleViolations?:boolean}={}):WorkspaceSnapshot {
  if(version!==1)throw Error('unsupported workspace schema version');
  const snapshot={version:1} as WorkspaceSnapshot;
  for(const name of names){
@@ -26,18 +29,21 @@ export function decodeWorkspace(grids:Record<string,WorkspaceCell[][]>,version:n
   const keys=grid[0].map(h=>String(h??'').trim().match(/\[([a-z][a-z0-9_]+)\]$/)?.[1]??String(h??'').trim());
   const expected=workspaceTables[name].map(c=>c.key);
   for(const key of expected)if(keys.filter(k=>k===key).length!==1)throw Error(`${name}: missing or duplicate column ${key}`);
-  for(const key of keys)if(key&&!expected.includes(key))throw Error(`${name}: unknown column ${key}`);
+  const siteKeys=(workspaceSiteColumns[name]??[]).map(c=>c.key);
+  for(const key of siteKeys)if(keys.filter(k=>k===key).length>1)throw Error(`${name}: duplicate column ${key}`);
+  for(const key of keys)if(key&&!expected.includes(key)&&!siteKeys.includes(key))throw Error(`${name}: unknown column ${key}`);
   snapshot[name]=grid.slice(1).filter(row=>row.some(v=>v!==null&&String(v).trim()!=='')).map((row,i)=>{
    if(row.some((value,index)=>!keys[index]&&value!==null&&value!==undefined&&String(value).trim()!==''))throw Error(`${name} row ${i+2}: populated column has no key`);
    const record:WorkspaceRow={};for(const c of workspaceTables[name]){const raw=row[keys.indexOf(c.key)];if(c.kind==='boolean'){const v=String(raw??'').toLowerCase();if(!['true','false'].includes(v))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=v==='true';}else if(typeof raw==='number'&&(c.kind==='date'||c.kind==='instant')){const date=new Date(Date.UTC(1899,11,30)+Math.round(raw*86400000));if(!Number.isFinite(date.getTime()))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=c.kind==='date'?sheetCivilDate(date):date.toISOString();}else record[c.key]=String(raw??'').trim();}return record;
   });
  }
- const problems=workspaceProblems(snapshot);if(problems.length)throw Error(problems.join('; '));return snapshot;
+ if(!options.tolerateRuleViolations){const problems=workspaceProblems(snapshot);if(problems.length)throw Error(problems.join('; '));}
+ return snapshot;
 }
 function validDate(value:string){return /^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&sheetCivilDate(new Date(value))===value;}
 function safeUrl(value:string){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password;}catch{return false;}}
-function googleUrl(value:string,kind:'profile'|'folder'|'google_docs'|'google_slides'){
- try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&(kind==='folder'?u.hostname==='drive.google.com'&&/^\/drive\/folders\/[\w-]+\/?$/.test(u.pathname):u.hostname==='docs.google.com'&&new RegExp(`^/${kind==='google_slides'?'presentation':'document'}/d/[\\w-]+(?:/|$)`).test(u.pathname));}catch{return false;}
+function googleUrl(value:string,kind:'profile'|'folder'|'google_docs'|'google_slides'|'google_drive'){
+ try{const u=new URL(value);if(kind==='google_drive')return u.protocol==='https:'&&!u.username&&!u.password&&u.hostname==='drive.google.com'&&/^\/file\/d\/[\w-]+(?:\/|$)/.test(u.pathname);return u.protocol==='https:'&&!u.username&&!u.password&&(kind==='folder'?u.hostname==='drive.google.com'&&/^\/drive\/folders\/[\w-]+\/?$/.test(u.pathname):u.hostname==='docs.google.com'&&new RegExp(`^/${kind==='google_slides'?'presentation':'document'}/d/[\\w-]+(?:/|$)`).test(u.pathname));}catch{return false;}
 }
 export function workspaceProblems(snapshot:WorkspaceSnapshot):string[]{
  const issues:string[]=[];if(!snapshot||snapshot.version!==1)return ['unsupported workspace schema version'];
@@ -70,7 +76,7 @@ export function workspaceProblems(snapshot:WorkspaceSnapshot):string[]{
  for(const row of snapshot.Students){if(!row||typeof row!=='object')continue;for(const [key,kind]of [['profile_url','profile'],['folder_url','folder']]as const)if(row[key]&&!googleUrl(String(row[key]),kind))issues.push(`Students.${key}: Google ${kind} URL required`);}
  for(const row of snapshot.Materials){
   if(!row||typeof row!=='object')continue;link('Materials',row,'student_id','Students',true);
-  if(['google_docs','google_slides'].includes(String(row.provider))&&!googleUrl(String(row.url),row.provider as 'google_docs'|'google_slides'))issues.push('Materials.url: provider does not match Google file URL');
+  if(['google_docs','google_slides','google_drive'].includes(String(row.provider))&&!googleUrl(String(row.url),row.provider as 'google_docs'|'google_slides'|'google_drive'))issues.push('Materials.url: provider does not match Google file URL');
   if(row.publication_status==='published'){
    if(row.review_status!=='approved')issues.push('Materials: published material must be approved');
    if(!row.release_id)issues.push('Materials.release_id: published release required');
@@ -89,7 +95,7 @@ export function workspaceProblems(snapshot:WorkspaceSnapshot):string[]{
   if(!row||typeof row!=='object')continue;link('Progress',row,'student_id','Students');const lesson=link('Progress',row,'lesson_id','Lessons'),assignment=link('Progress',row,'assignment_id','Assignments',true);
   if(lesson&&lesson.student_id!==row.student_id||assignment&&assignment.student_id!==row.student_id)issues.push('Progress: evidence must belong to the same student');
   if(assignment&&assignment.lesson_id!==row.lesson_id)issues.push('Progress: assignment must belong to the evidence lesson');
-  if(row.outcome==='demonstrated'&&(row.support!=='independent'||!['tutor_observation','checked_answer'].includes(String(row.evidence_type))))issues.push('Progress: demonstrated outcome requires independent assessment evidence');
+  if(row.outcome==='demonstrated'&&(row.support!=='independent'||!['tutor_observation','checked_answer','game'].includes(String(row.evidence_type))))issues.push('Progress: demonstrated outcome requires independent assessment evidence');
  }
  return issues;
 }

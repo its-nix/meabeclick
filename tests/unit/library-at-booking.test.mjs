@@ -29,20 +29,15 @@ const DB = await import('../../src/lib/server/db.ts');
 const { templateById } = await import('../../src/lib/server/plans/templates.ts');
 const { triggerForBooking } = await import('../../src/lib/server/lesson/queue.ts');
 
+/** The master a booking's lesson was copied from, from the library_uses record. */
+const copiedFrom = (lessonSlug) => DB.handle().prepare('SELECT master_slug FROM library_uses WHERE lesson_slug = ?').get(lessonSlug)?.master_slug ?? null;
+
 const plan = (title) => ({
   title,
   gradeContext: 'כיתה ח',
   slides: [1, 2, 3, 4].map(n => ({ heading: `שקף ${n}`, bullets: ['נקודה'] })),
   examples: [{ problem: '2+2', steps: ['מחברים'], answer: '4' }],
   homework: [{ task: 'תרגיל מהספרייה', why: 'תרגול', answer: 'x=4' }, { task: 'תרגיל שני', why: 'תרגול', answer: 'x=5' }],
-  games: {
-    quiz: { title: 'חידון', questions: [
-      { q: 'שאלה 1', options: ['א', 'ב', 'ג'], answer: 0 },
-      { q: 'שאלה 2', options: ['א', 'ב', 'ג'], answer: 1 },
-      { q: 'שאלה 3', options: ['א', 'ב', 'ג'], answer: 2 },
-    ] },
-    sequence: { title: 'סדר', steps: ['ראשון', 'שני', 'שלישי'] },
-  },
 });
 
 let seq = 0;
@@ -88,7 +83,7 @@ test('with a ready library item, the booking gets a copy of the master — no en
   assert.equal(lesson.status, 'ready');
   assert.equal(lesson.title, 'שיעור מהספרייה');
   assert.notEqual(r.slug, master.slug, 'a copy, with its own slug');
-  assert.equal(U.librarySourceOf(r.slug), master.slug);
+  assert.equal(copiedFrom(r.slug), master.slug);
 
   const portal = JSON.parse(await readFile(join(process.env.PORTAL_DIR, `${code}.json`), 'utf8'));
   assert.equal(portal.lessons[0].slug, r.slug);
@@ -117,15 +112,15 @@ test('a copy that fails validation is held — and still recorded as a copy, nev
   const target = T.targetSkillFor(code, 'מתמטיקה');
   const master = U.readyMaster('math-8', target.key);
   const { addMaterial } = await import('../../src/lib/server/materials.ts');
-  // A published edit that broke it: one game where two are required.
-  const broken = { ...plan('שבור'), games: { quiz: plan('x').games.quiz } };
+  // A published edit that broke it: one homework task where two are required.
+  const broken = { ...plan('שבור'), homework: plan('x').homework.slice(0, 1) };
   addMaterial({ slug: master.slug, kind: 'plan', content: JSON.stringify(broken), origin: 'edited', publish: true });
 
   const c = collector();
   const r = triggerForBooking({ ...booking, start: '2027-01-12T10:00:00+02:00', end: '2027-01-12T11:30:00+02:00' }, { notify: c.notify, enrolledCode: code, bookingId: 503 });
   await c.first;
   assert.equal(DB.readLessons().find(l => l.slug === r.slug).status, 'held');
-  assert.equal(U.librarySourceOf(r.slug), master.slug, 'held, and still a copy: the gate must not count it');
+  assert.equal(copiedFrom(r.slug), master.slug, 'held, and still a copy: the gate must not count it');
 });
 
 test('without a ready item, nothing changes: no credentials still means no lesson', async () => {

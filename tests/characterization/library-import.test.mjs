@@ -42,9 +42,8 @@ test('a lesson made elsewhere enters the library ready, and is recorded as not a
     const db = new DatabaseSync(dbPath, { readOnly: true, timeout: 5000 });
     assert.deepEqual({ ...db.prepare(`SELECT engine FROM lesson_engines WHERE lesson_slug = ?`).get(item.slug) }, { engine: 'claude' });
     assert.equal(db.prepare(`SELECT status FROM lessons WHERE slug = ?`).get(item.slug).status, 'ready');
-    const deck = await fetch(`${baseUrl}/lessons/${item.slug}`);
-    assert.equal(deck.status, 200);
-    assert.match(await deck.text(), /שקף 1/);
+    const deck = db.prepare(`SELECT content FROM lesson_materials WHERE lesson_slug = ? AND kind = 'slides' AND published_at IS NOT NULL`).get(item.slug);
+    assert.match(deck.content, /שקף 1/, 'the imported lesson has published slides');
   } finally { await stop(); }
 });
 

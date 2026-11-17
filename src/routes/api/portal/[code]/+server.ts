@@ -34,7 +34,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { portalDir } from '$server/paths.ts';
 import { balanceForAccount, chargesForStudent, todayInIsrael } from '$server/payments.ts';
-import { gameUrl } from '$server/urls.ts';
+import { selfPayerFinance } from '$server/self-payer-finance.ts';
 import { resolveFamilyAccess, studentInScope } from '$server/family.ts';
 import { getStudentByCode, nextBookingForStudent } from '$server/entities.ts';
 import { lessonWhen, israelDay, israelToday } from '$lib/dates.ts';
@@ -42,46 +42,9 @@ import { toFamilyLesson } from '$lib/family-lesson.ts';
 import { planFor } from '$lib/plans.ts';
 import { homeworkForStudent } from '$server/lessons.ts';
 import { progressFor } from '$server/progress.ts';
-import { lessonGamesForStudent } from '$server/lesson-games.ts';
-import { learningForStudent } from '$server/learning-store.ts';
 import type { RequestHandler } from './$types';
 
 const CODE_FORMAT = /^[a-z0-9-]+$/;
-
-/**
- * publish() (src/lib/server/lesson/queue.ts) PREPENDS new-shape game
- * entries ({title, template, dataId}) onto whatever a portal file's
- * `games` array already holds. Records written by the retired
- * server/lesson-queue.mjs baked a `url` string directly instead
- * ({title, url}) — and because publish() only ever prepends, never
- * rewrites, a single portal file can permanently hold BOTH shapes at once
- * (old entries lower in the array, new ones above), independent of whether
- * "regeneration" has ever happened. This reader tolerates that mix rather
- * than assuming a uniform shape: an old {title, url} entry is passed
- * through as-is, and a new {title, template, dataId} entry has its url
- * derived here, at read time, via urls.ts's gameUrl — exactly the
- * "records store facts, urls are derived" split urls.ts's own header
- * comment describes. A malformed entry (neither shape) is dropped rather
- * than 500ing the whole page for a family reading their own portal.
- *
- * homework entries have the identical old-url-vs-new-facts split (see
- * server/lesson-queue.mjs's old `homework.map(...url: published.games[0]
- * ?.url)` vs src/lib/server/lesson/queue.ts's `{template, dataId}`) and
- * get the same treatment for the same reason.
- */
-function normalizeGameLike(entry: unknown, studentRef: string): Record<string, unknown> | null {
-  if (!entry || typeof entry !== 'object') return null;
-  const e = entry as Record<string, unknown>;
-  if (typeof e.url === 'string') return e; // old shape: already has a url
-  if (typeof e.template === 'string' && typeof e.dataId === 'string') {
-    try {
-      return { ...e, url: gameUrl({ template: e.template, dataId: e.dataId, student: studentRef }) };
-    } catch {
-      return null; // an invalid template/dataId must not 500 the whole page
-    }
-  }
-  return null;
-}
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
   const { code } = params;
@@ -132,43 +95,14 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     // file missing it is not a shape this route can safely serve: `name` is
     // what the parent/student views render as the child's display name, and
     // its absence means the file doesn't meet the shape this route promises
-    // its callers. (Game/homework links are signed over `code`, not `name`,
-    // so a missing name can no longer make gameUrl() throw — this guard is
-    // purely about the file's display/shape contract now, not signing.) A
-    // file failing that contract is treated the same as unparseable JSON: a
-    // visible 500, not a quietly incomplete 200 — the failure-must-be-visible
-    // intent ruling P13 established still applies here, just for a different
-    // reason than it originally did.
+    // its callers. A file failing that contract is treated the same as
+    // unparseable JSON: a visible 500, not a quietly incomplete 200 — the
+    // failure-must-be-visible intent ruling P13 established still applies.
     if (typeof data.name !== 'string' || !data.name.trim()) {
       throw new Error('portal file missing name');
     }
     const authorizedStudent = getStudentByCode(code);
 
-    if (Array.isArray(data.games)) {
-      data.games = data.games
-        .map((g: unknown) => normalizeGameLike(g, code))
-        .filter((g: unknown) => g !== null);
-    }
-    if (authorizedStudent) {
-      const linked = lessonGamesForStudent(authorizedStudent.id).map(game => ({
-        title: game.title,
-        template: game.template,
-        dataId: game.dataId,
-        assignmentId: game.assignmentId,
-        lessonSlug: game.lessonSlug,
-        lessonTitle: game.lessonTitle,
-        lessonAt: game.lessonAt,
-        skill: game.skill,
-        plays: game.plays,
-        bestScore: game.bestScore,
-        total: game.total,
-        lastPlayedAt: game.lastPlayedAt,
-        url: gameUrl({ template: game.template, dataId: game.dataId, student: code }),
-      }));
-      const publishedIds = new Set(linked.map(game => game.dataId));
-      data.games = [...linked, ...(Array.isArray(data.games) ? data.games : [])
-        .filter((game: Record<string, unknown>) => !publishedIds.has(String(game.dataId ?? '')))];
-    }
     /* Homework comes from the `homework` TABLE, not from this file.
      
        Both stores existed and neither worked: generated homework was
@@ -177,9 +111,6 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
        saw it. Verified before the change — a task added through the
        dashboard came back from /api/students/<code>/activity and was
        absent here.
-     
-       The table also derives `done` from the student's OWN game results
-       (see homeworkForStudent), which a flat array in a file cannot.
      
        The file is still read when the table holds nothing for this student:
        portal files written before this change carry entries the table has
@@ -203,16 +134,8 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
         graded: h.graded,
         grade: h.grade ?? null,
         gradedBy: h.graded_by ?? null,
-        template: h.template ?? undefined,
-        dataId: h.data_id ?? undefined,
         skill: h.skill ?? null,
       }));
-    }
-
-    if (Array.isArray(data.homework)) {
-      data.homework = data.homework
-        .map((h: unknown) => normalizeGameLike(h, code) ?? h)
-        .filter(Boolean);
     }
 
     /* Progress is computed, not read from the file. The file carried a
@@ -220,8 +143,6 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
        always had been, so a child with a lesson, homework and three games
        was told they were at zero. See progress.ts for what replaces it. */
     data.progress = progressFor(code);
-    data.learning = student ? learningForStudent(student.id) : [];
-    data.learningPreparation = student ? learningForStudent(student.id,'preparation') : [];
 
     /* Lessons in the one shape both family pages read: slides linked, the
        tutor's note hidden, and "coming" apart from "happened". */
@@ -246,6 +167,13 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
         data.balance = balanceForAccount(student.account_id, todayInIsrael());
         data.charges = chargesForStudent(student.id);
       }
+    }
+
+    /* A student who pays for themselves sees their own payment status on their
+       page; a child in a family account never does (the parent view has it). */
+    if (kind === 'student' && !locals.authenticated) {
+      const finance = selfPayerFinance(getStudentByCode(code));
+      if (finance) { data.balance = finance.balance; data.charges = finance.charges; }
     }
 
     return json(data, { headers: { 'Cache-Control': 'no-store' } });

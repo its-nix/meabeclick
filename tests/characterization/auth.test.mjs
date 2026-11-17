@@ -35,7 +35,7 @@ test('issues an HttpOnly session cookie on correct password', async () => {
 test('guarded API route answers 401 JSON without a session', async () => {
   const { baseUrl, stop } = await startServer();
   try {
-    const r = await fetch(`${baseUrl}/api/results`);
+    const r = await fetch(`${baseUrl}/api/payments/all`);
     assert.equal(r.status, 401);
     assert.deepEqual(await r.json(), { error: 'unauthorized' });
   } finally { await stop(); }

@@ -70,3 +70,31 @@ test('prose rejects bare TeX commands while delimited prose and raw equation blo
  const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();p.tasks[0].solution='משתמשים ב־x=\\mu+zs';assert.ok(visualLessonProblems(p).some(s=>s.includes('tasks.0.solution')),'diagnostic identifies the malformed solution field');
  p.tasks[0].solution='משתמשים ב־\\(x=\\mu+zs\\)';p.slides[0].blocks.push({type:'equation',text:'\\frac{1}{2}',model:null,sourceId:null,reveal:1});assert.deepEqual(visualLessonProblems(p),[]);
 });
+
+test('prose rejects keyboard math such as e^{4x} outside delimiters; delimited prose, plain parentheses and equation blocks stay valid',async()=>{
+ const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');
+ for(const bad of['פתרו e^{4x}=11','חברו את ln(e^x) להגדרה','הבעה x^2+1','משתנה a_1']){
+  const p=visualDeckFixture();p.tasks[0].solution=bad;
+  assert.ok(visualLessonProblems(p).some(s=>s.includes('tasks.0.solution')),'rejects: '+bad);
+ }
+ const ok=visualDeckFixture();ok.tasks[0].solution='פתרו \\(e^{4x}=11\\) וחברו את ln(ab) להגדרה';ok.homework[0].solution='PRIVATE_SOLUTION_9 ו־x=____ בסוף';ok.slides[0].blocks.push({type:'equation',text:'e^{4x}=11',model:null,sourceId:null,reveal:1});
+ assert.deepEqual(visualLessonProblems(ok),[]);
+});
+
+test('a quiz game may use multiple choice, numeric and tutor-reviewed open rounds; unknown game kinds stay rejected',async()=>{
+ const {visualLessonProblems,gradeDeckTask}=await import('../../src/lib/learning/deck/model.ts');
+ const quiz=()=>{
+  const base=visualDeckFixture().homework[0],round=(id,patch)=>({...structuredClone(base),id,model:null,...patch});
+  return {id:'quiz-game',title:'חידון קצר',intro:'שלוש שאלות על מה שלמדנו.',kind:'quiz',rounds:[
+   round('quiz-1',{check:{kind:'choice',answer:1,options:['תשובה א','תשובה ב','תשובה ג']}}),
+   round('quiz-2',{check:{kind:'number',answer:7,options:[]}}),
+   round('quiz-3',{grading:'tutor-review',check:null})]};
+ };
+ const p=visualDeckFixture();p.games[1]=quiz();
+ assert.deepEqual(visualLessonProblems(p),[]);
+ const q=quiz();
+ assert.equal(gradeDeckTask(q.rounds[0],1),true);assert.equal(gradeDeckTask(q.rounds[0],0),false);
+ assert.equal(gradeDeckTask(q.rounds[1],7),true);assert.equal(gradeDeckTask(q.rounds[2],'כל טקסט'),false,'open rounds are never auto-graded');
+ const bad=visualDeckFixture();bad.games[1]={...quiz(),kind:'memory'};
+ assert.ok(visualLessonProblems(bad).some(s=>s.includes('משחק')),'unknown kind rejected');
+});

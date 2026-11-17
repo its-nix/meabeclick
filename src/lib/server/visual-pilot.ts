@@ -3,7 +3,7 @@ import corpus from './learning-pilot-corpus.json' with {type:'json'};
 import {gradeDeckTask,visualLessonProblems,type DeckTask,type VisualLesson} from '../learning/deck/model.ts';
 import {officialQuestion} from './lesson/official-questions.ts';
 
-type PreviewStore=Map<string,{version:string;expires:number;tasks:Map<string,{attempts:number;hints:number;revealed:boolean}>;events:Map<string,Record<string,unknown>>}>;
+export type PreviewStore=Map<string,{version:string;expires:number;tasks:Map<string,{attempts:number;hints:number;revealed:boolean}>;events:Map<string,Record<string,unknown>>}>;
 const sessions:PreviewStore=new Map();
 const TTL=4*60*60*1000;
 function createInStore(sessions:PreviewStore,version:string,now=Date.now()):string{
@@ -16,7 +16,7 @@ export function ensurePreviewSession(id:string|undefined,version:string,now=Date
  const s=id?sessions.get(id):null;return s&&s.version===version&&s.expires>=now?id!:createPreviewSession(version,now);
 }
 /** Ephemeral tutor preview only: no customer records, score writes or mastery claims. */
-function actionInStore(sessions:PreviewStore,id:string,version:string,task:DeckTask,action:string,input:unknown,eventId:string,now=Date.now()):Record<string,unknown>{
+export function actionInStore(sessions:PreviewStore,id:string,version:string,task:DeckTask,action:string,input:unknown,eventId:string,now=Date.now()):Record<string,unknown>{
  const session=sessions.get(id);if(!session||session.expires<now||session.version!==version)throw Error('stale preview');
  if(!/^[a-zA-Z0-9-]{1,80}$/.test(eventId))throw Error('invalid event');
  if(!['attempt','hint','solution'].includes(action))throw Error('invalid action');

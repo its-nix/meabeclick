@@ -6,7 +6,7 @@
    * Every factual claim here is meant to be true of the running system. When
    * the code changes, this page changes with it. In particular:
    *   - the data lists mirror the `accounts` / `students_v2` / `enrollments` /
-   *     `bookings_v2` / `lessons_v2` / `homework` / `results_v2` / `payments`
+   *     `bookings_v2` / `lessons_v2` / `homework` / `native_results` / `payments`
    *     tables in src/lib/server/migrations/001_entities.ts
    *   - the cookie section mirrors family-auth.ts and api/login/+server.ts —
    *     two functional cookies, no marketing cookies, hence no consent banner
@@ -72,8 +72,7 @@
     <li>חומרי הלימוד שהוכנו לתלמיד/ה, ותקציר קצר של השיעור.</li>
     <li>שיעורי בית שהוקצו, ואם הושלמו.</li>
     <li>
-      תוצאות המשחקים והתרגולים בדף האישי: ניקוד, מספר ניסיונות, זמן פתרון ואילו
-      שאלות לא נענו נכון.
+      תוצאות המשחקים בדף האישי: התוצאה בכל שאלה, מספר הניסיונות והאם התבקשה עזרה.
     </li>
     <li>
       הערות התקדמות שהמורה כותב/ת — למשל "שולט/ת בשברים, צריך/ה חיזוק במשוואות".

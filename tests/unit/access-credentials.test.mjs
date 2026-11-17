@@ -65,24 +65,14 @@ test('expired links fail with the same null result without logging their secret'
   assert.equal(db().prepare(`SELECT outcome FROM access_credential_audit WHERE credential_id = ?`).get(issued.id).outcome, 'expired');
 });
 
-test('student issuance atomically replaces its unused link and code but not a sibling', () => {
+test('student issuance atomically replaces its unused link but not a sibling', () => {
   const first = access.issueStudentCredentials(firstStudentId, { type: 'parent', id: accountId });
   const sibling = access.issueStudentCredentials(siblingId, { type: 'parent', id: accountId });
   const replacement = access.issueStudentCredentials(firstStudentId, { type: 'parent', id: accountId });
 
   assert.equal(access.consumeLinkCredential(first.link.split('#')[1]), null, 'old link is revoked');
-  assert.equal(access.consumeJoinCredential(first.joinCode), null, 'old code is revoked');
-  assert.deepEqual(access.consumeJoinCredential(replacement.joinCode), { kind: 'student', id: firstStudentId });
+  assert.deepEqual(access.consumeLinkCredential(replacement.link.split('#')[1]), { kind: 'student', id: firstStudentId });
   assert.deepEqual(access.consumeLinkCredential(sibling.link.split('#')[1]), { kind: 'student', id: siblingId });
-});
-
-test('join codes accept lowercase, spaces, and display hyphen while remaining hashed', () => {
-  const issued = access.issueStudentCredentials(firstStudentId, { type: 'parent', id: accountId });
-  const typed = ` ${issued.joinCode.toLowerCase().replace('-', ' - ')} `;
-  const rows = db().prepare(`SELECT secret_hash FROM access_credentials WHERE scope_kind = 'student' AND scope_id = ?`).all(firstStudentId);
-  assert.ok(rows.every(row => !row.secret_hash.includes(issued.joinCode.replace('-', ''))));
-  assert.deepEqual(access.consumeJoinCredential(typed), { kind: 'student', id: firstStudentId });
-  assert.equal(access.consumeJoinCredential(typed), null);
 });
 
 test('simultaneous redemption has exactly one winner', async () => {
@@ -115,13 +105,12 @@ test('credential audit retention is bounded under sustained invalid traffic', ()
 });
 
 
-test('WhatsApp invitations last 48 hours, codes last 15 minutes, and either consumes the pair', () => {
+test('WhatsApp invitations last 48 hours and a preview does not consume them', () => {
   const issued = access.issueStudentCredentials(firstStudentId, { type: 'parent', id: accountId });
+  const token = issued.link.split('#')[1];
   assert.equal(issued.expiresAt - issued.createdAt, 48 * 60 * 60 * 1000);
-  const code = db().prepare("SELECT * FROM access_credentials WHERE invitation_id = (SELECT invitation_id FROM access_credentials WHERE id = ?) AND channel = 'join'").get(issued.id);
-  assert.equal(Date.parse(code.expires_at) - issued.createdAt, 15 * 60 * 1000);
-  assert.ok(access.peekLinkCredential(issued.link.split('#')[1]));
-  assert.ok(access.peekLinkCredential(issued.link.split('#')[1]), 'preview does not consume');
-  assert.ok(access.consumeJoinCredential(issued.joinCode));
-  assert.equal(access.consumeLinkCredential(issued.link.split('#')[1]), null, 'companion cannot be reused');
+  assert.ok(access.peekLinkCredential(token));
+  assert.ok(access.peekLinkCredential(token), 'preview does not consume');
+  assert.deepEqual(access.consumeLinkCredential(token), { kind: 'student', id: firstStudentId });
+  assert.equal(access.consumeLinkCredential(token), null, 'a consumed invitation cannot be reused');
 });

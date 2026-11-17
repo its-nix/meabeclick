@@ -7,11 +7,10 @@
 //   "A student may only ever be shown a version with `published_at` set."
 //   "Generation may never remove or overwrite a version the tutor edited."
 //
-// Neither held. The table had exactly one consumer — the tutor's own API
-// route — and neither generation nor the student's slides route went near
-// it. Generation writes `lessons/<slug>/slides.html` to disk and the
-// student reads that same file, so a regeneration silently overwrote a
-// tutor's correction and the published/draft distinction decided nothing.
+// Neither held while generation wrote slides straight to disk beside the
+// table: a regeneration silently overwrote a tutor's correction and the
+// published/draft distinction decided nothing. Generation now records every
+// version through recordGenerated.
 //
 // That is the failure Todoist id:6hRhqV8XX5wr4jqq names first:
 // «תיקונים ידניים עלולים להיעלם ביצירה מחדש או להיחשף לתלמיד לפני בדיקה».
@@ -27,7 +26,9 @@ import { join } from 'node:path';
 
 process.env.DB_PATH = join(await mkdtemp(join(tmpdir(), 'mat-')), 'results.db');
 const M = await import('../../src/lib/server/materials.ts');
-const { recordGenerated, publishableSlides } = await import('../../src/lib/server/materials.ts');
+const { recordGenerated, latestPublished } = await import('../../src/lib/server/materials.ts');
+/** What a student would be shown: the newest published slides, if any. */
+const publishableSlides = (slug) => latestPublished(slug, 'slides')?.content ?? null;
 
 let seq = 0;
 const slug = () => `lesson-${++seq}`;

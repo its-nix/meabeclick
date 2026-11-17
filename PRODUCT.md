@@ -83,6 +83,22 @@ for that learner blocks silently repeating the same introductory source.
 This is a review workflow, not a general adaptive engine: automatic student
 release remains blocked until actual owner teaching review and approval.
 
+**Where lesson material lives (Lior, 2026-11-16).** Presentations are Google
+Slides and written homework is a Google Docs worksheet; Drive is the source of
+truth, and we prefer the tools Google already provides over building our own. Homework is a Google Doc shared with the student's (or parent's) Google account, linking to Drive files for tables or figures; link sharing is only a fallback for a student without an account. There is one practice-game system, the Drive-native one: game *types*
+are code in the site (only the site can play them and capture results), and
+the *content* of each game, tailored to the student, is a JSON file in Drive
+that the site renders. When a tutor approves a lesson the site copies that
+JSON into its own database, so a student's session never waits on Google;
+Drive stays the editable source. The classic game system (the twelve
+`/app/play` templates, the `lesson_games` and `game_filler` stores, and the
+site-made lesson pages and editors) was removed completely on 2026-11-17, with
+no backwards compatibility and no redirects: its routes, templates and stores
+are gone and its tables were dropped by migration 047. Game results are recorded only in
+`native_results` and are the only game evidence behind a parent's progress
+(`src/lib/server/plans/evidence.ts`). The cutover design's "historical lesson
+URLs remain valid" and the old-gallery redirects no longer apply.
+
 Done for phase A: a generated plan, slides, and homework reach the
 student's page without Nikol touching them, for at least 80% of lessons
 (a lesson's homework is generated with it; the strict share). Homework
@@ -160,8 +176,8 @@ Todoist: label `@Infra`
   planning should start from that fact.
 - **No PIN, no family password.** Identity travels in signed links: an
   `account` link reaches the whole family, a `student` link reaches one
-  child's board, and a short join code is the fallback for a device with
-  no WhatsApp. This was a deliberate decision, not a temporary compromise.
+  child's board. The join code that used to be the fallback for a device
+  with no WhatsApp was removed on 2026-11-17 with the login page's code entry. This was a deliberate decision, not a temporary compromise.
 - **Payments are recorded by hand.** The product keeps a ledger; it does
   not collect money. Automatic collection (Bit/PayBox) was evaluated and
   explicitly rejected on 2026-08-23.
@@ -189,8 +205,20 @@ without having to ask for it.
 
 **Student.** A school-age child, typically כיתה ז–יב, on their own phone or a
 shared family device. Their job: find out what homework is due and do it — which
-in this product means playing the practice game their tutor assigned, not reading
-a worksheet. They rarely have an email address of their own.
+in this product means opening the homework Google Doc and playing the practice
+game their tutor assigned. Every student has a Google account (Lior,
+2026-11-16): they sign in with it, and its email is captured at sign-in
+(`google_identities`), separate from the family account's booking email, which
+is usually the parent's. Google sign-in is the only login page flow and the only one that creates
+a persistent session; the link-or-code entry on the login page was removed on 2026-11-17 (join-code
+login, `/api/join`, is gone; Google is configured-or-fail at boot). A Google
+account that is neither gmail nor Workspace cannot claim an existing family by
+email (`email-proof`): it is told to open its personal link and connect Google
+there, or to write the tutor. A new-family sign-up from such an account is still
+allowed, since it claims nothing.
+The personal link in a booking email still signs the holder in, but only for
+that browser session and never persistently, since it may be opened on a
+stranger's computer (Lior, 2026-11-16).
 
 **Adult self-learner.** Some students are old enough to be their own account
 holder: they book, they pay, and there is no parent in the loop. The data model
@@ -235,8 +263,7 @@ a shared engine against per-lesson JSON.
 - **קישור אישי** (personal/magic link) — how identity travels now that there
   is no password. An `account` link reaches the whole family; a `student`
   link reaches one child's own board.
-- **קוד צירוף** (join code) — a short, one-time fallback a parent hands to a
-  child's device that has no WhatsApp, when a link can't be sent directly.
+- **קוד צירוף** (join code) — retired 2026-11-17; no longer a way in.
 - **חשבון** — the account holder: a parent, or a self-paying adult learner.
 - **תלמיד/ה** — a student under an account. A family is one חשבון with one
   or more תלמידים.
@@ -299,15 +326,14 @@ One noun each, everywhere — these replace the older, drifting mix of
   scheduled reminders run as VPS `systemd --user` timers.
 
 **Data model.** The entity model (`accounts`, `students_v2`, `teachers`,
-`enrollments`, `bookings_v2`, `payments`, `homework`, `results_v2`,
-`join_codes`, plus the learning-plan and report tables) is authoritative
+`enrollments`, `bookings_v2`, `payments`, `homework`, `native_results`,
+plus the learning-plan and report tables) is authoritative
 and wired into every runtime path listed above. `lessons` is the live
 lesson-generation table; its intended successor, `lessons_v2`, exists but
 is unadopted — nothing in production writes it, and reading it is
 forbidden because it silently returns an empty result. `students` and
 `bookings` are draining: still read so old rows stay visible, never
-written to again. `results` still receives game plays that cannot be
-attributed to a student id (`src/routes/api/game-result/+server.ts`).
+written to again.
 `calendar_failures` is the live table for failed calendar writes
 (`flagCalendarFailure` in `db.ts`); `calendar_failures_v2` is dead. Full
 status of every table is in `src/lib/server/storage-inventory.ts`.

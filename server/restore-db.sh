@@ -57,7 +57,7 @@ for t in accounts students_v2 enrollments bookings payments lessons; do
   n="$(sqlite3 "$TARGET/data/results.db" "SELECT count(*) FROM \"$t\";" 2>/dev/null || echo n/a)"
   printf '  %-14s %s\n' "$t" "$n"
 done
-for d in portal games-data lessons drafts; do
+for d in portal lessons drafts; do
   printf '  %-14s %s files\n' "$d/" "$(ls -1 "$TARGET/data/$d" 2>/dev/null | wc -l)"
 done
 

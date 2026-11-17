@@ -1,7 +1,7 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {startServer,login} from './harness.mjs';import {DatabaseSync} from 'node:sqlite';
 import corpus from '../../src/lib/server/learning-pilot-corpus.json' with {type:'json'};
-function reviewCounts(path){const db=new DatabaseSync(path);try{return ['lessons','lesson_materials','learning_assignments','learning_progress','learning_events','results_v2'].map(t=>db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n);}finally{db.close();}}
+function reviewCounts(path){const db=new DatabaseSync(path);try{return ['lessons','lesson_materials','learning_assignments','native_results'].map(t=>db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n);}finally{db.close();}}
 test('visual pilot pages and checking stay tutor-only and never write customer evidence',async()=>{
  const server=await startServer();try{
   const cookie=await login(server.baseUrl),before=reviewCounts(server.dbPath);

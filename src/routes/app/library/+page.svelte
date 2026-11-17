@@ -91,8 +91,8 @@
  <DriveWorkspace workspace={view.nativeWorkspace} centralDrive={view.centralDrive}/>
 {:else}
 <main class="workspace-page" id="workspace-content" tabindex="-1">
-  <TutorPageHeader title="ספריית תוכן" description="שיעורים, תרגול ומשחקים לפי תכנית הלימוד.">
-    {#snippet actions()}<a class="workspace-button workspace-button-quiet" href="/app/library/connection">מרחב Google</a><a class="workspace-button" href="/app/games">משחקי תרגול</a><a class="workspace-button workspace-button-primary" href="#library-catalog">בחירת נושא להכנה</a>{/snippet}
+  <TutorPageHeader title="ספריית תוכן" description="שיעורים ותרגול לפי תכנית הלימוד.">
+    {#snippet actions()}<a class="workspace-button workspace-button-quiet" href="/app/library/connection">מרחב Google</a><a class="workspace-button workspace-button-primary" href="#library-catalog">בחירת נושא להכנה</a>{/snippet}
   </TutorPageHeader>
   <details class="due" open>
     <summary>הבאים בתור אצל התלמידים <span>({view.due.length} מיומנויות)</span></summary>
@@ -106,10 +106,7 @@
           <p class="note">{d.students.join(', ')} · {d.track}</p>
           {#if d.item?.problem}<p class="problem">{d.item.problem}</p>{/if}
           <div class="actions">
-            {#if d.item?.status === 'ready' && d.item.slug}
-              <a href="/lessons/{d.item.slug}" target="_blank" rel="noopener">צפייה</a>
-              <a href="/app/lessons/{d.item.slug}/edit?returnTo={encodeURIComponent(libraryPath)}">עריכה</a>
-            {:else if !d.item || !['queued', 'preparing'].includes(d.item.status)}
+            {#if d.item?.status !== 'ready' && (!d.item || !['queued', 'preparing'].includes(d.item.status))}
               <button class="link" disabled={busy[busyKey]} onclick={() => prepare(d.templateId, { skill: d.skillKey }, busyKey)}>
                 {busy[busyKey] ? 'מתחילים…' : d.item ? 'הכנה מחדש' : 'הכנה'}
               </button>
@@ -175,10 +172,6 @@
             <td>{row.track}</td><td>{row.topic}</td>
             <td><span class="status {st.cls}">{st.label}</span>{#if row.item?.problem}<p class="problem">{row.item.problem}</p>{/if}</td>
             <td><div class="actions">
-              {#if row.item?.status === 'ready' && row.item.slug}
-                <a href="/lessons/{row.item.slug}" target="_blank" rel="noopener" aria-label="צפייה: {row.title} — {row.track} (חלון חדש)">צפייה</a>
-                <a href="/app/lessons/{row.item.slug}/edit?returnTo={encodeURIComponent(libraryPath)}" aria-label="עריכה: {row.title} — {row.track}">עריכה</a>
-              {/if}
               {#if !row.item || !['queued', 'preparing'].includes(row.item.status)}
                 <button class="link" disabled={busy[busyKey]} onclick={() => prepare(row.templateId, { skill: row.skillKey }, busyKey)}
                   aria-label="{busy[busyKey] ? 'מתחילים…' : row.item ? 'הכנה מחדש' : 'הכנה'}: {row.title} — {row.track}">

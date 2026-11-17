@@ -14,9 +14,7 @@ import { startServer } from './harness.mjs';
 
 const MALFORMED = '{not valid json';
 
-// /api/verify-account was removed with the password model; /api/request-link
-// and /api/join are the routes that replaced it as the family's way in.
-const POST_ROUTES = ['/api/login', '/api/game-result', '/api/request-link', '/api/join', '/api/book'];
+const POST_ROUTES = ['/api/login', '/api/book'];
 
 for (const route of POST_ROUTES) {
   test(`POST ${route} with malformed JSON answers 400, not 500`, async () => {

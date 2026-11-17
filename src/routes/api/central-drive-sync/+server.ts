@@ -1,11 +1,15 @@
 import {json} from '@sveltejs/kit';
 import {authorizedCronRequest} from '$server/cron-auth.ts';
 import {queueCentralSync,centralLearningSync,SYNC_ERRORS} from '$server/central-drive/sync.ts';
+import {runNativeGameApprovals} from '$server/native-learning/approval-google.ts';
 import type {RequestHandler} from './$types';
 export const GET:RequestHandler=({request})=>{
  if(!authorizedCronRequest(request.headers.get('x-cron-key')))return json({error:'unauthorized'},{status:401});
  // Work continues in the single app process; the timer never owns a long HTTP request.
- const state=queueCentralSync();return json({phase:state.phase,enabled:state.enabled,done:state.done,total:state.total,error:state.error??null});
+ const state=queueCentralSync();
+ // Same timer: copy newly approved games from Drive and withdraw revoked ones (single-flight, never blocks the response).
+ void runNativeGameApprovals().catch(()=>{/* Status is written back to the Sheet; no provider details in logs. */});
+ return json({phase:state.phase,enabled:state.enabled,done:state.done,total:state.total,error:state.error??null});
 };
 /** One-time operator migration; ordinary tutor sessions cannot activate it. */
 export const POST:RequestHandler=({request})=>{

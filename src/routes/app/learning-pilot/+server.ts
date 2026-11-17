@@ -12,5 +12,5 @@ export const GET:RequestHandler=event=>{
  if(view==='game'&&!pilot.bundle.games.some(g=>g.id===gameId))error(404,'המשחק לא נמצא');
  const id=ensurePreviewSession(event.cookies.get('mea_visual_preview'),pilot.version);
  event.cookies.set('mea_visual_preview',id,{path:'/',httpOnly:true,secure:event.url.protocol==='https:',sameSite:'lax',maxAge:4*60*60});
- return new Response(renderVisualDeck(pilot.bundle,{view,gameId,version:pilot.version}),{headers:{...documentHeaders(),'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow'}});
+ return new Response(renderVisualDeck(pilot.bundle,{view,gameId,baseUrl:'/app/learning-pilot',version:pilot.version}),{headers:{...documentHeaders(),'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow'}});
 };

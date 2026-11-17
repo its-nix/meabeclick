@@ -38,7 +38,6 @@
     "test:qa": "playwright test --config playwright.qa.config.mjs",
     "test:qa:select": "node scripts/pr-qa/select.mjs",
     "test:qa:report": "node scripts/pr-qa/report.mjs",
-    "test:teaching:browser": "node tests/browser/teaching-v2.mjs",
     "test:review:v2:browser": "REVIEW_VERSION=v2 node tests/browser/learning-review.mjs"
   },
   "devDependencies": {

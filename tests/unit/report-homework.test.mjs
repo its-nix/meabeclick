@@ -153,7 +153,7 @@ function master(skillKey, homework) {
   const slug = `lib-demo-${skillKey.replace(/\./g, '-')}-${seq}`;
   handle().prepare(`INSERT OR REPLACE INTO library_items (template_id, skill_key, slug, status, updated_at) VALUES ('demo', ?, ?, 'ready', ?)`).run(skillKey, slug, now);
   handle().prepare(`INSERT INTO lesson_materials (lesson_slug, kind, version, content, origin, published_at, created_at) VALUES (?, 'plan', 1, ?, 'generated', ?, ?)`)
-    .run(slug, JSON.stringify({ title: 't', gradeContext: 'c', slides: [], examples: [], homework, games: {} }), now, now);
+    .run(slug, JSON.stringify({ title: 't', gradeContext: 'c', slides: [], examples: [], homework }), now, now);
 }
 
 test('when generation fails, a covered skill\'s library lesson supplies the homework, with its answer key', async () => {

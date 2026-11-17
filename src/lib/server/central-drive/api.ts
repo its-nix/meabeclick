@@ -14,7 +14,7 @@ const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
 const validId=(s:unknown):s is string=>typeof s==='string'&&/^[\w-]{10,}$/.test(s);
 const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 export const centralFileUrl=(file:CentralFile)=>file.mimeType===FOLDER?`https://drive.google.com/drive/folders/${file.id}`:file.mimeType===DOC?`https://docs.google.com/document/d/${file.id}/edit`:file.mimeType===SHEET?`https://docs.google.com/spreadsheets/d/${file.id}/edit`:file.mimeType===SLIDES?`https://docs.google.com/presentation/d/${file.id}/edit`:`https://drive.google.com/file/d/${file.id}/view`;
-export function artifactCategory(a:CentralArtifact){return ['slides','presentation'].includes(a.role)?'Presentations':a.role==='teacher-notes'?'Teacher notes':['game','game-template'].includes(a.role)?'Games':['draft','game-draft'].includes(a.role)?'Drafts':a.role==='review'?'Review':a.role==='resource'?'Resources':a.role==='curriculum'?'Curriculum':a.role==='plan'?'Lesson plans':'Records';}
+export function artifactCategory(a:CentralArtifact){return ['slides','presentation'].includes(a.role)?'Presentations':a.role==='teacher-notes'?'Teacher notes':a.role==='game'?'Games':a.role==='draft'?'Drafts':a.role==='review'?'Review':a.role==='resource'?'Resources':a.role==='curriculum'?'Curriculum':a.role==='plan'?'Lesson plans':'Records';}
 
 export class CentralDriveError extends Error {code:string;constructor(code:string){super(code);this.code=code;}}
 function fail(code:string):never{throw new CentralDriveError(code);}
@@ -150,5 +150,5 @@ export function centralDriveApi(options:{access:CentralAccess;fetch?:typeof fetc
   const html=`<!doctype html><html lang="he" dir="rtl"><body dir="rtl"><h1>${esc(student.name)} — תיק תלמיד/ה</h1><p>מזהה: ${esc(student.code)} · ${esc(student.subjects)}</p><p><a href="https://docs.google.com/spreadsheets/d/${indexId}/edit">הרישום המרכזי — חומרים והתקדמות מהאתר</a></p><h2>מטרות הלמידה</h2><p>${esc(student.goals)}</p><h2>מה עוזר בלמידה</h2><p>${esc(student.style)}</p><h2>הערות למורה</h2><p>${esc(student.notes)}</p><p>זהו מסמך לעריכה חופשית. הסנכרון אינו מחליף את ההערות שלכם; נתונים שמתעדכנים אוטומטית נמצאים בגיליון הרישום.</p></body></html>`;
   return native(`profile:${student.id}`,`${student.name} — תיק תלמיד`,DOC,parent,html);
  }
- return{scope,prepare,folder,blob,profile,native,nativeImport,privateFolder,artifactCheckpointKey:(a:CentralArtifact)=>`${scope}:${marker(`blob:${artifactCategory(a)}:${a.mimeType}:${a.sha256}`)}`,register:(parent:string)=>native('register','01 רישום תלמידים והתקדמות',SHEET,parent),json,request};
+ return{scope,ownerEmail:access.config.ownerEmail,prepare,folder,blob,profile,native,nativeImport,privateFolder,artifactCheckpointKey:(a:CentralArtifact)=>`${scope}:${marker(`blob:${artifactCategory(a)}:${a.mimeType}:${a.sha256}`)}`,register:(parent:string)=>native('register','01 רישום תלמידים והתקדמות',SHEET,parent),json,request};
 }

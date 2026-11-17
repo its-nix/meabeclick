@@ -52,8 +52,6 @@ test('WhatsApp invitation links Google to the existing child and keeps parent ac
     assert.equal((await fetch(s.baseUrl + '/app/parent', { redirect: 'manual', headers: { Cookie: parentCookie } })).status, 200);
     assert.equal(dbRead(s, 'SELECT * FROM students_v2').length, 1, 'Google did not duplicate the learner');
     assert.equal(dbRead(s, 'SELECT * FROM accounts').length, 1);
-    const join = await fetch(s.baseUrl + '/api/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: child.joinCode }) });
-    assert.equal(join.status, 401, 'the companion code is consumed with the invitation');
     const again = await finishGoogle(s, await beginGoogle(s));
     assert.equal(again.headers.get('location'), '/app/student?s=onboarding-child', 'later independent sign-in opens the same child');
     const replay = await finishGoogle(s, flow);

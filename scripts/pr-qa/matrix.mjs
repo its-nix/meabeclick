@@ -1,5 +1,5 @@
 /** Concrete page families exercised by the existing seeded visual matrix. */
-export const MATRIX_ROUTES = ['/', '/booking', '/portal', '/login', '/privacy', '/terms', '/enter', '/confirm-booking', '/learn/parabolas',
+export const MATRIX_ROUTES = ['/', '/booking', '/portal', '/login', '/privacy', '/terms', '/enter', '/confirm-booking', '/sample-game',
   '/app/tutor-setup/[code]', '/app/tutor-setup/done', '/app/dashboard', '/app/library', '/app/marketing', '/app/metrics', '/app/games',
   '/app/students/[code]', '/app/plan/[code]', '/app/report/[booking]', '/app/lessons/[slug]/edit', '/app/lessons/[slug]/experience',
   '/app/lessons/[slug]/presenter', '/app/play/[template]', '/app/parent', '/app/student'];

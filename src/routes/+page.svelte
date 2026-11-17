@@ -187,8 +187,8 @@
       <!-- Public sample lesson -->
         <article class="hero-dashboard-mini">
           <h2>מרגישים את הלמידה</h2>
-          <p>הסברים בתנועה, ניסויים ותרגול שאפשר לחזור אליו בכל זמן.</p>
-          <a href="/learn/parabolas">להתנסות בשיעור לדוגמה <span aria-hidden="true">←</span></a>
+          <p>משחקי תרגול קצרים עם רמזים, כמו אלה שהתלמידים מקבלים. בלי הרשמה.</p>
+          <a href="/sample-game">להתנסות בחידון לדוגמה <span aria-hidden="true">←</span></a>
         </article>
 
     </div><!-- /tutors-showcase -->

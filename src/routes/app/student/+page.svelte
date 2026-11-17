@@ -477,7 +477,6 @@
               {#each DATA.lessons ?? [] as l}
                 <article class="lesson-row"><div class="card-title">{l.topic}</div><div class="card-meta">{l.upcoming ? 'לקראת השיעור · ' : ''}{fmtDate(l.date)}</div>
                   {#if l.summary}<p class="card-body">{l.summary}</p>{/if}
-                  {#if l.slidesUrl}<a class="lesson-link" href={toHref(l.slidesUrl)}><Icon name="slides" size={17} /> המצגת</a>{/if}
                 </article>
               {/each}
             </details>

@@ -96,7 +96,7 @@
     return `${d} ${MONTHS_HE[m - 1]} ${y} (${DAYS_HE[date.getDay()]})`;
   }
 
-  interface Session { date: string; type: string; notes: string; amount: number; paid: boolean; slidesUrl?: string | null }
+  interface Session { date: string; type: string; notes: string; amount: number; paid: boolean }
   type Hw = FamilyHomework & { date?: string | null; url?: string | null };
   interface Balance {
     owedAgorot: number; paidAgorot: number;
@@ -126,7 +126,7 @@
       sessions: (d.lessons ?? []).filter(l => !l.upcoming).map(l => ({
         date: l.date, type: 'שיעור',
         notes: [l.topic, l.summary].filter(Boolean).join(' — '),
-        amount: 0, paid: false, slidesUrl: l.slidesUrl,
+        amount: 0, paid: false,
       })),
       homework: (d.homework ?? []).map(h => ({ ...h, date: h.assigned ?? h.due })),
     };
@@ -660,7 +660,6 @@
                   <td><span class="pill">{sess.type || 'שיעור'}</span></td>
                   <td>
                     <div class="lesson-topic">{sess.notes || '—'}</div>
-                    {#if sess.slidesUrl}<a class="lesson-slides" href={toHref(sess.slidesUrl)} target="_blank" rel="noopener">המצגת</a>{/if}
                   </td>
                 </tr>
               {/each}
@@ -975,7 +974,6 @@
 
   .nl-contact { display: inline-block; margin-top: 6px; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent-deep); text-decoration: none; }
   .board-link { display: inline-block; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent); text-decoration: none; }
-  .lesson-slides { font-size: .82rem; color: var(--accent); font-weight: 600; }
   .share-intro { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 0.8rem; }
   .share-open {
     background: var(--action-fill); color: #fff; border: 0; border-radius: 12px;

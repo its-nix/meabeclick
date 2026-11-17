@@ -17,9 +17,6 @@ export interface FamilyHomework {
   graded: boolean;
   grade?: 'ok' | 'partial' | 'redo' | null;
   gradedBy?: string | null;
-  template?: string;
-  dataId?: string;
-  url?: string;
   /** What it practises: the plan skill's name, when it has one. */
   skill?: string | null;
 }

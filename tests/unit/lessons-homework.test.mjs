@@ -7,7 +7,6 @@ import { join } from 'node:path';
 process.env.DB_PATH = join(await mkdtemp(join(tmpdir(), 'les-')), 'results.db');
 const E = await import('../../src/lib/server/entities.ts');
 const L = await import('../../src/lib/server/lessons.ts');
-const R = await import('../../src/lib/server/results.ts');
 const { handle } = await import('../../src/lib/server/db.ts');
 
 /* createLesson/finishLesson still write lessons_v2, which is 'unadopted' in
@@ -29,10 +28,10 @@ test('a generated slug always passes assertPathSegment', async () => {
   }
 });
 
-test('homework with no result is not submitted', () => {
+test('new homework is neither submitted nor graded', () => {
   const slug = L.newLessonSlug();
   L.createLesson({ slug, studentId: stu.id, topic: 'אינטגרלים' });
-  L.addHomework({ studentId: stu.id, task: 'משחק זיכרון', template: 'memory', dataId: 'noga-int-memory' });
+  L.addHomework({ studentId: stu.id, task: 'משחק זיכרון' });
 
   const hw = L.homeworkForStudent(stu.id);
   assert.equal(hw.length, 1);
@@ -40,31 +39,18 @@ test('homework with no result is not submitted', () => {
   assert.equal(hw[0].graded, false);
 });
 
-test('playing the game submits the homework — it does NOT grade it', () => {
-  L.addHomework({ studentId: stu.id, task: 'ציד טעויות', template: 'error-hunt', dataId: 'noga-err' });
-  R.writeResult({ studentId: stu.id, dataId: 'noga-err', template: 'error-hunt', score: 8, total: 10 });
+test('playing a native game does not submit homework — homework is submitted by hand', () => {
+  const id = L.addHomework({ studentId: stu.id, task: 'ציד טעויות' });
+  handle().prepare(
+    `INSERT INTO native_results (student_id, game_id, round_id, outcome, attempts, at) VALUES (?, 'game-1', 'r1', 'correct', 1, '2026-09-01')`
+  ).run(stu.id);
 
-  const item = L.homeworkForStudent(stu.id).find(h => h.data_id === 'noga-err');
-  assert.equal(item.submitted, true, 'the child did the thing that was asked');
-  /* And emphatically NOT graded. The score sits in results_v2 and nobody has
-     looked at it — which is exactly what automatic grading would read later.
-     Collapsing the two turns "she played it" into "it is finished and fine". */
-  assert.equal(item.graded, false);
-  assert.equal(item.grade, null);
-});
-
-test("another student's result does not complete this student's homework", () => {
-  const other = E.createStudent({ code: 'other', name: 'אחר', accountId: acct.id, credential: 'q' });
-  L.addHomework({ studentId: stu.id, task: 'משותף', template: 'quiz', dataId: 'shared-id' });
-  R.writeResult({ studentId: other.id, dataId: 'shared-id', template: 'quiz', score: 10, total: 10 });
-
-  const item = L.homeworkForStudent(stu.id).find(h => h.data_id === 'shared-id');
-  // data_id is shared by every child given the same game, so matching on it
-  // alone would let one child's play submit another's homework.
+  const item = L.homeworkForStudent(stu.id).find(h => h.id === id);
   assert.equal(item.submitted, false);
+  assert.equal(item.graded, false);
 });
 
-test('written work has no result to derive from, so it is submitted by hand', () => {
+test('written work is submitted by hand', () => {
   const id = L.addHomework({ studentId: stu.id, task: 'תרגילים 1-10 בספר' });
   const find = () => L.homeworkForStudent(stu.id).find(h => h.id === id);
   assert.equal(find().submitted, false);
@@ -105,7 +91,7 @@ test('a grade can be taken back without unsubmitting the work', () => {
 test('an automatic grade is distinguishable from the tutor\'s', () => {
   // Grading can be machine-filled later. A parent is entitled to tell a mark
   // the tutor gave from one a program produced.
-  const id = L.addHomework({ studentId: stu.id, task: 'משחק', template: 'quiz', dataId: 'auto-quiz' });
+  const id = L.addHomework({ studentId: stu.id, task: 'משחק' });
   L.gradeHomework(id, 'ok', 'auto');
   const row = L.homeworkForStudent(stu.id).find(h => h.id === id);
   assert.equal(row.graded_by, 'auto');

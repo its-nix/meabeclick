@@ -21,7 +21,6 @@ export const HOMEWORK_GRADES: HomeworkGrade[] = ['ok', 'partial', 'redo'];
 
 export type HomeworkRow = {
   id: number; lesson_id: number | null; student_id: number; task: string;
-  template: string | null; data_id: string | null;
   assigned_at: string; due_at: string | null;
   submitted_at: string | null; submitted_by: string | null;
   graded_at: string | null; grade: HomeworkGrade | null; graded_by: string | null;
@@ -121,7 +120,7 @@ export function lessonsForStudent(studentId: number): LessonForStudent[] {
 
 export function addHomework(h: {
   lessonId?: number | null; studentId: number; task: string;
-  template?: string | null; dataId?: string | null; dueAt?: string | null;
+  dueAt?: string | null;
   /** The plan skill this task practises, when the lesson targeted one.
    *  Null means "not evidence about any skill" — see
    *  lesson/targeting.ts and migration 014. */
@@ -141,11 +140,11 @@ export function addHomework(h: {
   /* No submission and no grade: a task starts life as neither finished nor
      judged, which is the only honest state for work nobody has done yet. */
   const info = handle().prepare(`
-    INSERT INTO homework (lesson_id, student_id, task, template, data_id, assigned_at, due_at, node_id,
+    INSERT INTO homework (lesson_id, student_id, task, assigned_at, due_at, node_id,
                           booking_id, held_until, answer)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(h.lessonId ?? null, h.studentId, h.task, h.template ?? null,
-         h.dataId ?? null, h.assignedAt ?? new Date().toISOString(), h.dueAt ?? null,
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(h.lessonId ?? null, h.studentId, h.task,
+         h.assignedAt ?? new Date().toISOString(), h.dueAt ?? null,
          h.nodeId ?? null, h.bookingId ?? null, h.heldUntil ?? null, h.answer ?? null);
   return Number(info.lastInsertRowid);
 }
@@ -205,18 +204,8 @@ export function deleteHomework(id: number): void {
 /**
  * Homework with both stages resolved.
  *
- * A game-backed task needs no button: **playing it IS the submission.** The
- * child did the thing that was asked, and the system watched them do it. It
- * is emphatically NOT a grade — the score is right there in results_v2 and
- * nobody has looked at it, which is exactly what automatic grading would
- * read later.
- *
- * The result must belong to the SAME student: data_id is shared across every
- * child assigned the same game, so matching on data_id alone would let one
- * child's play submit another's homework.
- *
- * Written work has no result to derive from and is submitted by hand, which
- * is what setHomeworkSubmitted exists for.
+ * Homework is a Google Doc, so there is no play to derive a submission from:
+ * it is submitted by hand, which is what setHomeworkSubmitted exists for.
  */
 export function homeworkForStudent(
   studentId: number,
@@ -225,25 +214,15 @@ export function homeworkForStudent(
   opts: { includeHeld?: boolean; now?: string } = {},
 ): (HomeworkRow & {
   submitted: boolean; graded: boolean;
-  /** The skill it practises, by name: the task's own skill, else its
-   *  game's (game_skills). Null when neither is linked, or when the tutor
-   *  hid that skill from the plan. */
+  /** The skill it practises, by name. Null when none is linked, or when the
+   *  tutor hid that skill from the plan. */
   skill: string | null;
 })[] {
   const rows = handle().prepare(`
     SELECT h.*,
-           (h.submitted_at IS NOT NULL OR EXISTS (
-              SELECT 1 FROM results_v2 r
-              WHERE r.student_id = h.student_id
-                AND h.data_id IS NOT NULL
-                AND r.data_id = h.data_id
-           )) AS submitted_flag,
+           (h.submitted_at IS NOT NULL) AS submitted_flag,
            (SELECT pn.title FROM plan_nodes pn
-             WHERE pn.visibility != 'hidden'
-               AND pn.id = COALESCE(h.node_id, (
-                 SELECT gs.node_id FROM game_skills gs
-                  WHERE gs.student_id = h.student_id AND gs.data_id = h.data_id
-               ))
+             WHERE pn.visibility != 'hidden' AND pn.id = h.node_id
            ) AS skill
     FROM homework h
     WHERE h.student_id = ?

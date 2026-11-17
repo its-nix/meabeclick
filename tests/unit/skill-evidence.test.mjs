@@ -3,7 +3,7 @@
 // Gathering what a skill actually has behind it.
 //
 // This is the read half of the link added in #98: game plays reach a skill
-// through game_skills (student_id, data_id), written work through
+// through native_results.skill_node_id, written work through
 // homework.node_id. The engine in plans/suggest.ts is pure and takes this
 // as input; this file is where the SQL that feeds it is held to the one
 // rule that matters — evidence belongs to the child who produced it.
@@ -17,7 +17,6 @@ process.env.DB_PATH = join(await mkdtemp(join(tmpdir(), 'skill-ev-')), 'results.
 const E = await import('../../src/lib/server/entities.ts');
 const S = await import('../../src/lib/server/plans/store.ts');
 const L = await import('../../src/lib/server/lessons.ts');
-const T = await import('../../src/lib/server/lesson/targeting.ts');
 const EV = await import('../../src/lib/server/plans/evidence.ts');
 const { handle } = await import('../../src/lib/server/db.ts');
 
@@ -47,10 +46,12 @@ function freshPlan() {
   return { student, planId, nodes };
 }
 
-const addResult = (studentId, dataId, at, score, total) =>
-  handle().prepare(
-    `INSERT INTO results_v2 (student_id, at, data_id, template, score, total) VALUES (?, ?, ?, 'quiz', ?, ?)`
-  ).run(studentId, at, dataId, score, total);
+/** One answered round of an approved native game, as recordNativeResult stores it. */
+const addResult = (studentId, nodeId, gameId, at, outcomes, bookingId = null) =>
+  outcomes.forEach((outcome, i) => handle().prepare(
+    `INSERT INTO native_results (student_id, booking_id, game_id, round_id, skill_node_id, outcome, attempts, at)
+     VALUES (?, ?, ?, ?, ?, ?, 1, ?)`
+  ).run(studentId, bookingId, gameId, `${gameId}-r${i}`, nodeId === null ? null : String(nodeId), outcome, at));
 
 test('a skill with nothing behind it gathers nothing', () => {
   const { student, nodes } = freshPlan();
@@ -58,42 +59,45 @@ test('a skill with nothing behind it gathers nothing', () => {
   assert.deepEqual(ev, { plays: [], homework: [] });
 });
 
-test('plays of a linked game become evidence for its skill', () => {
+test('plays of native games become evidence for their skill', () => {
   const { student, nodes } = freshPlan();
-  T.linkGameToSkill(student.id, 'game-a', nodes[0].id);
-  addResult(student.id, 'game-a', '2026-09-01', 8, 10);
-  addResult(student.id, 'game-a', '2026-09-03', 9, 10);
+  addResult(student.id, nodes[0].id, 'game-a', '2026-09-01', ['correct', 'correct', 'incorrect', 'correct']);
+  addResult(student.id, nodes[0].id, 'game-b', '2026-09-03', ['correct', 'assisted', 'correct', 'correct']);
 
   const ev = EV.evidenceForSkill(student.id, nodes[0].id);
   assert.equal(ev.plays.length, 2);
-  assert.deepEqual(ev.plays.map(p => p.score), [8, 9]);
+  assert.deepEqual(ev.plays.map(p => [p.score, p.total]), [[3, 4], [4, 4]]);
+  assert.deepEqual(ev.plays.map(p => p.hints), [0, 1], 'an assisted round counts as a hint');
   assert.equal(ev.plays[0].at, '2026-09-01', 'oldest first, so a trend reads forwards');
 });
 
-test('a play of an unlinked game is evidence for nothing', () => {
+test('a play with no plan skill is evidence for nothing', () => {
   const { student, nodes } = freshPlan();
-  addResult(student.id, 'not-linked', '2026-09-01', 10, 10);
+  addResult(student.id, null, 'not-linked', '2026-09-01', ['correct', 'correct']);
+  assert.equal(EV.evidenceForSkill(student.id, nodes[0].id).plays.length, 0);
+});
+
+test('an answer awaiting the tutor is not evidence yet', () => {
+  const { student, nodes } = freshPlan();
+  addResult(student.id, nodes[0].id, 'open-ended', '2026-09-01', ['awaiting-review', 'awaiting-review']);
   assert.equal(EV.evidenceForSkill(student.id, nodes[0].id).plays.length, 0);
 });
 
 test("one child's play never becomes evidence about another child", () => {
-  // The whole reason game_skills is keyed on (student_id, data_id). A data
-  // id identifies a GAME, and the same game goes to many children.
+  // The same game goes to many children; each result belongs to the child
+  // who answered it.
   const a = freshPlan();
   const b = freshPlan();
-  T.linkGameToSkill(a.student.id, 'shared', a.nodes[0].id);
-  T.linkGameToSkill(b.student.id, 'shared', b.nodes[0].id);
-  addResult(b.student.id, 'shared', '2026-09-01', 10, 10);
+  addResult(b.student.id, b.nodes[0].id, 'shared', '2026-09-01', ['correct', 'correct']);
 
   assert.equal(EV.evidenceForSkill(a.student.id, a.nodes[0].id).plays.length, 0,
     "child A has no plays; B's must not appear under A's skill");
   assert.equal(EV.evidenceForSkill(b.student.id, b.nodes[0].id).plays.length, 1);
 });
 
-test('plays of a game linked to a different skill do not leak across skills', () => {
+test('plays of a game tied to a different skill do not leak across skills', () => {
   const { student, nodes } = freshPlan();
-  T.linkGameToSkill(student.id, 'game-b', nodes[1].id);
-  addResult(student.id, 'game-b', '2026-09-01', 10, 10);
+  addResult(student.id, nodes[1].id, 'game-b', '2026-09-01', ['correct', 'correct']);
   assert.equal(EV.evidenceForSkill(student.id, nodes[0].id).plays.length, 0);
   assert.equal(EV.evidenceForSkill(student.id, nodes[1].id).plays.length, 1);
 });

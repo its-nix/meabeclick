@@ -42,7 +42,7 @@ export const GET: RequestHandler = async ({ url, cookies, locals, setHeaders }) 
     } else {
       const identity = completeGoogleIdentity(profile, flow);
       if (identity) {
-        setFamilySession(cookies, identity);
+        setFamilySession(cookies, identity, { persistent: true });
         destination = familyDestination(identity, flow.next_path);
       } else {
         const pending = savePendingProfile(flow, profile);

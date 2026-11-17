@@ -146,7 +146,7 @@ test('a portal file missing name does not silently drop new-shape entries', asyn
   } finally { await stop(); }
 });
 
-test('a portal game link carries the student code, not the Hebrew display name', async () => {
+test('a portal game link goes to the native games page and carries neither the code nor the display name', async () => {
   const { baseUrl, dataDir, stop } = await startServer();
   try {
     // The name is deliberately distinctive (and would be trivially visible
@@ -179,8 +179,7 @@ test('a portal game link carries the student code, not the Hebrew display name',
     // file happens to carry. A revert back to normalizeGameLike(g, data.name)
     // would put the display name here instead, and two children sharing a
     // name would again collide on write — see results.ts's header comment.
-    const url = new URL(games[0].url, baseUrl);
-    assert.equal(url.searchParams.get('s'), portal.code);
+    assert.equal(games[0].url, '/app/student/games');
     assert.ok(
       !games[0].url.includes(displayName),
       `game link must not carry the Hebrew display name, got: ${games[0].url}`,

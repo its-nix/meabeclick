@@ -141,9 +141,9 @@ test('lesson game APIs require tutor auth and published games reach only the ass
     assert.equal(game.title, 'חידון שברים ערוך', 'publish includes the editor values from the same click');
     assert.equal(game.lessonSlug, 'linked-game-lesson');
     assert.equal(game.plays, 0);
-    assert.match(game.url, /^\/app\/play\/quiz\?/);
-    assert.equal(board.games.find(item => item.title === 'משחק ישן').url, 'games/quiz.html?d=legacy-game');
-    assert.match(board.games.find(item => item.title === 'משחק קיים').url, /^\/app\/play\/quiz\?/);
+    assert.equal(game.url, '/app/student/games');
+    assert.equal(board.games.find(item => item.title === 'משחק ישן').url, '/app/student/games');
+    assert.equal(board.games.find(item => item.title === 'משחק קיים').url, '/app/student/games');
 
     db = new DatabaseSync(join(dataDir, 'results.db'));
     const secondStart = '2027-04-16T10:00:00.000Z';
@@ -169,7 +169,12 @@ test('lesson game APIs require tutor auth and published games reach only the ass
       'duplicate visible lesson titles retain separate stable lesson identities',
     );
 
-    const url = new URL(game.url, baseUrl);
+    /* The family page no longer links to the classic player, but the classic
+       result API still exists until it is removed; sign the link as the server
+       would (same secret) to keep covering it. */
+    process.env.SESSION_SECRET = 'test-secret-not-a-real-one';
+    const { gameUrl } = await import('../../src/lib/server/urls.ts');
+    const url = new URL(gameUrl({ template: game.template, dataId: game.dataId, student: portal.code }), baseUrl);
     const result = await fetch(`${baseUrl}/api/game-result`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

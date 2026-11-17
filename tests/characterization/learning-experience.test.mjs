@@ -39,7 +39,7 @@ test('assigned learning enforces family scope, server grading, idempotency and v
     const preview=await fetch(api,{method:'POST',headers:{Cookie:tutor,'Content-Type':'application/json'},body:JSON.stringify({...base,id:randomUUID(),value:4})});
     assert.equal(preview.status,403);
     const portal=await (await fetch(`${server.baseUrl}/api/portal/${one.code}`,{headers:{Cookie:one.cookie}})).json();
-    assert.equal(portal.learning[0].url,`/app/learn/${one.slug}`);
+    assert.equal(portal.learning[0].url,'/app/student/games');
     assert.equal(portal.learning[0].solved,1);
     const editor=`${server.baseUrl}/api/lessons/${one.slug}/experience`;
     const {PARABOLAS}=await import('../../src/lib/learning/parabolas.ts');

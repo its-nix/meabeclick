@@ -298,7 +298,7 @@ export function checkLessonEngine(): void {
   }
 }
 
-/** Warns, like checkRegistry: a broken template disables plan creation for that
+/** Warns rather than throws: a broken template disables plan creation for that
  *  track and nothing else, so it must not stop the site from booting. CI is the
  *  real gate (tests/unit/plan-template-content.test.mjs). */
 export function checkPlanTemplates(): void {

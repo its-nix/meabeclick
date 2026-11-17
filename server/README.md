@@ -401,9 +401,8 @@ file. `mea-beclick-kb/pricing/Summary.md` still holds real payment records
 container no longer has a path into that directory at all — the KB (student
 records included) stays entirely out of the container.
 
-`games/registry.json` (and the rest of `games/`) is static, checked-in
-config, not generated content — it's baked into the image itself (see the
-Dockerfile), not bind-mounted.
+`templates/plans/` is static, checked-in config, not generated content —
+it's baked into the image itself (see the Dockerfile), not bind-mounted.
 
 ### Portal data
 
@@ -632,7 +631,7 @@ container and the downloaded bytes were deleted afterwards.
 |---|---|
 | Source | Google Drive, not the local backup |
 | `foreign_key_check` | 0 violations |
-| File state | portal 6, games-data 21, lessons 3, drafts 1 |
+| File state | portal 6, lessons 3, drafts 1 |
 | Boot | clean |
 | Portal board for a restored student | **HTTP 200**, name present, 4 homework entries, 5 games |
 
@@ -673,7 +672,7 @@ and its container were deleted afterwards.
 | **RTO** | about 4 minutes of commands, plus the two fixes below |
 | `integrity_check` | ok |
 | `foreign_key_check` | 0 violations |
-| File state restored | portal 6, games-data 21, lessons 3, drafts 1 |
+| File state restored | portal 6, lessons 3, drafts 1 |
 | Boot | clean, after the two fixes |
 | Portal board for a restored student | **HTTP 200**, name present, 4 homework entries, 5 games |
 | `/api/results`, `/api/students` | 200 |

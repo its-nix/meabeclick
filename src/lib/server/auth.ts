@@ -46,7 +46,7 @@ export function validToken(token: string | null): boolean {
 
 /**
  * For PAGE routes (anything that renders HTML, e.g. /app/dashboard,
- * /drafts/...): throws a redirect to /login when unauthenticated. Throwing
+ * a tutor page): throws a redirect to /login when unauthenticated. Throwing
  * is correct here because a page load has nowhere else to send control —
  * SvelteKit's page-rendering pipeline is what turns the thrown redirect
  * into a response.

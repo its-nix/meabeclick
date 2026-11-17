@@ -35,13 +35,14 @@ function walk(dir, out = []) {
 }
 
 const SELF = 'tests/unit/native-links.test.mjs';
-const HISTORY = /^(?:src\/lib\/server\/migrations\/|tests\/unit\/(?:migrations|results-backfill)\.test\.mjs$)|corpus\.json$/;
+const HISTORY = /^(?:src\/lib\/server\/migrations\/|tests\/unit\/(?:migrations|results-backfill|learning-migrations)\.test\.mjs$)|corpus\.json$/;
 const NO_TRACE = new RegExp([
   String.raw`/app/(?:play|learn|games|lessons|review-game)\b`,
   String.raw`["'\x60(]/lessons/`,
   String.raw`/api/(?:game-result|results|lessons|learning)(?![-\w])`,
   String.raw`\$lib/games|lib/games/|lesson-games|game-filler|assigned-teaching|native-family-links`,
   String.raw`\b(?:lesson_games|lesson_game_assignments|lesson_game_revisions|game_filler|game_skills|results_v2)\b`,
+  String.raw`\b(?:checkRegistry|TEMPLATE_FILES|toTemplateShape|GamesMap|saveLesson|learning_progress|learning_events)\b|games/registry|["'\x60(]/drafts/`,
 ].join('|'));
 
 test('no source, script or test refers to a removed route, module or table (migrations keep history)', () => {

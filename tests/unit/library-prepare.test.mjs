@@ -17,7 +17,6 @@ const P = await import('../../src/lib/server/library/prepare.ts');
 const S = await import('../../src/lib/server/library/store.ts');
 const { readLessons } = await import('../../src/lib/server/db.ts');
 const { latestPublished } = await import('../../src/lib/server/materials.ts');
-const { readContent } = await import('../../src/lib/server/content.ts');
 const { assertPathSegment } = await import('../../src/lib/server/urls.ts');
 const { LessonGenerationError } = await import('../../src/lib/server/lesson/engine.ts');
 
@@ -56,11 +55,11 @@ test("preparing a skill generates its master once, at the template's grade, aime
   assert.equal(asked[0].level, 'כיתה ח');
   assert.equal(asked[0].subject, 'מתמטיקה');
 
-  // An ordinary lesson underneath: row, published plan, slides on disk.
+  // An ordinary lesson underneath: row, published plan and slides.
   const row = readLessons().find(l => l.slug === item.slug);
   assert.equal(row.status, 'ready');
   assert.equal(JSON.parse(latestPublished(item.slug, 'plan').content).title, 'שאלות מילוליות');
-  assert.match((await readContent('lessons', item.slug)).toString('utf8'), /שקף 1/);
+  assert.match(latestPublished(item.slug, 'slides').content, /שקף 1/);
   assert.equal(S.itemFor('math-8', 'alg.eq.word').slug, item.slug);
 });
 

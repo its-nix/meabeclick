@@ -146,47 +146,6 @@ test('a portal file missing name does not silently drop new-shape entries', asyn
   } finally { await stop(); }
 });
 
-test('a portal game link goes to the native games page and carries neither the code nor the display name', async () => {
-  const { baseUrl, dataDir, stop } = await startServer();
-  try {
-    // The name is deliberately distinctive (and would be trivially visible
-    // in a URL if it leaked) so an assertion against it cannot pass by
-    // accident.
-    const displayName = 'ילד עם שם מזוהה';
-    const portal = await bookFamily(baseUrl, { name: displayName });
-    const cookie = await familySession(portal.link);
-
-    // Same technique as the nameless-portal-file test above: overwrite the
-    // portal file enroll.ts wrote with one carrying a new-shape ({title,
-    // template, dataId}) game entry, whose url the route derives at read
-    // time via urls.ts's gameUrl (see normalizeGameLike in
-    // src/routes/api/portal/[code]/+server.ts).
-    const file = join(dataDir, 'portal', `${portal.code}.json`);
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, JSON.stringify({
-      name: displayName,
-      subject: 'מתמטיקה', level: 'כיתה י',
-      games: [{ title: 'משחק', template: 'memory', dataId: 'x-memory' }],
-    }));
-
-    const r = await fetch(`${baseUrl}/api/portal/${portal.code}`, { headers: { Cookie: cookie } });
-    assert.equal(r.status, 200);
-    const { games } = await r.json();
-    assert.equal(games.length, 1);
-
-    // The headline change this branch makes: links are minted from the
-    // student's stable code, never from the Hebrew display name a portal
-    // file happens to carry. A revert back to normalizeGameLike(g, data.name)
-    // would put the display name here instead, and two children sharing a
-    // name would again collide on write — see results.ts's header comment.
-    assert.equal(games[0].url, '/app/student/games');
-    assert.ok(
-      !games[0].url.includes(displayName),
-      `game link must not carry the Hebrew display name, got: ${games[0].url}`,
-    );
-  } finally { await stop(); }
-});
-
 test('students list requires a session', async () => {
   const { baseUrl, stop } = await startServer();
   try {

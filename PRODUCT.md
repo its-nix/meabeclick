@@ -90,15 +90,14 @@ are code in the site (only the site can play them and capture results), and
 the *content* of each game, tailored to the student, is a JSON file in Drive
 that the site renders. When a tutor approves a lesson the site copies that
 JSON into its own database, so a student's session never waits on Google;
-Drive stays the editable source. The older classic system (the twelve
+Drive stays the editable source. The classic game system (the twelve
 `/app/play` templates, the `lesson_games` and `game_filler` stores, and the
-site-made lesson pages and editors) is deprecated and is to be removed
-completely, not kept alongside. The site is not yet used by real users, so
-there is no backwards compatibility. This supersedes the cutover design's
-"historical lesson URLs remain valid" and the old-gallery redirects. Removal
-is sequenced behind the Drive-native system covering what the classic one
-does for students: the question types tutors need (including multiple choice
-and open-ended), and result capture tied to plan skills for parent evidence.
+site-made lesson pages and editors) was removed completely on 2026-11-17, with
+no backwards compatibility and no redirects: its routes, templates and stores
+are gone and its tables were dropped by migration 047. Game results are recorded only in
+`native_results` and are the only game evidence behind a parent's progress
+(`src/lib/server/plans/evidence.ts`). The cutover design's "historical lesson
+URLs remain valid" and the old-gallery redirects no longer apply.
 
 Done for phase A: a generated plan, slides, and homework reach the
 student's page without Nikol touching them, for at least 80% of lessons
@@ -327,15 +326,14 @@ One noun each, everywhere — these replace the older, drifting mix of
   scheduled reminders run as VPS `systemd --user` timers.
 
 **Data model.** The entity model (`accounts`, `students_v2`, `teachers`,
-`enrollments`, `bookings_v2`, `payments`, `homework`, `results_v2`,
+`enrollments`, `bookings_v2`, `payments`, `homework`, `native_results`,
 plus the learning-plan and report tables) is authoritative
 and wired into every runtime path listed above. `lessons` is the live
 lesson-generation table; its intended successor, `lessons_v2`, exists but
 is unadopted — nothing in production writes it, and reading it is
 forbidden because it silently returns an empty result. `students` and
 `bookings` are draining: still read so old rows stay visible, never
-written to again. `results` still receives game plays that cannot be
-attributed to a student id (`src/routes/api/game-result/+server.ts`).
+written to again.
 `calendar_failures` is the live table for failed calendar writes
 (`flagCalendarFailure` in `db.ts`); `calendar_failures_v2` is dead. Full
 status of every table is in `src/lib/server/storage-inventory.ts`.

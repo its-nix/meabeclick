@@ -3,7 +3,6 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHmac } from 'node:crypto';
-import { seedLearning } from '../characterization/learning-fixture.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { chromium } from 'playwright-core';
 import { startServer, login, familySession } from '../characterization/harness.mjs';
@@ -30,7 +29,6 @@ const portal = {
   charges: [{ id: 1, date: '2026-11-04', kind: 'double', amount_agorot: 21500, status: 'owed' }, { id: 2, date: '2026-10-28', kind: 'double', amount_agorot: 21500, status: 'paid' }],
   lessons: [{ date: '2026-11-04', topic: 'משוואות בשני צעדים', summary: 'תרגלנו פתרון משוואות ובדיקה באמצעות הצבה.', upcoming: false }, { date: '2026-10-28', topic: 'משוואות בצעד אחד', summary: 'למדנו לבודד את הנעלם.', upcoming: false }],
   homework: [{ id: 101, task: 'פתרו את המשוואה x + 7 = 12 ובדקו את התשובה.', assigned: '2026-11-04', due: '2028-01-09', submitted: false, graded: false }, { id: 102, task: 'פתרו 3x = 18.', assigned: '2026-10-28', submitted: true, graded: true, grade: 'ok' }],
-  learning: [{ slug: 'parabolas', title: 'מגלים פרבולות', url: '/app/student/games', solved: 2, total: 6 }], learningPreparation: [{ slug: 'preparation-example', title: 'לקראת השיעור הבא', url: '/learn/preparation-example', solved: 0, total: 3 }], games: [],
 };
 try {
   const first = await book('נועה לדוגמה', '10');
@@ -52,11 +50,8 @@ try {
   const payload = `p.${pending.id}.${Date.parse(pending.expires_at)}`;
   const confirmationToken = payload + '.' + createHmac('sha256', 'test-secret-not-a-real-one').update(payload).digest('base64url');
   db.close();
-  const learning = await seedLearning(server, 'ui');
   const setup = await (await fetch(server.baseUrl + '/api/teachers/1/setup-link', { method: 'POST', headers: { Cookie: admin } })).json();
   const setupPath = new URL(setup.link).pathname;
-  const gamesHtml = await (await fetch(server.baseUrl + '/app/games', { headers: { Cookie: admin } })).text();
-  const gamePaths = [...new Set([...gamesHtml.matchAll(/href="([^" ]*\/app\/play\/[^" ]+)"/g)].map(match => match[1].replaceAll('&amp;', '&')))];
   for (const [role, cookie] of [['public', null], ['tutor', admin], ['parent', parent], ['student', student]]) {
     for (const appearance of baseline ? ['light'] : ['light', 'dark']) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce', colorScheme: appearance });
@@ -68,11 +63,11 @@ try {
     if (role === 'parent' || role === 'student') await context.route(`**/api/portal/${first.portal.code}*`, async route => {
       if (portalMode === 'pending') await portalGate;
       if (portalMode === 'failed') return route.fulfill({ status: 503, json: { error: 'synthetic failure' } });
-      const content = portalMode === 'empty' ? { ...portal, lessons: [], homework: [], learning: [], learningPreparation: [], games: [], progress: { kind: 'none', done: 0, total: 0, percent: 0 } } : portal;
+      const content = portalMode === 'empty' ? { ...portal, lessons: [], homework: [], progress: { kind: 'none', done: 0, total: 0, percent: 0 } } : portal;
       return route.fulfill({ json: content });
     });
     const page = await context.newPage(); page.on('pageerror', error => report.errors.push(error.message));
-    const paths = role === 'public' ? ['/', '/booking', '/portal', '/login', '/privacy', '/terms', '/enter', '/not-a-page', `/confirm-booking?t=${encodeURIComponent(confirmationToken)}`, '/confirm-booking?t=invalid', setupPath, setupPath + '?e=denied', '/app/tutor-setup/invalid', '/app/tutor-setup/done', '/sample-game'] : role === 'tutor' ? ['/app/dashboard', '/app/library', '/app/marketing', '/app/metrics', '/app/games', `/app/students/${first.portal.code}`, `/app/plan/${first.portal.code}`, `/app/plan/${second.portal.code}`, `/app/report/${pastBooking}`, `/app/lessons/${learning.slug}/edit`, `/app/lessons/${learning.slug}/experience`, `/app/lessons/${learning.slug}/presenter`, ...gamePaths] : role === 'parent' ? ['/app/parent', `/app/parent?s=${first.portal.code}`, `/app/parent?s=${first.portal.code}&v=progress`, `/app/parent?s=${first.portal.code}&v=payments`] : [`/app/student?s=${first.portal.code}`, `/app/student?s=${first.portal.code}&v=hw`, `/app/student?s=${first.portal.code}&v=games`, `/app/student?s=${first.portal.code}&v=ask`];
+    const paths = role === 'public' ? ['/', '/booking', '/portal', '/login', '/privacy', '/terms', '/enter', '/not-a-page', `/confirm-booking?t=${encodeURIComponent(confirmationToken)}`, '/confirm-booking?t=invalid', setupPath, setupPath + '?e=denied', '/app/tutor-setup/invalid', '/app/tutor-setup/done', '/sample-game'] : role === 'tutor' ? ['/app/dashboard', '/app/library', '/app/marketing', '/app/metrics', `/app/students/${first.portal.code}`, `/app/plan/${first.portal.code}`, `/app/plan/${second.portal.code}`, `/app/report/${pastBooking}`] : role === 'parent' ? ['/app/parent', `/app/parent?s=${first.portal.code}`, `/app/parent?s=${first.portal.code}&v=progress`, `/app/parent?s=${first.portal.code}&v=payments`] : [`/app/student?s=${first.portal.code}`, `/app/student?s=${first.portal.code}&v=hw`, `/app/student?s=${first.portal.code}&v=games`, `/app/student?s=${first.portal.code}&v=ask`];
     for (const width of baseline ? [390, 1440, 320] : [390, 768, 1440, 320]) {
       await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 });
       for (const path of matrixPaths(paths, impact)) {
@@ -168,16 +163,11 @@ try {
       }
       if (role === 'student') {
         await page.goto(server.baseUrl + `/app/student?s=${first.portal.code}`); await page.locator('#app').waitFor();
-        await page.getByText('לקראת השיעור', { exact: true }).click();
-        assert.equal(await page.getByRole('link', { name: 'לקראת השיעור הבא', exact: false }).isVisible(), true, 'a single preparation link remains reachable alongside current practice');
-        const nextAction = page.getByRole('link', { name: 'המשך תרגול', exact: false });
-        assert.ok((await nextAction.boundingBox()).y < 600, 'the next learning action is visible on a phone');
         const nav = page.getByRole('navigation', { name: 'ניווט ראשי', exact: true });
         await nav.getByRole('button', { name: 'שיעורי בית', exact: true }).click();
         await page.getByRole('heading', { name: 'שיעורי הבית שלי', exact: true }).waitFor();
         await nav.getByRole('button', { name: 'משחקים', exact: true }).click();
-        await page.goBack();
-        await page.getByRole('heading', { name: 'שיעורי הבית שלי', exact: true }).waitFor();
+        await page.getByRole('link', { name: 'למשחקים שלי', exact: true }).waitFor();
       }
       if (role === 'student' || role === 'parent') {
         const destination = role === 'parent' ? `/app/parent?s=${first.portal.code}` : `/app/student?s=${first.portal.code}`;

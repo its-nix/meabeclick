@@ -4,7 +4,7 @@
  *
  *   1. Which game fits which goal comes from games/registry.json's
  *      selection rules — the file used to say so while nothing read it
- *      (see its $comment and docs/quality/game-standard.md), and the prompt
+ *      (see its $comment), and the prompt
  *      carried its own hand-written, drifting copy of the mapping.
  *   2. How long the deck is follows the lesson's plan: a 45-minute lesson
  *      and a 135-minute one used to be asked for the same "6-10 slides".

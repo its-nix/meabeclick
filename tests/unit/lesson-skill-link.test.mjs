@@ -2,22 +2,17 @@
 //
 // The link that makes practice into evidence about a skill.
 //
-// Spec §2: results_v2 and homework already carry everything an assessment
-// wants — score, tries, hints, seconds, whether the work was done — and
-// neither is connected to a skill. Every suggestion rule in §3.2 dies here.
+// Spec §2: game results and homework already carry everything an assessment
+// wants — outcome, attempts, whether the work was done — and
+// neither was connected to a skill. Every suggestion rule in §3.2 dies here.
 //
 // The link is made by the PIPELINE, never by the model. The generator is
 // told a skill's TITLE; the node id stays on the server and is what the
 // rows are tagged with. A model asked for an id can return one that does
 // not exist or belongs to another student's plan.
 //
-// Two links, because there are two kinds of practice, and the code already
-// settled which is which: generated homework is OFFLINE work written with
-// dataId: null (appendToPortal removed the game link deliberately — every
-// task used to point at the lesson's first game, so one quiz ticked four
-// pen-and-paper exercises). A lesson's games are published separately and
-// are not homework rows. So homework carries node_id, and game_skills says
-// which skill a published game practises for one student.
+// Generated homework is OFFLINE work written for one skill, so it carries
+// node_id; game results reach their skill through native_results.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
@@ -102,37 +97,4 @@ test('homework with no skill is null, not zero', () => {
   const id = L.addHomework({ studentId: student.id, task: 'תרגיל' });
   const row = handle().prepare('SELECT node_id FROM homework WHERE id = ?').get(id);
   assert.equal(row.node_id, null);
-});
-
-test('a published game records the skill it practises, per student', () => {
-  const a = freshStudent();
-  const b = freshStudent();
-  const planA = S.createPlan({ studentId: a.student.id, enrollmentId: a.enrollment.id, template, goal: 'ב' });
-  const planB = S.createPlan({ studentId: b.student.id, enrollmentId: b.enrollment.id, template, goal: 'ב' });
-  const nodeA = S.planData(planA).nodes.find(n => n.key === 'calc.r.a').id;
-  const nodeB = S.planData(planB).nodes.find(n => n.key === 'calc.r.b').id;
-
-  // The SAME data_id, assigned to two children. This is the real shape:
-  // a data id identifies a game, not a child's copy of it.
-  T.linkGameToSkill(a.student.id, 'shared-data-1', nodeA);
-  T.linkGameToSkill(b.student.id, 'shared-data-1', nodeB);
-
-  assert.equal(T.skillForGame(a.student.id, 'shared-data-1'), nodeA);
-  assert.equal(T.skillForGame(b.student.id, 'shared-data-1'), nodeB,
-    "one child's game must never resolve to another child's skill");
-});
-
-test('re-publishing the same game for the same student does not duplicate the link', () => {
-  const { student, enrollment } = freshStudent();
-  const planId = S.createPlan({ studentId: student.id, enrollmentId: enrollment.id, template, goal: 'ב' });
-  const nodes = S.planData(planId).nodes.filter(n => n.kind === 'skill');
-
-  T.linkGameToSkill(student.id, 'd1', nodes[0].id);
-  T.linkGameToSkill(student.id, 'd1', nodes[1].id);
-
-  const count = handle().prepare(
-    'SELECT COUNT(*) AS n FROM game_skills WHERE student_id = ? AND data_id = ?'
-  ).get(student.id, 'd1').n;
-  assert.equal(count, 1, 'one row per (student, game)');
-  assert.equal(T.skillForGame(student.id, 'd1'), nodes[1].id, 'the latest link wins');
 });

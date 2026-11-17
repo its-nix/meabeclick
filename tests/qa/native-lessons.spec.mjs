@@ -57,7 +57,7 @@ test('native-lessons: protected interactive review writes no customer scores and
  mutate(qa,db=>seedRetired(db));const booking=await book(qa);
  const privateUrl='https://docs.google.com/document/d/synthetic-private-notes/edit';
  mutate(qa,db=>db.prepare("UPDATE native_lesson_jobs SET state='review',bundle=? WHERE booking_id=?").run(JSON.stringify({state:'draft',tutorNotes:{url:privateUrl},studentDelivery:'blocked-owner-review-required'}),booking.bookingId));
- const before={results:qa.row('SELECT count(*) n FROM results_v2').n,events:qa.row('SELECT count(*) n FROM learning_events').n,homework:qa.row('SELECT count(*) n FROM homework').n};
+ const before={results:qa.row('SELECT count(*) n FROM native_results').n,events:qa.row('SELECT count(*) n FROM learning_events').n,homework:qa.row('SELECT count(*) n FROM homework').n};
  const anon=await qa.page('anonymous');await anon.goto('/app/native-review-activities?view=homework');await expect(anon).toHaveURL(/\/login/);
  for(const role of ['parent','student']){expect((await qa.request('/app/native-review-activities?view=homework',{cookie:qa.cookies[role]})).status).toBe(302);expect((await qa.request(`/api/native-lessons/${booking.bookingId}`,{cookie:qa.cookies[role]})).status).toBe(401);}
  const tutorJob=await(await qa.request(`/api/native-lessons/${booking.bookingId}`)).json();expect(tutorJob.job.bundle.tutorNotes.url).toBe(privateUrl);
@@ -71,7 +71,7 @@ test('native-lessons: protected interactive review writes no customer scores and
  const attempt=page.waitForResponse(r=>r.url().endsWith('/api/learning-pilot')&&r.request().method()==='POST');
  await task.locator('[data-task-action="attempt"]').click();expect((await attempt).status()).toBe(200);await expect(task.locator('[data-task-feedback]')).not.toBeEmpty();await qa.evidence(page,'native-private-activity');
  for(const [role,path]of [['student',`/app/student?s=${qa.learner.code}`],['parent',`/app/parent?s=${qa.learner.code}`]]){const family=await qa.page(role);await family.goto(path);expect(await family.content()).not.toContain(privateUrl);}
- expect({results:qa.row('SELECT count(*) n FROM results_v2').n,events:qa.row('SELECT count(*) n FROM learning_events').n,homework:qa.row('SELECT count(*) n FROM homework').n}).toEqual(before);
+ expect({results:qa.row('SELECT count(*) n FROM native_results').n,events:qa.row('SELECT count(*) n FROM learning_events').n,homework:qa.row('SELECT count(*) n FROM homework').n}).toEqual(before);
 });
 
 test('native-lessons: saved booking activities use their own content and grading with no student evidence writes',async({qa})=>{

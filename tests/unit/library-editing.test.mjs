@@ -13,7 +13,7 @@ import { join } from 'node:path';
 
 process.env.DATA_DIR = await mkdtemp(join(tmpdir(), 'library-editing-'));
 process.env.DB_PATH = join(process.env.DATA_DIR, 'results.db');
-const { normalizeEdit, applyEdit, editedPlan, formPlan, masterProblems } =
+const { normalizeEdit, applyEdit, editedPlan } =
   await import('../../src/lib/server/lesson/editing.ts');
 const M = await import('../../src/lib/server/materials.ts');
 
@@ -104,15 +104,3 @@ test('questions for a master that has no quiz are refused, not dropped', () => {
   assert.equal(r.status, 400);
 });
 
-test("a master is checked like the lessons copied from it; a student's lesson is not", () => {
-  const thin = { ...planWithQuiz(), slides: [{ heading: 'h', bullets: ['b'] }] };
-  assert.ok(masterProblems('lib-math-8-num-ratio-prop-a', thin).includes('פחות מ-4 שקפים'));
-  assert.deepEqual(masterProblems('noga-2027-02-01', thin), [], 'the tutor is the judge of her own lesson');
-});
-
-test('the form gets the questions and the homework, shaped whatever was stored', () => {
-  const f = formPlan({ ...planWithQuiz(), games: { quiz: { questions: [{ q: 'ש', options: ['א', 7], answer: 1, hint: null }] } }, homework: [{ task: 't', answer: 'k' }] });
-  assert.deepEqual(f.quiz, [{ q: 'ש', options: ['א', ''], answer: 1, why: '', hint: '' }]);
-  assert.deepEqual(f.homework, [{ task: 't', why: '', answer: 'k' }]);
-  assert.equal(formPlan({ games: {} }).quiz, null, 'no quiz is not an empty quiz');
-});

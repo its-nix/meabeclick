@@ -10,14 +10,12 @@
 
 | | |
 |---|---|
-| `src/routes/` | דפים ונקודות API — קובץ `+page.svelte`/`+server.ts` אחד לכל מסלול. `src/routes/app/*` (דשבורד, פורטל, משחקים) דורש התחברות; `src/routes/booking`, `src/routes/portal`, `src/routes/login` ציבוריים |
-| `src/routes/api/` | נקודות ה-API (הזמנה, זמינות, פורטל, תוצאות משחק, יצירת שיעורים...) |
-| `src/lib/server/` | לוגיקת שרת בלבד — אימות מורה (`auth.ts`), גישת משפחה (`family-auth.ts`, `family.ts`, `join.ts`), SQLite (`db.ts`, `entities.ts`, `migrations/`), תשלומים (`payments.ts`), נתיבי קבצים (`content.ts`, `paths.ts`), חתימת URL (`urls.ts`), צנרת יצירת שיעורים (`lesson/`) |
+| `src/routes/` | דפים ונקודות API — קובץ `+page.svelte`/`+server.ts` אחד לכל מסלול. `src/routes/app/*` (דשבורד, פורטל) דורש התחברות; `src/routes/booking`, `src/routes/portal`, `src/routes/login` ציבוריים |
+| `src/routes/api/` | נקודות ה-API (הזמנה, זמינות, פורטל, יצירת שיעורים...) |
+| `src/lib/server/` | לוגיקת שרת בלבד — אימות מורה (`auth.ts`), גישת משפחה (`family-auth.ts`, `family.ts`, `join.ts`), SQLite (`db.ts`, `entities.ts`, `migrations/`), תשלומים (`payments.ts`), נתיבי קבצים (`content.ts`, `paths.ts`), נתיבי URL (`urls.ts`), צנרת יצירת שיעורים (`lesson/`) |
 | `src/lib/plans.ts` | סולם השיעורים — משך, שם בעברית ומחיר במקום אחד. טופס ההזמנה, מייל האישור ומסך הסיכום נטענים ממנו |
-| `src/lib/games/` | מנוע המשחקים המשותף (`engine.ts`) שמריץ את 12 תבניות המשחק כרכיבי Svelte |
 | `src/lib/components/` | פריסה ורכיבים משותפים |
-| `games/registry.json` | תצורה סטטית: אילו תבניות משחק קיימות, מה הצורה של קובץ הנתונים שלהן, ואיזו תבנית מתאימה לאיזו מטרת למידה — נקרא בזמן ריצה, לא נבנה לתוך התמונה בנפרד |
-| `seed/games-data/` | דוגמת קרב המהירות (`nikol-derivrules-speed.json`), עדיין קובץ שמועתק ל-`DATA_DIR/games-data`. שאר דוגמאות הקטלוג הן שורות ב-`game_filler`, שמיגרציה 031 מכניסה ל-SQLite בהפעלה |
+| `games/registry.json` | תצורה סטטית: אילו צורות תוכן משחק מחולל השיעורים מפיק, מה הצורה של נתוניהן, ואיזו צורה מתאימה לאיזו מטרת למידה — נקרא בזמן ריצה, לא נבנה לתוך התמונה בנפרד |
 | `static/` | נכסים סטטיים (תמונות וכו') שמועתקים לתוך ה-build |
 | `server/` | תצורת פריסה עצמית: Dockerfile-adjacent scripts, Caddyfile, גיבוי, ותיעוד ה-VPS המלא — [`server/README.md`](server/README.md) |
 | `scripts/` | כלי שורת פקודה למפתחת (למשל `prepare-lesson.mjs` ליצירת שיעור מהטרמינל) |

@@ -96,7 +96,7 @@ test('test fixtures and build context changes always run the UI gate', () => {
 });
 
 test('shared lesson changes map existing preparation and source boundaries to their checked journeys', () => {
-  const learning = ['/app/learning-pilot', '/api/learning-pilot', '/app/learn/[slug]/homework', '/app/lessons/[slug]/preview', '/app/lessons/[slug]/source/[questionId]', '/api/reports', '/api/reports/prompt'];
+  const learning = ['/app/learning-pilot', '/api/learning-pilot', '/api/reports', '/api/reports/prompt'];
   const workspace = ['/api/drive-sync', '/api/library/import', '/api/library/prepare'];
   for (const [journey, routes] of [['learning', learning], ['workspace', workspace]]) for (const route of routes) {
     const file = 'src/routes' + route + '/+server.ts';
@@ -107,7 +107,7 @@ test('shared lesson changes map existing preparation and source boundaries to th
 });
 
 test('schema migration dependencies retain explicit coverage for learning and tutor API boundaries',()=>{
- const groups=[['permissions',['/api/ask','/api/game-result','/api/results','/api/calendar-failures/[id]/resolve','/api/enrollments/[id]','/api/remind-family','/api/students/import-local','/api/teachers/[id]']],['workspace',['/api/tutor-setup/start','/app/tutor-setup/callback']]];
+ const groups=[['permissions',['/api/ask','/api/calendar-failures/[id]/resolve','/api/enrollments/[id]','/api/remind-family','/api/students/import-local','/api/teachers/[id]']],['workspace',['/api/tutor-setup/start','/app/tutor-setup/callback']]];
  for(const [journey,routes]of groups)for(const route of routes){
   const path='src/routes'+route+'/+server.ts';const files={[path]:'export const GET=()=>{}'};
   const plan=selectImpact({changedFiles:[path],baseFiles:files,headFiles:files});

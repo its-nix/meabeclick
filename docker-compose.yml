@@ -102,11 +102,10 @@ services:
       # replaced, and the reason for a mount here at all.
       - CODEX_HOME=/app/.codex
     volumes:
-      # Everything the app generates or writes at runtime — lesson slides,
-      # games-data, drafts, results.db (SQLite), and (via PORTAL_DIR above)
+      # Everything the app generates or writes at runtime — lesson material,
+      # drafts, results.db (SQLite), and (via PORTAL_DIR above)
       # portal files — lives under one DATA_DIR-backed mount. This replaced
-      # five separate app-owned mounts (data/lessons/portal/games-data/
-      # drafts); keeping it to one directory is what DATA_DIR (see
+      # separate app-owned mounts (data/lessons/portal/drafts); keeping it to one directory is what DATA_DIR (see
       # boot-checks.ts and content.ts) exists to make possible. portal/ is
       # a subdirectory of this same mount, reached via PORTAL_DIR rather
       # than DATA_DIR — it is a separate config knob, not a separate mount.

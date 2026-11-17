@@ -1,11 +1,10 @@
 /**
  * Whether a generated lesson ever reaches the student's page.
  *
- * appendToPortal() is the last step of generation: the plan is written to
- * slides.html, the game data files land, the lessons row goes `ready`, and
- * then this adds the lesson, its homework and its games to the student's
- * portal file — which is the ONLY thing /api/portal/[code] serves those
- * three from.
+ * appendToPortal() is the last step of generation: the slides are recorded,
+ * the lessons row goes `ready`, and then this adds the lesson and its
+ * homework to the student's portal file and table — which is all
+ * /api/portal/[code] serves them from.
  *
  * It looked the student up with db.ts's getStudent(), which reads `FROM
  * students` — the table the students_v2 migration retired. Production on
@@ -15,16 +14,14 @@
  * discarded that false.
  *
  * The result was silent and expensive. Four lessons had been generated —
- * minutes of billed agent time each — with slides.html on disk, game data
- * on disk, and `status: ready` in the database, while every portal file on
- * the box held `lessons: [], homework: [], games: []`. Tutor and student
+ * minutes of billed agent time each — with the slides recorded and
+ * `status: ready` in the database, while every portal file on the box held
+ * `lessons: [], homework: []`. Tutor and student
  * both saw an empty page, and nothing anywhere reported a failure.
  *
  * The lookup belongs to entities.ts, which is the module that owns
- * students_v2. db.ts's same-named getStudent is the legacy reader, and
- * db.ts already carries a comment about exactly this hazard for getBest,
- * where two same-named functions over the old and new tables were conflated
- * once before.
+ * students_v2. db.ts's same-named getStudent is the legacy reader of the
+ * retired table, and the two were conflated once before.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -54,7 +51,7 @@ async function portalFileFor(code, seed = {}) {
   const path = join(process.env.PORTAL_DIR, `${code}.json`);
   await writeFile(path, JSON.stringify({
     name: 'תלמידה', emoji: '🎓', subject: 'מתמטיקה',
-    lessons: [], homework: [], games: [], ...seed,
+    lessons: [], homework: [], ...seed,
   }, null, 2));
   return path;
 }
@@ -67,7 +64,7 @@ const plan = {
   homework: [{ task: 'צמצמו 18/24', why: 'גורמים משותפים' }],
   games: {},
 };
-const published = { slug: 'lesson-slug', games: [{ title: 'זיכרון', template: 'memory', dataId: 'lesson-slug-memory' }] };
+const published = { slug: 'lesson-slug' };
 
 test('a student who exists only in students_v2 gets the lesson on their page', async () => {
   const code = 'liveonly';
@@ -81,7 +78,6 @@ test('a student who exists only in students_v2 gets the lesson on their page', a
   assert.equal(data.lessons.length, 1, 'the lesson must reach the file /api/portal serves');
   assert.equal(data.lessons[0].topic, 'שברים');
   assert.equal(data.lessons[0].slug, 'lesson-slug');
-  assert.equal(data.games.length, 1);
 
   /* Homework is deliberately NOT here any more. It goes to the homework
      table, which is the single store both sides read — the file version was
@@ -98,7 +94,6 @@ test('existing entries are kept, newest first', async () => {
   liveOnlyStudent(code);
   const path = await portalFileFor(code, {
     lessons: [{ date: '2020-01-01', topic: 'ישן' }],
-    games: [{ title: 'ישן', url: '/app/play/quiz?d=old' }],
   });
 
   assert.equal(await appendToPortal(code, plan, published), true);
@@ -106,9 +101,6 @@ test('existing entries are kept, newest first', async () => {
   assert.equal(data.lessons.length, 2);
   assert.equal(data.lessons[0].topic, 'שברים', 'the new lesson goes on top');
   assert.equal(data.lessons[1].topic, 'ישן', 'and the old one survives');
-  // The old {title,url} game shape must not be rewritten — /api/portal
-  // tolerates both shapes precisely because publish() only ever prepends.
-  assert.equal(data.games[1].url, '/app/play/quiz?d=old');
 });
 
 test('an unknown code is still refused, rather than writing a stray file', async () => {

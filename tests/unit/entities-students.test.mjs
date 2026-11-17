@@ -70,7 +70,7 @@ test('every student_id foreign key is enforced, not merely declared', async () =
     ['enrollments', `INSERT INTO enrollments (student_id, subject) VALUES (?, 'x')`],
     ['lessons_v2',  `INSERT INTO lessons_v2 (student_id, slug, status, created_at) VALUES (?, 'x', 'ready', '2026-01-01')`],
     ['homework',    `INSERT INTO homework (student_id, task, assigned_at) VALUES (?, 'x', '2026-01-01')`],
-    ['results_v2',  `INSERT INTO results_v2 (student_id, at) VALUES (?, '2026-01-01')`],
+    ['native_results', `INSERT INTO native_results (student_id, game_id, round_id, outcome, at) VALUES (?, 'g', 'r', 'correct', '2026-01-01')`],
     ['bookings_v2', `INSERT INTO bookings_v2 (student_id, start, end, at) VALUES (?, 'a', 'b', 'c')`],
   ];
   for (const [table, stmt] of inserts) {

@@ -11,6 +11,9 @@ import { experienceProblems, learningFingerprint, renderLearningDocument } from 
 import { renderPresenterNotes } from '../../src/lib/server/presenter-notes.ts';
 import { BRAND_LOGO_SRC } from '../../src/lib/brand.ts';
 
+/** The review destinations the notes page links to. */
+const LINKS = { presentationUrl: '/app/learning-review?case=synthetic', editUrl: '/app/learning-review', homeworkUrl: '/app/learning-review?case=synthetic&view=homework' };
+
 test('generation requires usable presenter notes for every stage, including discovery and reflection', () => {
   assert.deepEqual(experienceProblems(PARABOLAS, { requirePresenterNotes: true }), []);
   assert.ok(LEARNING_SCHEMA.properties.scenes.items.required.includes('presenterNotes'));
@@ -26,7 +29,7 @@ test('older lessons remain readable without inventing teacher notes', () => {
   old.scenes.forEach(scene => delete scene.presenterNotes);
   assert.deepEqual(experienceProblems(old), []);
   assert.match(renderLearningDocument(old), /data-scene=/);
-  assert.match(renderPresenterNotes(old, 'old'), /עדיין אין הערות/);
+  assert.match(renderPresenterNotes(old, LINKS), /עדיין אין הערות/);
 });
 
 test('teacher notes never enter learner, projector, demo, solution or worksheet data', () => {
@@ -40,19 +43,19 @@ test('teacher notes never enter learner, projector, demo, solution or worksheet 
     assert.ok(html.includes(BRAND_LOGO_SRC));
     assert.ok(!html.includes('brand-symbol'));
   }
-  assert.match(renderPresenterNotes(lesson, 'lesson-one'), /PrivateTeacherExplanation/);
+  assert.match(renderPresenterNotes(lesson, LINKS), /PrivateTeacherExplanation/);
 });
 
 test('editing private notes preserves student progress and escapes HTML while rendering math', () => {
   const lesson = structuredClone(PARABOLAS);
   lesson.scenes[0].presenterNotes.explanation = '<script>INJECTION</script> \\(\\frac{1}{2}\\)';
   assert.equal(learningFingerprint(lesson), learningFingerprint(PARABOLAS));
-  const html = renderPresenterNotes(lesson, 'safe-slug');
+  const html = renderPresenterNotes(lesson, LINKS);
   assert.ok(!html.includes('<script>INJECTION'));
   assert.match(html, /&lt;/);
   assert.match(html, /INJECTION/);
   assert.match(html, /class="katex"/);
-  assert.match(html, /\/app\/learn\/safe-slug#scene=notice/);
+  assert.match(html, /\/app\/learning-review\?case=synthetic#scene=notice/);
   lesson.scenes[0].presenterNotes.explanation = '\\(\\unknowncommand{x}\\)';
   assert.ok(experienceProblems(lesson).some(p => p.includes('נוסחה')));
 });
@@ -101,6 +104,6 @@ test('a fresh generated linear/quadratic lesson has private notes for every scen
 test('synthetic presenter navigation uses its supplied review destinations',async()=>{
  const{teachingFixture}=await import('../teaching-fixture.mjs'),{teachingDisplay}=await import('../../src/lib/server/teaching-display.ts'),p=teachingFixture();
  const homeworkUrl='/app/learning-review?case=synthetic&view=homework&version=v2';
- const html=renderPresenterNotes(p.learning,'synthetic',{plan:p,presentationUrl:'/app/learning-review?case=synthetic&version=v2',homeworkUrl:homeworkUrl+'&solutions=1',teaching:teachingDisplay(p,'synthetic',{homeworkUrl,gameUrls:{quiz:'/app/review-game/synthetic/quiz?version=v2'}})});
- assert.ok(!html.includes('/app/learn/synthetic'));assert.match(html,/review-game\/synthetic\/quiz/);assert.match(html,/solutions=1/);
+ const html=renderPresenterNotes(p.learning,{plan:p,presentationUrl:'/app/learning-review?case=synthetic&version=v2',editUrl:'/app/learning-review?version=v2',homeworkUrl:homeworkUrl+'&solutions=1',teaching:teachingDisplay(p,{homeworkUrl})});
+ assert.match(html,/solutions=1/);
 });

@@ -54,10 +54,8 @@ try {
       if(!donorItem)throw Error('Game source is not ready');
       const donor=await readVerifiedPlan(source.out,donorItem);
       if(!isDeepStrictEqual(plan.teaching?.context,donor.teaching?.context))throw Error('Game source teaching context differs');
-      const {TEMPLATE_FILES,toTemplateShape}=await import('../src/lib/server/lesson/prep.ts');
-      const {validateLessonGame}=await import('../src/lib/server/lesson-games.ts');
+      const {TEMPLATE_FILES}=await import('../src/lib/server/lesson/prep.ts');
       if(!Object.hasOwn(TEMPLATE_FILES,patch.key)||!Object.hasOwn(plan.games,patch.key)||!plan.games[patch.key]||!donor.games?.[patch.key])throw Error('Game replacement must select an existing activity');
-      validateLessonGame(TEMPLATE_FILES[patch.key],toTemplateShape(patch.key,donor.games[patch.key]));
       plan.games[patch.key]=structuredClone(donor.games[patch.key]);
       assetReplacements.push({asset:`games.${patch.key}`,sourceBatch:source.manifest.batch,generationConfig:source.manifest.config,sourcePlanSha256:donorItem.planSha256,sourceFinishedAt:donorItem.finishedAt,sourceSeconds:donorItem.seconds,assetSha256:createHash('sha256').update(JSON.stringify(plan.games[patch.key])).digest('hex')});
     }

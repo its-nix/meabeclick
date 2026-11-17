@@ -9,6 +9,6 @@ const { readContent } = await import('../../src/lib/server/content.ts');
 
 for (const evil of ['../secrets', '..%2Fsecrets', 'a/../../etc/passwd', 'Nope', 'has space', '']) {
   test(`rejects the segment ${JSON.stringify(evil)}`, async () => {
-    await assert.rejects(() => readContent('games-data', evil));
+    await assert.rejects(() => readContent('drafts', evil, 'slides.html'));
   });
 }

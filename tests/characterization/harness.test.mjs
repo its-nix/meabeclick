@@ -50,12 +50,9 @@ test('the harness keeps lesson generation switched off', async () => {
     });
     assert.equal(booked.status, 200, 'the booking itself must still succeed');
 
-    const { lessons } = await (await fetch(`${baseUrl}/api/lessons`, {
-      headers: { Cookie: await login(baseUrl) },   // the feed is tutor-only
-    })).json();
-    assert.equal(lessons.length, 0, 'new bookings never invoke legacy generation');
     const db=new DatabaseSync(dbPath,{readOnly:true});
     try{
+      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM lessons').get().n, 0, 'new bookings never invoke legacy generation');
       const job=db.prepare('SELECT student_id,state,bundle FROM native_lesson_jobs').get();
       assert.ok(job,'booking durably queues native preparation without reaching an engine');
       assert.ok(['queued','needs-preparation'].includes(job.state));

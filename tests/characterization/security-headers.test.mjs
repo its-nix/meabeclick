@@ -109,30 +109,7 @@ test('Permissions-Policy denies the capabilities the site never uses', async () 
   }
 });
 
-test('a generated lesson deck gets its own inline-allowing policy, still same-origin only', async () => {
-  const { baseUrl, dataDir, stop } = await startServer();
-  try {
-    await mkdir(join(dataDir, 'lessons', 'test-deck'), { recursive: true });
-    await writeFile(join(dataDir, 'lessons', 'test-deck', 'slides.html'), DECK);
-
-    const res = await fetch(`${baseUrl}/lessons/test-deck`);
-    assert.equal(res.status, 200);
-    const csp = res.headers.get('content-security-policy');
-    assert.ok(csp, 'deck must send a CSP');
-    assert.equal(res.headers.get('content-security-policy-report-only'), null);
-    const d = directives(csp);
-    assert.deepEqual(d['default-src'], ["'self'"]);
-    assert.ok(d['script-src'].includes("'unsafe-inline'"), 'the deck\'s own inline script must run');
-    assert.ok(!d['script-src'].some(v => v.startsWith('http')), 'but no remote scripts');
-    assert.deepEqual(d['frame-ancestors'], ["'self'"]);
-    assert.deepEqual(d['object-src'], ["'none'"]);
-    assert.ok(res.headers.get('permissions-policy'), 'deck carries Permissions-Policy');
-  } finally {
-    await stop();
-  }
-});
-
-test('a draft deck gets the same document policy as a published one', async () => {
+test('a draft lesson deck gets its own inline-allowing policy, still same-origin only', async () => {
   const { baseUrl, dataDir, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
@@ -143,7 +120,11 @@ test('a draft deck gets the same document policy as a published one', async () =
     assert.equal(res.status, 200);
     const d = directives(res.headers.get('content-security-policy') ?? '');
     assert.ok(d['script-src']?.includes("'unsafe-inline'"), 'draft deck allows its own inline script');
+    assert.ok(!d['script-src'].some(v => v.startsWith('http')), 'but no remote scripts');
+    assert.deepEqual(d['default-src'], ["'self'"]);
     assert.deepEqual(d['frame-ancestors'], ["'self'"]);
+    assert.deepEqual(d['object-src'], ["'none'"]);
+    assert.ok(res.headers.get('permissions-policy'), 'deck carries Permissions-Policy');
   } finally {
     await stop();
   }

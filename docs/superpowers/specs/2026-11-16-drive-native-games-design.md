@@ -112,6 +112,13 @@ own, for the reliability at little cost.
 4. Remove classic: routes, templates, `lesson_games`, `game_filler`, seeds,
    legacy tests (about 15 files, including the characterization test that
    asserts historical URLs stay valid). Drop the tables in a migration.
+   **Done 2026-11-17** (branch `chore/remove-classic`): the twelve templates,
+   `/app/play`, `/app/games`, `/app/learn`, `/app/lessons`, `/app/review-game`,
+   the public `/lessons/<slug>` pages, the classic results store and the
+   seeds are gone; parent evidence and homework read `native_results` only;
+   migration 047 drops `results_v2`, `results`, `game_skills`, `game_filler`,
+   `lesson_game_assignments`, `lesson_game_revisions` and the homework
+   columns `template` and `data_id`.
 
 ## Done when
 

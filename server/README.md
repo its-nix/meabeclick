@@ -34,7 +34,7 @@ cd ~/mea-beclick
 ```
 
 `data/` and `service-account.json` are gitignored, so a fresh clone doesn't
-have them. Create `data/portal` and `data/games-data` **before the first
+have them. Create `data/portal` **before the first
 Compose start** — otherwise Docker creates the bind-mount source
 itself, root-owned, and the app container (which runs as uid 1000, the
 `node` user) can't write to it. Create them before the first
@@ -42,34 +42,16 @@ Compose start — see **Portal data** below for why this is a
 separate step, not something the image or a mount handles for you:
 
 ```bash
-mkdir -p data/portal data/games-data
+mkdir -p data/portal
 # Portal records are real student data and are not in git. On a box that
 # replaces an existing one, restore data/ from the Drive backup (server/restore-db.sh,
 # see "Backups"); a brand-new install starts with an empty data/portal.
-# Catalog examples other than speed-drill are not files. The first time
-# the app opens SQLite, migration 031 inserts them into game_filler.
-# There is no copy step for those eleven, and they are not in the image.
-# Only the speed-drill example is still a file:
-cp seed/games-data/nikol-derivrules-speed.json data/games-data/
 # Own by uid 1000 (the container's `node` user) but KEEP the host group
 # that already owns data/ — on the live VPS that is meabeclick (gid 1002),
 # and the backup timer runs as that user, so a blanket `1000:1000` would
 # take away its group-write. Read the current group rather than assuming:
 chown -R 1000:"$(stat -c %g data)" data
 ```
-
-(`seed/games-data/` holds the speed-drill catalog example,
-`nikol-derivrules-speed.json`, referenced by `games/registry.json`. The
-other "try the example" links on `/app/games` read `game_filler`, which
-migration 031 fills on boot from the exercise JSON that used to live in
-this directory under ids named after students. Those files are not in
-git. A volume copy of one of them, if a previous `cp seed/games-data/*`
-left it in `data/games-data/`, is not what `/app/play` serves: the row
-wins. Old links keep working because `src/lib/server/game-filler.ts`
-maps the old id onto the generic one. Per-lesson games are untouched —
-they are still files under `data/games-data/`, and the play route reads
-the file when `game_filler` has no row. See **Cutover** below for why
-these fixtures were never supposed to live inside the writable mount.)
 
 Put the calendar robot's key at `service-account.json` (mode 400), owned by
 uid 1000 so the container can read it — see "The calendar robot" below for
@@ -361,40 +343,18 @@ do, by hand, once.
    homes under `./data`:
 
    ```bash
-   mkdir -p data/lessons data/drafts data/games-data
+   mkdir -p data/lessons data/drafts
    cp -rn lessons/* data/lessons/
    cp -rn drafts/* data/drafts/
-   cp -n games/data/* data/games-data/
    ```
 
    (`lessons/` and `drafts/` are gitignored, so their contents are real,
    untracked, and invisible to `git status` — nothing about the migration
    flags them for you. Skipping this step means `/lessons/<slug>` 404s for
    every pre-cutover lesson ever sent to a family, and every draft the
-   tutor hadn't reviewed yet is gone.    `games/data/` is the OLD bind-mount
-   source for per-lesson game JSON — distinct from the demo fixtures,
-   which later moved into `game_filler` (migration 031) except
-   `seed/games-data/nikol-derivrules-speed.json`.)
+   tutor hadn't reviewed yet is gone.)
 
-3. **Convert the LIVE portal file(s) to the new `{template,dataId}` record
-   shape.** Ruling P13 required whole-file replacement before any
-   new-shape generation could run, but the fix that actually shipped
-   (commit 91bbf2a) only hand-edited the REPO's `portal/noga.json` — the
-   file just copied into `data/portal/` in step 1 above is still old-shape,
-   with `games`/`homework` entries pointing at `games/<template>.html`
-   files that this deployment has deleted. Run the migration script
-   against every file now in `data/portal/`:
-
-   ```bash
-   node scripts/migrate-portal-shape.mjs data/portal/*.json
-   ```
-
-   It is idempotent and leaves already-converted entries untouched, so
-   it's safe to run even if some files (or none) still need it. See
-   `scripts/migrate-portal-shape.mjs`'s header for the exact conversion
-   recipe.
-
-4. **Fix ownership** so the app container (uid 1000) can write to
+3. **Fix ownership** so the app container (uid 1000) can write to
    everything just copied in. Set the owner to 1000, but KEEP whatever
    group already owns `data/` — on this VPS that is `meabeclick` (gid
    1002), and the backup timer runs as that user, so a blanket
@@ -412,7 +372,7 @@ do, by hand, once.
    stat -c '%n %u:%g' data data/results.db data/portal
    ```
 
-5. **Only now discard the dirty tracked path** so `git pull` can proceed —
+4. **Only now discard the dirty tracked path** so `git pull` can proceed —
    the live content was already copied out in step 1, so this is safe:
 
    ```bash
@@ -428,8 +388,7 @@ One host directory and one file are mounted into the `app` container:
 
 - `./data` (`DATA_DIR=/app/data`) — everything the app generates or writes
   at runtime under `DATA_DIR`: SQLite DB (`results.db`) + daily backups,
-  generated lesson slides, games-data (per-lesson game JSON), and
-  unreviewed drafts. This replaced five separate app-owned mounts; see
+  generated lesson material and unreviewed drafts. This replaced five separate app-owned mounts; see
   `docker-compose.yml`'s comment.
 - `./service-account.json` — Google service-account key (gitignored, never
   baked into the image)
@@ -621,7 +580,7 @@ Each run produces two files:
 | file | holds |
 |---|---|
 | `results-<date>.db` | the database, via `sqlite3 .backup` (a consistent snapshot of a live file, which `cp` is not) |
-| `files-<date>.tar.gz` | `portal/`, `games-data/`, `lessons/`, `drafts/` |
+| `files-<date>.tar.gz` | `portal/`, `lessons/`, `drafts/` |
 
 ### Why both, and what a drill proved
 

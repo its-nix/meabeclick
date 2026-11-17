@@ -189,16 +189,14 @@ test('permissions: student cannot read sibling, parent money or tutor data', asy
 test('permissions: migrated API boundaries refuse unsigned or unauthorized writes',async({qa})=>{
  const cases=[
   ['/api/ask','POST',{slug:qa.learner.code,question:'Synthetic question'},401],
-  ['/api/game-result','POST',{student:qa.learner.code,dataId:'synthetic-game',t:'invalid'},403],
   ['/api/calendar-failures/999999/resolve','POST',{},401],
   ['/api/enrollments/999999','PATCH',{teacherId:1},401],
-  ['/api/results','GET',undefined,401],['/api/remind-family','GET',undefined,401],
+  ['/api/remind-family','GET',undefined,401],
   ['/api/students/import-local','POST',{},401],['/api/teachers/1','PATCH',{},401],
  ];
- const before=qa.row('SELECT count(*) n FROM results_v2').n;
+ const before=qa.row('SELECT count(*) n FROM native_results').n;
  for(const [path,method,json,status]of cases){const r=await qa.request(path,{cookie:'',method,json});expect(r.status,path).toBe(status);}
- expect(qa.row('SELECT count(*) n FROM results_v2').n).toBe(before);
- const tutor=await qa.request(`/api/results?studentCode=${qa.learner.code}`);expect(tutor.status).toBe(200);
+ expect(qa.row('SELECT count(*) n FROM native_results').n).toBe(before);
  const page=await qa.page('student');await page.goto(studentPath(qa));await expect(page.getByRole('heading',{name:'היום שלי',exact:true})).toBeVisible();await qa.evidence(page,'migrated-boundaries-preserve-student');
 });
 
@@ -265,36 +263,6 @@ test('payments: teacher marks debt paid and parent balance follows persisted dat
   await expect(parent.locator('.pay-sum-card.pending .psc-amount')).toHaveText('₪0');
   await expect(parent.locator('.pay-sum-card.paid .psc-amount')).toHaveText('₪120');
   await qa.evidence(parent, 'parent-paid');
-});
-
-test('learning: wrong answer, correction and reload preserve independent progress', async ({ qa }) => {
-  const page = await qa.page('student');
-  await page.goto(`/app/learn/${qa.learner.slug}`);
-  await expect(page.locator('[data-save-status]')).toContainText('נשמרת בדף האישי');
-  await page.locator('[data-scene-link]').nth(5).click();
-  await page.locator('[data-number-answer]').fill('100');
-  await page.locator('[data-scene="independent"] [data-submit]').click();
-  await expect(page.locator('[data-scene="independent"] [data-feedback]')).toHaveAttribute('data-kind', 'retry');
-  await page.locator('[data-number-answer]').fill('4');
-  await page.locator('[data-scene="independent"] [data-submit]').click();
-  await expect(page.locator('[data-scene="independent"] [data-feedback]')).toHaveAttribute('data-kind', 'success');
-  await expect.poll(async () => (await (await qa.request(`/api/learning/${qa.learner.slug}`, { cookie: qa.cookies.student })).json()).progress.independent?.solved).toBe(true);
-  await page.reload();
-  await expect(page.locator('[data-scene-link]').nth(5)).toHaveClass(/is-complete/);
-  await qa.evidence(page, 'progress-reloaded');
-  const previewPlan = { title: 'תצוגת בדיקה', gradeContext: 'כיתה ט',
-    slides: [{ heading: 'שקף בדיקה מקדימה', bullets: ['בדיקת מסמך נפרד'] }],
-    examples: [], homework: [], games: {} };
-  expect((await qa.request(`/api/lessons/${qa.learner.slug}/materials`, { method: 'POST', json: {
-    type: 'save', kind: 'plan', content: JSON.stringify(previewPlan), publish: true,
-  } })).status).toBe(200);
-  const tutor = await qa.page('tutor');
-  await tutor.goto(`/app/lessons/${qa.learner.slug}/edit`);
-  const preview = tutor.waitForResponse(r => r.url().endsWith(`/app/lessons/${qa.learner.slug}/preview`) && r.request().method() === 'POST');
-  await tutor.getByRole('button', { name: 'תצוגה מקדימה', exact: true }).first().click();
-  expect((await preview).status()).toBe(200);
-  await expect(tutor.frameLocator('iframe[name="lesson-preview"]').getByText('שקף בדיקה מקדימה', { exact: true })).toBeVisible();
-  await qa.evidence(tutor, 'unsaved-preview-document');
 });
 
 test('workspace: library empty search recovers and tutor sections remain reachable', async ({ qa }) => {

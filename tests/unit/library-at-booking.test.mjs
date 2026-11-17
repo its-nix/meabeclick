@@ -29,6 +29,9 @@ const DB = await import('../../src/lib/server/db.ts');
 const { templateById } = await import('../../src/lib/server/plans/templates.ts');
 const { triggerForBooking } = await import('../../src/lib/server/lesson/queue.ts');
 
+/** The master a booking's lesson was copied from, from the library_uses record. */
+const copiedFrom = (lessonSlug) => DB.handle().prepare('SELECT master_slug FROM library_uses WHERE lesson_slug = ?').get(lessonSlug)?.master_slug ?? null;
+
 const plan = (title) => ({
   title,
   gradeContext: 'כיתה ח',
@@ -88,7 +91,7 @@ test('with a ready library item, the booking gets a copy of the master — no en
   assert.equal(lesson.status, 'ready');
   assert.equal(lesson.title, 'שיעור מהספרייה');
   assert.notEqual(r.slug, master.slug, 'a copy, with its own slug');
-  assert.equal(U.librarySourceOf(r.slug), master.slug);
+  assert.equal(copiedFrom(r.slug), master.slug);
 
   const portal = JSON.parse(await readFile(join(process.env.PORTAL_DIR, `${code}.json`), 'utf8'));
   assert.equal(portal.lessons[0].slug, r.slug);
@@ -125,7 +128,7 @@ test('a copy that fails validation is held — and still recorded as a copy, nev
   const r = triggerForBooking({ ...booking, start: '2027-01-12T10:00:00+02:00', end: '2027-01-12T11:30:00+02:00' }, { notify: c.notify, enrolledCode: code, bookingId: 503 });
   await c.first;
   assert.equal(DB.readLessons().find(l => l.slug === r.slug).status, 'held');
-  assert.equal(U.librarySourceOf(r.slug), master.slug, 'held, and still a copy: the gate must not count it');
+  assert.equal(copiedFrom(r.slug), master.slug, 'held, and still a copy: the gate must not count it');
 });
 
 test('without a ready item, nothing changes: no credentials still means no lesson', async () => {

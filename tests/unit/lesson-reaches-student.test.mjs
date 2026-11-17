@@ -10,7 +10,7 @@
  * "✅ שיעור חדש מוכן".
  *
  * So four lessons were generated at minutes of billed agent time each, with
- * slides and game data on disk and `status: ready` in the database, and
+ * slides recorded and `status: ready` in the database, and
  * every student's portal file held empty arrays. The page a family opens
  * reads those arrays and nothing else.
  *
@@ -155,7 +155,6 @@ process.env.OPENAI_API_KEY = 'stub-key-so-the-preflight-passes';
 const E = await import('../../src/lib/server/entities.ts');
 const { triggerForBooking } = await import('../../src/lib/server/lesson/queue.ts');
 const HW = await import('../../src/lib/server/lessons.ts');
-const R = await import('../../src/lib/server/results.ts');
 const DB = await import('../../src/lib/server/db.ts');
 
 const row = (slug) => DB.readLessons().find(l => l.slug === slug);
@@ -165,7 +164,7 @@ const account = E.createAccount({ name: 'משפחה', credential: 'fam' });
 async function seedStudent(code) {
   const student = E.createStudent({ code, name: 'תלמידה', accountId: account.id, credential: 'p' });
   await writeFile(join(process.env.PORTAL_DIR, `${code}.json`), JSON.stringify({
-    name: 'תלמידה', emoji: '🎓', subject: 'מתמטיקה', lessons: [], homework: [], games: [],
+    name: 'תלמידה', emoji: '🎓', subject: 'מתמטיקה', lessons: [], homework: [],
   }, null, 2));
   return student.id;
 }
@@ -203,20 +202,19 @@ test('a generated lesson lands on the student page the family actually reads', a
   assert.equal(data.lessons.length, 1, 'the portal file is the ONLY source /api/portal serves lessons from');
   assert.equal(data.lessons[0].topic, 'שברים');
   assert.equal(data.lessons[0].slug, slug);
-  assert.equal(data.games.length, 2, 'both games the plan asked for');
+  assert.equal(data.games, undefined, 'games are native, never written into the portal file');
 
   /* Homework moved to the homework table, which both the tutor and the
      student read — writing it here left it invisible to her. */
   assert.deepEqual(data.homework ?? [], []);
   assert.equal(HW.homeworkForStudent(studentId).length, 2, 'both tasks the plan set');
-  assert.deepEqual(data.games.map(g => g.template).sort(), ['memory', 'quiz']);
 
   // A clean run, as the p1 gate (scripts/vision-metrics.mjs) counts one.
   assert.equal(row(slug).status, 'ready');
   assert.equal(row(slug).problem, null);
 });
 
-test('generated homework is offline work, not a game assignment', async () => {
+test('generated homework is offline work', async () => {
   const code = 'offline';
   const studentId = await seedStudent(code);
   const c = collector();
@@ -224,37 +222,12 @@ test('generated homework is offline work, not a game assignment', async () => {
   triggerForBooking(booking(), { notify: c.notify, enrolledCode: code });
   await c.first;
 
-  /* Every generated task used to be handed the FIRST game's dataId, whatever
-     it said. Verified against real Codex output on 2026-09-22: all four tasks
-     were written exercises — "מחיר מעיל 300 ש״ח, הנחה 20% ואז 10%" — and all
-     four pointed at the matching game. Finishing the quiz ticked nothing;
-     finishing matching would have ticked all four at once.
-
-     No play event can legitimately complete a pen-and-paper exercise, so the
-     link is not repaired here, it is removed. The lesson's games are still
-     published and still reachable — the student page has its own Games
-     section, which is where a game belongs. */
   const rows = HW.homeworkForStudent(studentId);
   assert.equal(rows.length, 2, 'both tasks the plan set');
   for (const row of rows) {
-    assert.equal(row.data_id, null, `"${row.task}" must not be completable by playing something`);
-    assert.equal(row.template, null);
     assert.equal(row.submitted, false, 'nobody has done it yet');
     assert.equal(row.graded, false, 'and nobody has judged it');
   }
-});
-
-test('two tasks can no longer be completed by one unrelated play', async () => {
-  const code = 'nocrosstalk';
-  const studentId = await seedStudent(code);
-  const c = collector();
-  triggerForBooking(booking(), { notify: c.notify, enrolledCode: code });
-  await c.first;
-
-  // A play of the lesson's own game must not tick written work.
-  R.writeResult({ studentId, dataId: 'nocrosstalk-mtmtik-x-memory', template: 'memory', score: 6, total: 6 });
-  const rows = HW.homeworkForStudent(studentId);
-  assert.deepEqual(rows.map(r => r.submitted), [false, false]);
 });
 
 test('a lesson that never reached a portal is not reported as ✅', async () => {

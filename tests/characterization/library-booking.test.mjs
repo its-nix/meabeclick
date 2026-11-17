@@ -64,8 +64,7 @@ test('a historical prepared skill copy remains readable with no engine', async (
 
     const portal = await (await fetch(`${baseUrl}/api/portal/${first.portal.code}?kind=student`, { headers: { Cookie: family } })).json();
     assert.ok(portal.lessons.some(l => l.topic === plan.title), "on the child's page");
-    const slides = await fetch(`${baseUrl}/lessons/${copy.slug}`);
-    assert.equal(slides.status, 200);
-    assert.match(await slides.text(), /שקף 1/);
+    const slides = db.prepare(`SELECT content FROM lesson_materials WHERE lesson_slug = ? AND kind = 'slides' AND published_at IS NOT NULL`).get(copy.slug);
+    assert.match(slides.content, /שקף 1/, 'the copy has published slides');
   } finally { await stop(); }
 });

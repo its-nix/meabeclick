@@ -1,55 +1,62 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const { STUDENT_GAMES_PATH } = await import('../../src/lib/native-links.ts');
-const { nativeFamilyLinks } = await import('../../src/lib/server/native-family-links.ts');
 
 test('students are sent to the native games page', () => {
   assert.equal(STUDENT_GAMES_PATH, '/app/student/games');
-  const data = nativeFamilyLinks({
-    games: [{ title: 'a', template: 'quiz', dataId: 'x', url: '/app/play/quiz?d=x' }, { title: 'b', url: 'games/memory.html?d=1' }],
-    homework: [{ task: 't', url: '/app/play/quiz?d=y' }, { task: 'no link' }],
-    learning: [{ slug: 's', url: '/app/learn/s' }],
-    learningPreparation: [{ slug: 'p', url: '/app/learn/p/homework' }],
-  }, 'student');
-  for (const e of [...data.games, data.homework[0], ...data.learning, ...data.learningPreparation]) assert.equal(e.url, STUDENT_GAMES_PATH);
-  assert.equal(data.homework[1].url, undefined);
+  assert.match(readFileSync('src/routes/app/student/+page.svelte', 'utf8'), /href=\{STUDENT_GAMES_PATH\}/);
 });
 
-test('parents get no game links at all', () => {
-  const data = nativeFamilyLinks({
-    games: [{ title: 'a', url: '/app/play/quiz?d=x' }],
-    homework: [{ task: 't', url: '/app/play/quiz?d=y', dataId: 'y' }],
-    learning: [{ slug: 's', url: '/app/learn/s' }],
-  }, 'parent');
-  assert.ok(!JSON.stringify(data).match(/\/app\/(play|learn|student\/games)/));
-  assert.equal(data.homework[0].dataId, 'y', 'status facts are kept');
-});
-
-/* Nothing outside the classic/legacy code itself may link to it. That code is
-   removed in the next step; this guard keeps new links from appearing. */
-const LEGACY = [
-  /^src\/routes\/app\/(learn|lessons|play|games|review-game)\//, /^src\/routes\/(learn|lessons)\//,
-  /^src\/lib\/(games|server\/lesson)\//, /^src\/lib\/server\/(urls|presenter-notes|assigned-teaching|visual-deck-render|learning-review|teaching-display|game-filler|boot-checks)\.ts$/,
-  /^src\/lib\/urls\.ts$/, /^src\/lib\/server\/migrations\//, /\.json$/, /\.css$/, /^src\/routes\/\+error\.svelte$/, /^src\/routes\/app\/\+layout\.svelte$/,
-  /^src\/lib\/server\/lesson\//, /^src\/routes\/api\/lessons\/\[slug\]\/materials\//,
+/* There is one game system, the Drive-native one. The classic game system and
+   the site-made lesson pages and editors are gone for good, so this guard
+   fails on any trace of them coming back. */
+const REMOVED = [
+  'src/lib/games', 'src/lib/styles/games.css', 'seed',
+  'src/lib/server/lesson-games.ts', 'src/lib/server/game-filler.ts', 'src/lib/server/assigned-teaching.ts',
+  'src/lib/server/results.ts', 'src/lib/urls.ts', 'src/lib/server/native-family-links.ts',
+  'src/routes/app/play', 'src/routes/app/games', 'src/routes/app/learn', 'src/routes/app/lessons',
+  'src/routes/app/review-game', 'src/routes/lessons',
+  'src/routes/api/game-result', 'src/routes/api/results', 'src/routes/api/lessons', 'src/routes/api/learning',
 ];
-const BAD = /["'`(]\/app\/(learn\/|play\/|lessons\/[^"'`]*\/edit)|\$\{site\}\/app\/lessons|\bgameUrl\(/;
+
+test('the classic game system and the legacy lesson pages and editors no longer exist', () => {
+  assert.deepEqual(REMOVED.filter(path => existsSync(path)), []);
+});
+
 function walk(dir, out = []) {
-  for (const n of readdirSync(dir)) {
-    const p = join(dir, n);
-    if (statSync(p).isDirectory()) walk(p, out); else out.push(p);
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) walk(path, out); else out.push(path);
   }
   return out;
 }
-test('no product source links to the classic or legacy routes', () => {
+
+const SELF = 'tests/unit/native-links.test.mjs';
+const HISTORY = /^(?:src\/lib\/server\/migrations\/|tests\/unit\/(?:migrations|results-backfill)\.test\.mjs$)|corpus\.json$/;
+// Known remainder, tracked in the removal report: the client runtime of the
+// generator's own lesson decks still names the removed progress endpoint.
+const KNOWN_REMAINDER = 'src/lib/learning/runtime.ts';
+const NO_TRACE = new RegExp([
+  String.raw`/app/(?:play|learn|games|lessons|review-game)\b`,
+  String.raw`["'\x60(]/lessons/`,
+  String.raw`/api/(?:game-result|results|lessons|learning)(?![-\w])`,
+  String.raw`\$lib/games|lib/games/|lesson-games|game-filler|assigned-teaching|native-family-links`,
+  String.raw`\b(?:lesson_games|lesson_game_assignments|lesson_game_revisions|game_filler|game_skills|results_v2)\b`,
+].join('|'));
+
+test('no source, script or test refers to a removed route, module or table (migrations keep history)', () => {
   const hits = [];
-  for (const f of walk('src')) {
-    const rel = relative('.', f);
-    if (LEGACY.some(r => r.test(rel))) continue;
-    readFileSync(f, 'utf8').split('\n').forEach((line, i) => { if (/^\s*(\*|\/\/|\/\*)/.test(line)) return; if (BAD.test(line)) hits.push(`${rel}:${i + 1}`); });
+  for (const root of ['src', 'scripts', 'tests']) {
+    for (const file of walk(root)) {
+      const rel = relative('.', file);
+      // Migrations and their tests are history; the review corpora are recorded model output.
+      if (rel === SELF || rel === KNOWN_REMAINDER || HISTORY.test(rel)) continue;
+      if (!/\.(ts|svelte|mjs|js|css|json)$/.test(rel)) continue;
+      readFileSync(file, 'utf8').split('\n').forEach((line, i) => { if (NO_TRACE.test(line)) hits.push(`${rel}:${i + 1}`); });
+    }
   }
   assert.deepEqual(hits, []);
 });

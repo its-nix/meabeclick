@@ -170,13 +170,9 @@ test('every status carries a reason, not just a label', () => {
   }
 });
 
-test('the two legacy tables db.ts still writes are described as written', () => {
+test('the legacy calendar-failure table db.ts still writes is described as live', () => {
   // The draining-writer test above skips db.ts on purpose, so it cannot see
-  // these two. calendar_failures is the only calendar-failure table anyone
-  // uses (its _v2 is dead), so it is live. results cannot be live while
-  // results_v2 is (see the pair rule), but its note must not read as
-  // "never written": unattributable plays still land there.
+  // this one. calendar_failures is the only calendar-failure table anyone
+  // uses (its _v2 is dead), so it is live.
   assert.equal(STORAGE.calendar_failures.status, 'live');
-  assert.match(STORAGE.results.note, /still (receives|written)/i);
-  assert.match(STORAGE.results.note, /writeResult/);
 });

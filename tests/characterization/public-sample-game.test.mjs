@@ -2,7 +2,7 @@ import {test} from 'node:test';import assert from 'node:assert/strict';
 import {startServer} from './harness.mjs';import {DatabaseSync} from 'node:sqlite';
 import sample from '../../src/lib/server/native-learning/public-sample.json' with {type:'json'};
 
-const counts=path=>{const db=new DatabaseSync(path);try{return ['results_v2','native_results','native_games'].map(t=>{try{return db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n;}catch{return -1;}});}finally{db.close();}};
+const counts=path=>{const db=new DatabaseSync(path);try{return ['native_results','native_games'].map(t=>{try{return db.prepare(`SELECT count(*) AS n FROM ${t}`).get().n;}catch{return -1;}});}finally{db.close();}};
 const post=(base,cookie,body)=>fetch(base+'/api/sample-game',{method:'POST',headers:{'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(body)});
 
 test('the public sample quiz plays without login, grades on the server and writes nothing',async()=>{

@@ -14,10 +14,8 @@ test('fresh native workspace replaces the old catalog and galleries, with authen
  const page=await get('/app/library');assert.equal(page.status,200);const html=await page.text();
  assert.ok(html.includes('data-native-workspace'));assert.ok(html.includes(receipt.workspaceId));assert.ok(html.includes(receipt.archiveIndexId));assert.ok(!html.includes('library-catalog'));
  assert.equal((await get('/app/library',false)).status,302);
- const list=await(await get('/api/lessons')).json();assert.deepEqual(list.lessons,[]);
  const library=await(await get('/api/library?all=1')).json();assert.deepEqual(library.rows,[]);assert.equal(library.nativeWorkspace.archiveId,receipt.archiveId);
  for(const path of ['/app/learning-review','/app/learning-review?version=v2','/app/learning-pilot']){const r=await get(path);assert.equal(r.status,303);assert.equal(r.headers.get('location'),'/app/library');}
- const historical=await get('/lessons/retired-lesson');assert.equal(historical.status,200);assert.match(await historical.text(),/Historical material remains available/);
 });
 test('stale preparation/import cannot recreate legacy material and only the operator can request global retirement',async()=>{
  for(const path of ['/api/library/prepare','/api/library/import']){

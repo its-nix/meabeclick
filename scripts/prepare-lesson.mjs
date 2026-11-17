@@ -141,7 +141,6 @@ async function main() {
   console.log(`  ${plan.slides.length} שקפים · ${plan.examples.length} דוגמאות · ${plan.homework.length} משימות`);
   console.log(`\n  נשמר ב: drafts/${out.slug}/`);
   for (const f of out.files) console.log(`    ${f}`);
-  console.log('\n  לפרסום: העתיקו את קבצי ה-data ל-DATA_DIR/games-data/ ואת slides.html ל-DATA_DIR/lessons/<slug>.');
 }
 
 /* Lets the whole pipeline — schema, validation, rendering, file writing — be

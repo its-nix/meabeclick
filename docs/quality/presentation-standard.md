@@ -11,8 +11,8 @@ private presenter notes and concrete, conversational Hebrew instructions. See
 the brand, wording and presenter-notes contract in `interactive-learning.md`;
 the historical eight-colour measurement below is not the current palette size.
 
-Todoist `id:6hRhM62pGwM7RMCq`. Evidence: the same 12 generations described
-in `game-standard.md`, graded against `lesson-generation-rubric.md`.
+Todoist `id:6hRhM62pGwM7RMCq`. Evidence: 12 generations graded against
+`lesson-generation-rubric.md`.
 
 **Scope: teaching decks only.** The task allows covering marketing decks
 too; they are deliberately excluded. A lesson slide and a marketing slide
@@ -140,8 +140,7 @@ question in §1: it belongs to the Drive task, not here.
 ## 6. Grading result
 
 All 12 decks: correctness, level fit, Hebrew/RTL, structure and homework
-**passed**. Detail and the digit-by-digit verification are in
-`game-standard.md` §3, since both standards were graded from one corpus.
+**passed**.
 
 ## 7. Decisions (Lior, 2026-09-25)
 

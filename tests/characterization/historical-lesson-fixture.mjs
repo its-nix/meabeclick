@@ -1,18 +1,5 @@
-import {DatabaseSync} from 'node:sqlite';
 import {execFileSync} from 'node:child_process';
 import {join} from 'node:path';
-
-/** Historical readers do not depend on new bookings invoking retired authoring. */
-export function seedHistoricalLesson(server,code,{slug='historical-editor-lesson',title='שיעור היסטורי'}={}){
- const db=new DatabaseSync(server.dbPath);db.exec('PRAGMA busy_timeout=5000');
- try{
-  const student=db.prepare('SELECT id,name FROM students_v2 WHERE code=?').get(code);
-  const booking=db.prepare('SELECT start FROM bookings_v2 WHERE student_id=? ORDER BY id DESC LIMIT 1').get(student.id);
-  db.prepare("INSERT INTO lessons(slug,student,subject,level,title,status,at,lesson_at) VALUES(?,?,'מתמטיקה','כיתה ט',?,'ready',?,?)").run(slug,student.name,title,new Date().toISOString(),booking.start);
-  db.prepare('INSERT INTO learning_assignments(lesson_slug,student_id) VALUES(?,?)').run(slug,student.id);
-  return slug;
- }finally{db.close();}
-}
 
 /** Exercise historical copy compatibility explicitly, outside the booking hook. No real engine is reachable. */
 export function copyHistoricalLibraryLesson(server,code){

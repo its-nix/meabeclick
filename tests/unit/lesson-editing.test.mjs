@@ -102,13 +102,3 @@ test('text over the limit is refused with a reason, never cut silently', () => {
   assert.match(r2.error, /40/);
 });
 
-test('a malformed stored plan is shaped for the form instead of crashing it', async () => {
-  const { formPlan } = await import('../../src/lib/server/lesson/editing.ts');
-  assert.deepEqual(formPlan({ title: 7, slides: [null, { heading: 'h', bullets: 'לא רשימה', note: 3 }], examples: 'x' }), {
-    title: '', slides: [{ heading: '', bullets: [], note: '' }, { heading: 'h', bullets: ['לא רשימה'], note: '' }], examples: [],
-    quiz: null, twoTruths: null, errorHunt: null, sequence: null, matching: null, homework: [],
-  });
-  assert.deepEqual(formPlan(null), {
-    title: '', slides: [], examples: [], quiz: null, twoTruths: null, errorHunt: null, sequence: null, matching: null, homework: [],
-  });
-});

@@ -14,7 +14,7 @@ import { startServer } from './harness.mjs';
 
 const MALFORMED = '{not valid json';
 
-const POST_ROUTES = ['/api/login', '/api/game-result', '/api/book'];
+const POST_ROUTES = ['/api/login', '/api/book'];
 
 for (const route of POST_ROUTES) {
   test(`POST ${route} with malformed JSON answers 400, not 500`, async () => {

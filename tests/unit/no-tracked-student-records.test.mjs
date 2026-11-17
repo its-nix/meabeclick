@@ -24,9 +24,8 @@ test('the knowledgebase student and payment folders stay untracked', () => {
   assert.deepEqual(tracked('mea-beclick-kb/students', 'mea-beclick-kb/pricing'), []);
 });
 
-test('catalog examples named after students are not files in git', () => {
-  assert.deepEqual(tracked('seed/games-data'), ['seed/games-data/nikol-derivrules-speed.json']);
-  assert.deepEqual(tracked('seed/games-data/noga-integrals-quiz.json', 'seed/games-data/yonatan-fractions-numberline.json'), []);
+test('the retired seed game data, which was named after students, is gone', () => {
+  assert.deepEqual(tracked('seed'), []);
 });
 
 test('the unused gavriel images are not tracked and nothing references them', () => {

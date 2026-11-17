@@ -7,22 +7,10 @@ export. Short prompts and contextual feedback replace bullet-only teaching.
 
 ## Entry points
 
-- `/learn/parabolas`: public reference lesson with device-local demonstration
-  progress and an embedded, locally rendered HyperFrames clip.
-- `/app/learn/<slug>`: published, assigned lesson with family-scoped access,
-  server grading and progress saved across devices.
-- `/lessons/<slug>`: existing presentation links render the new experience
-  when the published plan has `learning`. Earlier material remains readable.
-- `/app/lessons/<slug>/experience`: tutor editing, unsaved preview, draft
-  saving and explicit publication. The existing lesson editor links here.
-- The student's homework area lists their generated learning experiences.
-  Interactive practice completion is separate from submission/grading of
-  written homework and from assessed skill mastery.
-- Booking-time material appears on the student's home as preparation. It
-  becomes homework after the lesson report, or at the same 24-hour fallback
-  deadline as written homework. Cancelled bookings do not release practice.
-- The tutor editor shows per-question attempts, hints and successful checks
-  from the published student experience, to guide the next conversation.
+- The generator's lesson decks are reviewed by the tutor at `/app/learning-review`
+  and, for the visual pilot, `/app/learning-pilot`. Students play only the
+  approved Drive-native games (`/app/student/games`); there is no site-made
+  lesson page for them.
 
 ## Generation contract
 
@@ -56,10 +44,9 @@ schema and validation require them, including for opening and reflection scenes.
 Earlier stored lessons remain valid without notes; the interface identifies
 missing notes instead of inventing teaching guidance.
 
-The tutor opens `/app/lessons/<slug>/presenter` from the lesson or experience
-editor. This private guide follows the published practice material, including
-report-driven replacements. Each scene opens in one reusable presentation
-window using `#scene=<id>`, keeping the guide separate from the shared screen.
+The tutor opens the private guide from the review index. Each scene opens in
+one reusable presentation window using `#scene=<id>`, keeping the guide
+separate from the shared screen.
 The experience editor can edit notes with the rest of the draft. Only publication
 changes the guide used with the published presentation. Private notes can also
 be printed from the guide.

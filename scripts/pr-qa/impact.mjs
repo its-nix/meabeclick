@@ -4,7 +4,7 @@ import { JOURNEYS, JOURNEY_IDS } from './catalog.mjs';
 
 const SOURCE = /\.(?:[cm]?[jt]s|svelte|css)$/;
 const GLOBAL = /^(?:package(?:-lock)?\.json|Dockerfile|\.dockerignore$|(?:ts|js)config\.json$|docker-compose\.yml|svelte\.config\.|vite\.config\.|src\/(?:hooks\.|app\.)|static\/|server\/Caddyfile|\.github\/workflows\/|scripts\/pr-qa\/|tests\/(?:qa\/|characterization\/(?:harness|learning-fixture|fake-google)\.mjs)|playwright\.qa\.config\.)/;
-const RUNTIME = /^(?:src\/|static\/|server\/|scripts\/|games\/|templates\/|seed\/|tests\/browser\/|tests\/qa\/|\.github\/|package(?:-lock)?\.json$|Dockerfile$|docker-compose\.yml$|(?:svelte|vite)\.config\.|playwright\.qa\.config\.)/;
+const RUNTIME = /^(?:src\/|static\/|server\/|scripts\/|games\/|templates\/|tests\/browser\/|tests\/qa\/|\.github\/|package(?:-lock)?\.json$|Dockerfile$|docker-compose\.yml$|(?:svelte|vite)\.config\.|playwright\.qa\.config\.)/;
 
 function routeOf(path) {
   if (!path.startsWith('src/routes/')) return null;

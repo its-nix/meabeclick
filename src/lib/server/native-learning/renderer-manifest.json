@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "rendererHash": "74628673d934acc21ea44ecf24730b51cf1ab362b8bc36ba36e0296ad714b572",
+  "rendererHash": "b4788423a53506041f90fa1f934a5cc12930dc74e4852d1ddb7fd7dafb958131",
   "files": {
     "Dockerfile": "fb71b2c0f7f81c1e9bfa015d658b9ec18a55d8bb77a402e16d9459ed7ebdc1c7",
     "package-lock.json": "9684bec27da525fe3cc1669b764bf70efa475297575177584112a293ae6cd6cc",
@@ -18,7 +18,7 @@
     "src/lib/server/native-learning/player-evidence.ts": "204088be95741088a6f0f0d8c88daa811956f485f591e662b4ba6151bcaba9ce",
     "src/lib/server/native-learning/review-evidence.ts": "f807b3e86427c565ddb53c80ffdbc3291c4127a29d9318570cda520bf4773da2",
     "src/lib/server/visual-deck-render.ts": "44386fdffb20ffbce98d79c797e40429e4aced6de4e34cb9ae0f7e97279f047d",
-    "src/lib/server/visual-pilot.ts": "588243deef8387f413dc4ec6cd7b5c4bc95b7a5454e78bbfdbddc847786d3ef9",
+    "src/lib/server/visual-pilot.ts": "bfa83555a307e8180322f34f8c68902e92fa190a8e448248b39d9ada09f24e53",
     "static/images/logos/logo-slate.svg": "8600682a9c1052517fa1b07a62d03391408532bddc559ab229f0f371baa348c1",
     "static/learning-assets/native-fonts/Heebo.ttf": "18f930b583fa8fe6b40b2f8263b7ac6afbac07adc91a12467874e7467d3ace30"
   }

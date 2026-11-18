@@ -59,11 +59,43 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
  addEventListener('beforeprint',()=>{if(printState)return;printState=new Map();for(const node of all('[data-model]')){const m=models.get(node);printState.set(node,{stage:m.stage,override:{...m.override}});m.override={};paint(node,m.model.states.length-1);}});
  addEventListener('afterprint',()=>{if(!printState)return;for(const [node,saved]of printState){const m=models.get(node);m.override=saved.override;paint(node,saved.stage);}printState=null;});
  let markDots=()=>{};
+ const stats:Record<string,{tries:number;helped:boolean;ok:boolean;first:boolean}>={};let streak=0,dir='';
+ const restart=(el:Element,cls:string)=>{el.classList.remove(cls);void (el as HTMLElement).offsetWidth;el.classList.add(cls);};
+ const tick='<svg class="tick" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+ const burst=(count:number,x:number,y:number,life:number,power:number)=>{
+  if(!motion)return;const dpr=Math.min(devicePixelRatio||1,2),w=innerWidth,h=innerHeight,cv=document.createElement('canvas');
+  cv.width=w*dpr;cv.height=h*dpr;cv.setAttribute('aria-hidden','true');cv.className='fx-canvas';document.body.appendChild(cv);
+  const g=cv.getContext('2d');if(!g){cv.remove();return;}g.scale(dpr,dpr);
+  const css=getComputedStyle(document.documentElement),cols=['--brand','--mint','--cta'].map(k=>css.getPropertyValue(k).trim()||'#2f6fed');
+  const ps=Array.from({length:count},(_,i)=>{const a=-Math.PI/2+(Math.random()-.5)*Math.PI*1.3,v=(.4+Math.random())*power;return{x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:3+Math.random()*3,rot:Math.random()*6,vr:(Math.random()-.5)*.02,c:cols[i%cols.length]};});
+  const t0=performance.now();let last=t0;
+  const frame=(t:number)=>{const age=t-t0,dt=Math.min(t-last,32);last=t;g.clearRect(0,0,w,h);
+   if(age>=life){cv.remove();return;}g.globalAlpha=Math.min(1,(life-age)/(life*.4));
+   for(const p of ps){p.vy+=.0018*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.rot+=p.vr*dt;g.save();g.translate(p.x,p.y);g.rotate(p.rot);g.fillStyle=p.c;g.fillRect(-p.r,-p.r/2,p.r*2,p.r);g.restore();}
+   requestAnimationFrame(frame);};
+  requestAnimationFrame(frame);};
+ const celebrate=(article:HTMLElement,first:boolean)=>{
+  restart(article,'flash-ok');
+  const picked=$('[data-choice][aria-pressed=true]',article);
+  if(picked){picked.classList.remove('is-retry');picked.classList.add('is-correct');if(!picked.querySelector('.tick'))picked.insertAdjacentHTML('beforeend',tick);restart(picked,'pop');}
+  if(!article.querySelector('.win-badge'))article.insertAdjacentHTML('afterbegin','<span class="win-badge" aria-hidden="true">'+tick+'</span>');
+  if(first){streak++;if(streak>=3){const r=article.getBoundingClientRect();burst(16,r.left+r.width/2,r.top+40,560,.45);}}else streak=0;
+ };
+ const nudge=(article:HTMLElement)=>{streak=0;restart(article,'flash-no');const box=$('.task-input',article);if(box)restart(box,'shake');const picked=$('[data-choice][aria-pressed=true]',article);if(picked)picked.classList.add('is-retry');};
+ const countUp=(el:HTMLElement|null,to:number,delay:number)=>{if(!el)return;if(!motion||!to){el.textContent=String(to);return;}el.textContent='0';const t0=performance.now()+delay;const step=(t:number)=>{const k=Math.min(1,Math.max(0,(t-t0)/700));el.textContent=String(Math.round(to*(1-Math.pow(1-k,3))));if(k<1)requestAnimationFrame(step);};requestAnimationFrame(step);};
+ const summarize=(done:HTMLElement,total:number)=>{
+  const v=Object.values(stats),first=v.filter(x=>x.ok&&x.first).length,assist=v.filter(x=>x.ok&&!x.first).length;
+  const ratio=total?(first+assist*.5)/total:0,n=ratio>=.85?3:ratio>=.5?2:1;
+  all('.stars svg',done).forEach((star,i)=>{star.classList.toggle('on',i<n);(star as unknown as SVGElement).style.setProperty('--i',String(i));});
+  countUp($('[data-count-first]',done),first,300);countUp($('[data-count-assist]',done),assist,600);
+  done.setAttribute('aria-label',`סיימתם! ${n} כוכבים. ${first} בניסיון ראשון, ${assist} בעזרה.`);
+  const r=done.getBoundingClientRect();burst(30+n*25,r.left+r.width/2,r.top+r.height*.35,1500,.7);
+ };
  const taskList=[...bundle.tasks,...bundle.homework,...bundle.games.flatMap((g:any)=>g.rounds)];
  for(const article of all('[data-task]')){
-  const task=taskList.find((t:any)=>t.id===article.dataset.task);let choice:number|null=null,pending=false;
+  const task=taskList.find((t:any)=>t.id===article.dataset.task);let choice:number|null=null,pending=false;stats[task.id]={tries:0,helped:false,ok:false,first:false};
   const feedback=$('[data-task-feedback]',article);
-  for(const button of all('[data-choice]',article))button.addEventListener('click',()=>{choice=Number(button.dataset.choice);for(const b of all('[data-choice]',article))b.setAttribute('aria-pressed',String(b===button));});
+  for(const button of all('[data-choice]',article))button.addEventListener('click',()=>{choice=Number(button.dataset.choice);for(const b of all('[data-choice]',article)){b.setAttribute('aria-pressed',String(b===button));b.classList.remove('is-retry');}});
   const selects=all('[data-region]',article) as HTMLSelectElement[];
   const updateRegion=()=>{if(selects.length!==2)return;const node=$('[data-model]',article);const m=models.get(node);m.override={lowerZ:selects[0].value===''?null:Number(selects[0].value),upperZ:selects[1].value===''?null:Number(selects[1].value)};if(m.override.lowerZ===null||m.override.upperZ===null||m.override.lowerZ>=m.override.upperZ)m.override={lowerZ:null,upperZ:null};paint(node);};
   selects.forEach(s=>s.addEventListener('change',updateRegion));
@@ -81,22 +113,26 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
    const input=task.grading==='tutor-review'?draft?.value:task.check?.kind==='choice'?choice:task.check?.kind==='region'?selects.map(s=>s.value===''?null:Number(s.value)):($('[data-number]',article) as HTMLInputElement)?.value;
    if(action==='attempt'&&(input===null||input===''||Array.isArray(input)&&input.some(v=>v===null))){feedback.textContent='בחרו או הקלידו תשובה כדי לנסות.';return;}
    pending=true;for(const b of all('[data-task-action]',article))(b as HTMLButtonElement).disabled=true;
-   try{const response=await fetch(config.actionUrl??'/api/learning-pilot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:config.version,taskId:task.id,action,input,eventId:crypto.randomUUID()})});const result=await response.json();rich(feedback,result.error??result.message??'');feedback.dataset.result=result.correct===true?'correct':result.correct===false?'retry':'help';if(result.correct===true){article.dataset.complete='true';markDots();}}
+   try{const response=await fetch(config.actionUrl??'/api/learning-pilot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:config.version,taskId:task.id,action,input,eventId:crypto.randomUUID()})});const result=await response.json();rich(feedback,result.error??result.message??'');feedback.dataset.result=result.correct===true?'correct':result.correct===false?'retry':'help';const st=stats[task.id];if(action!=='attempt')st.helped=true;else if(typeof result.correct==='boolean')st.tries++;
+    if(result.correct===true){const firstTry=st.tries===1&&!st.helped&&!st.ok;if(!st.ok)st.first=firstTry;st.ok=true;article.dataset.complete='true';markDots();if(document.querySelector('[data-game-done]'))celebrate(article,firstTry);}
+    else if(result.correct===false)nudge(article);else if(action!=='attempt')streak=0;}
    catch{feedback.textContent='החיבור לא הצליח. התשובה נשארה כאן; נסו שוב.';}
    finally{pending=false;for(const b of all('[data-task-action]',article))(b as HTMLButtonElement).disabled=false;}
   });
  }
  const rounds=all('[data-round]'),done=$('[data-game-done]') as HTMLElement|null;
  const dots=all('[data-dot]');
- markDots=()=>{dots.forEach((d,i)=>{d.classList.toggle('current',i===round&&round<rounds.length);d.classList.toggle('complete',rounds[i]?.querySelector('[data-task]')?.getAttribute('data-complete')==='true');});};
+ markDots=()=>{dots.forEach((d,i)=>{d.classList.toggle('current',i===round&&round<rounds.length);const was=d.classList.contains('complete'),now=rounds[i]?.querySelector('[data-task]')?.getAttribute('data-complete')==='true';d.classList.toggle('complete',now);if(now&&!was&&motion)restart(d,'pop');});};
  const showRound=(move=false)=>{
-  const finished=round>=rounds.length;rounds.forEach((r,i)=>r.hidden=finished||i!==round);if(done)done.hidden=!finished;
+  const finished=round>=rounds.length;rounds.forEach((r,i)=>{r.hidden=finished||i!==round;r.classList.remove('in-next','in-prev');});if(done)done.hidden=!finished;
+  if(move&&motion&&dir){const el=finished?done:rounds[round];if(el)restart(el,finished?'in-next':'in-'+dir);}
+  if(finished&&move&&done)summarize(done,rounds.length);
   const at=Math.min(round+1,rounds.length),label=$('[data-game-position]'),count=$('[data-game-count]');
   if(label)label.setAttribute('aria-label',`שאלה ${at} מתוך ${rounds.length}`);if(count)count.textContent=`${at}/${rounds.length}`;markDots();
   if(move)(finished?done:(rounds[round]?.querySelector('h2') as HTMLElement|null))?.focus({preventScroll:true});
  };
- for(const b of all('[data-next-round]'))b.addEventListener('click',()=>{round=Math.min(round+1,rounds.length);showRound(true);});
- for(const b of all('[data-prev-round]'))b.addEventListener('click',()=>{round=Math.max(round-1,0);showRound(true);});
+ for(const b of all('[data-next-round]'))b.addEventListener('click',()=>{round=Math.min(round+1,rounds.length);dir='next';showRound(true);});
+ for(const b of all('[data-prev-round]'))b.addEventListener('click',()=>{round=Math.max(round-1,0);dir='prev';showRound(true);});
  $('[data-game-restart]')?.addEventListener('click',()=>location.reload());
  if(rounds.length)showRound();
 }

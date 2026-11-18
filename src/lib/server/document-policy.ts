@@ -1,6 +1,6 @@
 /**
  * Security headers for the stand-alone HTML documents the app serves from
- * endpoints: the lesson and activity players (/app/learning-review,
+ * endpoints: the activity players (/app/native-review-activities,
  * /app/student/games/..., /sample-game).
  *
  * SvelteKit's own CSP (svelte.config.js) only covers pages it renders. A

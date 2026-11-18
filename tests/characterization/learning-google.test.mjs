@@ -49,7 +49,7 @@ test('a complete personal callback persists a server-only connection and can ver
   const unauth=await fetch(s.baseUrl+'/api/central-drive');assert.equal(unauth.status,401);
   const cross=await fetch(s.baseUrl+'/api/central-drive',{method:'POST',headers:{Cookie:cookie,Origin:'https://evil.test','Content-Type':'application/json'},body:JSON.stringify({action:'pause'})});assert.equal(cross.status,403);
   const pause=await fetch(s.baseUrl+'/api/central-drive',{method:'POST',headers:{Cookie:cookie,Origin:s.baseUrl,'Content-Type':'application/json'},body:JSON.stringify({action:'pause'})});assert.equal(pause.status,200);assert.equal((await pause.json()).enabled,false);
-  const legacy=await fetch(s.baseUrl+'/api/drive-sync',{headers:{'x-cron-key':'synthetic-central-cron'}});assert.deepEqual(await legacy.json(),{skipped:'central storage selected'});
+  assert.equal((await fetch(s.baseUrl+'/api/drive-sync',{headers:{'x-cron-key':'synthetic-central-cron'}})).status,404,'the per-student Drive sync is gone');
   assert.equal((await fetch(s.baseUrl+'/api/central-drive-sync')).status,401);
   const cron=await(await fetch(s.baseUrl+'/api/central-drive-sync',{headers:{'x-cron-key':'synthetic-central-cron'}})).json();assert.equal(cron.enabled,false);assert.equal(cron.phase,'paused');assert.ok(!JSON.stringify(cron).includes('owner@example.com'));
   const verify=await fetch(s.baseUrl+path+'?/verify',{method:'POST',redirect:'manual',headers:{Cookie:cookie,Origin:s.baseUrl,Accept:'text/html'},body:new URLSearchParams()});assert.equal(verify.status,303);assert.equal(verify.headers.get('location'),path);

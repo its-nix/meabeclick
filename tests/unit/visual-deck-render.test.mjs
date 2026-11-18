@@ -2,8 +2,8 @@ import {test} from 'node:test';import assert from 'node:assert/strict';import {v
 test('composed slides and private notes are separate documents',async()=>{
  const m=await import('../../src/lib/server/visual-deck-render.ts').catch(()=>null);assert.ok(m,'composed slide renderer exists');
  const p=visualDeckFixture();p.slides[0].presenterNotes.explanation='PRIVATE-NOTE';p.tasks[0].solution='PRIVATE-SOLUTION';
- const html=m.renderVisualDeck(p,{view:'lesson',baseUrl:'/app/learning-pilot'});assert.equal((html.match(/data-slide="/g)||[]).length,20);assert.match(html,/logo-slate\.svg/);assert.match(html,/layout-compare/);assert.ok(!html.includes('PRIVATE-'));assert.ok(!html.includes('"answer"'));
- const notes=m.renderVisualDeck(p,{view:'presenter',baseUrl:'/app/learning-pilot'});assert.match(notes,/PRIVATE-NOTE/);assert.match(notes,/target="lesson-audience"/);
+ const html=m.renderVisualDeck(p,{view:'lesson',baseUrl:'/app/native-review-activities'});assert.equal((html.match(/data-slide="/g)||[]).length,20);assert.match(html,/logo-slate\.svg/);assert.match(html,/layout-compare/);assert.ok(!html.includes('PRIVATE-'));assert.ok(!html.includes('"answer"'));
+ const notes=m.renderVisualDeck(p,{view:'presenter',baseUrl:'/app/native-review-activities'});assert.match(notes,/PRIVATE-NOTE/);assert.match(notes,/target="lesson-audience"/);
 });
 test('preview attempts support hints and reveals without claiming assisted success as independent',async()=>{
  const m=await import('../../src/lib/server/visual-pilot.ts').catch(()=>null);assert.ok(m,'isolated preview checker exists');

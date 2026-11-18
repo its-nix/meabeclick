@@ -11,11 +11,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 process.env.DATA_DIR = await mkdtemp(join(tmpdir(), 'engine-health-'));
+process.env.DB_PATH = join(process.env.DATA_DIR, 'db.sqlite');
 const H = await import('../../src/lib/server/lesson/engine-health.ts');
 const { spawnAgent } = await import('../../src/lib/server/lesson/spawn.ts');
-const { createLesson, finishLesson } = await import('../../src/lib/server/db.ts');
-const { messageForFailure } = await import('../../src/lib/server/lesson/queue.ts');
-const { LessonGenerationError } = await import('../../src/lib/server/lesson/engine.ts');
+const E = await import('../../src/lib/server/entities.ts');
+const { handle } = await import('../../src/lib/server/db.ts');
+const J = await import('../../src/lib/server/native-learning/jobs.ts');
 
 test("the reset time is read from Codex's own words, and nothing else is", () => {
   const now = new Date('2026-10-01T09:00:00');
@@ -56,14 +57,21 @@ test('every Codex run reports itself: the quota message marks it down, the next 
   assert.equal(H.engineDown('codex'), null);
 });
 
-test('the dashboard is told which coming lessons have nothing prepared because of it', () => {
-  const soon = (h) => new Date(Date.now() + h * 3600_000).toISOString();
-  createLesson({ slug: 'eh-noga', student: 'נוגה', subject: 'מתמטיקה', level: 'כיתה יא', topic: 't', lessonAt: soon(30) });
-  finishLesson('eh-noga', { status: 'failed', problem: messageForFailure(new LessonGenerationError('engine-quota', 'x')) });
-  createLesson({ slug: 'eh-alon', student: 'אלון', subject: 'מתמטיקה', level: 'כיתה ח', topic: 't', lessonAt: soon(50) });
-  finishLesson('eh-alon', { status: 'failed', problem: messageForFailure(new LessonGenerationError('bad-output', 'x')) });
-  createLesson({ slug: 'eh-past', student: 'נוגה', subject: 'מתמטיקה', level: 'כיתה יא', topic: 't', lessonAt: soon(-30) });
-  finishLesson('eh-past', { status: 'failed', problem: messageForFailure(new LessonGenerationError('engine-quota', 'x')) });
+test('the dashboard is told which coming lessons have no draft because of it', () => {
+  const account = E.createAccount({ name: 'Synthetic', credential: 'test' });
+  const day = (n) => `2099-06-${String(n).padStart(2, '0')}`;
+  const failed = (code, name, n, errorCode) => {
+    const student = E.createStudent({ code, name, accountId: account.id, credential: 'test' });
+    const bookingId = E.reserveBooking({ studentId: student.id, start: `${day(n)}T10:00:00.000Z`, end: `${day(n)}T11:30:00.000Z`, durationMin: 90 });
+    J.enqueueNativeLesson({ bookingId, studentId: student.id });
+    handle().prepare(`UPDATE native_lesson_jobs SET state='failed', error_code=? WHERE booking_id=?`).run(errorCode, bookingId);
+  };
+  failed('eh-noga', 'נוגה', 3, 'engine-quota');
+  failed('eh-alon', 'אלון', 4, 'bad-output');
+  const past = E.createStudent({ code: 'eh-past', name: 'עבר', accountId: account.id, credential: 'test' });
+  const pastBooking = E.reserveBooking({ studentId: past.id, start: '2020-06-03T10:00:00.000Z', end: '2020-06-03T11:30:00.000Z', durationMin: 90 });
+  J.enqueueNativeLesson({ bookingId: pastBooking, studentId: past.id });
+  handle().prepare(`UPDATE native_lesson_jobs SET state='failed', error_code='engine-quota' WHERE booking_id=?`).run(pastBooking);
 
   assert.equal(H.engineAlert(), null, 'nothing to say while the engine is up');
   H.noteEngineFailure('codex', 'engine-quota', 'try again at Oct 12th, 2026 7:26 PM.');

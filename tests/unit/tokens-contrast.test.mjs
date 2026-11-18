@@ -117,7 +117,6 @@ test('every small primary-on-wash role is bound to an AA-safe text token and com
   const roles = [
     ['header sidebar hover', 'src/lib/components/Header.svelte', String.raw`\.sidebar-btn:hover`, String.raw`\.sidebar-btn:hover`, 'white (sidebar)'],
     ['plan structure active item', 'src/lib/components/plan/PlanTree.svelte', String.raw`\.menu-item\.active`, String.raw`\.menu-item\.active`, 'white (sheet)'],
-    ['plan status active button', 'src/lib/components/plan/SkillSheet.svelte', String.raw`\.status-btn\.active`, String.raw`\.status-btn\.active`, 'white (sheet)'],
     ['dashboard outline button', 'src/routes/app/dashboard/+page.svelte', String.raw`\.btn-outline`, String.raw`\.btn-outline`, 'page background'],
     ['dashboard payments header', 'src/routes/app/dashboard/+page.svelte', String.raw`\.payments-table th`, String.raw`\.payments-table th`, 'white (student card)'],
     ['dashboard next-lesson label', 'src/routes/app/dashboard/+page.svelte', String.raw`\.nl-label`, String.raw`\.next-lesson-box`, 'white (student card)'],
@@ -165,15 +164,6 @@ test('marketing selected range remains AA-safe on its white segmented-control su
   const foreground = token(block.match(/(?:^|;)\s*color:\s*var\(--([^)]+)\)/)?.[1]);
   assert.ok(foreground);
   assert.ok(contrast(foreground, token('bg-card')) >= AA_TEXT);
-});
-
-test('library working status is AA-safe plain text on its table and hover surfaces', () => {
-  const block = source('src/routes/app/library/+page.svelte').match(/\.status\.working\s*\{([^}]*)\}/s)?.[1];
-  assert.ok(block, 'the table status keeps an explicit foreground');
-  assert.doesNotMatch(block, /background/, 'this role is plain text, not the retired primary-wash chip');
-  const foreground = token(block.match(/color:\s*var\(--([^)]+)\)/)?.[1]);
-  assert.ok(foreground);
-  for (const surface of ['bg-card', 'bg-surface']) assert.ok(contrast(foreground, token(surface)) >= AA_TEXT);
 });
 
 test('white text clears AA on every primary button, hover and gradient fill role', () => {

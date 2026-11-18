@@ -1420,11 +1420,6 @@
                         {:else if hw.graded && hw.grade}
                           <div class="hw-graded">{GRADE_LABEL[hw.grade]} · <button class="link-btn" onclick={() => gradeHw(s.code, hw.id, null)}>ביטול</button></div>
                         {/if}
-                        {#if hw.heldUntil}
-                          <!-- Held, not missing: the lesson report replaces it with
-                               homework from what was taught, or it goes out by itself. -->
-                          <div class="hw-held">ממתין לדיווח על השיעור · יישלח לבד ב-{formatDate(israelDay(hw.heldUntil))}</div>
-                        {/if}
                       </div>
                       <button class="btn btn-danger btn-sm" aria-label="מחיקת שיעורי הבית" onclick={() => deleteHw(s.code, hw.id)}><Icon name="delete" size={14} /></button>
                     </div>
@@ -1859,7 +1854,6 @@
   .hw-grade-btn { min-height: 44px; }
   .hw-graded { font-size: .8rem; color: var(--accent3-strong); margin-top: 4px; font-weight: 600; }
   .link-btn { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
-  .hw-held { font-size: .75rem; color: var(--accent); margin-top: 2px; font-weight: 600; }
 
   /* Progress bar */
 

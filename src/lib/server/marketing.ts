@@ -15,7 +15,7 @@
  * table's own CHECK constraints turn a bad call into a thrown exception
  * that `/api/events` (task 2) would then have to catch on every request.
  * The CHECKs stay in the schema anyway, as the backstop every other write
- * path in this app gets — see materials.ts's `kind`/`origin`.
+ * path in this app gets — see migration 016.
  */
 import { handle } from './db.ts';
 

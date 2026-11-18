@@ -1,6 +1,5 @@
 /** Trusted, versioned source catalogue. Model output can reference IDs; it cannot add records. */
 import {createHash} from 'node:crypto';
-import type {TeachingContext} from '../../learning/teaching.ts';
 import questionAssets from './official-question-assets.json' with {type:'json'};
 export interface OfficialQuestion {
  id:string;authority:'moe'|'rama';url:string;year:number;session:string;questionnaire:string;
@@ -46,23 +45,6 @@ export function verifyImport(q:OfficialQuestion,pdf:Uint8Array):void{
 export function officialQuestion(id:string):OfficialQuestion|null{
  if(!/^[a-z0-9-]{1,80}$/.test(id))return null;
  const q=CATALOGUE.find(c=>c.id===id);return q?structuredClone(q):null;
-}
-/** A supplied link is not readable evidence. Never let the engine guess its contents. */
-export function suppliedSourceIntent(request:string):'required'|'optional'|undefined{
- if(!/https?:\/\/\S+/i.test(request)&&!CATALOGUE.some(q=>request.includes(q.id)))return undefined;
- const clauses=request.split(/\.(?=\s|$)|[;!\n]|(?=\s+ו(?:אם|אפשר|כדאי|הוסיפו|פתרו|השתמשו))|\s+and\s+(?=(?:if|optionally|add|solve|use)\b)/iu);
- const sourceClauses=clauses.filter(c=>/https?:\/\/\S+/i.test(c)||CATALOGUE.some(q=>c.includes(q.id)));
- return sourceClauses.every(c=>/if\s+(?:available|possible)|when\s+available|optional|במידת האפשר|להעשרה|להשראה|לא חובה|אופציונלי|אם[\s\S]{0,30}(?:זמין|אפשר)/iu.test(c))?'optional':'required';
-}
-export function suppliedQuestionId(request:string,intent=suppliedSourceIntent(request)):string|undefined{
- if(intent==='optional')return undefined;
- return CATALOGUE.find(q=>request.includes(q.id))?.id??(/https?:\/\/\S+/i.test(request)?'unresolved-supplied-question':undefined);
-}
-export function resolveOfficialQuestions(context:TeachingContext,options:{requiredQuestionId?:string;usedQuestionIds?:string[]}={}):{questions:OfficialQuestion[];status:'verified'|'authored-fallback'|'unresolved';reason?:string}{
- const required=options.requiredQuestionId??context.requiredQuestionId;
- const fit=(q:OfficialQuestion)=>q.grades.includes((context.grade??'').replace(/["״׳']/g,''))&&/5/.test(context.track??'')&&(!context.questionnaire||context.questionnaire.split(/[, ·]+/).includes(q.questionnaire))&&(!context.curriculum||context.curriculum.startsWith(q.programme))&&q.topics.some(t=>(context.skill+' '+context.request).includes(t));
- const found=CATALOGUE.filter(q=>!q.visualOnly&&(required?q.id===required:!options.usedQuestionIds?.includes(q.id))&&fit(q));
- return found.length?{questions:structuredClone(found.slice(0,1)),status:'verified'}:{questions:[],status:required?'unresolved':'authored-fallback',reason:required?'השאלה המבוקשת אינה מאומתת או אינה מתאימה לפרופיל':'אין במאגר שאלה רשמית מתאימה; יש ליצור תרגול מקורי ולסמן זאת'};
 }
 /** Student-safe provenance allowlist. No transcript solution, verification notes or private context. */
 export function sourceCaption(id:string){const q=officialQuestion(id);return q?{id:q.id,url:q.url,label:`${q.kind==='adapted'?'עיבוד של שאלה':'שאלה מקורית'} · משרד החינוך · ${q.year} · ${q.session} · שאלון ${q.questionnaire} · שאלה ${q.question} ${q.subparts}`,page:q.page}:null;}

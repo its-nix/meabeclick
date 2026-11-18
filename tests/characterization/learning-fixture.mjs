@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { PARABOLAS } from '../../src/lib/learning/parabolas.ts';
 import { familySession } from './harness.mjs';
 
 export async function seedLearning(server, suffix = 'one', { sessionForLink = familySession } = {}) {
@@ -15,11 +14,6 @@ export async function seedLearning(server, suffix = 'one', { sessionForLink = fa
   const cookie=await sessionForLink(portal.link);
   const db=new DatabaseSync(server.dbPath);
   const student=db.prepare('SELECT id FROM students_v2 WHERE code=?').get(portal.code);
-  const slug=`learning-test-${suffix}`;
-  const now=new Date().toISOString();
-  db.prepare("INSERT INTO lessons (slug,student,subject,level,title,at,status) VALUES (?,?, 'מתמטיקה','כיתה ט',?,?,'ready')").run(slug,`תלמיד בדיקה ${suffix}`,PARABOLAS.title,now);
-  db.prepare('INSERT INTO learning_assignments (lesson_slug,student_id) VALUES (?,?)').run(slug,student.id);
-  db.prepare("INSERT INTO lesson_materials (lesson_slug,kind,version,content,origin,published_at,created_at) VALUES (?,'plan',1,?,'generated',?,?)").run(slug,JSON.stringify({learning:PARABOLAS}),now,now);
   db.close();
-  return {slug,cookie,code:portal.code,studentId:student.id};
+  return {cookie,code:portal.code,studentId:student.id};
 }

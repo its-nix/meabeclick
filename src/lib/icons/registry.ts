@@ -16,7 +16,7 @@
  * Two surfaces keep their emoji permanently, because an icon cannot reach
  * them:
  *
- *  - WhatsApp notifications (src/lib/server/lesson/queue.ts) are plain text
+ *  - WhatsApp notifications (src/lib/server/notices.ts, whatsapp.ts) are plain text
  *    through CallMeBot. There is no markup, so ⚠️/✅ are the only visual
  *    signal available.
  *  - Transactional email (src/lib/server/email.ts). Gmail and Outlook do not

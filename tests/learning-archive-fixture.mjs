@@ -3,6 +3,5 @@ export const receipt={version:1,archiveId:'archive-first',fingerprint:'a'.repeat
 export function seedRetired(db,slug='retired-lesson'){
  db.prepare("INSERT INTO lessons(slug,student,at,status,title) VALUES(?, 'Synthetic learner', ?, 'ready','Archived synthetic lesson')").run(slug,new Date().toISOString());
  db.prepare('INSERT INTO learning_archive(id,archive_id,fingerprint,slugs,receipt) VALUES(1,?,?,?,?)').run(receipt.archiveId,receipt.fingerprint,JSON.stringify([slug]),JSON.stringify(receipt));
- db.prepare('INSERT INTO learning_retired_lessons(slug,archive_id) VALUES(?,?)').run(slug,receipt.archiveId);
  return receipt;
 }

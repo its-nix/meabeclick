@@ -13,4 +13,7 @@ export const REMOVED_ROUTES = {
   '/app/lessons/[slug]/source/[questionId]': '/app/lessons/x/source/q1', '/app/play/[template]': '/app/play/quiz',
   '/app/review-game/[caseId]/[template]': '/app/review-game/c1/quiz', '/drafts/[slug]/[...file]': '/drafts/x/y.html',
   '/learn/parabolas': '/learn/parabolas', '/lessons/[slug]': '/lessons/x',
+  '/api/library': '/api/library', '/api/library/due': '/api/library/due', '/api/library/import': '/api/library/import', '/api/library/prepare': '/api/library/prepare',
+  '/api/drive-sync': '/api/drive-sync', '/api/health/generation': '/api/health/generation',
+  '/app/learning-pilot': '/app/learning-pilot', '/app/learning-review': '/app/learning-review',
 };

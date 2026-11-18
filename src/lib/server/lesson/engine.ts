@@ -67,19 +67,6 @@ export type LessonFailureKind =
   | 'bad-output'
   | 'source-unresolved';
 
-/**
- * What the tutor reads when the engine itself is unavailable — not this
- * lesson's fault, every generation fails the same way until it is back.
- * Here, not in queue.ts with the other messages, so engine-health.ts can
- * find the lessons they failed without importing the queue (which imports
- * the spawn that reports to it).
- */
-export const ENGINE_DOWN_MESSAGES = {
-  'engine-missing': 'מנוע יצירת השיעורים אינו מותקן על השרת — יש לבדוק את ההתקנה',
-  'engine-auth':    'פג תוקף החיבור למנוע יצירת השיעורים — יש לחדש את ההרשאה בשרת',
-  'engine-quota':   'נגמרה המכסה ליצירת שיעורים אוטומטית — השיעור לא נוצר. אפשר לנסות שוב מאוחר יותר',
-} as const;
-
 export class LessonGenerationError extends Error {
   readonly kind: LessonFailureKind;
   /**
@@ -106,28 +93,6 @@ export class LessonGenerationError extends Error {
 export function engineBin(): string {
   return process.env.CODEX_BIN || 'codex';
 }
-
-/**
- * Which agent generates a LESSON: Codex, unless LESSON_ENGINE names another.
- *
- * The server never sets it, and stays on Codex. Claude Code and opencode are
- * for the tutor's own machine, where scripts/library-local.mjs prepares
- * library lessons and imports them (/api/library/import). They came back on
- * 2026-10-01, when production's Codex account ran out of usage until 12.10:
- * the Claude path removed earlier (see the top of this file) could not run
- * on the box; this one runs where those CLIs are installed and signed in.
- * Only lesson generation takes them — ask.ts and homework.ts are Codex only.
- */
-export type LessonEngine = 'codex' | 'claude' | 'opencode';
-
-export function lessonEngine(): LessonEngine {
-  const e = (process.env.LESSON_ENGINE || 'codex').trim();
-  if (e === 'codex' || e === 'claude' || e === 'opencode') return e;
-  throw new Error(`LESSON_ENGINE must be codex, claude or opencode, not "${e}"`);
-}
-
-export const claudeBin = (): string => process.env.CLAUDE_BIN || 'claude';
-export const opencodeBin = (): string => process.env.OPENCODE_BIN || 'opencode';
 
 /** Where Codex keeps its credentials. Honours CODEX_HOME, which is also how
  *  the container reaches its mounted auth file. */

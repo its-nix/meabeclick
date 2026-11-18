@@ -70,8 +70,8 @@ test('the two channels that cannot take icons are left alone', () => {
   // inline SVG while blocking remote images by default. An icon there is
   // strictly worse than the emoji it replaced, so those files keep theirs —
   // and this fails if a later sweep "finishes the job" by stripping them.
-  const queue = readFileSync(join(root, 'src/lib/server/lesson/queue.ts'), 'utf8');
-  assert.match(queue, /⚠️|✅/, 'WhatsApp notifications must keep their emoji — no markup reaches that channel');
+  const notices = readFileSync(join(root, 'src/lib/server/notices.ts'), 'utf8');
+  assert.match(notices, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, 'WhatsApp notifications must keep their emoji — no markup reaches that channel');
 
   const mail = readFileSync(join(root, 'src/lib/server/email.ts'), 'utf8');
   assert.match(mail, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, 'email must keep its emoji — clients block images and drop inline SVG');

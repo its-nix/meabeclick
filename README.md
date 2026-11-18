@@ -17,7 +17,7 @@
 | `src/lib/components/` | פריסה ורכיבים משותפים |
 | `static/` | נכסים סטטיים (תמונות וכו') שמועתקים לתוך ה-build |
 | `server/` | תצורת פריסה עצמית: Dockerfile-adjacent scripts, Caddyfile, גיבוי, ותיעוד ה-VPS המלא — [`server/README.md`](server/README.md) |
-| `scripts/` | כלי שורת פקודה למפתחת (למשל `library-local.mjs`) |
+| `scripts/` | כלי שורת פקודה למפתחת (למשל `vision-metrics.mjs`) |
 | `tests/` | `tests/unit` — מבחני יחידה; `tests/characterization` — מריץ את ה-build המלא (`build/index.js`) ומאמת מול ההתנהגות המתועדת |
 | `mea-beclick-kb/` | מסמך הדרישות והחזון הוא `PRODUCT.md` בשורש הריפו; בכספת נשארות רק תיקיות `students/` ו-`pricing/` המקומיות, שאינן במעקב git |
 
@@ -52,10 +52,9 @@
 
 ## הרצה מקומית
 
-מרחב למידה אינטראקטיבי: דוגמה ציבורית ב־`/learn/parabolas`, הסברים מונפשים,
-נוסחאות, גרפים ותרגול עם רמזים. שיעורים חדשים יוצרים אותו אוטומטית;
-התלמיד/ה מגיע/ה אליו מאזור שיעורי הבית. עריכה למורה, יצוא וידאו ובדיקות:
-[`docs/quality/interactive-learning.md`](docs/quality/interactive-learning.md).
+שיעורים מוכנים כטיוטות ב־Google Drive (Slides ו־Docs) ומאושרים על ידי המורה; משחקי התרגול
+מנוגנים באתר (`/app/student/games`) ודוגמה ציבורית ב־`/sample-game`. ראו `PRODUCT.md`
+ו־[`docs/quality/visual-math-calibration.md`](docs/quality/visual-math-calibration.md).
 
 ```bash
 npm install

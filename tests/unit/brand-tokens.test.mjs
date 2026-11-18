@@ -68,14 +68,6 @@ test('the rendered root block carries every value', () => {
   }
 });
 
-test('the slide renderer builds its palette from this module, not a literal', () => {
-  // Anchored on the absence of the old hardcoded block: a second copy
-  // reintroduced anywhere is what this whole file is guarding against.
-  const prep = readFileSync(join(ROOT, 'src/lib/server/lesson/prep.ts'), 'utf8');
-  assert.doesNotMatch(prep, /:root\{--bg:#/i, 'the palette must not be written inline again');
-  assert.match(prep, /deckRootCss\(\)/, 'it must come from $lib/brand.ts');
-});
-
 test('logo and favicon use the primary blue rather than the retired green', () => {
   const primary = token('--accent');
   assert.equal(primary, '#2563eb');

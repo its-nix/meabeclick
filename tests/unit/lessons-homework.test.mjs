@@ -9,28 +9,10 @@ const E = await import('../../src/lib/server/entities.ts');
 const L = await import('../../src/lib/server/lessons.ts');
 const { handle } = await import('../../src/lib/server/db.ts');
 
-/* createLesson/finishLesson still write lessons_v2, which is 'unadopted' in
-   storage-inventory.ts: the schema and the code exist, and no production
-   path writes it yet. Runtime source is forbidden from READING it — an
-   empty answer there is indistinguishable from "no lessons" and cost the
-   tutor's card its entire lesson list — so this test reads it directly
-   rather than through a helper that must not exist. */
-const readLessonsV2 = (studentId) =>
-  handle().prepare('SELECT * FROM lessons_v2 WHERE student_id = ? ORDER BY created_at DESC').all(studentId);
-
 const acct = E.createAccount({ name: 'משפחה', credential: 'x' });
 const stu  = E.createStudent({ code: 'noga', name: 'נוגה', accountId: acct.id, credential: 'p' });
 
-test('a generated slug always passes assertPathSegment', async () => {
-  const { assertPathSegment } = await import('../../src/lib/server/urls.ts');
-  for (let i = 0; i < 200; i++) {
-    assertPathSegment('slug', L.newLessonSlug());   // throws on failure
-  }
-});
-
 test('new homework is neither submitted nor graded', () => {
-  const slug = L.newLessonSlug();
-  L.createLesson({ slug, studentId: stu.id, topic: 'אינטגרלים' });
   L.addHomework({ studentId: stu.id, task: 'משחק זיכרון' });
 
   const hw = L.homeworkForStudent(stu.id);
@@ -96,24 +78,4 @@ test('an automatic grade is distinguishable from the tutor\'s', () => {
   const row = L.homeworkForStudent(stu.id).find(h => h.id === id);
   assert.equal(row.graded_by, 'auto');
   assert.notEqual(row.graded_by, 'teacher');
-});
-
-test('a successful finish clears an earlier problem but keeps the other fields', () => {
-  const slug = L.newLessonSlug();
-  L.createLesson({ slug, studentId: stu.id, topic: 'אינטגרלים' });
-
-  L.finishLesson(slug, { status: 'held', problem: 'חסרים פרטים על הכיתה' });
-  const held = readLessonsV2(stu.id).find(l => l.slug === slug);
-  assert.equal(held.problem, 'חסרים פרטים על הכיתה');
-
-  L.finishLesson(slug, { status: 'ready', title: 'אינטגרציה בהצבה' });
-  const ready = readLessonsV2(stu.id).find(l => l.slug === slug);
-  assert.equal(ready.status, 'ready');
-  assert.equal(ready.problem, null, 'a stale problem survived a successful finish');
-  assert.equal(ready.title, 'אינטגרציה בהצבה');
-
-  // And the COALESCE'd fields survive a later status-only update.
-  L.finishLesson(slug, { status: 'ready' });
-  assert.equal(readLessonsV2(stu.id).find(l => l.slug === slug).title, 'אינטגרציה בהצבה',
-    'a status-only update blanked a COALESCE-protected field');
 });

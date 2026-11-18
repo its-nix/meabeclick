@@ -49,11 +49,6 @@ if (!dev) {
   const { adoptEnvCalendar } = await import('$server/tutor-settings.ts');
   adoptEnvCalendar();
 
-  // Library preparations run in this process; any a restart cut short are
-  // marked failed, so the tutor can prepare them again (library/store.ts).
-  const { resetInterrupted } = await import('$server/library/store.ts');
-  const cut = resetInterrupted();
-  if (cut) console.warn(`[library] ${cut} preparation(s) cut short by the restart, marked failed`);
   const {queueCentralSync}=await import('$server/central-drive/sync.ts');
   queueCentralSync();
   const {startNativeLessonWorker}=await import('$server/native-learning/worker.ts');

@@ -5,7 +5,6 @@ import {lstat,readdir,realpath,open} from 'node:fs/promises';
 import {join,resolve,relative,extname,basename} from 'node:path';
 import type {DatabaseSync} from 'node:sqlite';
 import {handle} from '../db.ts';
-import {dataDir} from '../paths.ts';
 
 export interface CentralArtifact {
  key:string;name:string;folders:string[];mimeType:string;sha256:string;md5:string;size:number;
@@ -35,14 +34,11 @@ const columns={
  lesson_reports:'id booking_id student_id enrollment_id note created_at updated_at',
  lesson_report_notes:'id report_id note at teaching_coverage',
  lesson_requests:'id booking_id student_id source text at',
- lesson_engines:'lesson_slug engine at',
- library_items:'id template_id skill_key slug status problem updated_at',
- library_uses:'lesson_slug master_slug template_id skill_key at',
 } as const;
 
 const mime:Record<string,string>={'.html':'text/html','.json':'application/json','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.mp4':'video/mp4','.webm':'video/webm','.mp3':'audio/mpeg','.pdf':'application/pdf','.woff2':'font/woff2','.woff':'font/woff','.ttf':'font/ttf','.txt':'text/plain','.md':'text/markdown'};
 
-export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:string;staticRoot?:string;templatesRoot?:string}={}):Promise<LearningInventory>{
+export async function learningInventory(options:{db?:DatabaseSync;staticRoot?:string;templatesRoot?:string}={}):Promise<LearningInventory>{
  const db=options.db??handle(),artifacts:CentralArtifact[]=[];
  const records:Record<string,Record<string,any>[]>={};
  for(const[table,list]of Object.entries(columns)){
@@ -66,13 +62,9 @@ export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:stri
   inline(`materials/${row.id}`,`${row.kind} — v${row.version}.${extension}`,folders,type,row.content,row.kind,row.lesson_slug,row.version);
   if(row.teacher_only)inline(`material-notes/${row.id}`,`Teacher notes — v${row.version}.json`,folders,'application/json',row.teacher_only,'teacher-notes',row.lesson_slug,row.version);
  }
- // These examples live in the build, not the runtime database/filesystem.
- const corpora=[['baseline',(await import('../learning-review-corpus.json',{with:{type:'json'}})).default],['v2',(await import('../learning-review-v2-corpus.json',{with:{type:'json'}})).default],['visual-pilot',(await import('../learning-pilot-corpus.json',{with:{type:'json'}})).default]] as const;
- for(const[key,corpus]of corpora)inline(`review/${key}`,`${key}.json`,['Review'],'application/json',JSON.stringify(corpus),'review');
- const root=resolve(options.dataRoot??dataDir()),staticRoot=resolve(options.staticRoot??'static');
+ const staticRoot=resolve(options.staticRoot??'static');
  const sources=[
-  {root:join(root,'drafts'),key:'files/drafts',folders:['Drafts'],role:'draft'},
-  ...['learning-assets','learning-media','learning-sources','question-sources'].map(name=>({root:join(staticRoot,name),key:`resources/${name}`,folders:['Resources',name],role:'resource'})),
+  ...['learning-assets','learning-sources','question-sources'].map(name=>({root:join(staticRoot,name),key:`resources/${name}`,folders:['Resources',name],role:'resource'})),
   {root:join(staticRoot,'images','logos'),key:'resources/logos',folders:['Resources','Brand'],role:'resource'},
   {root:resolve(options.templatesRoot??'templates/plans'),key:'curriculum',folders:['Curriculum'],role:'curriculum'},
  ];
@@ -97,7 +89,7 @@ export async function learningInventory(options:{db?:DatabaseSync;dataRoot?:stri
     const after=await lstat(canonical);
     if(after.ino!==stat.ino||after.size!==stat.size||after.mtimeMs!==stat.mtimeMs)throw Error('source_changed');
     const rel=relative(basePath,canonical).split('\\').join('/');
-    artifacts.push({key:`${source.key}/${rel}`,name:basename(canonical),folders:[...source.folders,...rel.split('/').slice(0,-1)],mimeType:type,sha256:hash.digest('hex'),md5:checksum.digest('hex'),size:stat.size,role:source.role,lesson:source.role==='presentation'?rel.split('/')[0]:null,version:null,
+    artifacts.push({key:`${source.key}/${rel}`,name:basename(canonical),folders:[...source.folders,...rel.split('/').slice(0,-1)],mimeType:type,sha256:hash.digest('hex'),md5:checksum.digest('hex'),size:stat.size,role:source.role,lesson:null,version:null,
      read:async(offset=0,length=stat.size-offset)=>{
       if(await realpath(path)!==canonical)throw Error('source_path');
       const file=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);

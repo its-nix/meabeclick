@@ -14,7 +14,7 @@ const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
 const validId=(s:unknown):s is string=>typeof s==='string'&&/^[\w-]{10,}$/.test(s);
 const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 export const centralFileUrl=(file:CentralFile)=>file.mimeType===FOLDER?`https://drive.google.com/drive/folders/${file.id}`:file.mimeType===DOC?`https://docs.google.com/document/d/${file.id}/edit`:file.mimeType===SHEET?`https://docs.google.com/spreadsheets/d/${file.id}/edit`:file.mimeType===SLIDES?`https://docs.google.com/presentation/d/${file.id}/edit`:`https://drive.google.com/file/d/${file.id}/view`;
-export function artifactCategory(a:CentralArtifact){return ['slides','presentation'].includes(a.role)?'Presentations':a.role==='teacher-notes'?'Teacher notes':a.role==='game'?'Games':a.role==='draft'?'Drafts':a.role==='review'?'Review':a.role==='resource'?'Resources':a.role==='curriculum'?'Curriculum':a.role==='plan'?'Lesson plans':'Records';}
+export function artifactCategory(a:CentralArtifact){return ['slides','presentation'].includes(a.role)?'Presentations':a.role==='teacher-notes'?'Teacher notes':a.role==='game'?'Games':a.role==='resource'?'Resources':a.role==='curriculum'?'Curriculum':a.role==='plan'?'Lesson plans':'Records';}
 
 export class CentralDriveError extends Error {code:string;constructor(code:string){super(code);this.code=code;}}
 function fail(code:string):never{throw new CentralDriveError(code);}

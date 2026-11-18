@@ -61,8 +61,8 @@ function family() {
 
 test('the family is emailed once when the lesson is reported: its homework and a link, never the tutor\'s note', async () => {
   const { s, bookingId } = family();
-  L.addHomework({ studentId: s.id, task: 'תרגילים 1-5', bookingId });
-  L.addHomework({ studentId: s.id, task: 'עדיין מוחזק', bookingId, heldUntil: '2099-01-01T00:00:00.000Z' });
+  DB.handle().prepare(`INSERT INTO homework (student_id, task, assigned_at, booking_id) VALUES (?, 'תרגילים 1-5', '2027-04-05T16:00:00.000Z', ?)`).run(s.id, bookingId);
+  L.addHomework({ studentId: s.id, task: 'משימה של שיעור אחר' });
   const mails = [];
   const send = async (m) => { mails.push(m); return true; };
   assert.equal(await N.emailFamilyAfterReport(bookingId, { send }), 'sent');
@@ -71,7 +71,7 @@ test('the family is emailed once when the lesson is reported: its homework and a
   const m = mails[0];
   assert.equal(m.to, 'fam@example.com');
   assert.equal(m.studentName, 'נוגה כהן');
-  assert.deepEqual(m.tasks, ['תרגילים 1-5'], 'only what the family can already see');
+  assert.deepEqual(m.tasks, ['תרגילים 1-5'], 'only the homework recorded for that lesson');
   assert.match(m.link, /^https:\/\/site\.test\/enter#[A-Za-z0-9_-]{43}$/);
   assert.equal('note' in m, false);
 });

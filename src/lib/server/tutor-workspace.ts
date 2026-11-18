@@ -24,6 +24,7 @@ import {centralLearningSync} from '$server/central-drive/sync.ts';
 import {nativeWorkspace} from '$server/learning-archive.ts';
 import {listNativeLessonJobs} from '$server/native-learning/jobs.ts';
 import {NATIVE_PREPARATION_REASONS} from '$server/native-learning/worker.ts';
+import {tutorNativeResults} from '$server/native-learning/tutor-results.ts';
 import {NORMAL_REVIEW_CONTEXT,supportedNativeContext} from '$server/native-learning/context.ts';
 
 /** One guarded loader for the overview and the tutor's student detail page. */
@@ -70,6 +71,8 @@ export async function loadTutorWorkspace(event: RequestEvent, selectedStudentCod
     googleReady: webClientFromEnv() !== null,
     centralDrive:centralLearningSync().view(),
     nativeWorkspace:nativeWorkspace(),
+    /* Only on a student's own page: that student's game results, no answer keys. */
+    nativeResults:selected?tutorNativeResults(selected.id):null,
     nativeReviewContext:NORMAL_REVIEW_CONTEXT,
     nativeAuthoringEnabled:process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',
     learningFeedbackEnabled:process.env.LEARNING_FEEDBACK_ENABLED==='true',

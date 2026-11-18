@@ -21,7 +21,7 @@
   "scripts": {
     "predev": "node scripts/vendor-learning.mjs",
     "prebuild": "node scripts/vendor-learning.mjs",
-    "test:pilot:browser": "node tests/browser/visual-controls.mjs && node tests/browser/visual-pilot.mjs && node tests/browser/native-player-evidence.mjs",
+    "test:pilot:browser": "node tests/browser/visual-controls.mjs && node tests/browser/game-player-fit.mjs && node tests/browser/visual-pilot.mjs && node tests/browser/native-player-evidence.mjs",
     "test:workspace:browser": "node tests/browser/tutor-workspace.mjs",
     "start": "node build/index.js",
     "test": "node --test \"tests/**/*.test.mjs\"",

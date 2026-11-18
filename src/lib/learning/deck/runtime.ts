@@ -58,6 +58,7 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
  let printState:Map<HTMLElement,{stage:number;override:any}>|null=null;
  addEventListener('beforeprint',()=>{if(printState)return;printState=new Map();for(const node of all('[data-model]')){const m=models.get(node);printState.set(node,{stage:m.stage,override:{...m.override}});m.override={};paint(node,m.model.states.length-1);}});
  addEventListener('afterprint',()=>{if(!printState)return;for(const [node,saved]of printState){const m=models.get(node);m.override=saved.override;paint(node,saved.stage);}printState=null;});
+ let markDots=()=>{};
  const taskList=[...bundle.tasks,...bundle.homework,...bundle.games.flatMap((g:any)=>g.rounds)];
  for(const article of all('[data-task]')){
   const task=taskList.find((t:any)=>t.id===article.dataset.task);let choice:number|null=null,pending=false;
@@ -80,12 +81,22 @@ export function mountVisualDeck(config:any,visual:any,rich:(element:Element,text
    const input=task.grading==='tutor-review'?draft?.value:task.check?.kind==='choice'?choice:task.check?.kind==='region'?selects.map(s=>s.value===''?null:Number(s.value)):($('[data-number]',article) as HTMLInputElement)?.value;
    if(action==='attempt'&&(input===null||input===''||Array.isArray(input)&&input.some(v=>v===null))){feedback.textContent='בחרו או הקלידו תשובה כדי לנסות.';return;}
    pending=true;for(const b of all('[data-task-action]',article))(b as HTMLButtonElement).disabled=true;
-   try{const response=await fetch(config.actionUrl??'/api/learning-pilot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:config.version,taskId:task.id,action,input,eventId:crypto.randomUUID()})});const result=await response.json();rich(feedback,result.error??result.message??'');feedback.dataset.result=result.correct===true?'correct':result.correct===false?'retry':'help';if(result.independent===true)feedback.append(document.createTextNode(' פתרתם בלי רמז או הסבר.'));if(result.correct===true)article.dataset.complete='true';}
+   try{const response=await fetch(config.actionUrl??'/api/learning-pilot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({version:config.version,taskId:task.id,action,input,eventId:crypto.randomUUID()})});const result=await response.json();rich(feedback,result.error??result.message??'');feedback.dataset.result=result.correct===true?'correct':result.correct===false?'retry':'help';if(result.correct===true){article.dataset.complete='true';markDots();}}
    catch{feedback.textContent='החיבור לא הצליח. התשובה נשארה כאן; נסו שוב.';}
    finally{pending=false;for(const b of all('[data-task-action]',article))(b as HTMLButtonElement).disabled=false;}
   });
  }
- const rounds=all('[data-round]');
- const showRound=()=>{rounds.forEach((r,i)=>r.hidden=i!==round);const label=$('[data-game-position]');if(label)label.textContent=`סבב ${Math.min(round+1,rounds.length)} מתוך ${rounds.length}`;const button=$('[data-next-round]');if(button){button.textContent=round===rounds.length-1?'סיום המסלול ✓':'לסבב הבא ←';if(round>=rounds.length){button.hidden=true;label.textContent='סיימתם את המסלול. אפשר לחזור ולבדוק דרך אחרת.';}}};
- $('[data-next-round]')?.addEventListener('click',()=>{round++;showRound();});if(rounds.length)showRound();
+ const rounds=all('[data-round]'),done=$('[data-game-done]') as HTMLElement|null;
+ const dots=all('[data-dot]');
+ markDots=()=>{dots.forEach((d,i)=>{d.classList.toggle('current',i===round&&round<rounds.length);d.classList.toggle('complete',rounds[i]?.querySelector('[data-task]')?.getAttribute('data-complete')==='true');});};
+ const showRound=(move=false)=>{
+  const finished=round>=rounds.length;rounds.forEach((r,i)=>r.hidden=finished||i!==round);if(done)done.hidden=!finished;
+  const at=Math.min(round+1,rounds.length),label=$('[data-game-position]'),count=$('[data-game-count]');
+  if(label)label.setAttribute('aria-label',`שאלה ${at} מתוך ${rounds.length}`);if(count)count.textContent=`${at}/${rounds.length}`;markDots();
+  if(move)(finished?done:(rounds[round]?.querySelector('h2') as HTMLElement|null))?.focus({preventScroll:true});
+ };
+ for(const b of all('[data-next-round]'))b.addEventListener('click',()=>{round=Math.min(round+1,rounds.length);showRound(true);});
+ for(const b of all('[data-prev-round]'))b.addEventListener('click',()=>{round=Math.max(round-1,0);showRound(true);});
+ $('[data-game-restart]')?.addEventListener('click',()=>location.reload());
+ if(rounds.length)showRound();
 }

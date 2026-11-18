@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "rendererHash": "0232621b2032bfd3e2801f7408725a1b81cf3d1eef89bfefa420fe458c6d647b",
+  "rendererHash": "06775411413f8beb0583089da86e653c43cf3ca67a1a6c5e79ba3cfcfbe05b66",
   "files": {
     "Dockerfile": "770f95fba9d4cbe6cd5e164475d9c3435737be1f23e32d31ff0f2d92bb195a78",
     "package-lock.json": "9684bec27da525fe3cc1669b764bf70efa475297575177584112a293ae6cd6cc",
     "src/lib/brand.ts": "2e49484ee043b38b8a47c738820a3c52a1efcb116b9525d101d05e3c809399b8",
     "src/lib/learning/deck/model.ts": "0e97e38f81d26b12e466830a63c49248b2345e6a8c180093e20f8f800fa4c883",
     "src/lib/learning/deck/normal.ts": "55bbcde5a9b72349154b2e79e33b124725d79f1225345bbb01da1b421bc77c5c",
-    "src/lib/learning/deck/runtime.ts": "241781d0b644cf5a81819e24428fca343689eb843a3caf5fa80642612bfa8a78",
-    "src/lib/learning/deck/styles.ts": "c323cb4eb6852db5429b3517f2678afe0ef1a3d518a9a5a2da86533907fd5149",
+    "src/lib/learning/deck/runtime.ts": "4553aff8292dff62f80d3c70e9b565735bd5cab69d8356fb1071eee0f51eda58",
+    "src/lib/learning/deck/styles.ts": "b14ecdec983c3937ac2b0b161b6ea206ac53a68cad96ed1bdd9b2bb86594b648",
     "src/lib/learning/math.ts": "d8270153c99dba940b57e561c519adc8725865fe200c2f30478169ea20d7a677",
     "src/lib/server/lesson/official-question-assets.json": "0aba5fcdd5c2b7db88d47482d428f6b515651f787f65210a08887864889e52a9",
     "src/lib/server/lesson/official-questions.ts": "9095dfc835d54971a47b01f8f13f1d52fd268d6eb61a0672d0a636d75819315c",
@@ -17,7 +17,7 @@
     "src/lib/server/native-learning/names.ts": "e6fdda8fdb7c3e740995dfa96b1c405fa3119a369a2dd00b2c2902991f8a5634",
     "src/lib/server/native-learning/player-evidence.ts": "204088be95741088a6f0f0d8c88daa811956f485f591e662b4ba6151bcaba9ce",
     "src/lib/server/native-learning/review-evidence.ts": "f807b3e86427c565ddb53c80ffdbc3291c4127a29d9318570cda520bf4773da2",
-    "src/lib/server/visual-deck-render.ts": "97cb01d593ae0463c8c30f8309c4a33419017abd6fd5a625d246328a80e29209",
+    "src/lib/server/visual-deck-render.ts": "4acae3854c5ec37402970b074a353f4a01efb81271811a1d8a83c528ac546cd4",
     "src/lib/server/visual-pilot.ts": "bfa83555a307e8180322f34f8c68902e92fa190a8e448248b39d9ada09f24e53",
     "static/images/logos/logo-slate.svg": "8600682a9c1052517fa1b07a62d03391408532bddc559ab229f0f371baa348c1",
     "static/learning-assets/native-fonts/Heebo.ttf": "18f930b583fa8fe6b40b2f8263b7ac6afbac07adc91a12467874e7467d3ace30"

@@ -134,6 +134,6 @@
   button:hover { opacity: 0.9; }
   button:disabled { opacity: 0.55; cursor: default; }
   .err { color: var(--danger); font-size: 0.88rem; min-height: 22px; margin-top: 0.7rem; }
-  a { display: inline-block; margin-top: 1.2rem; color: var(--text-muted); font-size: 0.84rem; text-decoration: none; }
+  a { display: inline-flex; align-items: center; min-height: 44px; margin-top: 1.2rem; color: var(--text-muted); font-size: 0.84rem; text-decoration: none; }
   a:hover { color: var(--accent); }
 </style>

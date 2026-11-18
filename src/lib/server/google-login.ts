@@ -108,11 +108,18 @@ export function linkedGoogleIdentity(subject: string): FamilyIdentity | null {
 export function hasGoogleIdentity(identity: FamilyIdentity): boolean {
   return !!handle().prepare('SELECT 1 FROM google_identities WHERE scope_kind = ? AND scope_id = ?').get(identity.kind, identity.id);
 }
-/** Email captured at Google sign-in for a student's own Google identity (null if none linked). */
+/** Email captured at Google sign-in for a student's own Google identity (null if none linked). A self-learner signs in as
+ * the account, so for an is_self account that owns this one student the account-scoped identity is the student's own. */
 export function studentGoogleEmail(studentId: number): string | null {
-  const row = handle().prepare(`SELECT email FROM google_identities WHERE scope_kind = 'student' AND scope_id = ?`)
+  const db = handle();
+  const row = db.prepare(`SELECT email FROM google_identities WHERE scope_kind = 'student' AND scope_id = ?`)
     .get(studentId) as { email: string } | undefined;
-  return row?.email ?? null;
+  if (row) return row.email;
+  const self = db.prepare(`SELECT a.id FROM students_v2 s JOIN accounts a ON a.id = s.account_id
+    WHERE s.id = ? AND a.is_self = 1 AND (SELECT COUNT(*) FROM students_v2 x WHERE x.account_id = a.id) = 1`).get(studentId) as { id: number } | undefined;
+  if (!self) return null;
+  const account = db.prepare(`SELECT email FROM google_identities WHERE scope_kind = 'account' AND scope_id = ?`).get(self.id) as { email: string } | undefined;
+  return account?.email ?? null;
 }
 const same = (a: FamilyIdentity, b: FamilyIdentity) => a.kind === b.kind && a.id === b.id;
 

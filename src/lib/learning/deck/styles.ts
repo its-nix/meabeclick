@@ -30,6 +30,23 @@ body.game-body{height:100vh;height:100dvh;overflow:hidden;display:flex;flex-dire
 .game-page .task-feedback[data-result=help]{border-inline-start-color:var(--brand)}
 .game-page .task-actions{flex:none;display:flex;flex-wrap:nowrap;gap:8px;align-items:center}.game-page .task-actions .icon-btn.primary{flex:1;width:auto}
 .game-done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;outline:0}.game-done[hidden]{display:none}.game-done p{font-size:28px;font-weight:800}.game-done .task-actions{justify-content:center;gap:14px}.game-done .icon-btn{border:1px solid var(--border);background:var(--card)}
+.fx-canvas{position:fixed;inset:0;width:100vw;height:100dvh;pointer-events:none;z-index:50}
+.game-page .task-card{position:relative}.game-page .task-card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;background:var(--mint)}
+.game-page .task-card.flash-ok::after{animation:wash .55s ease-out}.game-page .task-card.flash-no::after{background:var(--cta);animation:wash-soft .5s ease-out}
+.task-input.shake{animation:shake .4s ease-in-out}.task-option.pop{animation:pop .4s cubic-bezier(.34,1.56,.64,1)}
+.task-option.is-correct{border-color:var(--mint);background:color-mix(in srgb,var(--mint) 14%,var(--card));display:flex;align-items:center;justify-content:space-between;gap:10px}
+.task-option.is-retry{border-color:var(--cta)}
+.tick{width:22px;height:22px;flex:none;fill:none;stroke:var(--mint);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.tick path{stroke-dasharray:1;stroke-dashoffset:0;animation:draw .38s .08s ease-out backwards}
+.game-page .win-badge{position:absolute;inset-block-start:-9px;inset-inline-end:14px;width:30px;height:30px;border-radius:50%;background:var(--card);border:2px solid var(--mint);display:grid;place-items:center;animation:pop .4s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+.game-dots i.pop{animation:dot-pop .45s cubic-bezier(.34,1.56,.64,1)}
+.game-round.in-next{animation:in-next .32s ease-out}.game-round.in-prev{animation:in-prev .32s ease-out}.game-done.in-next{animation:in-next .32s ease-out}
+.stars{display:flex;gap:10px;direction:ltr}.stars svg{width:52px;height:52px;fill:var(--border);stroke:none;display:block}.stars svg.on{fill:#f5b301;animation:star-in .5s calc(var(--i)*.26s) cubic-bezier(.34,1.56,.64,1) backwards}
+.tally{display:flex;gap:22px;font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}.tally span{display:flex;align-items:center;gap:8px}.tally b{min-width:1.2ch;text-align:center}
+@keyframes wash{0%{opacity:0}25%{opacity:.16}100%{opacity:0}}@keyframes wash-soft{0%{opacity:0}25%{opacity:.1}100%{opacity:0}}
+@keyframes shake{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+@keyframes pop{0%{transform:scale(.94)}55%{transform:scale(1.045)}100%{transform:scale(1)}}@keyframes dot-pop{0%{transform:scale(1)}50%{transform:scale(1.9)}100%{transform:scale(1)}}
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}@keyframes in-next{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}@keyframes in-prev{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes star-in{0%{transform:scale(.2) rotate(-25deg);opacity:0}100%{transform:none;opacity:1}}
 @media(max-height:660px){.game-body .topbar{min-height:48px;padding-block:4px}.game-page{gap:6px;margin-bottom:6px}.game-page .task-card{padding:12px;gap:8px}.game-page .task-prompt{font-size:19px}.game-page .task-givens{font-size:16px}.game-page .task-option{padding:8px 12px;margin-block-end:6px}}
 @media(max-width:600px){.game-body .topbar{padding-inline:12px}.game-body .topbar .review-meta{display:none}.game-page{padding-inline:10px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

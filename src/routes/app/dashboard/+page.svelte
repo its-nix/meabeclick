@@ -51,6 +51,18 @@
   // Named apart from the local fake-CRM `data` below (see that variable's
   // own comment) — this one is the real, server-rendered roster.
   let { data: pageData }: { data: PageData } = $props();
+  let nativeReviewBusy = $state<number|null>(null);
+  let nativeReviewMessage = $state('');
+  const nativeResultGames = $derived(pageData.nativeResults ?? []);
+  async function decideNativeReview(resultId:number,outcome:string){
+    nativeReviewBusy=resultId;nativeReviewMessage='';
+    try{
+      const response=await api(`/api/students/${encodeURIComponent(selectedStudentCode??'')}/native-results`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({resultId,outcome})});
+      if(response.ok){nativeReviewMessage='ההכרעה נשמרה';await invalidateAll();}
+      else nativeReviewMessage=(await response.json().catch(()=>({}))).error??'השמירה נכשלה';
+    }catch{nativeReviewMessage='השמירה נכשלה. נסו שוב.';}
+    finally{nativeReviewBusy=null;}
+  }
   let nativeRequests = $state<Record<number,string>>(untrack(()=>Object.fromEntries((pageData.nativePreparations??[]).map(p=>[p.bookingId,p.brief?.request??'']))));
   let nativeKnowledge = $state<Record<number,string>>(untrack(()=>Object.fromEntries((pageData.nativePreparations??[]).map(p=>[p.bookingId,p.brief?.priorKnowledge??'']))));
   let nativeContextConfirmed = $state<Record<number,boolean>>({});
@@ -961,6 +973,35 @@
       {#if pageData.nativeWorkspace}<a class="workspace-button" href={`https://drive.google.com/drive/folders/${pageData.nativeWorkspace.reviewId}`} target="_blank" rel="noopener">פתיחת טיוטות לבדיקה ב־Drive</a>{/if}
     </section>
   {/if}
+  {#if selectedStudentCode && pageData.nativeResults}
+    <section class="workspace-notice native-results" aria-labelledby="native-results-title">
+      <h2 id="native-results-title">תוצאות משחקים</h2>
+      {#each nativeResultGames as game (game.key)}
+        <h3>{game.gameTitle}</h3>
+        <ul class="native-results-list">
+          {#each game.rounds as round (round.id)}
+            <li class:awaiting={round.outcome==='awaiting-review'}>
+              <strong>{round.prompt || `שאלה ${round.roundId}`}</strong>
+              <span class="native-results-meta">{round.skillTitle ?? 'ללא מיומנות בתוכנית'} · <bdi>{round.attempts}</bdi> ניסיונות{#if round.seconds!==null} · <bdi>{round.seconds}</bdi> שניות{/if} · <bdi>{formatDateTime(round.at)}</bdi></span>
+              {#if round.outcome==='awaiting-review'}
+                <span class="native-results-outcome">ממתין לבדיקת המורה</span>
+                <span class="native-results-actions" role="group" aria-label="הכרעה בתשובה פתוחה">
+                  {#each [['correct','נכון'],['assisted','נכון בעזרה'],['incorrect','לא נכון']] as [value,label]}
+                    <button class="workspace-button" type="button" disabled={nativeReviewBusy!==null} onclick={()=>decideNativeReview(round.id,value)}>{label}</button>
+                  {/each}
+                </span>
+              {:else}
+                <span class="native-results-outcome">{({correct:'נכון',assisted:'נכון בעזרה',incorrect:'לא נכון'})[round.outcome]}</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p>עדיין אין תוצאות משחקים לתלמיד/ה זה/זו.</p>
+      {/each}
+      {#if nativeReviewMessage}<p role="status">{nativeReviewMessage}</p>{/if}
+    </section>
+  {/if}
   {#if !selectedStudentCode}
   <TutorPageHeader title="לוח בקרה" description={dashboardDate}>
     {#snippet actions()}
@@ -1606,6 +1647,7 @@
 </dialog>
 
 <style>
+  .native-results-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}.native-results-list li{display:grid;gap:6px;padding:12px;border:1px solid var(--border);border-radius:12px}.native-results-list li.awaiting{border-color:var(--text-muted-strong)}.native-results-meta{color:var(--text-muted-strong);font-size:.9em}.native-results-actions{display:flex;flex-wrap:wrap;gap:8px}.native-results-actions .workspace-button{min-height:44px}
   .workspace-notice{margin-block:20px;padding:24px;border:1px solid var(--border);border-radius:16px;background:var(--bg-card);line-height:1.8}.workspace-notice p{margin-block:8px 16px;color:var(--text-muted-strong)}
   .roster-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-block:32px 16px}
   .roster-toolbar .workspace-tutors-title{margin:0;display:flex;align-items:center;gap:10px}

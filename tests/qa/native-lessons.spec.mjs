@@ -117,3 +117,21 @@ test.describe('feedback discovery',()=>{
   mutate(qa,db=>seedRetired(db));const page=await qa.page('tutor');await page.goto('/app/dashboard');const link=page.getByRole('link',{name:'משוב ובדיקת חומרים',exact:true});await expect(link).toBeVisible();await expect(link).toHaveAttribute('href','https://docs.google.com/spreadsheets/d/sourceindex123/edit');expect((await(await qa.request('/api/learning-feedback')).json()).enabled).toBe(true);await qa.evidence(page,'native-feedback-index-link');
  });
 });
+
+test('native-lessons: tutor sees native game results and decides an open answer, nothing leaks to other roles',async({qa})=>{
+ mutate(qa,db=>seedRetired(db));const booking=await book(qa);
+ const game={id:'g1',title:'משחק בדיקה',kind:'quiz',rounds:[{id:'r1',prompt:'שאלה פתוחה',objectiveId:'o1',grading:'tutor-review',solution:'SECRET-KEY'}]};
+ mutate(qa,db=>{
+  db.prepare(`INSERT INTO native_games (material_id,release_id,student_id,booking_id,game_id,kind,content_json,source_file_id,source_revision,content_sha256,approved_at) VALUES ('m-qa','rel',?,?,'g1','quiz',?,'f','1','h','2028-08-01T00:00:00Z')`).run(booking.studentId,booking.bookingId,JSON.stringify(game));
+  db.prepare(`INSERT INTO native_results (student_id,booking_id,game_id,round_id,skill_node_id,outcome,attempts,seconds,at) VALUES (?,?,'g1','r1',NULL,'awaiting-review',1,30,'2028-08-10T12:00:00.000Z')`).run(booking.studentId,booking.bookingId);
+ });
+ const page=await qa.page('tutor');await page.setViewportSize({width:390,height:844});await page.goto(`/app/students/${booking.code}`);
+ const section=page.getByRole('region',{name:'תוצאות משחקים'});await expect(section).toContainText('משחק בדיקה');await expect(section).toContainText('ממתין לבדיקת המורה');
+ expect(await section.textContent()).not.toContain('SECRET-KEY');await qa.evidence(page,'native-results-awaiting');
+ const saved=page.waitForResponse(r=>r.url().endsWith(`/api/students/${booking.code}/native-results`)&&r.request().method()==='POST');
+ await section.getByRole('button',{name:'נכון בעזרה',exact:true}).click();expect((await saved).status()).toBe(200);
+ await expect(section.getByRole('button',{name:'נכון',exact:true})).toHaveCount(0);await expect(section).toContainText('נכון בעזרה');
+ expect(qa.row('SELECT outcome FROM native_results WHERE student_id=?',booking.studentId).outcome).toBe('assisted');await qa.evidence(page,'native-results-decided');
+ expect((await qa.request(`/api/students/${booking.code}/native-results`,{method:'POST',json:{resultId:1,outcome:'correct'}})).status).toBe(409);
+ for(const role of ['anonymous','student','parent']){const r=await qa.request(`/api/students/${booking.code}/native-results`,{cookie:qa.cookies[role]});expect(r.status).toBe(401);}
+});

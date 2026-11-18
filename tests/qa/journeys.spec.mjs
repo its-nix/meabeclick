@@ -354,14 +354,21 @@ test('permissions: retired lesson, game and join routes no longer exist', async 
 test('learning: public sample game grades on the server and stores nothing', async ({ qa }) => {
   const before = qa.row('SELECT count(*) n FROM native_results').n;
   const page = await qa.page('anonymous');
+  await page.setViewportSize({ width: 390, height: 700 });
   const response = await page.goto('/sample-game');
   expect(response.status()).toBe(200);
+  const fits = () => page.evaluate(() => document.documentElement.scrollHeight <= innerHeight);
+  expect(await fits(), 'a question fits one phone screen').toBe(true);
   const round = page.locator('[data-task]').first();
+  await expect(round.locator('[data-prev-round]')).toHaveAttribute('aria-label', 'לשאלה הקודמת');
+  await expect(round.locator('[data-next-round]')).toHaveAttribute('aria-label', 'לשאלה הבאה');
+  await expect(round.locator('[data-task-action="hint"]')).toHaveAttribute('aria-label', 'רמז');
   await round.locator('[data-choice]').nth(1).click();
   const attempt = page.waitForResponse(r => r.url().endsWith('/api/sample-game') && r.request().method() === 'POST');
   await round.locator('[data-task-action="attempt"]').click();
   expect((await attempt).status()).toBe(200);
   await expect(round.locator('[data-task-feedback]').filter({ hasText: /\S/ })).toBeVisible();
+  expect(await fits(), 'feedback still fits one phone screen').toBe(true);
   await qa.evidence(page, 'sample-game');
   const noSession = await qa.request('/api/sample-game', { cookie: '', method: 'POST', json: {} });
   expect(noSession.status).toBe(409);
@@ -387,8 +394,10 @@ test('learning: student plays an approved game while parent and anonymous visito
   await page.goto('/app/student/games');
   await expect(page.getByText('המשחקים שלי').first()).toBeVisible();
   await qa.evidence(page, 'student-games-list');
+  await page.setViewportSize({ width: 360, height: 640 });
   const response = await page.goto(`/app/student/games/${booking.id}/${game.id}`);
   expect(response.status()).toBe(200);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight), 'student game fits one phone screen').toBe(true);
   expect(await page.content()).not.toContain('"answer"');
   await qa.evidence(page, 'student-game-player');
   expect((await qa.request(`/app/student/games/${booking.id}/nope`, { cookie: qa.cookies.student })).status).toBe(404);

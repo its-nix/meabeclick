@@ -12,6 +12,13 @@ test('rendered page keeps answers server-side',()=>{
  assert.ok(!html.includes('"answer"')&&!html.includes('"hints"'));
  for(const r of S.sampleBundle().games[0].rounds){assert.ok(!html.includes(r.solution),r.id);for(const h of r.hints)assert.ok(!html.includes(h),r.id);}
 });
+test('the public sample page has no review chrome and none of the removed filler',()=>{
+ const html=renderVisualDeck(S.sampleBundle(),{view:'game',gameId:S.SAMPLE_GAME_ID,baseUrl:'/sample-game',actionUrl:'/api/sample-game',version:S.SAMPLE_VERSION,activitiesOnly:true,publicSample:true});
+ const visible=html.slice(html.indexOf('<body'),html.indexOf('<script type="application/json"'));
+ for(const gone of ['תצוגת בדיקה','פיילוט חזותי','חומרי השיעור','משימה משחקית','ארבע שאלות קצרות','השלמת המשחק','נרשם כעזרה'])assert.ok(!visible.includes(gone),gone);
+ assert.ok(visible.includes('data-prev-round')&&visible.includes('data-next-round')&&visible.includes('aria-label="רמז"'));
+ assert.equal((visible.match(/data-round="/g)??[]).length,4);
+});
 test('sessions grade correct and wrong, and cap memory',()=>{
  const id=S.startSampleSession(),r=S.sampleBundle().games[0].rounds[0];
  const body=(input,eventId)=>({version:S.SAMPLE_VERSION,taskId:r.id,action:'attempt',input,eventId});

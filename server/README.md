@@ -349,10 +349,12 @@ do, by hand, once.
    ```
 
    (`lessons/` and `drafts/` are gitignored, so their contents are real,
-   untracked, and invisible to `git status` — nothing about the migration
-   flags them for you. Skipping this step means `/lessons/<slug>` 404s for
-   every pre-cutover lesson ever sent to a family, and every draft the
-   tutor hadn't reviewed yet is gone.)
+   untracked, and invisible to `git status`. The site no longer serves
+   `/lessons/<slug>` (the route is gone; lessons are native games and Drive
+   files now), so this copy is not needed to keep any page working. Do it
+   only to keep the old generated files with the rest of the backup, and
+   note that every draft the tutor had not reviewed yet exists only in
+   those directories.)
 
 3. **Fix ownership** so the app container (uid 1000) can write to
    everything just copied in. Set the owner to 1000, but KEEP whatever
@@ -675,7 +677,7 @@ and its container were deleted afterwards.
 | File state restored | portal 6, lessons 3, drafts 1 |
 | Boot | clean, after the two fixes |
 | Portal board for a restored student | **HTTP 200**, name present, 4 homework entries, 5 games |
-| `/api/results`, `/api/students` | 200 |
+| `/api/students` | 200 (`/api/results` no longer exists; results are recorded by `/api/student-games/[bookingId]`, which needs a student session) |
 
 The database and the file state both came back, and the 2026-09-08 failure
 mode — a restored student whose board answered 500 — did not recur.

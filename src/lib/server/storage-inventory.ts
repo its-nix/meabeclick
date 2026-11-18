@@ -96,6 +96,7 @@ export const STORAGE: Record<string, TableFact> = {
   native_games: { status: 'live', note: 'Validated copies of tutor-approved Drive game files, written by the Sheet sync; students read only these.' },
   native_results: { status: 'live', note: 'Runtime store for native game results; Progress rows are appended from it.' },
   native_homework_shares: { status: 'live', note: 'Which approved homework Docs are shared with which student Google account, so withdrawal revokes exactly that grant.' },
+  native_homework_revocations: { status: 'live', note: 'Homework Doc grants whose revoke failed after the Doc was shared with a newer address; retried until revoked.' },
   native_lesson_jobs: { status: 'live', note: 'Durable booking/student-scoped native draft jobs, retry leases and artifact IDs; review never authorizes delivery.' },
   learning_archive:   { status: 'live', note: 'One frozen archive job and its verified native-workspace receipt; source content stays in Drive and historical material storage.' },
 

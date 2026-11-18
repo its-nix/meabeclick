@@ -19,6 +19,7 @@ export type FinalOutcome = Exclude<NativeOutcome, 'awaiting-review'>;
 export interface NativeResult {
  id: number; studentId: number; bookingId: number | null; gameId: string; roundId: string;
  skillNodeId: string | null; outcome: NativeOutcome; attempts: number; seconds: number | null; at: string;
+ hints?: number; revealed?: boolean;
 }
 const OUTCOMES: readonly string[] = ['correct', 'assisted', 'incorrect'];
 const norm = (s: unknown) => String(s ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ');
@@ -27,7 +28,42 @@ const int = (v: unknown, min: number, max: number) => Number.isInteger(v) && (v 
 function decode(r: Record<string, unknown>): NativeResult {
  return { id: Number(r.id), studentId: Number(r.student_id), bookingId: r.booking_id === null ? null : Number(r.booking_id),
   gameId: String(r.game_id), roundId: String(r.round_id), skillNodeId: r.skill_node_id === null ? null : String(r.skill_node_id),
-  outcome: r.outcome as NativeOutcome, attempts: Number(r.attempts), seconds: r.seconds === null ? null : Number(r.seconds), at: String(r.at) };
+  outcome: r.outcome as NativeOutcome, attempts: Number(r.attempts), seconds: r.seconds === null ? null : Number(r.seconds), at: String(r.at),
+  hints: Number(r.hints ?? 0), revealed: Number(r.revealed ?? 0) === 1 };
+}
+
+
+/** Server-side cap on recorded attempts per round; the 21st attempt is refused. */
+export const ATTEMPT_CAP = 20;
+/** An incorrect-only round with no new attempt for this long is treated as given up and settles as needs_review. */
+export const ABANDONED_MS = 6 * 60 * 60 * 1000;
+const roundKey = (r: { bookingId: number | null; gameId: string; roundId: string }) => `${r.bookingId}/${r.gameId}/${r.roundId}`;
+
+/** Evidence rule. Per round the first decided (correct/assisted) result stands: a first correct attempt without help stays
+ * demonstrated and a later wrong retry never downgrades it. A round never decided is represented by its latest incorrect. Awaiting-review rows are not evidence. */
+export function decisiveResults<T extends { id: number; bookingId: number | null; gameId: string; roundId: string; outcome: string }>(rows: T[]): T[] {
+ const by = new Map<string, T>();
+ for (const r of rows) {
+  if (r.outcome === 'awaiting-review') continue;
+  const key = roundKey(r), cur = by.get(key);
+  if (!cur) by.set(key, r);
+  else if (cur.outcome === 'incorrect') by.set(key, r);
+ }
+ return [...by.values()];
+}
+
+/** Attempts, help used and whether the round is decided, derived from stored rows only (nothing lives in memory). */
+export function nativeRoundState(studentId: number, bookingId: number, gameId: string, roundId: string) {
+ const r = handle().prepare(`SELECT COUNT(*) n, COALESCE(SUM(hints),0) h, COALESCE(MAX(revealed),0) v, COALESCE(SUM(outcome IN ('correct','assisted')),0) d
+  FROM native_results WHERE student_id=? AND booking_id=? AND game_id=? AND round_id=?`).get(studentId, bookingId, gameId, roundId)!;
+ return { attempts: Number(r.n), hints: Number(r.h), revealed: Number(r.v) === 1, decided: Number(r.d) > 0 };
+}
+
+/** Persists a hint or a revealed solution on the round's latest undecided result. Help after a decided result is irrelevant and not stored. */
+export function recordNativeAssist(input: { studentId: number; bookingId: number; gameId: string; roundId: string; kind: 'hint' | 'solution' }): void {
+ const set = input.kind === 'hint' ? 'hints=hints+1' : 'revealed=1';
+ handle().prepare(`UPDATE native_results SET ${set} WHERE id=(SELECT id FROM native_results WHERE student_id=? AND booking_id=? AND game_id=? AND round_id=? ORDER BY id DESC LIMIT 1)
+  AND outcome NOT IN ('correct','assisted')`).run(input.studentId, input.bookingId, input.gameId, input.roundId);
 }
 
 /** Finds the round in the approved copy (native_games), never in browser input. */
@@ -109,35 +145,40 @@ export function progressRowForResult(result: NativeResult, skillKey: string, ctx
 }
 
 export interface ProgressSheet { progressIds(): Promise<Set<string>>; appendProgress(rows: WorkspaceRow[]): Promise<void> }
-/** Idempotent: rows whose evidence_id is already in the Sheet are skipped; unmapped results are left for the next sync. */
+/** One Progress row per (student, booking, round). A round settles when it has a decided result, has used all its attempts, or has sat untouched for ABANDONED_MS;
+ * a round still being attempted is left for a later pass, so the append-only Sheet never holds a stale answer. Idempotent by
+ * evidence_id, and any earlier per-attempt row of the same round (older syncs) also counts as already appended. */
 export async function appendNativeResultsToProgress(input: { sheet: ProgressSheet; studentId: number;
  context: (r: NativeResult) => ProgressContext | null }): Promise<{ appended: number; skipped: number }> {
  const existing = await input.sheet.progressIds();
+ const all = nativeResultsForStudent(input.studentId);
  const rows: WorkspaceRow[] = [];
- let skipped = 0;
- for (const r of nativeResultsForStudent(input.studentId)) {
+ let skipped = all.length;
+ const counts = new Map<string, number>();
+ for (const r of all) counts.set(roundKey(r), (counts.get(roundKey(r)) ?? 0) + 1);
+ for (const r of decisiveResults(all)) {
+  const settled = r.outcome !== 'incorrect' || (counts.get(roundKey(r)) ?? 0) >= ATTEMPT_CAP || Date.now() - Date.parse(r.at) >= ABANDONED_MS;
+  const sameRound = all.filter(x => roundKey(x) === roundKey(r));
   const ctx = input.context(r);
   const key = r.skillNodeId ? handle().prepare('SELECT key FROM plan_nodes WHERE id=?').get(Number(r.skillNodeId))?.key : null;
-  const row = ctx && key ? progressRowForResult(r, String(key), ctx) : null;
-  if (!row || existing.has(String(row.evidence_id))) { skipped++; continue; }
+  const row = settled && ctx && key ? progressRowForResult(r, String(key), ctx) : null;
+  if (!row || sameRound.some(x => existing.has(`native-result-${x.id}`))) continue;
   rows.push(row);
  }
  if (rows.length) await input.sheet.appendProgress(rows);
+ skipped -= rows.length;
  return { appended: rows.length, skipped };
 }
 
-/** Parent-evidence plays: one per (booking, game), latest attempt per round, awaiting-review excluded. */
+/** Parent-evidence plays: one per (booking, game); each round is represented by its decisive result, awaiting-review excluded. */
 export function nativePlaysForSkill(studentId: number, nodeId: number) {
  const rows = handle().prepare(`SELECT * FROM native_results WHERE student_id=? AND skill_node_id=? AND outcome!='awaiting-review' ORDER BY at, id`)
   .all(studentId, String(nodeId)).map(decode);
- const games = new Map<string, Map<string, NativeResult>>();
- for (const r of rows) {
-  const g = games.get(`${r.bookingId}/${r.gameId}`) ?? new Map();
-  g.set(r.roundId, r); games.set(`${r.bookingId}/${r.gameId}`, g);
+ const games = new Map<string, NativeResult[]>();
+ for (const r of decisiveResults(rows)) {
+  const k = `${r.bookingId}/${r.gameId}`;
+  games.set(k, [...(games.get(k) ?? []), r]);
  }
- return [...games.values()].map(g => {
-  const latest = [...g.values()];
-  return { at: latest.map(r => r.at).sort().at(-1) as string, score: latest.filter(r => r.outcome !== 'incorrect').length,
-   total: latest.length, hints: latest.filter(r => r.outcome === 'assisted').length };
- });
+ return [...games.values()].map(latest => ({ at: latest.map(r => r.at).sort().at(-1) as string, score: latest.filter(r => r.outcome !== 'incorrect').length,
+  total: latest.length, hints: latest.filter(r => r.outcome === 'assisted').length }));
 }

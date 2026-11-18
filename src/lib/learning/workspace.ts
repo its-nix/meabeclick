@@ -20,6 +20,21 @@ const names=Object.keys(workspaceTables) as (keyof Omit<WorkspaceSnapshot,'versi
 export const workspaceHeader=(column:WorkspaceColumn)=>`${column.label} [${column.key}]`;
 /** Sheets DATE cells are civil calendar fields, not instants for display in Israel. */
 function sheetCivilDate(date:Date){return [String(date.getUTCFullYear()).padStart(4,'0'),String(date.getUTCMonth()+1).padStart(2,'0'),String(date.getUTCDate()).padStart(2,'0')].join('-');}
+function decodeRow(name:string,keys:string[],row:WorkspaceCell[],i:number):WorkspaceRow{
+ const record:WorkspaceRow={};for(const c of workspaceTables[name]){const raw=row[keys.indexOf(c.key)];if(c.kind==='boolean'){const v=String(raw??'').toLowerCase();if(!['true','false'].includes(v))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=v==='true';}else if(typeof raw==='number'&&(c.kind==='date'||c.kind==='instant')){const date=new Date(Date.UTC(1899,11,30)+Math.round(raw*86400000));if(!Number.isFinite(date.getTime()))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=c.kind==='date'?sheetCivilDate(date):date.toISOString();}else record[c.key]=String(raw??'').trim();}return record;
+}
+/** Reader for syncs that must keep revoking access: decodes only the named tabs, ignores columns it does not know, and skips and reports a row it cannot read instead of failing the whole register. A tab whose header lacks a required column still throws, because no row of it can be trusted. */
+export function decodeWorkspaceRows(grids:Record<string,WorkspaceCell[][]>,name:keyof Omit<WorkspaceSnapshot,'version'>):{rows:WorkspaceRow[];problems:string[]}{
+ const grid=grids[name];if(!Array.isArray(grid)||!Array.isArray(grid[0]))throw Error(`${name}: missing header`);
+ const keys=grid[0].map(h=>String(h??'').trim().match(/\[([a-z][a-z0-9_]+)\]$/)?.[1]??String(h??'').trim());
+ for(const c of workspaceTables[name])if(keys.filter(k=>k===c.key).length!==1)throw Error(`${name}: missing or duplicate column ${c.key}`);
+ const rows:WorkspaceRow[]=[],problems:string[]=[];
+ grid.slice(1).forEach((row,i)=>{
+  if(!Array.isArray(row)||!row.some(v=>v!==null&&String(v).trim()!==''))return;
+  try{rows.push(decodeRow(name,keys,row,i));}catch(e){problems.push(String((e as Error).message));}
+ });
+ return {rows,problems};
+}
 /** `tolerateRuleViolations` keeps structural checks (headers, types) but returns rows that break cross-record rules, so a sync can withdraw access instead of failing wholesale. */
 export function decodeWorkspace(grids:Record<string,WorkspaceCell[][]>,version:number,options:{tolerateRuleViolations?:boolean}={}):WorkspaceSnapshot {
  if(version!==1)throw Error('unsupported workspace schema version');
@@ -34,7 +49,7 @@ export function decodeWorkspace(grids:Record<string,WorkspaceCell[][]>,version:n
   for(const key of keys)if(key&&!expected.includes(key)&&!siteKeys.includes(key))throw Error(`${name}: unknown column ${key}`);
   snapshot[name]=grid.slice(1).filter(row=>row.some(v=>v!==null&&String(v).trim()!=='')).map((row,i)=>{
    if(row.some((value,index)=>!keys[index]&&value!==null&&value!==undefined&&String(value).trim()!==''))throw Error(`${name} row ${i+2}: populated column has no key`);
-   const record:WorkspaceRow={};for(const c of workspaceTables[name]){const raw=row[keys.indexOf(c.key)];if(c.kind==='boolean'){const v=String(raw??'').toLowerCase();if(!['true','false'].includes(v))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=v==='true';}else if(typeof raw==='number'&&(c.kind==='date'||c.kind==='instant')){const date=new Date(Date.UTC(1899,11,30)+Math.round(raw*86400000));if(!Number.isFinite(date.getTime()))throw Error(`${name} row ${i+2}: invalid ${c.key}`);record[c.key]=c.kind==='date'?sheetCivilDate(date):date.toISOString();}else record[c.key]=String(raw??'').trim();}return record;
+   return decodeRow(name,keys,row,i);
   });
  }
  if(!options.tolerateRuleViolations){const problems=workspaceProblems(snapshot);if(problems.length)throw Error(problems.join('; '));}

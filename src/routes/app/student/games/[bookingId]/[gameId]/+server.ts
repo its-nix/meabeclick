@@ -13,6 +13,6 @@ export const GET:RequestHandler=({locals,params,url})=>{
  if(!Number.isInteger(bookingId))error(404,'המשחק לא נמצא');
  const approved=approvedGameBundle(student.id,bookingId,params.gameId);
  if(!approved)error(404,'המשחק לא נמצא');
- const html=renderVisualDeck(approved.bundle,{view:'game',gameId:params.gameId,baseUrl:'/app/student/games',actionUrl:`/api/student-games/${bookingId}`,version:approved.version,activitiesOnly:true});
+ const html=renderVisualDeck(approved.bundle,{view:'game',gameId:params.gameId,baseUrl:'/app/student/games',actionUrl:`/api/student-games/${bookingId}`,version:approved.version,activitiesOnly:true,studentPlayer:true});
  return new Response(html,{headers:{...documentHeaders(),'Cache-Control':'private, no-store','X-Robots-Tag':'noindex, nofollow'}});
 };

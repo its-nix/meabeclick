@@ -29,9 +29,10 @@ function parseGamesFile(text:string,lessonRef:string):GamesFile {
 
 /** Called by the Sheet sync when a game Material is approved and published; never by a button. Fails closed:
  * on any invalid file nothing is written and any previously approved copy stays as it was. */
-export async function approveNativeLesson(input:{bookingId:number;sheetRevision:string;materialId:string;releaseId:string;fileId:string;expectedSha256?:string;drive:GamesDrive}):Promise<ApprovedGame[]> {
+export async function approveNativeLesson(input:{bookingId:number;sheetRevision:string;materialId:string;releaseId:string;fileId:string;expectedSha256?:string;studentId?:number;drive:GamesDrive}):Promise<ApprovedGame[]> {
  const job=handle().prepare('SELECT student_id,state FROM native_lesson_jobs WHERE booking_id=?').get(input.bookingId);
  if(!job||job.state==='cancelled')throw new Error('games_no_lesson');
+ if(input.studentId!==undefined&&Number(job.student_id)!==input.studentId)throw new Error('games_student_mismatch');
  if(!input.materialId||!input.releaseId||!input.sheetRevision)throw new Error('games_release_required');
  const file=await input.drive.read(input.fileId);
  if(!file||typeof file.revisionId!=='string'||!file.revisionId)throw new Error('games_file_invalid: revision');
@@ -54,7 +55,11 @@ export function withdrawNativeGames(materialId:string):number {
  return inTransaction(()=>{
   const db=handle(),rows=db.prepare('SELECT DISTINCT booking_id FROM native_games WHERE material_id=?').all(materialId);
   const n=Number(db.prepare('DELETE FROM native_games WHERE material_id=?').run(materialId).changes);
-  for(const r of rows)db.prepare('UPDATE native_lesson_jobs SET approved_release_id=NULL,approved_sheet_revision=NULL,approved_at=NULL WHERE booking_id=?').run(r.booking_id);
+  for(const r of rows){
+   const rest=db.prepare('SELECT release_id,source_revision,approved_at FROM native_games WHERE booking_id=? ORDER BY id DESC LIMIT 1').get(r.booking_id);
+   if(rest)db.prepare('UPDATE native_lesson_jobs SET approved_release_id=?,approved_at=? WHERE booking_id=?').run(rest.release_id,rest.approved_at,r.booking_id);
+   else db.prepare('UPDATE native_lesson_jobs SET approved_release_id=NULL,approved_sheet_revision=NULL,approved_at=NULL WHERE booking_id=?').run(r.booking_id);
+  }
   return n;
  });
 }
@@ -78,6 +83,14 @@ export function approvedGameBundle(studentId:number,bookingId:number,gameId?:str
  const rows=handle().prepare('SELECT game_id,content_json,content_sha256 FROM native_games WHERE student_id=? AND booking_id=? ORDER BY id').all(studentId,bookingId).filter(r=>!gameId||r.game_id===gameId);
  if(!rows.length)return null;
  return {bundle:shellFor(rows.map(r=>JSON.parse(String(r.content_json)))),version:String(rows[0].content_sha256)};
+}
+/** The approved game holding one round, with the version (content hash) of the material it was approved from. A booking may carry several approved materials, each with its own version. */
+export function approvedGameForRound(studentId:number,bookingId:number,roundId:string):{game:Game;version:string}|null{
+ for(const r of handle().prepare('SELECT content_json,content_sha256 FROM native_games WHERE student_id=? AND booking_id=? ORDER BY id').all(studentId,bookingId)){
+  const game=JSON.parse(String(r.content_json)) as Game;
+  if(game.rounds.some(x=>x.id===roundId))return {game,version:String(r.content_sha256)};
+ }
+ return null;
 }
 /** Student's approved lessons with their answer-stripped games, newest lesson first. */
 export function approvedGameLessonsForStudent(studentId:number){

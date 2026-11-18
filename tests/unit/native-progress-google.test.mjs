@@ -41,6 +41,7 @@ test('finished game results are appended once to a created Native Progress tab; 
  const c = setup();
  const rec = (roundId, outcome = 'correct', attempts = 1) => R.recordNativeResult({ studentId: c.student.id, bookingId: c.bookingId, gameId: 'g1', roundId, outcome, attempts, seconds: 5 });
  rec('r1'); rec('r2', 'incorrect', 2); rec('r3', 'correct', 1); rec('r4');
+ handle().prepare("UPDATE native_results SET at='2000-01-01T00:00:00.000Z' WHERE round_id='r2'").run(); // given up long ago, so it settles
  const sheets = []; let calls = 0;
  const api = { scope: 'scope-1', ownerEmail: 'o@example.test', async json(url, init) {
   calls++;

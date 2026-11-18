@@ -10,7 +10,7 @@
  * Nothing here may break a generation: recording is best-effort.
  */
 import { handle } from '../db.ts';
-import { ENGINE_DOWN_MESSAGES, type LessonFailureKind } from './engine.ts';
+import type { LessonFailureKind } from './engine.ts';
 
 const DOWN_KINDS: LessonFailureKind[] = ['engine-quota', 'engine-auth', 'engine-missing'];
 
@@ -70,18 +70,20 @@ export function engineDown(engine = 'codex'): EngineDown | null {
 
 /**
  * What the tutor's dashboard says while the server's engine is down: why,
- * until when, and which coming lessons have nothing prepared because of it
- * (their generation failed with the engine-down message, not for some other
+ * until when, and which coming lessons have no draft because of it (their
+ * native preparation failed with an engine-down code, not for some other
  * reason). Null while it is up.
  */
 export function engineAlert(now: Date = new Date()): (EngineDown & { affected: { student: string; lessonAt: string }[] }) | null {
   const down = engineDown('codex');
   if (!down) return null;
-  const problems = Object.values(ENGINE_DOWN_MESSAGES);
   const affected = handle().prepare(`
-    SELECT student, lesson_at FROM lessons
-     WHERE status = 'failed' AND lesson_at > ? AND problem IN (${problems.map(() => '?').join(',')})
-     ORDER BY lesson_at LIMIT 20
-  `).all(now.toISOString(), ...problems) as { student: string; lesson_at: string }[];
+    SELECT s.name AS student, b.start AS lesson_at
+      FROM native_lesson_jobs j
+      JOIN bookings_v2 b ON b.id = j.booking_id
+      JOIN students_v2 s ON s.id = j.student_id
+     WHERE j.state = 'failed' AND b.start > ? AND j.error_code IN (${DOWN_KINDS.map(() => '?').join(',')})
+     ORDER BY b.start LIMIT 20
+  `).all(now.toISOString(), ...DOWN_KINDS) as { student: string; lesson_at: string }[];
   return { ...down, affected: affected.map(r => ({ student: r.student, lessonAt: r.lesson_at })) };
 }

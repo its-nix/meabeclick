@@ -216,7 +216,7 @@ export function checkPortalDir(): void {
 
 /**
  * WARNS, does not throw: lesson generation and the student question box
- * both shell out to the `codex` CLI (lesson/prep.ts and ask.ts, via
+ * both shell out to the `codex` CLI (native-learning/authoring.ts and ask.ts, via
  * CODEX_BIN or 'codex' on PATH). A multi-stage
  * Docker build that copies only build/ and production node_modules
  * silently drops the globally-installed binary, and generation then fails

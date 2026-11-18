@@ -5,13 +5,12 @@ test('a real slide bundle supports more than twelve meaningful slides with coher
  assert.deepEqual(m.visualLessonProblems(visualDeckFixture()),[]);
  const bad=visualDeckFixture();bad.agenda[0].minutes=89;assert.ok(m.visualLessonProblems(bad).some(x=>x.includes('זמן')));
 });
-test('the complete official question has verified imagery and cannot enter the old single-answer generator',async()=>{
+test('the complete official question has verified imagery',async()=>{
  const m=await import('../../src/lib/server/lesson/official-questions.ts');
  const q=m.officialQuestion('moe-2025a-35372-3');assert.ok(q,'verified full question is catalogued');
  assert.equal(q.questionnaire,'35372');assert.equal(q.answers.a1,'72');assert.equal(q.answers.c,'200');
  const asset=await m.officialQuestionAsset(q.id);assert.match(asset.image,/^data:image\/png;base64,/);
  const {createHash}=await import('node:crypto');assert.equal(createHash('sha256').update(Buffer.from(asset.image.split(',')[1],'base64')).digest('hex'),asset.imageSha256);
- assert.equal(m.resolveOfficialQuestions({grade:'כיתה יב',track:'3',questionnaire:'35372',request:'התפלגות נורמלית',skill:'התפלגות נורמלית',durationMin:90,history:[]},{requiredQuestionId:q.id}).status,'unresolved');
 });
 test('task checks and public projections preserve answer and note boundaries',async()=>{
  const {gradeDeckTask,publicVisualLesson,visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();

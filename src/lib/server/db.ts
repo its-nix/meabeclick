@@ -228,41 +228,6 @@ db.exec(`UPDATE students SET password = student_pin WHERE password IS NULL`);
 
 /* ── Lessons ──────────────────────────────────────────────────── */
 
-export interface CreateLessonInput {
-  slug: string;
-  student: string;
-  subject?: string | null;
-  level?: string | null;
-  topic?: string | null;
-  lessonAt?: string | null;
-}
-
-export function createLesson({ slug, student, subject, level, topic, lessonAt }: CreateLessonInput): void {
-  db.prepare(`
-    INSERT INTO lessons (slug, student, subject, level, topic, at, lesson_at, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'generating')
-    ON CONFLICT(slug) DO UPDATE SET status='generating', problem=NULL
-  `).run(slug, student, subject ?? null, level ?? null, topic ?? null,
-         new Date().toISOString(), lessonAt ?? null);
-}
-
-export interface FinishLessonInput {
-  status: string;
-  title?: string | null;
-  context?: string | null;
-  homework?: unknown[] | null;
-  problem?: string | null;
-}
-
-export function finishLesson(slug: string, { status, title, context, homework, problem }: FinishLessonInput): void {
-  db.prepare(`
-    UPDATE lessons SET status=?, title=?, context=?, homework=?, problem=?
-    WHERE slug=?
-  `).run(status, title ?? null, context ?? null,
-         homework ? JSON.stringify(homework) : null,
-         problem ?? null, slug);
-}
-
 export interface LessonSummary {
   slug: string;
   student: string;

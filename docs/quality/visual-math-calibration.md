@@ -8,13 +8,11 @@ The 90-minute introductory normal-distribution lesson targets three-unit questio
 
 Review URLs after deployment:
 
-- Lesson: https://meabeclick.com/app/learning-pilot
-- Private notes: https://meabeclick.com/app/learning-pilot?view=presenter
-- Homework: https://meabeclick.com/app/learning-pilot?view=homework
-- Region game: https://meabeclick.com/app/learning-pilot?view=game&game=game-regions
-- Axis game: https://meabeclick.com/app/learning-pilot?view=game&game=game-axis
+- Homework: https://meabeclick.com/app/native-review-activities?view=homework
+- Region game: https://meabeclick.com/app/native-review-activities?view=game&game=game-regions
+- Axis game: https://meabeclick.com/app/native-review-activities?view=game&game=game-axis
 
-These require tutor authentication. Preview state is ephemeral; customer submissions, scores, assigned materials and published links are unchanged. Automatic generation retains its existing default. The prior baseline and v2 galleries remain available.
+These require tutor authentication. Preview state is ephemeral; customer submissions, scores, assigned materials and published links are unchanged.
 
 ## Engine and provenance
 

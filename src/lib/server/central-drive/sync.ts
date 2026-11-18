@@ -1,6 +1,6 @@
 /** One process-wide worker. Drive holds content; this file keeps only retry state. */
 import {randomUUID} from 'node:crypto';
-import {readFileSync,writeFileSync,renameSync,mkdirSync,unlinkSync,existsSync} from 'node:fs';
+import {readFileSync,writeFileSync,renameSync,mkdirSync,unlinkSync} from 'node:fs';
 import {join,dirname} from 'node:path';
 import {learningService} from '../learning-google.ts';
 import {centralDriveApi,artifactCategory,centralFileUrl,type CentralAccess,type UploadCheckpoint} from './api.ts';
@@ -19,7 +19,6 @@ export const SYNC_ERRORS:Record<string,string>={
  setup:'חיבור האחסון עדיין לא הוגדר בשרת.',disconnected:'יש לחבר פעם אחת את חשבון האחסון האישי.',
  google:'הסנכרון מול Google לא הושלם. חומרים שכבר נשמרו יישמרו לניסיון הבא.',
 };
-export class CentralStorageSelected extends Error {constructor(){super('central storage selected');}}
 type Phase='idle'|'running'|'complete'|'failed'|'paused';
 interface State {version:1;selected:boolean;archiveRequested?:boolean;scope?:string;runId?:string|null;phase:Phase;stage:string;startedAt?:string;lastSuccess?:string;done:number;total:number;uploaded:number;reused:number;students:number;error?:string|null;indexUrl?:string;fingerprint?:string;pending?:UploadCheckpoint|null}
 interface Service {status:()=>{state:string;account:string;folderUrl?:string;automaticSyncEnabled:boolean};syncAccess:()=>CentralAccess;setAutomaticSync:(enabled:boolean)=>Promise<unknown>}
@@ -121,9 +120,4 @@ export function centralSyncController(options:{path:string;service:()=>Service;i
 let controller:ReturnType<typeof centralSyncController>|undefined;
 const statePath=()=>join(process.env.DATA_DIR??'./data','.credentials','central-learning-sync.json');
 export function centralLearningSync(){return controller??=centralSyncController({path:statePath(),service:learningService,archive:{current:nativeWorkspace,begin:inv=>beginArchive({fingerprint:inv.fingerprint,slugs:inv.lessonSlugs}),revision:sourceRevision,complete:completeArchive},inventory:async()=>{const{learningInventory}=await import('./source.ts');return learningInventory();}});}
-/** A revoked/misconfigured central connection must not revive business storage. */
-export function centralStorageSelected(){
- try{if(load(statePath()).selected)return true;return learningService().centralSelected();}
- catch{return existsSync(join(process.env.DATA_DIR??'./data','.credentials','learning-google.json'))||existsSync(statePath());}
-}
 export function queueCentralSync(){try{return centralLearningSync().queue();}catch{return centralLearningSync().view();}}

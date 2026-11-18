@@ -23,7 +23,7 @@ import { getStudentByCode } from '$server/entities.ts';
 import { homeworkForStudent, setHomeworkSubmitted } from '$server/lessons.ts';
 import { progressFor } from '$server/progress.ts';
 import { noticeHomeworkSubmitted } from '$server/notices.ts';
-import { sendWhatsApp } from '$server/lesson/queue.ts';
+import { sendWhatsApp } from '$server/whatsapp.ts';
 import type { RequestHandler } from './$types';
 
 const CODE_FORMAT = /^[a-z0-9-]+$/;

@@ -21,24 +21,19 @@
   "scripts": {
     "predev": "node scripts/vendor-learning.mjs",
     "prebuild": "node scripts/vendor-learning.mjs",
-    "test:learning": "node --test tests/unit/learning-experience.test.mjs tests/unit/learning-lifecycle.test.mjs tests/characterization/learning-experience.test.mjs tests/unit/presenter-notes.test.mjs tests/characterization/presenter-notes.test.mjs",
     "test:pilot:browser": "node tests/browser/visual-controls.mjs && node tests/browser/visual-pilot.mjs && node tests/browser/native-player-evidence.mjs",
-    "test:learning:browser": "node tests/browser/learning-experience.mjs",
     "test:workspace:browser": "node tests/browser/tutor-workspace.mjs",
-    "learning:video": "node scripts/render-learning-video.mjs",
     "start": "node build/index.js",
     "test": "node --test \"tests/**/*.test.mjs\"",
     "dev": "vite dev",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:ci": "node scripts/check-warnings.mjs",
-    "test:review:browser": "node tests/browser/learning-review.mjs",
     "test:ui:browser": "node tests/browser/apple-role-journeys.mjs",
     "test:auth:browser": "node tests/browser/google-onboarding.mjs",
     "test:qa": "playwright test --config playwright.qa.config.mjs",
     "test:qa:select": "node scripts/pr-qa/select.mjs",
-    "test:qa:report": "node scripts/pr-qa/report.mjs",
-    "test:review:v2:browser": "REVIEW_VERSION=v2 node tests/browser/learning-review.mjs"
+    "test:qa:report": "node scripts/pr-qa/report.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

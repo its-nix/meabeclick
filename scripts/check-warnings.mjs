@@ -38,7 +38,7 @@ import { promisify } from 'node:util';
  * Lower it when warnings are removed. Raise it only with a note saying what
  * was accepted and why.
  */
-const BASELINE = 22;
+const BASELINE = 3;
 
 /**
  * Parses svelte-check's summary. Exported for its own test.

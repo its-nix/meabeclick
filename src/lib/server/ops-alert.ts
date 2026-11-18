@@ -2,15 +2,13 @@
  * The ops alert channel: where a daily health check's ONE message goes, and
  * the never-silent rules for sending it.
  *
- * Shared by the daily generation health check
- * (lesson/generation-health.ts, Todoist 6hmX5pXvghfFvv6H) and the daily ops
- * health check (ops-health.ts, Todoist 6hmX5rXVh6J636HH). Both used to be
- * one file; the channel moved here when the second check arrived so there
+ * Used by the daily ops health check (ops-health.ts,
+ * Todoist 6hmX5rXVh6J636HH). The channel lives here so there
  * is exactly one place that decides who gets told and what a failed send
  * means.
  */
-import type { WhatsAppChannel } from './lesson/queue.ts';
-import { sendWhatsAppChecked } from './lesson/queue.ts';
+import type { WhatsAppChannel } from './whatsapp.ts';
+import { sendWhatsAppChecked } from './whatsapp.ts';
 
 /* ── Where the alert goes ─────────────────────────────────────────────
  *
@@ -149,7 +147,7 @@ export const sendAlert = (text: string, c: AlertChannel): Promise<SendResult> =>
  *  502  any configured channel could not be reached, even if another was
  */
 export async function deliverAlert({ tag, ok, message, report, channels, send, log = console }: {
-  /** Log prefix, e.g. `generation-health`. */
+  /** Log prefix, e.g. `ops-health`. */
   tag: string;
   ok: boolean;
   message: string | null;

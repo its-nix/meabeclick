@@ -74,7 +74,7 @@ export function learningGoogleConfig(env:Record<string,string|undefined>=process
 export function learningConnectionService(options:{config:LearningGoogleConfig;fetch?:typeof fetch;now?:()=>number;assertConfiguration?:()=>void}){
  const {config}=options,now=options.now??Date.now,fetchImpl=options.fetch??fetch;
  const identity=hash(JSON.stringify([config.clientId,config.redirectUri,config.workspace]));
- type Record={refreshToken:string;checkedAt:string;verified:boolean;realRecords:Awaited<ReturnType<ReturnType<typeof workspaceClient>['status']>>['realRecords']|null;syncEnabled?:boolean;syncEpoch?:string;centralSelected?:boolean};
+ type Record={refreshToken:string;checkedAt:string;verified:boolean;realRecords:Awaited<ReturnType<ReturnType<typeof workspaceClient>['status']>>['realRecords']|null;syncEnabled?:boolean;syncEpoch?:string};
  function read():Record|null{
   let raw:string;
   try{raw=readFileSync(config.storePath,'utf8');}catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return null;throw Error('storage');}
@@ -157,7 +157,7 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
   if(typeof token.access_token!=='string'||!token.access_token||token.access_token.length>8192||typeof token.refresh_token!=='string'||!token.refresh_token||token.refresh_token.length>8192)throw Error('offline');
   if(typeof token.scope!=='string'||token.scope.trim()!==SCOPE)throw Error('scope');
   await validate(token.refresh_token,token.access_token);
-  write({refreshToken:token.refresh_token,checkedAt:new Date(now()).toISOString(),verified:true,realRecords:null,syncEnabled:true,syncEpoch:secret(),centralSelected:true},previous);
+  write({refreshToken:token.refresh_token,checkedAt:new Date(now()).toISOString(),verified:true,realRecords:null,syncEnabled:true,syncEpoch:secret()},previous);
  }
  function status(){
   const record=read();
@@ -174,7 +174,6 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
   write({...record,checkedAt:new Date(now()).toISOString(),verified:true,realRecords:null},previous);
   return status();
  }
- function centralSelected(){return read()?.centralSelected===true;}
  function syncAccess(){
   const record=read();if(record?.syncEnabled!==true||!record.syncEpoch)throw Error('disabled');
   const epoch=record.syncEpoch;
@@ -186,10 +185,10 @@ export function learningConnectionService(options:{config:LearningGoogleConfig;f
  async function setAutomaticSync(enabled:boolean){
   const previous=storedVersion(),record=read();if(!record)throw Error('disconnected');
   if(enabled)await validate(record.refreshToken);
-  write({...record,syncEnabled:enabled,syncEpoch:secret(),centralSelected:true},previous);
+  write({...record,syncEnabled:enabled,syncEpoch:secret()},previous);
   return status();
  }
- return {start,finish,status,verify,connected,centralSelected,syncAccess,setAutomaticSync};
+ return {start,finish,status,verify,connected,syncAccess,setAutomaticSync};
 }
 
 let active:{identity:string;service:ReturnType<typeof learningConnectionService>}|undefined;

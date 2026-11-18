@@ -346,7 +346,7 @@ test('047 removes the classic game system and keeps the homework it touched', as
   `);
   db.exec('PRAGMA foreign_keys = ON');
 
-  migrate(db);
+  migrate(db, MIGRATIONS.filter(m => m.version <= 49));
   assert.equal(versions(db).at(-1), 49);
   assert.ok(hasColumn(db, 'native_results', 'hints') && hasColumn(db, 'native_results', 'revealed'), '049 persists help used on a native round');
 
@@ -363,4 +363,61 @@ test('047 removes the classic game system and keeps the homework it touched', as
   );
   assert.equal(db.prepare(`SELECT COUNT(*) AS c FROM students_v2`).get().c, 1);
   for (const kept of ['native_results', 'native_games']) assert.ok(tables.includes(kept), `${kept} stays`);
+});
+
+const LEGACY_GENERATOR_TABLES = ['library_items', 'library_uses', 'lesson_engines', 'drive_items', 'learning_retired_lessons'];
+const KEPT_HISTORY_TABLES = ['lessons_v2', 'lesson_materials', 'learning_assignments', 'learning_archive', 'engine_status', 'lesson_requests', 'native_lesson_jobs'];
+
+test('050 on a fresh database leaves no legacy generator state and keeps the history the native pipeline reads', async () => {
+  const db = await freshDb();
+  migrate(db);
+  assert.equal(versions(db).at(-1), 50);
+  const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all().map(r => r.name);
+  for (const gone of LEGACY_GENERATOR_TABLES) assert.ok(!tables.includes(gone), `${gone} should not exist`);
+  for (const kept of KEPT_HISTORY_TABLES) assert.ok(tables.includes(kept), `${kept} stays`);
+  assert.equal(hasColumn(db, 'lesson_report_notes', 'teaching_coverage'), true, 'recorded coverage stays readable');
+  assert.equal(hasColumn(db, 'homework', 'held_until'), true);
+});
+
+test('050 on a populated database drops only the generator state and keeps every kept row', async () => {
+  const db = await freshDb();
+  migrate(db, MIGRATIONS.filter(m => m.version <= 49));
+  assert.equal(versions(db).includes(50), false);
+  // The legacy `lessons` table is created by db.ts, not a migration; rows may point at it.
+  db.exec('PRAGMA foreign_keys = OFF');
+  db.exec(`
+    INSERT INTO accounts (id, name, credential, created_at) VALUES (1, 'family', 'x', '2026-01-01');
+    INSERT INTO students_v2 (id, code, name, account_id, credential, created_at) VALUES (1, 'noga', 'Noga', 1, 'x', '2026-01-01');
+    INSERT INTO lesson_materials (lesson_slug, kind, version, content, origin, published_at, created_at)
+      VALUES ('old-lesson', 'plan', 1, '{"title":"Old"}', 'generated', '2026-01-02', '2026-01-02');
+    INSERT INTO learning_assignments (lesson_slug, student_id) VALUES ('old-lesson', 1);
+    INSERT INTO learning_archive (id, archive_id, fingerprint, slugs, receipt) VALUES (1, 'a1', '${'a'.repeat(64)}', '["old-lesson"]', '{"version":1}');
+    INSERT INTO learning_retired_lessons (slug, archive_id) VALUES ('old-lesson', 'a1');
+    INSERT INTO library_items (template_id, skill_key, slug, status, updated_at) VALUES ('math-8', 'skill', 'old-lesson', 'ready', '2026-01-02');
+    INSERT INTO library_uses (lesson_slug, master_slug, template_id, skill_key, at) VALUES ('copy', 'old-lesson', 'math-8', 'skill', '2026-01-02');
+    INSERT INTO lesson_engines (lesson_slug, engine, at) VALUES ('old-lesson', 'claude', '2026-01-02');
+    INSERT INTO engine_status (engine, kind, until, at) VALUES ('codex', 'engine-quota', NULL, '2026-01-02');
+  `);
+  const inserted = db.prepare(`PRAGMA table_info(drive_items)`).all().length > 0;
+  assert.ok(inserted, 'the table exists before 050');
+  db.exec(`INSERT INTO drive_items (key, file_id, kind, updated_at) VALUES ('k', 'f1', 'lesson', '2026-01-02')`);
+  db.exec('PRAGMA foreign_keys = ON');
+
+  migrate(db);
+  assert.equal(versions(db).at(-1), 50);
+  const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all().map(r => r.name);
+  for (const gone of LEGACY_GENERATOR_TABLES) assert.ok(!tables.includes(gone), `${gone} should be dropped`);
+  const count = (t) => db.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get().c;
+  for (const kept of ['lesson_materials', 'learning_assignments', 'learning_archive', 'engine_status', 'students_v2']) {
+    assert.equal(count(kept), 1, `${kept} keeps its row`);
+  }
+  assert.equal(db.prepare(`SELECT slugs FROM learning_archive`).get().slugs, '["old-lesson"]', 'the receipt still names the archived lessons');
+});
+
+test('050 is safe to apply twice and out of order', async () => {
+  const db = await freshDb();
+  migrate(db);
+  db.exec('DELETE FROM schema_version WHERE version = 50');
+  migrate(db);
+  assert.equal(versions(db).at(-1), 50);
 });

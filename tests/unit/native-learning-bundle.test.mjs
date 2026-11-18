@@ -6,7 +6,7 @@ import {exportNativeBundle,publishNativeReviewBundle} from '../../src/lib/server
 
 test('native export creates real editable packages with separate private answers and question-only homework',async()=>{
  const bundle=visualDeckFixture();bundle.slides[0].presenterNotes.expectedAnswer='PRIVATE_EXPECTED_9';bundle.homework[0].solution='PRIVATE_SOLUTION_9';
- const out=await exportNativeBundle({bundle,activityBaseUrl:'https://meabeclick.com/app/learning-pilot'});
+ const out=await exportNativeBundle({bundle,activityBaseUrl:'https://meabeclick.com/app/native-review-activities'});
  assert.equal(out.slides.subarray(0,2).toString(),'PK');assert.equal(out.homework.subarray(0,2).toString(),'PK');
  const {readFile}=await import('node:fs/promises');
  const logo=await readFile(new URL('../../static/images/logos/logo-slate.svg',import.meta.url),'utf8');
@@ -18,16 +18,16 @@ test('native export creates real editable packages with separate private answers
  assert.match(out.speakerNotes.join('\n'),/PRIVATE_EXPECTED_9/);assert.match(out.speakerNotes.join('\n'),/PRIVATE_SOLUTION_9/);assert.doesNotMatch(out.homeworkText,/PRIVATE_/);
  assert.ok(out.slideCount>bundle.slides.length,'authored model states/reveals become progressive slides');
  assert.equal(out.slideMap[0].firstSlide,1);assert.equal(out.slideMap.at(-1).lastSlide,out.slideCount);
- assert.equal(out.activities.length,3);assert.ok(out.activities.every(a=>a.url.startsWith('https://meabeclick.com/app/learning-pilot')));
+ assert.equal(out.activities.length,3);assert.ok(out.activities.every(a=>a.url.startsWith('https://meabeclick.com/app/native-review-activities')));
  const changed=structuredClone(bundle);changed.homework[0].solution+=' new revision';
- assert.notEqual(out.sourceHash,(await exportNativeBundle({bundle:changed,activityBaseUrl:'https://meabeclick.com/app/learning-pilot'})).sourceHash);
+ assert.notEqual(out.sourceHash,(await exportNativeBundle({bundle:changed,activityBaseUrl:'https://meabeclick.com/app/native-review-activities'})).sourceHash);
 });
 
 test('review publisher creates native MIME documents and replay preserves human edits',async()=>{
  const p=provider();const workspace={workspaceId:'workspace12345',reviewId:'review12345'};
  p.files.set(workspace.workspaceId,{id:workspace.workspaceId,mimeType:'application/vnd.google-apps.folder',parents:[config.learningFolderId],owners:[{emailAddress:config.ownerEmail}],permissions:[{type:'user'}]});
  p.files.set(workspace.reviewId,{id:workspace.reviewId,mimeType:'application/vnd.google-apps.folder',parents:[workspace.workspaceId],owners:[{emailAddress:config.ownerEmail}],permissions:[{type:'user'}]});
- const dependencies={access:p.access,workspace,fetch:p.fetch};const input={bundle:visualDeckFixture(),key:'synthetic-pilot',activityBaseUrl:'https://meabeclick.com/app/learning-pilot'};
+ const dependencies={access:p.access,workspace,fetch:p.fetch};const input={bundle:visualDeckFixture(),key:'synthetic-pilot',activityBaseUrl:'https://meabeclick.com/app/native-review-activities'};
  const first=await publishNativeReviewBundle(input,dependencies);p.files.get(first.slides.id).human='edited';const count=p.files.size;
  const second=await publishNativeReviewBundle(input,dependencies);
  assert.equal(first.slides.mimeType,'application/vnd.google-apps.presentation');assert.equal(first.homework.mimeType,'application/vnd.google-apps.document');assert.equal(second.slides.id,first.slides.id);assert.equal(p.files.size,count);assert.equal(p.files.get(first.slides.id).human,'edited');
@@ -42,7 +42,7 @@ test('lost native import acknowledgement reconciles by immutable source before c
  const p=provider(),workspace={workspaceId:'workspace12345',reviewId:'review12345'};
  for(const [id,parent]of [[workspace.workspaceId,config.learningFolderId],[workspace.reviewId,workspace.workspaceId]])p.files.set(id,{id,mimeType:'application/vnd.google-apps.folder',parents:[parent],owners:[{emailAddress:config.ownerEmail}],permissions:[{type:'user'}]});
  let lost=false;const fetch=async(input,init)=>{const response=await p.fetch(input,init);if(!lost&&String(input).includes('uploadType=multipart')){lost=true;throw Error('lost acknowledgement');}return response;};
- const dependencies={access:p.access,workspace,fetch};const input={bundle:visualDeckFixture(),key:'lost-import-pilot',activityBaseUrl:'https://meabeclick.com/app/learning-pilot'};
+ const dependencies={access:p.access,workspace,fetch};const input={bundle:visualDeckFixture(),key:'lost-import-pilot',activityBaseUrl:'https://meabeclick.com/app/native-review-activities'};
  await assert.rejects(publishNativeReviewBundle(input,dependencies),/google/);
  const slides=[...p.files.values()].find(f=>f.mimeType==='application/vnd.google-apps.presentation');slides.human='survives retry';
  const result=await publishNativeReviewBundle(input,dependencies);
@@ -71,7 +71,7 @@ function officeMembers(bytes){
 }
 const builtinZlib=await import('node:zlib');
 test('double-dollar math renders as formula assets in public slides, homework and private notes',async()=>{
- const bundle=visualDeckFixture(),activityBaseUrl='https://meabeclick.com/app/learning-pilot';
+ const bundle=visualDeckFixture(),activityBaseUrl='https://meabeclick.com/app/native-review-activities';
  const baseline=await exportNativeBundle({bundle,activityBaseUrl});
  const expression='$$\\frac{17}{29}$$';
  bundle.slides[0].prompt='איזה חלק מייצג '+expression+'?';

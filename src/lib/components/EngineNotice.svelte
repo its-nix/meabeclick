@@ -1,10 +1,9 @@
 <script lang="ts">
   /**
    * The lesson engine is down: why, until when, and which coming lessons
-   * have nothing prepared — so the tutor reads it here rather than learning
+   * have no draft — so the tutor reads it here rather than learning
    * it from a booking that failed. From engine-health.ts engineAlert().
-   * Amber, not the calendar banner's red: nothing she did is wrong, and
-   * library lessons still arrive.
+   * Amber, not the calendar banner's red: nothing she did is wrong.
    */
   import { formatDateTime } from '$lib/dates.ts';
 
@@ -29,11 +28,10 @@
       {REASON[alert.kind] ?? 'מנוע השיעורים לא זמין'}{#if alert.kind === 'engine-quota'}{alert.until ? `, עד ${when(alert.until)}` : ', עד שהמכסה תתחדש'}{/if}.
     </p>
     <p>
-      שיעורים על מיומנויות שמוכנות <a href="/app/library">בספרייה</a> ממשיכים להגיע כרגיל.
-      שיעור על מיומנות שלא הוכנה לא ייווצר עד אז, וצריך להכין אותו ידנית.
+      טיוטות חדשות לא ייווצרו עד אז. אפשר להכין את השיעור ידנית ב<a href="/app/library">מרחב ההוראה</a>.
     </p>
     {#if alert.affected.length}
-      <div class="en-sub">שיעורים קרובים בלי חומר מוכן:</div>
+      <div class="en-sub">שיעורים קרובים בלי טיוטה:</div>
       <ul>
         {#each alert.affected as a (a.student + a.lessonAt)}
           <li><span>{a.student}</span><span class="en-when">{when(a.lessonAt)}</span></li>

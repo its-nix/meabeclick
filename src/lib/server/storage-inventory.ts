@@ -61,14 +61,11 @@ export const STORAGE: Record<string, TableFact> = {
   teachers:      { status: 'live', note: 'Who teaches. One row in practice.' },
   enrollments:   { status: 'live', note: 'A student in a subject. UNIQUE per (student, subject).' },
   bookings_v2:   { status: 'live', note: 'A booked hour, keyed on student_id.' },
-  library_uses:  { status: 'live', note: 'Which booking lessons were copied from a library master — not engine runs (migration 024).' },
   engine_status: { status: 'live', note: 'Whether the lesson engine is down and until when; shown on the dashboard (migration 026).' },
-  lesson_engines: { status: 'live', note: 'Library lessons made by Claude Code or opencode and imported — not Codex runs (migration 025).' },
-  library_items: { status: 'live', note: 'Which master lesson is the prepared material for a skill of a plan template (migration 023).' },
   pending_bookings: { status: 'live', note: 'A booking with a known family\'s email, held until that family confirms it (migration 021).' },
   payments:      { status: 'live', note: 'Charges in integer agorot. Manual marking, no auto-billing.' },
   homework:      { status: 'live', note: 'One store for both sides since #86; `done` is the hand-marked submission.' },
-  learning_assignments: { status: 'live', note: 'Explicit student ownership, booking/skill, preparation release deadline and the editable practice material target.' },
+  learning_assignments: { status: 'draining', note: 'Which earlier practice each student was given. Read by the native preparation brief and the Drive archive; the removed generator was its only writer. Done when no earlier lesson matters to a brief.' },
   access_credentials: {
     status: 'live',
     note: 'Hashed single-use entry: 15-minute account links and 48-hour student invitations; raw secrets are never stored.',
@@ -95,31 +92,29 @@ export const STORAGE: Record<string, TableFact> = {
   lesson_report_notes:{ status: 'live', note: 'Free text attached to a report.' },
   report_prompts:     { status: 'live', note: 'Which lessons have already been chased. INSERT OR IGNORE.' },
   lesson_requests:    { status: 'live', note: 'What a parent asked for with a booking.' },
-  lesson_materials:   { status: 'live', note: 'Versioned teaching material, drafts vs published (#88).' },
-  drive_items:        { status: 'live', note: 'Which Drive file is which, and what it last held — ids and sync bookkeeping only (migration 019).' },
+  lesson_materials:   { status: 'draining', note: 'Published plans and slides of lessons made before the Drive-native pipeline. Read by the native preparation brief and the Drive archive; nothing writes it. Done once the archive is verified and the brief no longer needs it.' },
   native_games: { status: 'live', note: 'Validated copies of tutor-approved Drive game files, written by the Sheet sync; students read only these.' },
   native_results: { status: 'live', note: 'Runtime store for native game results; Progress rows are appended from it.' },
   native_homework_shares: { status: 'live', note: 'Which approved homework Docs are shared with which student Google account, so withdrawal revokes exactly that grant.' },
   native_homework_revocations: { status: 'live', note: 'Homework Doc grants whose revoke failed after the Doc was shared with a newer address; retried until revoked.' },
   native_lesson_jobs: { status: 'live', note: 'Durable booking/student-scoped native draft jobs, retry leases and artifact IDs; review never authorizes delivery.' },
   learning_archive:   { status: 'live', note: 'One frozen archive job and its verified native-workspace receipt; source content stays in Drive and historical material storage.' },
-  learning_retired_lessons: { status: 'live', note: 'Exact archived slugs excluded from active selection and reuse; historical readers and progress are preserved.' },
 
   // ── Generation ────────────────────────────────────────────────────
   lessons: {
-    status: 'live',
-    note: 'The generated lesson. Keyed on student NAME, which is why two '
-        + 'students called נוגה are a real hazard here — see lessons_v2.',
+    status: 'draining',
+    note: 'Lessons made by the removed generator, keyed on student NAME, which '
+        + 'is why two students called נוגה are a real hazard here. Read by the '
+        + 'tutor\'s student card, the native preparation brief and the Drive '
+        + 'archive; nothing writes it. Done once the archive is verified.',
   },
   lessons_v2: {
     status: 'unadopted',
     note: 'The shape lessons SHOULD have — student_id, enrollment_id — and '
         + 'homework.lesson_id already points at it. Nothing in production '
-        + 'has ever written a row: its createLesson/finishLesson are called '
-        + 'only from tests, while generation uses db.ts against `lessons`. '
-        + 'Adopting it is Todoist id:6hXqpJ2w7qfJ7P9q. Until then it must '
-        + 'not be READ: an endpoint that did returned an empty lesson list '
-        + 'for every student, which reads as "no lessons yet".',
+        + 'has ever written a row. It must not be READ for lesson lists: an '
+        + 'endpoint that did returned an empty list for every student, which '
+        + 'reads as "no lessons yet". Only the Drive archive copies it as-is.',
   },
 
   // ── Draining: read so old rows stay visible; no new writer may appear.

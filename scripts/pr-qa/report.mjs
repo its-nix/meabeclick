@@ -42,9 +42,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     runOutcome: process.env.QA_RUN_OUTCOME,
     projects: ['chromium-phone', 'chromium-desktop', ...(process.env.CI || process.env.QA_WEBKIT ? ['webkit-phone'] : [])],
     supplemental: process.env.CI ? [
-      { id: 'learning', required: has('learning'), outcome: process.env.QA_LEARNING_OUTCOME },
-      { id: 'learning-review', required: has('learning'), outcome: process.env.QA_REVIEW_OUTCOME },
-      { id: 'learning-review-v2', required: has('learning'), outcome: process.env.QA_REVIEW_V2_OUTCOME },
       { id: 'visual-pilot', required: has('learning'), outcome: process.env.QA_PILOT_OUTCOME },
       { id: 'tutor-workspace', required: has('workspace') || has('tutor-create'), outcome: process.env.QA_WORKSPACE_OUTCOME },
       { id: 'charts', required: has('workspace'), outcome: process.env.QA_CHARTS_OUTCOME },

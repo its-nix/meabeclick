@@ -210,7 +210,7 @@ test('workspace: incomplete tutor setup cannot consume or manufacture a Google c
  const page=await qa.page('anonymous');await page.goto('/app/tutor-setup/callback');await expect(page).toHaveURL(/\/app\/tutor-setup\/done/);await qa.evidence(page,'invalid-tutor-setup');
 });
 
-test('workspace: verified retirement opens the native library and blocks stale legacy actions',async({qa})=>{
+test('workspace: verified retirement opens the native library and the legacy endpoints are gone',async({qa})=>{
  const homework=qa.row('SELECT count(*) n FROM homework').n;
  const db=new DatabaseSync(qa.dbPath);seedRetired(db);db.close();
  const page=await qa.page('tutor');await page.goto('/app/library');
@@ -218,9 +218,9 @@ test('workspace: verified retirement opens the native library and blocks stale l
  await expect(page.locator('.material-card')).toHaveCount(4);await expect(page.locator('#library-catalog')).toHaveCount(0);
  await expect(page.getByRole('link',{name:'פתיחת המרחב ב־Drive'})).toHaveAttribute('href',`https://drive.google.com/drive/folders/${nativeReceipt.workspaceId}`);
  await page.locator('details.archive summary').focus();await page.keyboard.press('Enter');await expect(page.getByRole('link',{name:'פתיחת רישום הארכיון'})).toBeVisible();
- for(const path of ['/api/library/prepare','/api/library/import'])expect((await qa.request(path,{method:'POST',json:{template:'math-8',skill:'synthetic'}})).status).toBe(409);
+ for(const path of ['/api/library/prepare','/api/library/import'])expect((await qa.request(path,{method:'POST',json:{template:'math-8',skill:'synthetic'}})).status).toBe(404);
  expect((await qa.request('/api/central-drive-sync',{method:'POST'})).status).toBe(401);
- expect((await qa.request('/api/library/due')).status).toBe(200);expect(qa.row('SELECT count(*) n FROM homework').n).toBe(homework);
+ expect((await qa.request('/api/library/due')).status).toBe(404);expect(qa.row('SELECT count(*) n FROM homework').n).toBe(homework);
  await page.locator('details.archive summary').evaluate(el=>el.blur());await page.evaluate(()=>scrollTo(0,0));await qa.evidence(page,'native-workspace');
 });
 
@@ -268,14 +268,13 @@ test('payments: teacher marks debt paid and parent balance follows persisted dat
   await qa.evidence(parent, 'parent-paid');
 });
 
-test('workspace: library empty search recovers and tutor sections remain reachable', async ({ qa }) => {
+test('workspace: before the cutover the teaching page explains setup and tutor sections remain reachable', async ({ qa }) => {
   const page = await qa.page('tutor');
   await page.goto('/app/library');
-  await page.locator('#library-search').fill('no-such-synthetic-skill');
-  await expect(page.getByText('לא נמצאו חומרים שמתאימים למסננים.', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'הצגת כל החומרים', exact: true }).click();
-  await expect(page.locator('#library-search')).toHaveValue('');
-  await qa.evidence(page, 'library-reset');
+  await expect(page.getByRole('heading', { name: 'מרחב ההוראה', exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('עדיין לא הוקם');
+  await expect(page.getByRole('link', { name: 'מרחב Google', exact: true })).toHaveAttribute('href', '/app/library/connection');
+  await qa.evidence(page, 'library-setup');
   for (const path of ['/app/marketing', '/app/metrics']) {
     expect((await page.goto(path)).status()).toBe(200);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();

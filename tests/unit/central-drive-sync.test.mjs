@@ -5,7 +5,7 @@ after(async()=>{(await import('../../src/lib/server/db.ts')).handle().close();aw
 test('one shared worker backfills profiles and indexed originals, serializes calls and reuses snapshots after restart',async()=>{
  const{centralSyncController}=await import('../../src/lib/server/central-drive/sync.ts');
  const dir=await mkdtemp(join(tmpdir(),'central-sync-')),path=join(dir,'state.json'),p=provider();let enabled=true,epoch='one',captures=0;
- const service=()=>({status:()=>({state:'verified',account:p.access.config.ownerEmail,automaticSyncEnabled:enabled}),centralSelected:()=>true,syncAccess:()=>{if(!enabled)throw Error('disabled');const captured=epoch;return{...p.access,epoch,assertCurrent(){if(!enabled||epoch!==captured)throw Error('paused');}};},setAutomaticSync:async value=>{enabled=value;epoch+='x';}});
+ const service=()=>({status:()=>({state:'verified',account:p.access.config.ownerEmail,automaticSyncEnabled:enabled}),syncAccess:()=>{if(!enabled)throw Error('disabled');const captured=epoch;return{...p.access,epoch,assertCurrent(){if(!enabled||epoch!==captured)throw Error('paused');}};},setAutomaticSync:async value=>{enabled=value;epoch+='x';}});
  const source={artifacts:[artifact()],students:[{id:1,code:'synthetic',name:'Test student',goals:'Algebra',style:null,notes:'<private teacher note>',subjects:'Math',progress:20,progress_note:null}],progress:[['game',1,1,'math',4,5,null,'2026-11-12']],fingerprint:'sample'};
  const options={path,service,fetch:p.fetch,inventory:async()=>{captures++;return source;}};
  try{

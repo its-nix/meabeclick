@@ -29,7 +29,6 @@ try {
   for(const [i,source] of ['instagram','whatsapp',null].entries())for(let visitor=0;visitor<3+i;visitor++)event.run(now,`ui-${i}-${visitor}`,'landing_visit',null,source,source?'שיעורי מתמטיקה':null,null,null);
   event.run(now,'ui-0-0','cta_click','booking','instagram','שיעורי מתמטיקה',null,null);
   event.run(now,'ui-0-0','booking_started',null,'instagram','שיעורי מתמטיקה',null,null);
-  db.prepare("INSERT INTO library_items (template_id,skill_key,status,updated_at,problem) VALUES ('math-5u','func.basics.linquad','failed',?,?)").run(now,'ההכנה לא הושלמה. אפשר לנסות שוב.');
   db.close();
   const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
   // Same font files as production, without depending on Google's availability.
@@ -130,11 +129,7 @@ try {
     assert.equal(await page.getByRole('banner').count(),1,'student detail shares the workspace header');
     // Destination changes use the shared shell, not a full reload-only affordance.
     await page.getByRole('navigation',{name:'ניווט ראשי',exact:true}).getByRole('link',{name:'ספריית תוכן'}).click();
-    await page.getByRole('heading',{level:1,name:'ספריית תוכן'}).waitFor();
-    await page.getByRole('link',{name:'בחירת נושא להכנה',exact:true}).click();
-    await page.waitForURL(/#library-catalog$/);
-    const catalog=await page.locator('#library-catalog').boundingBox(),banner=await page.getByRole('banner').boundingBox();
-    assert.ok(catalog.y>=banner.y+banner.height,'preparation entry lands below the sticky header');
+    await page.getByRole('heading',{level:1,name:'מרחב ההוראה'}).waitFor();
     await page.route('**/api/logout',route=>route.fulfill({status:503}));
     await page.getByRole('button',{name:'יציאה מהחשבון',exact:true}).click();
     await page.getByRole('alert').filter({hasText:'לא הצלחנו לצאת'}).waitFor();

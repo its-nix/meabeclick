@@ -226,9 +226,9 @@ APP_TAG=$(docker inspect mea-beclick-app-1 --format '{{.Config.Image}}' | sed 's
 > now refuses to start without an explicit `APP_TAG`, so that mistake is
 > no longer available.
 
-### Lesson-generation credentials
+### Lesson-authoring credentials
 
-Lesson generation shells out to the Codex CLI, installed globally in the app
+Native lesson authoring, feedback review and the question box shell out to the Codex CLI, installed globally in the app
 image's **runtime** stage (not just the builder — see the Dockerfile
 comment), so `codex` is already on `PATH` inside the container. `CODEX_BIN` is
 not needed.
@@ -899,22 +899,9 @@ the image:
 
     ssh mea 'docker exec -i $(docker ps -qf name=mea-beclick-app) node --input-type=module - --days 7 --by topic --json' < scripts/skills-covered.mjs
 
-### Generation health (daily)
+### Ops alert channels
 
-`meabeclick-generation-health.timer` runs every morning at 08:00 Israel
-time and `POST`s `/api/health/generation` (cron key). It reads `lessons`,
-`engine_status` and `bookings_v2` and sends **one** summary when:
-
-- in the last 24 hours a generation `failed`, was `held`, or was `ready`
-  but never reached the student's page;
-- a run has sat at `generating` for over an hour (the process died under it);
-- an engine outage is open;
-- a booked **maths** lesson in the last/next `GENERATION_HEALTH_STALE_DAYS`
-  (default 3) has no ready lesson — never generated, or failed/held earlier.
-  If, on top of that, Codex has not succeeded once in that many days, the
-  message says the engine is the likely cause.
-
-A healthy day sends nothing.
+Every daily check (`/api/health/ops`) and the host-side alert share one set of channels.
 
 **Where it goes.** Every configured ops channel gets the one message:
 
@@ -937,18 +924,14 @@ With no ops channel it falls back to the tutor's `CALLMEBOT_*` channel.
 With nothing at all, a half-set pair, or an invalid webhook, it answers 503.
 If any configured channel can't be reached it answers 502. Either way the
 unit fails (`systemctl --user --failed`), so the check is never silently
-mute. To look without sending:
-
-    curl -sS -H "X-Cron-Key: $CRON_KEY" 'http://127.0.0.1:3000/api/health/generation?days=7'
-
-Since the ops health check arrived, a failure of this unit (503/502, or
-the app not answering) also triggers the host-side alert below.
+mute. A failure of the unit (503/502, or the app not answering) also
+triggers the host-side alert below.
 
 ### Ops health (daily)
 
 `meabeclick-ops-health.timer` runs every morning at 08:00 Israel time and
-`POST`s `/api/health/ops` (cron key). Same channel, same rules and same
-code as the generation check (`src/lib/server/ops-alert.ts`): **one**
+`POST`s `/api/health/ops` (cron key). Channels and rules are in
+`src/lib/server/ops-alert.ts`: **one**
 message when anything failed, nothing on a healthy day, 503 with no
 channel, 502 when a channel refused. Everything it does is read-only.
 
@@ -1015,17 +998,6 @@ Two more `systemd --user` timers, the same shape as the backup timer above:
   sends once, and that constraint IS the idempotency guarantee rather than
   a check some caller has to remember.
 
-- `meabeclick-drive-sync.timer` — **every 10 minutes**, `GET /api/drive-sync`
-  (keeps a Google Drive folder per student in step with their lessons, in
-  the mea.beclick@gmail.com Drive: «מאה בקליק — תלמידים» / «<name> · <code>» /
-  a document per lesson plus an index). A lesson the tutor edits in Drive is
-  PUBLISHED to the student once the document has been untouched for 10
-  minutes (so about 10–20 minutes after she stops typing), and she gets a
-  WhatsApp with the editor link, where earlier versions can be restored.
-  The site never overwrites an unsynced Drive edit. Uses the backups' Drive
-  login (`GOOGLE_OAUTH_*`); without it the route answers `{ skipped }`.
-  Design: `docs/superpowers/specs/2026-09-25-drive-student-folders-design.md`.
-
 - `meabeclick-central-drive-sync.timer` — **every five minutes**, `GET /api/central-drive-sync`, queues the global personal learning-store worker. It returns aggregate status promptly; work continues in the app. Consent and app startup also queue a run. Install/enable this unit alongside the others. Once central storage is activated, the old business-account `/api/drive-sync` stands down, including while paused or disconnected; business backups remain separate. See `docs/quality/google-learning-workspace.md`.
 
 These endpoints are reachable from the internet and driven by a timer rather
@@ -1060,9 +1032,20 @@ Install once:
 ```bash
 cp server/meabeclick-*.{service,timer} ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now meabeclick-report-prompt.timer meabeclick-remind.timer meabeclick-remind-family.timer meabeclick-generation-health.timer meabeclick-ops-health.timer meabeclick-central-drive-sync.timer
+systemctl --user enable --now meabeclick-report-prompt.timer meabeclick-remind.timer meabeclick-remind-family.timer meabeclick-ops-health.timer meabeclick-central-drive-sync.timer
 systemctl --user list-timers
 ```
+
+**Retired units (2026-11-18).** The per-student Drive sync and the daily
+generation health check no longer exist: their endpoints answer 404, so a timer
+left running turns red and fires the host alert. On a host that still has them:
+
+```bash
+systemctl --user disable --now meabeclick-drive-sync.timer meabeclick-generation-health.timer
+rm -f ~/.config/systemd/user/meabeclick-drive-sync.{service,timer} ~/.config/systemd/user/meabeclick-generation-health.{service,timer}
+systemctl --user daemon-reload
+```
+
 
 ## Not done yet
 

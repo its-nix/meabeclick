@@ -38,7 +38,7 @@ const MAX_HISTORY_TURNS = 6;
  * subscription quota. A bored child holding down Enter should not be able to
  * fork the box, so questions are capped per student per hour. Wrapped in
  * singleton() so Vite HMR re-evaluating this module in dev cannot silently
- * reset the cap, matching the daily cap in lesson/queue.ts.
+ * reset the cap.
  */
 const MAX_QUESTIONS_PER_HOUR = 30;
 const asked = singleton('ask-recent', () => new Map<string, number[]>());
@@ -123,8 +123,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     );
     return json({ answer });
   } catch (err) {
-    // The engine's own words go to the log and only to the log — the same
-    // rule lesson/queue.ts follows, for the same reason. The student gets a
+    // The engine's own words go to the log and only to the log — for the
+    // reason that keeps provider text out of the browser. The student gets a
     // status code, and their client turns it into the WhatsApp fallback.
     const kind = err instanceof LessonGenerationError ? err.kind : 'unclassified';
     console.error(`ask failed [${kind}]`, (err as Error)?.message ?? err);

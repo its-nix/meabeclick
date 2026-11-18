@@ -32,16 +32,10 @@ function view(code: string) {
       id: String(p.id), date: p.date, type: p.kind === 'double' ? 'כפול · 90 דק׳' : p.kind === 'triple' ? 'משולש · 135 דק׳' : 'יחיד · 45 דק׳',
       amount: p.amount_agorot / 100, paid: p.status === 'paid', notes: p.note ?? '', void: p.status === 'void',
     })),
-    /* includeHeld on every read in this route: the tutor sees booking-time
-       homework before it goes out, and PATCH/DELETE check ownership through
-       this same read — without it she could not delete a held task. */
-    homework: homeworkForStudent(student.id, { includeHeld: true }).map((h): TutorHomework => ({
+    homework: homeworkForStudent(student.id).map((h): TutorHomework => ({
       id: String(h.id), task: h.task, date: h.due_at ?? israelDay(h.assigned_at),
       submitted: h.submitted, graded: h.graded, grade: h.grade ?? null,
       submittedBy: h.submitted_by ?? null, gradedBy: h.graded_by ?? null,
-      /* Set while the family cannot see it yet: goes out when the lesson
-         report replaces or releases it, or at this time by itself. */
-      heldUntil: h.held_until && h.held_until > new Date().toISOString() ? h.held_until : null,
       answer: h.answer ?? null,
     })),
     /* lessonsForStudent, not the old readLessons: that one read lessons_v2,
@@ -79,7 +73,7 @@ export const PATCH: RequestHandler = async (event) => {
   const body = await event.request.json().catch(() => ({})) as Record<string, unknown>;
   const id = Number(body.id);
   if (!Number.isInteger(id) || body.kind !== 'homework') return json({ error: 'invalid activity' }, { status: 400 });
-  const owned = homeworkForStudent(student.id, { includeHeld: true }).some(h => h.id === id);
+  const owned = homeworkForStudent(student.id).some(h => h.id === id);
   if (!owned) return json({ error: 'activity not found' }, { status: 404 });
   /* The tutor can do either stage. She submits on the child's behalf when
      they told her in the room, and she grades once she has looked. Both are
@@ -104,7 +98,7 @@ export const DELETE: RequestHandler = async (event) => {
   const student = studentOr404(event.params.code);
   if (!student) return json({ error: 'student not found' }, { status: 404 });
   const id = Number(event.url.searchParams.get('id'));
-  if (!Number.isInteger(id) || !homeworkForStudent(student.id, { includeHeld: true }).some(h => h.id === id)) return json({ error: 'activity not found' }, { status: 404 });
+  if (!Number.isInteger(id) || !homeworkForStudent(student.id).some(h => h.id === id)) return json({ error: 'activity not found' }, { status: 404 });
   deleteHomework(id);
   return json(view(event.params.code));
 };

@@ -21,9 +21,6 @@ export interface TutorHomework {
   grade: HomeworkGrade | null;
   submittedBy: string | null;
   gradedBy: string | null;
-  /** Booking-time homework the family cannot see yet (migration 018): goes
-   *  out when the lesson report replaces or releases it, or at this time. */
-  heldUntil: string | null;
   /** The answer key a generator wrote with the task (migration 022). The
    *  tutor's only: FamilyHomework has no such field. */
   answer: string | null;

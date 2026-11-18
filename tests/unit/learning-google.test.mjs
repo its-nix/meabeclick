@@ -138,9 +138,9 @@ test('a revoked connection reports a failed last check without exposing or delet
 test('one authorization enables central storage for every tutor and pause never selects business storage',async()=>{
  const p=await provider(),service=google.learningConnectionService({config,fetch:p.fetch});
  const {input}=callback(service);await service.finish(input);
- assert.equal(service.status().automaticSyncEnabled,true);assert.equal(service.status().readOnly,false);assert.equal(service.centralSelected(),true);
+ assert.equal(service.status().automaticSyncEnabled,true);assert.equal(service.status().readOnly,false);
  const access=service.syncAccess();assert.equal(access.config.ownerEmail,workspace.ownerEmail);assert.equal(access.credentials.refreshToken,'sensitive-refresh');access.assertCurrent();
- await service.setAutomaticSync(false);assert.equal(service.status().automaticSyncEnabled,false);assert.equal(service.centralSelected(),true);assert.throws(()=>access.assertCurrent(),/paused/);assert.throws(()=>service.syncAccess(),/disabled/);
+ await service.setAutomaticSync(false);assert.equal(service.status().automaticSyncEnabled,false);assert.throws(()=>access.assertCurrent(),/paused/);assert.throws(()=>service.syncAccess(),/disabled/);
  await service.setAutomaticSync(true);assert.equal(service.status().automaticSyncEnabled,true);
  const next=service.syncAccess();assert.notEqual(next.epoch,access.epoch);next.assertCurrent();
  assert.ok(!JSON.stringify(service.status()).includes('sensitive-refresh'));
@@ -161,8 +161,8 @@ test('existing encrypted read-only credentials retain their original workspace b
  cipher.setAAD(Buffer.from(identity));const data=Buffer.concat([cipher.update(JSON.stringify({refreshToken:'legacy-refresh',checkedAt:'2026-11-11',verified:true,realRecords:{Students:0}})),cipher.final()]);
  await writeFile(config.storePath,JSON.stringify({version:1,iv:iv.toString('base64url'),tag:cipher.getAuthTag().toString('base64url'),data:data.toString('base64url')}));
  const p=await provider(),service=google.learningConnectionService({config,fetch:p.fetch});
- assert.equal(service.status().state,'verified');assert.equal(service.status().automaticSyncEnabled,false);assert.equal(service.centralSelected(),false);assert.throws(()=>service.syncAccess(),/disabled/);
- await service.setAutomaticSync(true);assert.equal(service.syncAccess().credentials.refreshToken,'legacy-refresh');assert.equal(service.centralSelected(),true);
+ assert.equal(service.status().state,'verified');assert.equal(service.status().automaticSyncEnabled,false);assert.throws(()=>service.syncAccess(),/disabled/);
+ await service.setAutomaticSync(true);assert.equal(service.syncAccess().credentials.refreshToken,'legacy-refresh');
 });
 test('disabled Drive API is actionable and preserves the previous connection without exposing provider data',async()=>{
  const before=await readFile(config.storePath,'utf8'),p=await provider({disabledDrive:true}),service=google.learningConnectionService({config,fetch:p.fetch});

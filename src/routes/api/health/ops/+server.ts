@@ -9,7 +9,7 @@
  *         check failed. Driven by server/meabeclick-ops-health.timer, every
  *         morning Israel time.
  *
- * Same door and same channel as /api/health/generation: the shared cron
+ * The door and channel for every timer-driven alert: the shared cron
  * key (a tutor session is not enough), and alertChannels()/deliverAlert()
  * from $server/ops-alert.ts — 503 when no channel is configured, 502 when a
  * configured channel could not be reached, 200 and silence on a healthy day.

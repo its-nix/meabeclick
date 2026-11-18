@@ -26,12 +26,6 @@ test('a lesson on or before today has happened; an imported one keeps its summar
   assert.equal(l.summary, 'חזרנו על אחוזים לקראת המבחן', 'no slug: written for the family, from the old ledger');
 });
 
-test('generation records the LESSON date and no summary', () => {
-  const q = read('src/lib/server/lesson/queue.ts');
-  assert.match(q, /\{ date: hold\.lessonDate \?\? today\(\), topic: plan\.title, slug: published\.slug \}/);
-  assert.match(q, /lessonDate: booking\.start \? israelDay\(booking\.start\) : null/);
-});
-
 test('both family pages count only lessons that have happened, and show what is coming', () => {
   const parent = read('src/routes/app/parent/+page.svelte');
   const student = read('src/routes/app/student/+page.svelte');

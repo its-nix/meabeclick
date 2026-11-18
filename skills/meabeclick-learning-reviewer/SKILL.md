@@ -34,8 +34,8 @@ Reading this skill alone does not schedule work or change production generation.
 
 ## Judge teaching outcomes and visible evidence
 
-Read the relevant contract in `PRODUCT.md`,
-`docs/quality/presentation-standard.md` and `docs/quality/interactive-learning.md`.
+Read the relevant contract in `PRODUCT.md` and
+`docs/quality/visual-math-calibration.md`.
 Check the candidate against its stated level and goal:
 
 - Verify calculations, notation, diagram/model agreement and official-source fidelity.

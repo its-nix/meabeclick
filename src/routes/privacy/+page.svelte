@@ -11,9 +11,9 @@
    *   - the cookie section mirrors family-auth.ts and api/login/+server.ts —
    *     two functional cookies, no marketing cookies, hence no consent banner
    *   - the third-party list mirrors calendar.ts (Google Calendar), email.ts
-   *     (Gmail), lesson/prep.ts (AI generation), ask.ts and api/ask (the
+   *     (Gmail), native-learning/authoring.ts (AI authoring), ask.ts and api/ask (the
    *     question box: first name, level, subject, recent lessons),
-   *     drive/sync.ts (a folder per student in the business's Drive) and the
+   *     native-learning/register.ts (a folder per student in the business's Drive) and the
    *     Google Fonts <link> in +layout.svelte
    *   - the measurement paragraph mirrors $lib/marketing.ts and migration
    *     016: a random id in localStorage (not a cookie), first-touch UTM for

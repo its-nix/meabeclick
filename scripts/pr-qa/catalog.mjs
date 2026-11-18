@@ -4,7 +4,7 @@ export const JOURNEYS = [
   { id: 'roles-smoke', routes: ['/login', '/portal', '/app/dashboard', '/app/parent', '/app/student', '/api/login', '/api/logout', '/api/me', '/api/family'] },
   { id: 'public-booking', routes: ['/', '/booking', '/confirm-booking', '/privacy', '/terms', '/api/availability', '/api/book', '/api/events'] },
   { id: 'tutor-create', routes: ['/app/dashboard', '/api/students'] },
-  { id: 'tutor-profile', routes: ['/app/students/[code]', '/app/dashboard', '/api/students/[code]', '/api/students/[code]/activity'] },
+  { id: 'tutor-profile', routes: ['/app/students/[code]', '/app/dashboard', '/api/students/[code]', '/api/students/[code]/activity', '/api/students/[code]/native-results'] },
   { id: 'homework-publish', routes: ['/app/students/[code]', '/app/student', '/app/parent', '/app/report/[booking]', '/api/students/[code]/activity', '/api/portal/[code]', '/api/portal/[code]/homework'] },
   { id: 'homework-submit', routes: ['/app/student', '/app/parent', '/app/students/[code]', '/api/students/[code]/activity', '/api/portal/[code]/homework', '/api/portal/[code]'] },
   { id: 'parent-history', routes: ['/app/parent', '/api/portal/[code]', '/api/portal-students'] },

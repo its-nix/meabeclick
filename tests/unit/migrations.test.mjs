@@ -380,7 +380,7 @@ test('050 on a fresh database leaves no legacy generator state and keeps the his
 
 test('050 on a populated database drops only the generator state and keeps every kept row', async () => {
   const db = await freshDb();
-  migrate(db, MIGRATIONS.filter(m => m.version <= 48));
+  migrate(db, MIGRATIONS.filter(m => m.version <= 49));
   assert.equal(versions(db).includes(50), false);
   // The legacy `lessons` table is created by db.ts, not a migration; rows may point at it.
   db.exec('PRAGMA foreign_keys = OFF');

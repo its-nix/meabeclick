@@ -97,8 +97,12 @@ export async function syncNativeProgress(sheet:ProgressSheet){
   const job=handle().prepare('SELECT id FROM native_lesson_jobs WHERE booking_id=?').get(r.bookingId);
   return job?{studentRef:`student-${r.studentId}`,lessonId:`booking-${r.bookingId}`,assignmentId:`native-${job.id}-games-assignment`}:null;
  };
- let appended=0;for(const studentId of students)appended+=(await appendNativeResultsToProgress({sheet,studentId,context})).appended;
- return {appended};
+ let appended=0;const errors:string[]=[];
+ for(const studentId of students){
+  try{appended+=(await appendNativeResultsToProgress({sheet,studentId,context})).appended;}
+  catch(e){errors.push(String((e as Error)?.message??'error').replace(/[^\w :;,.-]/g,'').slice(0,80)||'error');}
+ }
+ return {appended,...(errors.length?{error:[...new Set(errors)].join('; ')}:{})};
 }
 
 let running:Promise<unknown>|null=null;
@@ -109,8 +113,8 @@ export async function runNativeGameApprovals(deps?:{api:()=>Promise<{api:GoogleA
   const ctx=await(deps?.api??liveApi)();if(!ctx)return null;
   const sheet=googleApprovalSheet(ctx.api,ctx.indexId),games=await syncNativeGameApprovals({sheet,drive:googleGamesDrive(ctx.api)});
   // Homework Docs are shared by named user only; a failure here never undoes the game approvals above.
-  const homework=await syncHomeworkShares({sheet,api:{share:(doc,email)=>shareHomeworkWithStudent(ctx.api,doc,email),revoke:(doc,email)=>revokeHomeworkShare(ctx.api,doc,email)}}).catch(()=>null);
-  const progress=await syncNativeProgress(googleProgressSheet(ctx.api,ctx.indexId)).catch(()=>null);
+  const homework=await syncHomeworkShares({sheet,api:{share:(doc,email)=>shareHomeworkWithStudent(ctx.api,doc,email),revoke:(doc,email)=>revokeHomeworkShare(ctx.api,doc,email)}}).catch(e=>({error:String((e as Error)?.message??'error').replace(/[^\w :;,.-]/g,'').slice(0,80)||'error'}));
+  const progress=await syncNativeProgress(googleProgressSheet(ctx.api,ctx.indexId)).catch(e=>({appended:0,error:String((e as Error)?.message??'error').replace(/[^\w :;,.-]/g,'').slice(0,80)||'error'}));
   return {...games,homework,progress};
  })();
  running=job;

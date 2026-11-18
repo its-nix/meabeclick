@@ -347,7 +347,8 @@ test('047 removes the classic game system and keeps the homework it touched', as
   db.exec('PRAGMA foreign_keys = ON');
 
   migrate(db);
-  assert.equal(versions(db).at(-1), 48);
+  assert.equal(versions(db).at(-1), 49);
+  assert.ok(hasColumn(db, 'native_results', 'hints') && hasColumn(db, 'native_results', 'revealed'), '049 persists help used on a native round');
 
   const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all().map(r => r.name);
   for (const gone of ['results', 'results_v2', 'game_skills', 'game_filler', 'lesson_game_assignments', 'lesson_game_revisions']) {

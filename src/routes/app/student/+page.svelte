@@ -7,6 +7,10 @@
   import { formatAgorot } from '$lib/plans.ts';
   import Icon from '$lib/icons/Icon.svelte';
   import BottomNav, { type NavItem } from '$lib/components/BottomNav.svelte';
+  import ProgressSection from '$lib/components/family/ProgressSection.svelte';
+  import LessonLog from '$lib/components/family/LessonLog.svelte';
+  import PaymentsSection from '$lib/components/family/PaymentsSection.svelte';
+  import { progressWords as wordsFor, type Balance, type Charge } from '$lib/family-format.ts';
   /**
    * The student's own board.
    *
@@ -53,8 +57,8 @@
     progressNote?: string; updated?: string;
     homework?: HwItem[]; lessons?: LessonItem[];
     /* Only sent when this student is the payer of record (pays for themselves). */
-    charges?: Array<{ id: number; status: string; date: string; claimed_at?: string | null }>;
-    balance?: { owedAgorot: number; paidAgorot: number; dueAgorot: number; upcomingAgorot: number } | null;
+    charges?: Charge[];
+    balance?: Balance | null;
   }
   interface ChatMsg {
     cls: 'me' | 'bot' | 'sys'; text: string; wa?: string;
@@ -77,13 +81,23 @@
    * no server round-trip, and re-running the load function to change a tab
    * would throw away the portal data already fetched on mount.
    */
-  const NAV_ITEMS: NavItem[] = [
+  const CHILD_NAV: NavItem[] = [
     { id: 'home',  label: 'בית',        icon: 'portal' },
     { id: 'hw',    label: 'שיעורי בית',  icon: 'homework' },
     { id: 'games', label: 'משחקים',      icon: 'games' },
     { id: 'ask',   label: 'שאלה',        icon: 'message' },
   ];
-  const VIEW_IDS = NAV_ITEMS.map(i => i.id);
+  /* An adult learning for themselves is student AND payer: their one home
+     also carries what the parent view gives a parent. Games and questions
+     move to tiles on the home so four destinations still fit a phone. */
+  const SELF_NAV: NavItem[] = [
+    { id: 'home',     label: 'בית',        icon: 'portal' },
+    { id: 'hw',       label: 'שיעורי בית',  icon: 'homework' },
+    { id: 'progress', label: 'התקדמות',    icon: 'progress' },
+    { id: 'payments', label: 'תשלומים',    icon: 'payments' },
+  ];
+  const NAV_ITEMS = $derived(data.isSelf ? SELF_NAV : CHILD_NAV);
+  const VIEW_IDS = $derived([...CHILD_NAV.map(i => i.id), ...(data.isSelf ? ['progress', 'payments'] : [])]);
 
   let activeView = $state('home');
   /** Hides the nav while the question composer has focus, so the keyboard
@@ -134,25 +148,6 @@
     return () => removeEventListener('popstate', onPop);
   });
 
-  let claimBusy = $state(false);
-  let claimError = $state('');
-  const unclaimedOwed = $derived((DATA?.charges ?? []).filter(c => c.status === 'owed' && !c.claimed_at));
-  const hasPendingClaim = $derived((DATA?.charges ?? []).some(c => c.status === 'owed' && c.claimed_at));
-  /* "I paid" for the self-paying learner: a claim on every open charge the
-     tutor then confirms. It never marks anything paid. */
-  async function claimPaid() {
-    if (claimBusy) return;
-    claimBusy = true; claimError = '';
-    try {
-      for (const c of unclaimedOwed) {
-        const r = await fetch('/api/payments/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) });
-        if (!r.ok) throw new Error(String(r.status));
-        c.claimed_at = new Date().toISOString();
-      }
-    } catch { claimError = 'לא הצלחנו לשמור. נסו שוב.'; }
-    finally { claimBusy = false; }
-  }
-
   async function load() {
     view = 'loading';
     loadError = '';
@@ -186,19 +181,19 @@
   const progressLabel = $derived(
     DATA?.progress?.kind === 'skills' ? 'יכולות' : 'הוגשו',
   );
-  const progressWords = $derived.by(() => {
-    const p = DATA?.progress;
-    if (!p || p.kind === 'none' || !p.total) return 'עוד אין מה למדוד — זה יתחיל אחרי השיעור הראשון.';
-    return p.kind === 'skills'
-      ? `${p.done} מתוך ${p.total} יכולות בתכנית כבר בוצעו`
-      : `${p.done} מתוך ${p.total} שיעורי בית הוגשו`;
-  });
+  const progressWords = $derived(wordsFor(DATA?.progress, 'learner'));
 
   /** Still open means not handed in. A graded task is finished either way. */
   const hwOpen = $derived((DATA?.homework ?? []).filter(h => !h.submitted && !h.graded).length);
   const writtenHomework = $derived(DATA?.homework ?? []);
   const writtenSubmitted = $derived(writtenHomework.filter(h => h.submitted || h.graded).length);
   const today = israelToday();
+  /* What the home card says about money. Owing nothing yet but having a
+     lesson booked is "planned", not a bare ₪0 that reads as nothing happening. */
+  const owedFigure = $derived(!DATA?.balance ? 0 : DATA.balance.dueAgorot > 0 || !DATA.balance.upcomingAgorot ? DATA.balance.dueAgorot : DATA.balance.upcomingAgorot);
+  const owedLabel = $derived(DATA?.balance && !DATA.balance.dueAgorot && DATA.balance.upcomingAgorot ? 'מתוכנן קדימה' : 'לתשלום עכשיו');
+  /** Booking is the payer's: a parent's board and a self-learner's home. */
+  const canBook = $derived(data.canSeeParentView || data.isSelf);
 
   function hwStatus(h: HwItem): { cls: string; label: string } {
     /* Three states, not two, and the middle one is the point: a child who
@@ -432,20 +427,16 @@
         </div>
 
         {#if isDayOne}
-          <div class="dayone"><div class="dayone-title">הכל מוכן לשיעור הראשון</div><p class="dayone-sub">אחרי השיעור יופיעו כאן הסיכום ומשחקי התרגול.</p>{#if data.canSeeParentView}<a class="backlink" href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור</a>{/if}</div>
+          <div class="dayone"><div class="dayone-title">הכל מוכן לשיעור הראשון</div><p class="dayone-sub">אחרי השיעור יופיעו כאן הסיכום ומשחקי התרגול.</p>{#if canBook && !data.isSelf}<a class="backlink" href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור</a>{/if}</div>
         {:else}
           {#if DATA.progress?.total}
-            <div class="student-progress"><Icon name="progress" size={20} /><p>{progressWords}</p></div>
+            {#if data.isSelf}
+              <button type="button" class="student-progress as-link" onclick={() => selectView('progress')}><Icon name="progress" size={20} /><p>{progressWords}</p><span aria-hidden="true">←</span></button>
+            {:else}
+              <div class="student-progress"><Icon name="progress" size={20} /><p>{progressWords}</p></div>
+            {/if}
           {/if}
-          {#if DATA.balance}
-            <section class="self-pay" aria-label="התשלום שלי">
-              <div class="card-title"><Icon name="payments" /> התשלום שלי</div>
-              <p class="self-pay-row"><span>לתשלום עכשיו</span><strong>{formatAgorot(DATA.balance.dueAgorot)}</strong></p>
-              <p class="self-pay-row"><span>שולם עד כה</span><strong>{formatAgorot(DATA.balance.paidAgorot)}</strong></p>
-              {#if DATA.balance.dueAgorot > 0}<a class="play" href={PAYBOX_LINK} target="_blank" rel="noopener"><Icon name="payments" size={17} /> לתשלום ב-PayBox</a>{#if unclaimedOwed.length}<button type="button" class="play claim-btn" disabled={claimBusy} onclick={claimPaid}><Icon name="check" size={17} /> שילמתי</button>{:else if hasPendingClaim}<p class="card-meta"><Icon name="calendar" size={16} /> ממתין לאישור</p>{/if}{#if claimError}<p class="card-meta" role="alert">{claimError}</p>{/if}{:else}<p class="card-meta">אין כרגע תשלום פתוח.</p>{/if}
-            </section>
-          {/if}
-          {#if (DATA.lessons ?? []).length}
+          {#if !data.isSelf && (DATA.lessons ?? []).length}
             <details class="recent-lessons"><summary>שיעורים אחרונים <span>{(DATA.lessons ?? []).length}</span></summary>
               {#each DATA.lessons ?? [] as l}
                 <article class="lesson-row"><div class="card-title">{l.topic}</div><div class="card-meta">{l.upcoming ? 'לקראת השיעור · ' : ''}{fmtDate(l.date)}</div>
@@ -454,6 +445,23 @@
               {/each}
             </details>
           {/if}
+        {/if}
+
+        {#if data.isSelf}
+          {#if DATA.balance}
+            <!-- Money status stays visible on day one too: a first lesson can
+                 already be booked and owed. The full table is one tap away. -->
+            <button type="button" class="self-pay" aria-label="התשלומים שלי: לפירוט" onclick={() => selectView('payments')}>
+              <span class="self-pay-icon"><Icon name="payments" size={22} /></span>
+              <span class="self-pay-text"><span class="eyebrow">{owedLabel}</span><strong>{formatAgorot(owedFigure)}</strong></span>
+              <span aria-hidden="true">←</span>
+            </button>
+          {/if}
+          <div class="self-tiles">
+            <a class="tile" href={STUDENT_GAMES_PATH}><Icon name="games" size={24} /><span>משחקים</span></a>
+            <button type="button" class="tile" onclick={() => selectView('ask')}><Icon name="message" size={24} /><span>שאלה</span></button>
+            <a class="tile" href="/booking"><Icon name="booking" size={24} /><span>שיעור נוסף</span></a>
+          </div>
         {/if}
       {/if}
 
@@ -545,6 +553,17 @@
         {/if}
       {/if}
 
+      {#if data.isSelf && activeView === 'progress'}
+        <h1 class="view-title">ההתקדמות שלי</h1>
+        <ProgressSection progress={DATA.progress} audience="learner" headless />
+        <LessonLog lessons={DATA.lessons ?? []} audience="learner" />
+      {/if}
+
+      {#if data.isSelf && activeView === 'payments'}
+        <h1 class="view-title">התשלומים שלי</h1>
+        <PaymentsSection balance={DATA.balance} charges={DATA.charges ?? []} audience="learner" headless />
+      {/if}
+
       {#if activeView === 'games'}
         <h1 class="view-title">משחקי התרגול</h1>
         <article class="card">
@@ -595,13 +614,12 @@
 
       <!-- Only for a parent viewing their child's board. A child's own
            session has no parent view to return to. -->
-      {#if data.canSeeParentView}
+      {#if data.canSeeParentView && !data.isSelf}
         <div class="board-links">
-          {#if !data.isSelf}<a class="backlink" href="/app/parent?s={encodeURIComponent(code)}">→ חזרה ללוח ההורה</a>{/if}
+          <a class="backlink" href="/app/parent?s={encodeURIComponent(code)}">→ חזרה ללוח ההורה</a>
           <a class="backlink" href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור נוסף</a>
         </div>
       {/if}
-
 
       <div class="foot">{DATA.updated ? `עודכן לאחרונה: ${fmtDate(DATA.updated)}` : ''}</div>
     </div>
@@ -627,7 +645,7 @@
      app's chrome, so it is there while the board is loading and while it is
      failing. A nav that appears only on success is one a child cannot use to
      leave a broken screen. -->
-<BottomNav items={NAV_ITEMS} active={activeView} onselect={selectView} hidden={composing} />
+<BottomNav items={NAV_ITEMS} active={NAV_ITEMS.some(i => i.id === activeView) ? activeView : 'home'} onselect={selectView} hidden={composing} />
 
 <style>
   .logout-error{font-size:.8125rem;color:var(--danger-text);max-width:24ch;line-height:1.5}
@@ -644,8 +662,14 @@
   .next-label,.next-meta{display:block;color:var(--text-muted);font-size:.8125rem}
   .next strong{display:block;font-size:1rem;font-weight:600;margin-block:4px}
   .student-progress{display:flex;align-items:center;gap:12px;padding:8px 4px 24px;color:var(--text-muted-strong);font-size:.875rem}
-  .self-pay{margin-bottom:20px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg)}
-  .self-pay-row{display:flex;justify-content:space-between;gap:12px;margin:8px 0;font-variant-numeric:tabular-nums}
+  .self-pay{display:flex;align-items:center;gap:14px;width:100%;margin-bottom:16px;padding:16px;min-height:64px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);color:var(--text-primary);font:inherit;text-align:start;cursor:pointer}
+  .self-pay-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--control-bg);flex:none;color:var(--text-muted-strong)}
+  .self-pay-text{display:flex;flex-direction:column;flex:1;min-width:0}
+  .self-pay-text strong{font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums}
+  .student-progress.as-link{width:100%;background:none;border:0;min-height:44px;font:inherit;text-align:start;cursor:pointer;padding-bottom:16px}
+  .student-progress p{flex:1;margin:0}
+  .self-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:20px}
+  .tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:88px;padding:12px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);color:var(--text-primary);font:inherit;font-size:.875rem;font-weight:600;text-decoration:none;text-align:center;cursor:pointer}
   .recent-lessons{margin-bottom:20px;border-top:1px solid var(--border)}
   .recent-lessons summary{display:flex;align-items:center;justify-content:space-between;min-height:56px;font-size:1rem;font-weight:600;list-style:revert;cursor:pointer}
   .recent-lessons summary span{color:var(--text-muted);font-size:.875rem}

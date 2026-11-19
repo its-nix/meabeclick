@@ -37,11 +37,17 @@ export const load: PageServerLoad = ({ locals, url }) => {
     redirect(303, own ? `/app/student?s=${encodeURIComponent(own.code)}` : '/portal');
   }
 
-  /* An adult who signed up for themselves has no parent view: their home is
-     their own student page, which already carries payment and progress. */
+  /* An adult who signed up for themselves has no parent view: their one
+     home is their student page, which carries progress, lessons, payments
+     and booking too. An old link to a section (`?v=payments`) keeps its
+     section. */
   if (access.isSelf) {
     const own = defaultStudent(access);
-    if (own) redirect(303, `/app/student?s=${encodeURIComponent(own.code)}`);
+    if (own) {
+      const section = url.searchParams.get('v');
+      const keep = section === 'progress' || section === 'payments' ? `&v=${section}` : '';
+      redirect(303, `/app/student?s=${encodeURIComponent(own.code)}${keep}`);
+    }
   }
 
   const requested = url.searchParams.get('s');

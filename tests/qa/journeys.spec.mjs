@@ -3,6 +3,8 @@ import {DatabaseSync} from 'node:sqlite';
 import {seedRetired,receipt as nativeReceipt} from '../learning-archive-fixture.mjs';
 import {visualDeckFixture} from '../visual-deck-fixture.mjs';
 import {exportGamesFile} from '../../src/lib/server/native-learning/games.ts';
+import {familySession} from '../characterization/harness.mjs';
+import {STUDENT_GAMES_PATH} from '../../src/lib/native-links.ts';
 import {REMOVED_ROUTES} from '../../scripts/pr-qa/removed-routes.mjs';
 
 const profilePath = qa => `/app/students/${qa.learner.code}`;
@@ -266,6 +268,43 @@ test('payments: teacher marks debt paid and parent balance follows persisted dat
   await expect(parent.locator('.pay-sum-card.pending .psc-amount')).toHaveText('₪0');
   await expect(parent.locator('.pay-sum-card.paid .psc-amount')).toHaveText('₪120');
   await qa.evidence(parent, 'parent-paid');
+});
+
+test('payments: a self-learner has one home with progress, lessons, payments and booking', async ({ qa }) => {
+  const booked = await (await fetch(`${qa.baseUrl}/api/book`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'רון אברהם', subject: 'מתמטיקה', level: 'כיתה ט', phone: '0501234567', email: 'ron-self@example.com',
+      durationMin: 90, start: '2027-03-15T10:00:00+02:00', end: '2027-03-15T11:30:00+02:00', isSelf: true }),
+  })).json();
+  qa.cookies.self = await familySession(booked.portal.link.replace(qa.browserUrl, qa.baseUrl));
+  const home = `/app/student?s=${booked.portal.code}`;
+  const page = await qa.page('self');
+  // No parent dashboard: the old address lands here, keeping the section asked for.
+  await page.goto(`/app/parent?s=${booked.portal.code}&v=payments`);
+  await expect(page).toHaveURL(new RegExp(`${home.replace('?', '\\?')}&v=payments$`));
+  await expect(page.getByRole('heading', { name: 'התשלומים שלי', exact: true })).toBeVisible();
+  const charge = page.locator('.mobile-charges li, .charges-table tbody tr').filter({ hasText: '2027' }).filter({ visible: true }).first();
+  await expect(charge).toContainText('₪215');
+  await page.getByRole('button', { name: 'שילמתי' }).filter({ visible: true }).first().click();
+  await expect(page.getByText('ממתין לאישור').filter({ visible: true }).first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('ממתין לאישור').filter({ visible: true }).first()).toBeVisible();
+  await qa.evidence(page, 'self-payments');
+
+  await page.getByRole('button', { name: 'התקדמות', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'ההתקדמות שלי', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'השיעורים שלי', exact: true })).toBeVisible();
+  await expect(page.getByText('עדיין לא נרשמו שיעורים')).toBeVisible();
+  await qa.evidence(page, 'self-progress');
+
+  await page.getByRole('button', { name: 'בית', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'משחקים' })).toHaveAttribute('href', STUDENT_GAMES_PATH);
+  await expect(page.getByRole('link', { name: 'שיעור נוסף' })).toHaveAttribute('href', '/booking');
+  await expect(page.getByRole('button', { name: /התשלומים שלי/ })).toBeVisible();
+  await expect(page.locator('main')).not.toContainText(/ילד|הורה/);
+  await qa.evidence(page, 'self-home');
+  await page.getByRole('button', { name: 'שאלה', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'עזרה בלמידה', exact: true })).toBeVisible();
 });
 
 test('workspace: before the cutover the teaching page explains setup and tutor sections remain reachable', async ({ qa }) => {

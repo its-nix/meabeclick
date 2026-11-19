@@ -1,16 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parentSource } from './family-source.mjs';
 import { readFileSync } from 'node:fs';
-const parent = readFileSync('src/routes/app/parent/+page.svelte', 'utf8');
+const parent = parentSource();
 const student = readFileSync('src/routes/app/student/+page.svelte', 'utf8');
 
 test('parent invitation is visible before lesson details while detailed finance stays in its own view', () => {
   const lesson = parent.indexOf('class="next-lesson-box"');
   const progress = parent.indexOf('class="progress-overall"');
-  const access = parent.indexOf('class="section share"');
+  const access = parent.indexOf('title="הזמנה ל{CURRENT.name}"');
   assert.ok(access < lesson && lesson < progress);
   assert.match(parent, /<section class="family-administration"[^>]*>/);
-  assert.match(parent, /<section class="section family-payments" hidden=\{parentView !== 'payments'\}>/);
+  assert.match(parent, /<PaymentsSection [^>]*hidden=\{parentView !== 'payments'\}/);
   assert.equal((parent.match(/class="stats-bar"/g) ?? []).length, 1, 'financial counters remain only in the family finance disclosure');
 });
 test('student keeps a second progress summary only for distinct skill mastery', () => {

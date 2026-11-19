@@ -7,6 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parentSource } from './family-source.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -27,15 +28,15 @@ test('a lesson on or before today has happened; an imported one keeps its summar
 });
 
 test('both family pages count only lessons that have happened, and show what is coming', () => {
-  const parent = read('src/routes/app/parent/+page.svelte');
+  const parent = parentSource();
   const student = read('src/routes/app/student/+page.svelte');
   assert.match(parent, /filter\(l => !l\.upcoming\)/);
-  assert.match(student, /filter\(l => !l\.upcoming\)/);
+  assert.match(student, /!l\.upcoming/);
   assert.match(student, /לקראת השיעור/);
 });
 
 test('the parent can open the child\'s board from their page, and no family page links a presentation', () => {
-  const parent = read('src/routes/app/parent/+page.svelte');
+  const parent = parentSource();
   assert.match(parent, /href="\/app\/student\?s=\{currentId\}"/);
   assert.doesNotMatch(parent, /slidesUrl/);
   assert.doesNotMatch(read('src/routes/app/student/+page.svelte'), /slidesUrl/);
@@ -45,7 +46,7 @@ test('the parent can open the child\'s board from their page, and no family page
 test('empty states point to the existing booking flow', () => {
   const student = read('src/routes/app/student/+page.svelte');
   const day = student.slice(student.indexOf('<div class="dayone">'), student.indexOf('<div class="dayone">') + 700);
-  assert.match(day, /\{#if data\.canSeeParentView\}[\s\S]*href="\/booking"/, 'only a viewer who may book is offered the link');
-  const parent = read('src/routes/app/parent/+page.svelte');
+  assert.match(day, /\{#if canBook[^}]*\}[\s\S]*href="\/booking"/, 'only a viewer who may book is offered the link');
+  const parent = parentSource();
   assert.match(parent, /עדיין לא נרשמו שיעורים[\s\S]{0,300}href="\/booking"/);
 });

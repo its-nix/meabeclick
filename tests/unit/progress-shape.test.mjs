@@ -21,6 +21,7 @@
 // the next divergence a compile error instead of a screenshot.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parentSource } from './family-source.mjs';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,7 +62,7 @@ test('no page hand-copies the progress shape', () => {
 });
 
 test('the parent page renders the derived percent, not the object', () => {
-  const src = read('src/routes/app/parent/+page.svelte');
+  const src = parentSource();
   assert.doesNotMatch(src, /CURRENT\.progress \|\| 0/,
     'rendering the object itself is what produced "[object Object]%"');
   assert.match(src, /progress\??\.percent/,

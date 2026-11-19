@@ -230,6 +230,11 @@ stranger's computer (Lior, 2026-11-16).
 holder: they book, they pay, and there is no parent in the loop. The data model
 already anticipates this (`accounts.is_self`). This is not an edge case to
 bolt on later — it is a first-class shape of the same account.
+Their one home is `/app/student`: everything the student has (homework, games,
+questions) and everything a parent has (progress by skill, the lesson log,
+charges with PayBox and "I paid", booking), in first-person words. There is
+no parent dashboard for them and `/app/parent` sends them to the home; a
+child's own session never receives payment data (Lior, 2026-11-20).
 
 **Tutors: Nikol and Lior — the two tutors the site sells by name, so "both
 calendars" means theirs. Lior is also the owner, builds the platform, and

@@ -577,7 +577,7 @@
            session has no parent view to return to. -->
       {#if data.canSeeParentView}
         <div class="board-links">
-          <a class="backlink" href="/app/parent?s={encodeURIComponent(code)}">→ חזרה ללוח ההורה</a>
+          {#if !data.isSelf}<a class="backlink" href="/app/parent?s={encodeURIComponent(code)}">→ חזרה ללוח ההורה</a>{/if}
           <a class="backlink" href="/booking"><Icon name="booking" size={17} /> הזמנת שיעור נוסף</a>
         </div>
       {/if}

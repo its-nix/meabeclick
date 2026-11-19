@@ -25,13 +25,16 @@ export const load: PageServerLoad = ({ locals, setHeaders }) => {
   const access = locals.family ? resolveFamilyAccess(locals.family) : null;
 
   if (!access || !access.canSeeParentView) {
-    return { googleEnabled: googleEnabled(), known: false as const, isSelf: false, email: null, phone: null, students: [], acquisitionSource: null };
+    return { googleEnabled: googleEnabled(), known: false as const, isSelf: false, email: null, phone: null, students: [], acquisitionSource: null, askSource: true };
   }
 
+  const savedSource = familyAcquisitionSource(access.account.id);
   return {
     googleEnabled: googleEnabled(),
     known: true as const,
-    acquisitionSource: familyAcquisitionSource(access.account.id) ?? 'unknown',
+    acquisitionSource: savedSource,
+    /* Asked only the first time: a family with a saved source (even 'unknown') is not asked again. */
+    askSource: savedSource === null,
     isSelf: access.isSelf,
     email: access.account.email,
     phone: access.account.phone,

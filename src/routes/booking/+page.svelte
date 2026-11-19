@@ -323,27 +323,10 @@
     mode = m;
     errors = { ...errors, mode: undefined };
   }
-  /** An optional first answer, or an explicit correction on a later booking.
-   * Omission for a returning family means carry its saved source forward. */
+  /** Asked once, on a first booking. A family that already has a saved
+   * source (including 'unknown') is never asked again; the server keeps it. */
   let heardFrom = $state('');
-  let editingSource = $state(false);
-  const savedSource = $derived(data.acquisitionSource ?? 'unknown');
-  async function editSource() {
-    if (submitting) return;
-    heardFrom = savedSource;
-    heardDetail = '';
-    editingSource = true;
-    await tick();
-    document.getElementById('inp-heard-from')?.focus();
-  }
-  async function cancelSourceEdit() {
-    if (submitting) return;
-    heardFrom = '';
-    heardDetail = '';
-    editingSource = false;
-    await tick();
-    document.getElementById('edit-source')?.focus();
-  }
+  const askSource = $derived(data.askSource);
   /** Optional free text after "אחר". Never required, and sent only with that choice. */
   let heardDetail = $state('');
   let submitting = $state(false);
@@ -503,7 +486,7 @@
     submitError = '';
     submitFailed = false;
     track('booking_submitted');
-    const includeSource = !data.known || editingSource;
+    const includeSource = askSource;
 
     try {
       const attrib = attribution();
@@ -1042,19 +1025,7 @@
 
           {/if}
 
-          {#if data.known}
-            <div class="recap-row">
-              <span>מקור היכרות: {savedSource === 'unknown' ? 'לא ידוע' : HEARD_FROM_LABELS[savedSource]}</span>
-              {#if !editingSource}
-                <button id="edit-source" class="linkish" type="button" onclick={editSource} aria-expanded={false} disabled={submitting}>
-                  {savedSource === 'unknown' ? 'עדכון' : 'תיקון'}
-                </button>
-              {:else}
-                <button class="linkish" type="button" onclick={cancelSourceEdit} disabled={submitting}>ביטול התיקון</button>
-              {/if}
-            </div>
-          {/if}
-          {#if !data.known || editingSource}
+          {#if askSource}
           <label for="inp-heard-from">איך שמעתם עלינו? <span class="optional">(לא חובה)</span></label>
           <select id="inp-heard-from" bind:value={heardFrom} disabled={submitting} onchange={() => { if (heardFrom !== 'other') heardDetail = ''; }}>
             <option value="">בחרו...</option>

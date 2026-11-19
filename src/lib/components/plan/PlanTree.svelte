@@ -166,7 +166,7 @@
   .caret { color: var(--text-muted); }
   .dot { color: var(--accent2-strong); font-size: .7rem; vertical-align: middle; }
   .pill {
-    font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+    font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-pill);
     border: 1.5px solid var(--border-strong); color: var(--text-muted); white-space: nowrap;
   }
   .pill[data-status='independent'] { color: var(--accent3-strong); border-color: var(--accent3-strong); }
@@ -176,7 +176,7 @@
   /* Structure menu — its own hit area beside the disclosure toggle, never
      inside it, so it can't swallow the expand/collapse tap. */
   .menu-btn {
-    flex-shrink: 0; min-width: 44px; min-height: 44px; border-radius: 8px;
+    flex-shrink: 0; min-width: 44px; min-height: 44px; border-radius: var(--radius-pill);
     background: none; border: none; font-size: 1.15rem; line-height: 1;
     color: var(--text-muted); cursor: pointer;
   }
@@ -187,7 +187,7 @@
   }
   .branch-menu { padding-inline-start: 32px; }
   .menu-item {
-    min-height: 44px; padding: 4px 14px; border-radius: 999px;
+    min-height: 44px; padding: 4px 14px; border-radius: var(--radius-pill);
     border: 1.5px solid var(--border-strong); background: var(--bg-surface);
     color: var(--text-muted); font-family: inherit; font-size: .78rem; font-weight: 700; cursor: pointer;
   }

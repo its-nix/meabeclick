@@ -392,7 +392,7 @@
   .draft-accept {
     font-family: inherit; font-size: .82rem; font-weight: 700;
     min-height: 44px; padding: 0 14px; margin-inline-start: auto;
-    border: 1px solid var(--border); border-radius: 8px;
+    border: 1px solid var(--border); border-radius: var(--radius-pill);
     background: var(--bg-card); color: var(--accent); cursor: pointer;
   }
   .draft-accept:disabled { opacity: .55; cursor: default; }
@@ -424,7 +424,7 @@
   }
 
   .submit-btn {
-    width: 100%; min-height: 48px; border: none; border-radius: 12px;
+    width: 100%; min-height: 48px; border: none; border-radius: var(--radius-pill);
     background: var(--action-fill); color: #fff; font-family: inherit; font-weight: 700;
     font-size: .95rem; cursor: pointer;
   }

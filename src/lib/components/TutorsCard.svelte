@@ -211,7 +211,7 @@
   .status.ok { color: var(--text); }
   .status.missing { color: var(--text-muted); }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .act { min-height: 44px; display: inline-flex; align-items: center; border: 1.5px solid var(--border-strong); background: none; border-radius: 999px; padding: 0 16px; cursor: pointer; font: inherit; font-size: .85rem; color: inherit; text-decoration: none; }
+  .act { min-height: 44px; display: inline-flex; align-items: center; border: 1.5px solid var(--border-strong); background: none; border-radius: var(--radius-pill); padding: 0 16px; cursor: pointer; font: inherit; font-size: .85rem; color: inherit; text-decoration: none; }
   .act.wa { background: #25d366; border-color: #25d366; color: #fff; font-weight: 700; }
   .act.primary { background: var(--action-fill); border-color: var(--accent); color: #fff; font-weight: 700; }
   .act.small { padding: 0 12px; }

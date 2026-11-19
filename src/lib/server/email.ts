@@ -23,6 +23,7 @@
  */
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { RADIUS_PILL } from '../brand.ts';
 import { PAYBOX_LINK, TUTOR_PHONE } from '../contact.ts';
 import { planLabel } from '../plans.ts';
 import { contactTutor } from '../tutors.ts';
@@ -167,7 +168,7 @@ function linkBlock(href: string, label: string): string {
     <div style="margin:18px 0">
       <a href="${esc(href)}"
          style="display:inline-block;background:#2563EB;color:#ffffff;text-decoration:none;
-                font-weight:800;font-size:16px;padding:13px 26px;border-radius:12px">${esc(label)}</a>
+                font-weight:800;font-size:16px;padding:13px 26px;border-radius:${RADIUS_PILL}">${esc(label)}</a>
     </div>
     <div style="font-size:12px;color:#64748B;line-height:1.6;word-break:break-all">
       אם הכפתור לא עובד, אפשר להעתיק את הכתובת:<br>
@@ -605,7 +606,7 @@ export async function sendLessonReportedEmail(r: {
     <p style="margin:0;font-weight:700">שיעורי הבית:</p>
     ${list}
     <p style="margin-top:20px">
-      <a href="${esc(r.link)}" style="background:#2563EB;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none">לדף האישי</a>
+      <a href="${esc(r.link)}" style="background:#2563EB;color:#fff;padding:10px 18px;border-radius:${RADIUS_PILL};text-decoration:none">לדף האישי</a>
     </p>
     ${payBlock()}`);
 

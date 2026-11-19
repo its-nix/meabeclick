@@ -74,7 +74,7 @@
   .rq-info { min-width: 0; }
   .rq-link {
     display: inline-flex; align-items: center; justify-content: center;
-    min-height: 44px; min-width: 44px; padding: 4px 18px; border-radius:10px;
+    min-height: 44px; min-width: 44px; padding: 4px 18px; border-radius: var(--radius-pill);
     border:1px solid var(--action-fill);background:var(--action-fill);color:var(--action-text);
     font-weight: 700; font-size: .82rem;
   }

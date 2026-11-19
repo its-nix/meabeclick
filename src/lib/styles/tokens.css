@@ -141,6 +141,9 @@
   --r-md: 16px;
   --r-lg: 18px;
   --r-xl: 24px;
+  /* Every button-like control (buttons, link-buttons, chips, tabs, icon buttons)
+     uses this; never hard-code a radius on a button. */
+  --radius-pill: 9999px;
 }
 
 /* ── Reset & base ──────────────────────────────────────────── */

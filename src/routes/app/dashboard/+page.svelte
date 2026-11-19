@@ -1683,14 +1683,14 @@
   /* ── Buttons ── */
   .btn {
     display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer;
-    font-family: var(--font-ui); font-weight: 700; border-radius: var(--r-sm);
+    font-family: var(--font-ui); font-weight: 700; border-radius: var(--radius-pill);
     padding: 8px 18px; font-size: .85rem; transition: opacity .2s, transform .15s;
     text-decoration: none;
   }
   .btn:hover { opacity: .88; transform: translateY(-1px); }
   .btn-gold { background: var(--action-fill); color: #fff; }
   .btn-outline { background: var(--accent-dim); border: 1.5px solid rgba(37,99,235,0.22); color: var(--accent-deep); }
-  .btn-ghost { background: rgba(37,99,235,0.04); border: 1.5px solid var(--border-strong); color: var(--text-muted); cursor: pointer; font-family: var(--font-ui); font-weight: 700; border-radius: var(--r-sm); padding: 8px 18px; font-size: .85rem; }
+  .btn-ghost { background: rgba(37,99,235,0.04); border: 1.5px solid var(--border-strong); color: var(--text-muted); cursor: pointer; font-family: var(--font-ui); font-weight: 700; border-radius: var(--radius-pill); padding: 8px 18px; font-size: .85rem; }
   .btn-danger { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.28); color: var(--danger); }
   .btn-sm { padding: 5px 12px; font-size: .78rem; }
 
@@ -1722,7 +1722,7 @@
   .cf-banner { background: var(--danger-bg); border: 1.5px solid var(--danger-border); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
   .cf-title { font-weight: 700; color: var(--danger-text); margin-bottom: 8px; }
   .cf-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--danger-border); font-size: .9rem; }
-  .cf-resolve { border: 1.5px solid var(--danger-text); background: none; color: var(--danger-text); border-radius: 999px; padding: 3px 12px; cursor: pointer; font-size: .8rem; }
+  .cf-resolve { border: 1.5px solid var(--danger-text); background: none; color: var(--danger-text); border-radius: var(--radius-pill); padding: 3px 12px; cursor: pointer; font-size: .8rem; }
 
   /* Calendar-READ issue banner — a feed /api/availability could not read,
      so its hours may show as free when they aren't. Deliberately distinct
@@ -1880,7 +1880,7 @@
   .student-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 24px 24px 0; }
   .student-dialog h2 { font-size: 1.3rem; line-height: 1.4; margin: 0; }
   .student-dialog-header p { font-size: .85rem; color: var(--text-muted); line-height: 1.6; margin-top: 6px; }
-  .dialog-close { min-width: 44px; min-height: 44px; margin-top: -8px; margin-inline-end: -10px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-muted); cursor: pointer; }
+  .dialog-close { min-width: 44px; min-height: 44px; margin-top: -8px; margin-inline-end: -10px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); cursor: pointer; }
   .dialog-close:hover { background: var(--bg-base); }
   .student-dialog-fields { display: grid; gap: 16px; padding: 24px; }
   .student-dialog .field, .student-dialog .field-row { margin: 0; min-width: 0; }
@@ -1912,7 +1912,7 @@
   .confirm-box { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--r-lg); padding: 26px 28px; width: min(360px, 92vw); box-shadow: 0 12px 48px var(--shadow-md); text-align: center; }
   .confirm-box p { font-size: .95rem; margin-bottom: 20px; white-space: pre-wrap; }
   .confirm-box .row { display: flex; gap: 10px; }
-  .confirm-box button { flex: 1; border-radius: 999px; padding: 10px; font-family: inherit; font-weight: 700; font-size: .88rem; cursor: pointer; border: 1.5px solid var(--border); background: none; }
+  .confirm-box button { flex: 1; border-radius: var(--radius-pill); padding: 10px; font-family: inherit; font-weight: 700; font-size: .88rem; cursor: pointer; border: 1.5px solid var(--border); background: none; }
   .confirm-box button.danger { background: var(--danger-fill); border-color: var(--danger); color: #fff; }
 
   /* Divider */
@@ -1939,7 +1939,7 @@
   .codes-table tbody .account-access-row { border-top: 2px solid var(--border-strong); background: var(--bg-surface); }
   .codes-table tbody .student-access-row td:first-child { padding-inline-start: 28px; }
   .codes-table td { padding: 12px; }
-  .copy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; border: 1.5px solid var(--border-strong); background: none; border-radius: 999px; padding: 5px 14px; cursor: pointer; font-size: .82rem; color: inherit; text-decoration: none; }
+  .copy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; border: 1.5px solid var(--border-strong); background: none; border-radius: var(--radius-pill); padding: 5px 14px; cursor: pointer; font-size: .82rem; color: inherit; text-decoration: none; }
   /* .copy-btn alone sits around 28-30px tall — fine for the other buttons in
      this row, which sit beside plenty of other click targets, but this is
      the only way from the roster into the plan page on a phone, so it gets

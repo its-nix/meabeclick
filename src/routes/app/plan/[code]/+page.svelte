@@ -507,7 +507,7 @@
   .subject-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
   .chip {
     display: inline-flex; align-items: center; justify-content: center;
-    min-height: 44px; padding: 6px 16px; border-radius: 999px;
+    min-height: 44px; padding: 6px 16px; border-radius: var(--radius-pill);
     border: 1.5px solid var(--border-strong); background: var(--bg-card);
     color: var(--text-muted); font-family: inherit; font-size: .82rem; font-weight: 700;
     cursor: pointer; text-decoration: none;
@@ -538,13 +538,13 @@
   }
   .goal-actions { display: flex; gap: 8px; }
   .btn-primary {
-    min-height: 44px; border: none; border-radius: 12px; padding: 8px 20px;
+    min-height: 44px; border: none; border-radius: var(--radius-pill); padding: 8px 20px;
     background: var(--action-fill); color: #fff; font-family: inherit; font-weight: 700;
     font-size: .9rem; cursor: pointer;
   }
   .btn-primary:disabled { opacity: .6; cursor: default; }
   .btn-ghost {
-    min-height: 44px; border: 1.5px solid var(--border-strong); border-radius: 12px; padding: 8px 20px;
+    min-height: 44px; border: 1.5px solid var(--border-strong); border-radius: var(--radius-pill); padding: 8px 20px;
     background: none; color: var(--text-muted); font-family: inherit; font-weight: 700;
     font-size: .9rem; cursor: pointer;
   }

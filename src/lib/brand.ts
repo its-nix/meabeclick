@@ -65,8 +65,14 @@ export const BRAND_LOGO_SRC = '/images/logos/logo-slate.svg?v=blue-20261025';
 /** The site's type face, so a deck and a page never disagree about it. */
 export const DECK_FONT = "'Heebo', sans-serif";
 
+/**
+ * Button radius: a full pill. Must equal `--radius-pill` in tokens.css; also
+ * used where CSS variables do not exist (inline-styled email markup).
+ */
+export const RADIUS_PILL = '9999px';
+
 /** The `:root{...}` block a stand-alone document needs. */
 export function deckRootCss(): string {
-  const vars = Object.entries(DECK_PALETTE).map(([k, v]) => `--${k}:${v}`).join(';');
+  const vars = [...Object.entries(DECK_PALETTE).map(([k, v]) => `--${k}:${v}`), `--radius-pill:${RADIUS_PILL}`].join(';');
   return `:root{${vars}}`;
 }

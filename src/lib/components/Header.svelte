@@ -135,7 +135,7 @@
   .hamburger {
     background: none;
     border: 1.5px solid var(--border);
-    border-radius: var(--r-sm);
+    border-radius: var(--radius-pill);
     width: 44px;
     height: 44px;
     display: flex;
@@ -178,7 +178,7 @@
     font-size: 0.85rem;
     font-weight: 700;
     min-height:44px;padding:10px 16px;
-    border-radius:10px;
+    border-radius: var(--radius-pill);
     text-decoration: none;
     box-shadow:none;
     transition: all 0.22s ease;
@@ -233,7 +233,7 @@
     color: var(--accent);
     width: 44px;
     height: 44px;
-    border-radius: 50%;
+    border-radius: var(--radius-pill);
     font-size: 1.1rem;
     font-weight: 700;
     cursor: pointer;
@@ -262,7 +262,7 @@
     color: var(--text-primary);
     text-align: right;
     padding: 0.75rem 1rem;
-    border-radius: var(--r-sm);
+    border-radius: var(--radius-pill);
     cursor: pointer;
     transition: all 0.2s;
     width: 100%;

@@ -37,6 +37,13 @@ export const load: PageServerLoad = ({ locals, url }) => {
     redirect(303, own ? `/app/student?s=${encodeURIComponent(own.code)}` : '/portal');
   }
 
+  /* An adult who signed up for themselves has no parent view: their home is
+     their own student page, which already carries payment and progress. */
+  if (access.isSelf) {
+    const own = defaultStudent(access);
+    if (own) redirect(303, `/app/student?s=${encodeURIComponent(own.code)}`);
+  }
+
   const requested = url.searchParams.get('s');
   const inScope = requested ? studentInScope(access, requested) : null;
 

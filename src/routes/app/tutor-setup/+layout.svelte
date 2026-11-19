@@ -19,7 +19,7 @@
   .wrap :global(.lead) { color: var(--text-muted); margin: 0 0 16px; }
   .wrap :global(.btn) {
     display: inline-flex; align-items: center; justify-content: center; min-height: 48px;
-    padding: 0 24px; border: 0; border-radius: 999px; background: var(--action-fill); color: #fff;
+    padding: 0 24px; border: 0; border-radius: var(--radius-pill); background: var(--action-fill); color: #fff;
     font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
   }
   .wrap :global(.error) { color: var(--danger); font-weight: 700; margin: 0 0 12px; }

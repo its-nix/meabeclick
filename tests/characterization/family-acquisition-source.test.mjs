@@ -29,6 +29,7 @@ test('ask once, carry forward, correct current/future only, and never carry othe
     assert.match(page.headers.get('cache-control'), /private, no-store/);
     const html = await page.text();
     assert.match(html, /acquisitionSource:"other"/, 'authenticated loader includes the saved source');
+    assert.match(html, /askSource:false/, 'a family with a saved source is not asked again');
     assert.equal((await book(baseUrl, '02', {}, cookie)).status, 200);
     assert.equal((await book(baseUrl, '03', { heardFrom: 'google', heardDetail: 'must not stick' }, cookie)).status, 200);
     assert.equal((await book(baseUrl, '04', {}, cookie)).status, 200);

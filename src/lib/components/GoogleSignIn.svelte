@@ -15,7 +15,7 @@
 </form>
 <style>
   form { margin: 0; }
-  .google-button { display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:50px;border:1px solid var(--border-strong);border-radius:12px;background:var(--bg-card);color:var(--text-primary);font:inherit;font-weight:650;padding:12px 16px;cursor:pointer; }
+  .google-button { display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:50px;border:1px solid var(--border-strong);border-radius: var(--radius-pill);background:var(--bg-card);color:var(--text-primary);font:inherit;font-weight:650;padding:12px 16px;cursor:pointer; }
   .google-button:hover { background:var(--bg-surface); }
   .google-button:focus-visible { outline:3px solid var(--accent);outline-offset:3px; }
   .google-button:disabled { opacity:.6;cursor:wait; }

@@ -21,7 +21,7 @@
       const body = await r.json().catch(() => ({}));
       if (r.ok) {
         // Signed in by the answer: straight to the family's board.
-        location.href = '/app/parent';
+        location.href = '/portal';
         return;
       }
       error = body.error || 'האישור לא הצליח. נסו שוב, או כתבו לנו בוואטסאפ.';
@@ -71,7 +71,7 @@
   dd { margin: 0; font-weight: 700; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; min-height: 48px;
-    padding: 0 24px; border: 0; border-radius: 999px; background: var(--action-fill); color: #fff;
+    padding: 0 24px; border: 0; border-radius: var(--radius-pill); background: var(--action-fill); color: #fff;
     font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
   }
   .btn:disabled { opacity: 0.6; cursor: default; }

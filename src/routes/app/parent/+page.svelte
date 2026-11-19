@@ -796,7 +796,7 @@
   .parent-context-actions{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:24px}
   .parent-context-actions a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:.875rem;font-weight:500}
   .parent-brief{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:28px}
-  .parent-brief button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);text-align:start;color:var(--text-primary);cursor:pointer}
+  .parent-brief button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius: var(--r-md);text-align:start;color:var(--text-primary);cursor:pointer}
   .parent-brief button>span{font-size:.8125rem;color:var(--text-muted)}
   .parent-brief strong{font-size:1.25rem;line-height:1.2;font-weight:600;font-variant-numeric:tabular-nums}
   .parent-brief .brief-action{font-size:.8125rem;color:var(--accent-deep)}
@@ -818,7 +818,7 @@
   .nav-logout {
     font-family: inherit; font-size: 0.82rem; font-weight: 700;
     color: var(--text-muted); background: none; border: 1px solid var(--border);
-    border-radius: var(--r-sm); padding: 6px 16px; cursor: pointer;
+    border-radius: var(--radius-pill); padding: 6px 16px; cursor: pointer;
     transition: color 0.2s, border-color 0.2s;
   }
   .nav-logout:hover { color: var(--accent); border-color: var(--accent-soft); }
@@ -864,7 +864,7 @@
   .data-table td { padding: 11px 15px; border-bottom: 1px solid var(--border); color: var(--text-primary); vertical-align: top; }
   .data-table tr:last-child td { border-bottom: none; }
   .data-table tr:hover td { background: var(--accent-dim); }
-  .pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(37,99,235,0.2); }
+  .pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(37,99,235,0.2); }
   .lesson-topic { font-weight: 700; }
   .empty-row { text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.9rem; }
 
@@ -877,7 +877,7 @@
   .hw-task { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
   .hw-task.done { text-decoration: line-through; color: var(--text-muted); font-weight: 400; }
   .hw-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
-  .hw-play { display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:8px 12px;min-height:44px;background:var(--accent-dim);color:var(--accent-deep);border:0;border-radius:10px;font-size:.875rem;font-weight:600; }
+  .hw-play { display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:8px 12px;min-height:44px;background:var(--accent-dim);color:var(--accent-deep);border:0;border-radius: var(--radius-pill);font-size:.875rem;font-weight:600; }
   .hw-play:hover { background: var(--accent2); color: var(--btn-text); }
   .hw-badge { font-size:.75rem;font-weight:600;padding:4px 8px;border-radius:6px;align-self:flex-start; }
   .hw-badge.done { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); color: var(--accent3-strong); }
@@ -942,7 +942,7 @@
   .boot-err { color: var(--danger); font-weight: 600; }
   .boot-retry, .boot-cta {
     margin-top: 0.6rem; background: var(--action-fill); color: #fff;
-    border: 0; border-radius: 12px; padding: 0.75rem 1.6rem; min-height: 48px;
+    border: 0; border-radius: var(--radius-pill); padding: 0.75rem 1.6rem; min-height: 48px;
     font-family: inherit; font-size: 0.95rem; font-weight: 700;
     cursor: pointer; text-decoration: none; display: inline-flex;
     align-items: center;
@@ -953,7 +953,7 @@
      has. */
   .boot-cta-secondary {
     margin-top: 0.6rem; background: transparent; color: var(--text-primary);
-    border: 1.5px solid var(--border-strong); border-radius: 12px;
+    border: 1.5px solid var(--border-strong); border-radius: var(--radius-pill);
     padding: 0.7rem 1.6rem; min-height: 44px;
     font-family: inherit; font-size: 0.9rem; font-weight: 700;
     cursor: pointer; text-decoration: none; display: inline-flex;
@@ -986,7 +986,7 @@
   .board-link { display: inline-block; min-height: 44px; line-height: 44px; font-weight: 700; color: var(--accent); text-decoration: none; }
   .share-intro { font-size: 0.9rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 0.8rem; }
   .share-open {
-    background: var(--action-fill); color: #fff; border: 0; border-radius: 12px;
+    background: var(--action-fill); color: #fff; border: 0; border-radius: var(--radius-pill);
     padding: 0.75rem 1.4rem; min-height: 48px;
     font-family: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer;
   }
@@ -994,7 +994,7 @@
   .share-err { color: var(--danger); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem; }
   .share-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; }
   .share-primary, .share-secondary {
-    flex: 1 1 10rem; text-align: center; border-radius: 12px;
+    flex: 1 1 10rem; text-align: center; border-radius: var(--radius-pill);
     padding: 0.75rem 0.6rem; min-height: 48px;
     font-family: inherit; font-size: 0.92rem; font-weight: 700;
     text-decoration: none; cursor: pointer;
@@ -1018,7 +1018,7 @@
   .pay-note { font-size: 0.82rem; color: var(--text-muted); margin: 0.7rem 0 0.2rem; }
   .pay-btn {
     display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 12px;
-    padding: 0 20px; border-radius: 999px; background: var(--action-fill); color: #fff;
+    padding: 0 20px; border-radius: var(--radius-pill); background: var(--action-fill); color: #fff;
     font-weight: 700; text-decoration: none;
   }
   .pay-badge { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
@@ -1082,7 +1082,7 @@
 
   .fam-book {
     display: inline-block; background: var(--action-fill); color: #fff;
-    border-radius: 12px; padding: 0.8rem 1.8rem; min-height: 48px;
+    border-radius: var(--radius-pill); padding: 0.8rem 1.8rem; min-height: 48px;
     font-weight: 700; font-size: 0.98rem; text-decoration: none;
   }
   .fam-book:hover { background: var(--action-hover); }

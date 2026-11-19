@@ -323,27 +323,10 @@
     mode = m;
     errors = { ...errors, mode: undefined };
   }
-  /** An optional first answer, or an explicit correction on a later booking.
-   * Omission for a returning family means carry its saved source forward. */
+  /** Asked once, on a first booking. A family that already has a saved
+   * source (including 'unknown') is never asked again; the server keeps it. */
   let heardFrom = $state('');
-  let editingSource = $state(false);
-  const savedSource = $derived(data.acquisitionSource ?? 'unknown');
-  async function editSource() {
-    if (submitting) return;
-    heardFrom = savedSource;
-    heardDetail = '';
-    editingSource = true;
-    await tick();
-    document.getElementById('inp-heard-from')?.focus();
-  }
-  async function cancelSourceEdit() {
-    if (submitting) return;
-    heardFrom = '';
-    heardDetail = '';
-    editingSource = false;
-    await tick();
-    document.getElementById('edit-source')?.focus();
-  }
+  const askSource = $derived(data.askSource);
   /** Optional free text after "אחר". Never required, and sent only with that choice. */
   let heardDetail = $state('');
   let submitting = $state(false);
@@ -503,7 +486,7 @@
     submitError = '';
     submitFailed = false;
     track('booking_submitted');
-    const includeSource = !data.known || editingSource;
+    const includeSource = askSource;
 
     try {
       const attrib = attribution();
@@ -1042,19 +1025,7 @@
 
           {/if}
 
-          {#if data.known}
-            <div class="recap-row">
-              <span>מקור היכרות: {savedSource === 'unknown' ? 'לא ידוע' : HEARD_FROM_LABELS[savedSource]}</span>
-              {#if !editingSource}
-                <button id="edit-source" class="linkish" type="button" onclick={editSource} aria-expanded={false} disabled={submitting}>
-                  {savedSource === 'unknown' ? 'עדכון' : 'תיקון'}
-                </button>
-              {:else}
-                <button class="linkish" type="button" onclick={cancelSourceEdit} disabled={submitting}>ביטול התיקון</button>
-              {/if}
-            </div>
-          {/if}
-          {#if !data.known || editingSource}
+          {#if askSource}
           <label for="inp-heard-from">איך שמעתם עלינו? <span class="optional">(לא חובה)</span></label>
           <select id="inp-heard-from" bind:value={heardFrom} disabled={submitting} onchange={() => { if (heardFrom !== 'other') heardDetail = ''; }}>
             <option value="">בחרו...</option>
@@ -1250,7 +1221,7 @@
   }
   .dur-chosen {
     font-size: 0.8rem; font-weight: 700; color: var(--accent-deep);
-    background: var(--accent-dim); border-radius: 999px; padding: 0.12rem 0.5rem;
+    background: var(--accent-dim); border-radius: var(--radius-pill); padding: 0.12rem 0.5rem;
   }
   .plan-continue { display: block; width: 100%; margin-top: 1.25rem; }
   .dur-price { font-size: 1.45rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
@@ -1261,7 +1232,7 @@
   .back-btn {
     background: transparent;
     border: 1.5px solid var(--border);
-    border-radius: var(--r-sm);
+    border-radius: var(--radius-pill);
     padding: 0.55rem 1rem;
     min-height: 44px;
     font-size: 0.9rem;
@@ -1280,7 +1251,7 @@
     background: var(--accent-dim);
     border: 1.5px solid var(--accent);
     color: var(--accent-deep);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     padding: 0.35rem 0.9rem;
     font-size: 0.88rem;
     font-weight: 700;
@@ -1305,7 +1276,7 @@
   /* A degraded calendar read, stated above the slots it qualifies.
      Deliberately not a colour swap: the ⚠ glyph and the words carry the
      status, so it survives a colour-blind reader and a greyscale screen. */
-  .btn-retry { font: inherit; font-weight: 700; min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); cursor: pointer; margin: 0.4rem 0; }
+  .btn-retry { font: inherit; font-weight: 700; min-height: 44px; padding: 0 18px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); cursor: pointer; margin: 0.4rem 0; }
   .unconfirmed-note {
     border: 1px solid var(--border);
     border-inline-start: 4px solid var(--accent);
@@ -1332,7 +1303,7 @@
     border: 1.5px solid var(--border);
     background: var(--bg-card);
     color: var(--text-primary);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     padding: 0.55rem 1rem;
     min-height: 44px;
     font-family: inherit;
@@ -1364,7 +1335,7 @@
     flex: 0 0 auto;
     padding: 0.7rem 1.2rem;
     min-height: 44px;
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     font-size: 1rem;
     font-weight: 700;
     cursor: pointer;
@@ -1417,7 +1388,7 @@
     width: 44px; height: 44px;
     border: none; background: transparent;
     font-size: 1.2rem; color: var(--text-muted);
-    cursor: pointer; border-radius: 50%;
+    cursor: pointer; border-radius: var(--radius-pill);
   }
   .sheet-close:hover { background: var(--bg-base); color: var(--text-primary); }
 
@@ -1536,7 +1507,7 @@
     background: var(--action-fill);
     color: #fff;
     border: none;
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     padding: 0.9rem;
     min-height: 52px;
     font-size: 1rem;
@@ -1551,7 +1522,7 @@
     background: transparent;
     color: var(--text-muted);
     border: 1.5px solid var(--border-strong);
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     padding: 0.9rem 1.1rem;
     min-height: 52px;
     font-size: 0.95rem;
@@ -1609,7 +1580,7 @@
     margin-top: 0;
     background: var(--action-fill);
     color: #fff;
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     padding: 0.9rem;
     min-height: 52px;
     font-weight: 700;
@@ -1627,7 +1598,7 @@
     flex: 1;
     background: var(--bg-card);
     border: 1.5px solid var(--border-strong);
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     padding: 0.7rem 0.5rem;
     min-height: 46px;
     font-family: inherit;
@@ -1679,7 +1650,7 @@
 
   .bk-print {
     display: block; margin: 0.6rem auto 0; background: none;
-    border: 1.5px solid var(--border-strong); border-radius: 999px;
+    border: 1.5px solid var(--border-strong); border-radius: var(--radius-pill);
     padding: 0.6rem 1.2rem; min-height: 44px;
     font-family: inherit; font-size: 0.85rem; font-weight: 700;
     color: var(--text-muted); cursor: pointer;
@@ -1691,7 +1662,7 @@
     background: transparent;
     border: 1.5px solid var(--border-strong);
     color: var(--text-primary);
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     padding: 0.75rem 2rem;
     min-height: 48px;
     font-weight: 700;

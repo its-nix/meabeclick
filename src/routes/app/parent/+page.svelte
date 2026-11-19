@@ -27,6 +27,11 @@
    * actual charge history rather than a hand-maintained ledger.
    */
   import { formatAgorot } from '$lib/plans.ts';
+  import { formatDateHe, type Balance, type Charge } from '$lib/family-format.ts';
+  import SectionCard from '$lib/components/family/SectionCard.svelte';
+  import ProgressSection from '$lib/components/family/ProgressSection.svelte';
+  import LessonLog from '$lib/components/family/LessonLog.svelte';
+  import PaymentsSection from '$lib/components/family/PaymentsSection.svelte';
   import type { ProgressFacts } from '$lib/progress-facts.ts';
   import { homeworkState, HOMEWORK_STATE_LABEL, type FamilyHomework } from '$lib/family-homework.ts';
   import { GRADE_LABEL } from '$lib/homework-grade.ts';
@@ -39,13 +44,6 @@
 
   const noStudentsWhatsAppHref =
     `https://wa.me/${TUTOR_PHONE}?text=${encodeURIComponent('היי, הזמנתי שיעור אבל הדף האישי עוד לא נפתח')}`;
-
-  const KIND_LABEL: Record<string, string> = {
-    single: 'יחיד', double: 'כפול', triple: 'משולש',
-  };
-  const STATUS_LABEL: Record<string, string> = {
-    owed: 'לתשלום', paid: 'שולם', void: 'בוטל',
-  };
 
   let { data }: { data: PageData } = $props();
 
@@ -81,25 +79,7 @@
     return () => window.removeEventListener('popstate', restoreParentHistory);
   });
 
-  const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
-  const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-
-  function formatDateHe(dateStr?: string | null): string {
-    if (!dateStr) return '—';
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    return `${d} ${MONTHS_HE[m - 1]} ${y} (${DAYS_HE[date.getDay()]})`;
-  }
-
-  interface Session { date: string; type: string; notes: string; amount: number; paid: boolean }
   type Hw = FamilyHomework & { date?: string | null; url?: string | null };
-  interface Balance {
-    owedAgorot: number; paidAgorot: number;
-    dueAgorot: number; upcomingAgorot: number;
-  }
-  interface Charge {
-    id: number; date: string; kind: string; amount_agorot: number; status: string; claimed_at?: string | null;
-  }
   interface PortalData {
     name: string; emoji?: string; subject?: string; level?: string; tutor?: string;
     style?: string; progress?: ProgressFacts; progressNote?: string; balance?: Balance | null;
@@ -109,20 +89,12 @@
     homework?: FamilyHomework[];
   }
   interface Dashboard extends PortalData {
-    sessions: Session[];
     homework: Hw[];
   }
 
   function toDashboardShape(d: PortalData): Dashboard {
     return {
       ...d,
-      /* Only lessons that have happened: one booked for next week is not a
-         lesson done (FamilyLesson.upcoming). */
-      sessions: (d.lessons ?? []).filter(l => !l.upcoming).map(l => ({
-        date: l.date, type: 'שיעור',
-        notes: [l.topic, l.summary].filter(Boolean).join(' — '),
-        amount: 0, paid: false,
-      })),
       homework: (d.homework ?? []).map(h => ({ ...h, date: h.assigned ?? h.due })),
     };
   }
@@ -136,32 +108,6 @@
   let loading = $state(true);
   let loadError = $state('');
   let CURRENT = $state<Dashboard | null>(null);
-
-  const seen = $derived(CURRENT?.progress?.seen ?? null);
-  /* The same three readings the student page gives, so a parent is never
-     told "progress" about what is really a homework count. */
-  const progressWords = $derived.by(() => {
-    const p = CURRENT?.progress;
-    if (!p || p.kind === 'none' || !p.total) return 'עוד אין מה למדוד — זה יתחיל אחרי השיעור הראשון';
-    return p.kind === 'skills'
-      ? `${p.done} מתוך ${p.total} יכולות בתכנית הובנו`
-      : `${p.done} מתוך ${p.total} שיעורי בית הוגשו`;
-  });
-
-  let claimBusy = $state<number | null>(null);
-  let claimError = $state('');
-  /* "I paid": records a claim for the tutor to confirm. It never changes
-     what is owed; the charge only turns paid when the tutor confirms. */
-  async function claimPaid(c: Charge) {
-    if (claimBusy !== null) return;
-    claimBusy = c.id; claimError = '';
-    try {
-      const r = await fetch('/api/payments/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) });
-      if (!r.ok) throw new Error(String(r.status));
-      c.claimed_at = new Date().toISOString();
-    } catch { claimError = 'לא הצלחנו לשמור. נסו שוב.'; }
-    finally { claimBusy = null; }
-  }
 
   async function fetchPortal(code: string): Promise<PortalData | null> {
     const r = await fetch(`/api/portal/${encodeURIComponent(code)}?kind=parent`, { cache: 'no-store' });
@@ -322,17 +268,14 @@
     ? `https://wa.me/?text=${encodeURIComponent(`${share.name}, זה הדף שלך במאה בקליק:\n${share.link}`)}`
     : '');
 
-  const totalSessions = $derived(CURRENT?.sessions.length ?? 0);
   const hwPending = $derived((CURRENT?.homework ?? []).filter(h => homeworkState(h) === 'open').length);
   const hwTotal = $derived((CURRENT?.homework ?? []).length);
-  const sortedSessions = $derived([...(CURRENT?.sessions ?? [])].sort((a, b) => b.date.localeCompare(a.date)));
   const reversedHomework = $derived([...(CURRENT?.homework ?? [])].reverse());
   /** Day one is not "everything submitted" and not "₪0 of ₪0" — it is a
    *  family that has not had a lesson yet, which is a different thing and
    *  reads as a bug when the page claims otherwise. */
-  const isDayOne = $derived(!!CURRENT && !totalSessions && !hwTotal);
+  const isDayOne = $derived(!!CURRENT && !(CURRENT.lessons ?? []).some(l => !l.upcoming) && !hwTotal);
 </script>
-{#snippet claimAction(c: Charge)}{#if c.status === 'owed'}{#if c.claimed_at}<span class="claim-pending"><Icon name="calendar" size={14} /> ממתין לאישור</span>{:else}<button type="button" class="claim-btn" disabled={claimBusy !== null} onclick={() => claimPaid(c)}><Icon name="check" size={16} /> שילמתי</button>{/if}{/if}{/snippet}
 
 <svelte:head>
   <title>פורטל הורים — מאה בקליק</title>
@@ -520,11 +463,7 @@
            child needs a session scoped to themselves — this is where they
            get one. -->
       <section class="family-administration" hidden={parentView !== 'home'} aria-label="הזמנת הילד או הילדה">
-      <div class="section share">
-        <div class="sec-header">
-          <span class="sec-icon"><Icon name="student" /></span>
-          <h2 class="sec-title">הזמנה ל{CURRENT.name}</h2>
-        </div>
+      <SectionCard icon="student" title="הזמנה ל{CURRENT.name}">
 
         <!-- The parent's own way to the child's board — the slides, the
              games — without making a link first. A family session may open
@@ -556,7 +495,7 @@
           <p class="share-intro">הזמנה חדשה מחליפה קישורים שטרם שימשו. מכשירים שכבר נכנסו נשארים מחוברים.</p>
           {#if shareErr}<p class="share-err" role="alert">{shareErr}</p>{/if}
         {/if}
-      </div>
+      </SectionCard>
       </section>
     {/if}
 
@@ -576,8 +515,7 @@
       </div>
     {/if}
 
-    <div class="section" hidden={parentView !== 'home'}>
-      <div class="sec-header"><span class="sec-icon"><Icon name="calendar" /></span><h2 class="sec-title">השיעור הבא</h2></div>
+    <SectionCard icon="calendar" title="השיעור הבא" hidden={parentView !== 'home'}>
       {#if CURRENT.nextLesson?.date}
         <div class="next-lesson-box">
 
@@ -592,59 +530,9 @@
       {:else}
         <div class="no-upcoming">עדיין לא נקבע שיעור. אפשר לבחור מועד כשמתאים לכם.</div>
       {/if}
-    </div>
+    </SectionCard>
 
-    <div class="section" hidden={parentView === 'payments'}>
-      <div class="sec-header"><span class="sec-icon"><Icon name="progress" /></span><h2 class="sec-title">התקדמות</h2></div>
-      <div class="progress-overall">
-        <div class="po-top">
-          <!-- Says WHAT is counted. It said «רמת התקדמות כללית» for a
-               homework count too, which dressed diligence up as
-               understanding — the student page already told them apart. -->
-          <span class="po-label">{progressWords}</span>
-          <!-- `percent`, not the object. This rendered "[object Object]%"
-               to parents after #93 turned progress into ProgressFacts and
-               this page kept treating it as an integer. -->
-          {#if CURRENT.progress?.total}<span class="po-pct">{CURRENT.progress.percent}%</span>{/if}
-        </div>
-        <!-- Nothing counted yet: no bar. A 0% bar beside «עוד אין מה למדוד»
-             reads as a verdict. -->
-        {#if CURRENT.progress?.total}
-          <div class="bar-bg"><div class="bar-fill" style="width:{CURRENT.progress.percent}%"></div></div>
-        {/if}
-        <!-- The skills behind the number, by name: what was covered and what
-             was understood (PRODUCT.md, "Progress parents can see"). Server
-             computed — see seenIn() in src/lib/server/progress.ts. -->
-        {#if seen && (seen.understood.length || seen.covered.length)}
-          <div class="seen">
-            {#if seen.understood.length}
-              <div class="seen-group">
-                <div class="seen-title">מה כבר הובן</div>
-                <ul>
-                  {#each seen.understood as u (u.title)}
-                    <li><span>{u.title}</span><span class="seen-tag">{u.label}</span></li>
-                  {/each}
-                </ul>
-              </div>
-            {/if}
-            {#if seen.covered.length}
-              <div class="seen-group">
-                <div class="seen-title">נלמד בשיעורים, עוד בדרך</div>
-                <ul>
-                  {#each seen.covered as title (title)}
-                    <li><span>{title}</span></li>
-                  {/each}
-                </ul>
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
-      {#if CURRENT.progress?.note}
-        <!-- The tutor's note is intended for the parent and remains plain text. -->
-        <div class="notes-card"><p class="notes-text">{CURRENT.progress.note}</p></div>
-      {/if}
-    </div>
+    <ProgressSection progress={CURRENT.progress} audience="parent" hidden={parentView === 'payments'} />
 
     {#if parentView === 'home'}
     <div class="parent-brief">
@@ -653,38 +541,9 @@
     </div>
     {/if}
 
-    <div class="section" hidden={parentView !== 'progress'}>
-      <div class="sec-header">
-        <span class="sec-icon"><Icon name="subjects" /></span><h2 class="sec-title">יומן שיעורים</h2>
-        <span class="sec-badge">{totalSessions} שיעורים</span>
-      </div>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr><th>תאריך</th><th>סוג / משך</th><th>נושא / הערות</th></tr></thead>
-          <tbody>
-            {#if !sortedSessions.length}
-              <tr><td colspan="3" class="empty-row">עדיין לא נרשמו שיעורים<br /><a class="empty-book" href="/booking">להזמנת שיעור</a></td></tr>
-            {:else}
-              {#each sortedSessions as sess}
-                <tr>
-                  <td>{formatDateHe(sess.date)}</td>
-                  <td><span class="pill">{sess.type || 'שיעור'}</span></td>
-                  <td>
-                    <div class="lesson-topic">{sess.notes || '—'}</div>
-                  </td>
-                </tr>
-              {/each}
-            {/if}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <LessonLog lessons={CURRENT.lessons ?? []} audience="parent" hidden={parentView !== 'progress'} />
 
-    <div class="section" hidden={parentView !== 'progress'}>
-      <div class="sec-header">
-        <span class="sec-icon"><Icon name="homework" /></span><h2 class="sec-title">שיעורי בית</h2>
-        <span class="sec-badge">{hwPending} פתוח{hwPending !== 1 ? 'ים' : ''}</span>
-      </div>
+    <SectionCard icon="homework" title="שיעורי בית" badge="{hwPending} פתוח{hwPending !== 1 ? 'ים' : ''}" hidden={parentView !== 'progress'}>
       <div class="hw-list">
         {#if !reversedHomework.length}
           <!-- "🎉" celebrated an empty list at a family whose child had
@@ -708,59 +567,11 @@
           {/each}
         {/if}
       </div>
-    </div>
+    </SectionCard>
 
 
 
-    <section class="section family-payments" hidden={parentView !== 'payments'}>
-      <div class="sec-header"><span class="sec-icon"><Icon name="payments" /></span><h2 class="sec-title">תשלומים</h2></div>
-      {#if CURRENT.balance}
-        <div class="payments-summary">
-          <div class="pay-sum-card pending">
-            <div class="psc-amount">{formatAgorot(CURRENT.balance.dueAgorot)}</div>
-            <div class="psc-label">לתשלום עכשיו</div>
-          </div>
-          <div class="pay-sum-card total">
-            <div class="psc-amount">{formatAgorot(CURRENT.balance.upcomingAgorot)}</div>
-            <div class="psc-label">מתוכנן קדימה</div>
-          </div>
-          <div class="pay-sum-card paid">
-            <div class="psc-amount">{formatAgorot(CURRENT.balance.paidAgorot)}</div>
-            <div class="psc-label">שולם עד כה</div>
-          </div>
-        </div>
-        <p class="pay-note">הסכומים הם של כל המשפחה. הרשימה למטה היא של {CURRENT.name}.</p>
-      {/if}
-      <!-- The way to pay, beside what is owed. An app link: on a phone it opens PayBox. -->
-      <a class="pay-btn" href={PAYBOX_LINK} target="_blank" rel="noopener"><Icon name="payments" size={18} /> לתשלום ב-PayBox</a>
-      <p class="pay-note">התשלום אחרי כל שיעור.</p>
-
-      {#if claimError}<p class="pay-note" role="alert">{claimError}</p>{/if}
-      <div class="table-wrap charges-table">
-        <table class="data-table">
-          <thead><tr><th>תאריך</th><th>שיעור</th><th>סכום</th><th>סטטוס</th></tr></thead>
-          <tbody>
-            {#if !(CURRENT.charges ?? []).length}
-              <tr><td colspan="4" class="empty-row">אין עדיין חיובים</td></tr>
-            {:else}
-              {#each CURRENT.charges ?? [] as c (c.id)}
-                <tr>
-                  <td>{formatDateHe(c.date)}</td>
-                  <td>{KIND_LABEL[c.kind] ?? c.kind}</td>
-                  <td style="font-weight:700">{formatAgorot(c.amount_agorot)}</td>
-                  <td><span class="pay-badge {c.status}">{STATUS_LABEL[c.status] ?? c.status}</span> {@render claimAction(c)}</td>
-                </tr>
-              {/each}
-            {/if}
-          </tbody>
-        </table>
-      </div>
-      <ul class="mobile-charges" aria-label="החיובים של התלמיד/ה">
-        {#each CURRENT.charges ?? [] as charge (charge.id)}
-          <li><div><strong>{formatDateHe(charge.date)}</strong><span class="charge-kind">{KIND_LABEL[charge.kind] ?? charge.kind}</span></div><div><strong>{formatAgorot(charge.amount_agorot)}</strong><span class="pay-badge {charge.status}">{STATUS_LABEL[charge.status] ?? charge.status}</span>{@render claimAction(charge)}</div></li>
-        {:else}<li>אין עדיין חיובים</li>{/each}
-      </ul>
-    </section>
+    <PaymentsSection balance={CURRENT.balance} charges={CURRENT.charges ?? []} audience="parent" studentName={CURRENT.name} hidden={parentView !== 'payments'} />
   </main>
 
 
@@ -791,8 +602,7 @@
   .switcher select{width:100%;max-width:100%}
   .student-header>div:last-child{min-width:0}
   .sh-name{overflow-wrap:anywhere}
-  .mobile-charges{display:none}
-  @media(max-width:600px){.nav-brand-title{display:none}.nav-actions{flex:1;justify-content:flex-end;flex-wrap:wrap}.switcher{flex:1 1 8rem;min-width:min(8rem,100%);max-width:none}.charges-table{display:none}.mobile-charges{display:grid;gap:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:0 16px}.mobile-charges li{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-block:16px;border-bottom:1px solid var(--border)}.mobile-charges li:last-child{border:0}.mobile-charges li>div{display:flex;flex-direction:column;gap:8px;min-width:0}.mobile-charges strong{font-size:1rem;font-weight:600}.mobile-charges .charge-kind{font-size:.8125rem;color:var(--text-muted)}}
+  @media(max-width:600px){.nav-brand-title{display:none}.nav-actions{flex:1;justify-content:flex-end;flex-wrap:wrap}.switcher{flex:1 1 8rem;min-width:min(8rem,100%);max-width:none}}
   .parent-context-actions{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:24px}
   .parent-context-actions a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:.875rem;font-weight:500}
   .parent-brief{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:28px}
@@ -840,14 +650,6 @@
   .stat-card .s-value.coral  { color: var(--accent2-strong); }
   .stat-card .s-sub { font-size: 0.76rem; color: var(--text-muted); margin-top: 4px; }
 
-  .section { margin-bottom:28px; }
-  .sec-header { display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:0; }
-  .sec-icon { font-size: 1.2rem; }
-  .sec-title { font-size:1.125rem;font-weight:600;color:var(--text-primary); }
-  /* --accent on --accent-dim is 4.44:1 at this size — just under AA.
-     --accent-deep is the same hue one step darker, for small text on the
-     tinted fills. */
-  .sec-badge { margin-inline-start:auto;font-size:.8125rem;font-weight:500;color:var(--text-muted); }
 
   .next-lesson-box { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;display:flex;align-items:center;gap:16px; }
 
@@ -857,19 +659,8 @@
   .nl-meta { font-size: 0.85rem; color: var(--text-muted-strong); margin-top: 2px; }
   .no-upcoming { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 20px; background: var(--bg-surface); border: 1px dashed var(--border); border-radius: var(--r-md); }
 
-  .table-wrap { overflow-x: auto; border-radius: var(--r-md); box-shadow: 0 2px 12px var(--shadow); }
-  .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: var(--bg-card); border-radius: var(--r-md); overflow: hidden; }
-  .data-table thead { background:var(--bg-card-solid); }
-  .data-table th { text-align:start;padding:12px;color:var(--text-muted);font-size:.8125rem;font-weight:600;border-bottom:1px solid var(--border); }
-  .data-table td { padding: 11px 15px; border-bottom: 1px solid var(--border); color: var(--text-primary); vertical-align: top; }
-  .data-table tr:last-child td { border-bottom: none; }
-  .data-table tr:hover td { background: var(--accent-dim); }
-  .pill { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(37,99,235,0.2); }
-  .lesson-topic { font-weight: 700; }
-  .empty-row { text-align: center; color: var(--text-muted); padding: 24px; font-size: 0.9rem; }
 
   .hw-list { display: flex; flex-direction: column; gap: 10px; }
-  .empty-book { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; color: var(--accent); font-weight: 700; text-decoration: none; }
   .hw-empty { text-align: center; color: var(--text-muted); padding: 22px; font-size: .9rem; }
   .hw-item { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap; }
   .hw-status-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 2px; }
@@ -877,37 +668,11 @@
   .hw-task { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
   .hw-task.done { text-decoration: line-through; color: var(--text-muted); font-weight: 400; }
   .hw-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; }
-  .hw-play { display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:8px 12px;min-height:44px;background:var(--accent-dim);color:var(--accent-deep);border:0;border-radius: var(--radius-pill);font-size:.875rem;font-weight:600; }
-  .hw-play:hover { background: var(--accent2); color: var(--btn-text); }
   .hw-badge { font-size:.75rem;font-weight:600;padding:4px 8px;border-radius:6px;align-self:flex-start; }
   .hw-badge.done { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); color: var(--accent3-strong); }
   .hw-badge.open { background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); }
 
-  .progress-overall { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px; }
-  .po-top { display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px; }
-  .po-label { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
-  .po-pct { font-size:1rem;font-weight:600;color:var(--text-muted); }
-  .bar-bg { height:6px;background:var(--control-bg);border-radius:6px;overflow:hidden; }
-  .seen { display: grid; gap: 14px; margin-top: 16px; }
-  .seen-title { font-size: 0.85rem; font-weight: 700; color: var(--text-muted-strong); margin-bottom: 6px; }
-  .seen ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-  .seen li { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 0.92rem; color: var(--text-primary); }
-  .seen li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
-  .seen-tag { flex: none; font-size: 0.78rem; font-weight: 700; color: var(--accent); background: var(--accent-dim); border-radius: var(--r-sm); padding: 2px 8px; }
-  .bar-fill { height:100%;background:var(--action-fill);border-radius:6px;transition:width var(--motion-normal); }
-  .notes-card { padding:4px 4px 0;font-size:.9375rem;color:var(--text-muted-strong);line-height:1.75; }
-  .notes-card :global(strong) { color: var(--text-primary); }
 
-  .payments-summary { display:flex;flex-direction:column;gap:0;margin-bottom:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden; }
-  .pay-sum-card { display:flex;align-items:center;justify-content:space-between;gap:16px;border-radius:0;padding:18px 20px;background:var(--bg-card);border:0;border-bottom:1px solid var(--border);text-align:start; }
-  .pay-sum-card.paid { background:var(--bg-card);border:0; }
-  .pay-sum-card.pending { background:var(--bg-card);border:0;border-bottom:1px solid var(--border); }
-  .pay-sum-card.total { background:var(--bg-card);border:0;border-bottom:1px solid var(--border); }
-  .psc-amount { font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums; }
-  .pay-sum-card.paid    .psc-amount { color:var(--text-primary); }
-  .pay-sum-card.pending .psc-amount { color:var(--text-primary); }
-  .pay-sum-card.total   .psc-amount { color:var(--text-primary); }
-  .psc-label { order:-1;font-size:.9375rem;font-weight:500;color:var(--text-muted);margin:0; }
 
 
 
@@ -965,7 +730,6 @@
      rule — under the 44px touch minimum on the one control a parent
      reaches for on a shared device. */
   .nav-actions .nav-logout { min-height: 44px; padding-inline: 1rem; }
-  .notes-text { margin: 0; white-space: pre-line; }
   .switcher select {
     font-family: inherit; font-size: max(1rem,16px); font-weight: 600;
     padding: 0.5rem 0.7rem; min-height: 44px;
@@ -1011,20 +775,6 @@
     border-radius: 8px; padding: 0.5rem 0.6rem; user-select: all;
   }
 
-  .claim-btn, .claim-pending { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: var(--radius-pill); font-size: .875rem; font-weight: 700; }
-  .claim-btn { background: transparent; border: 1.5px solid var(--action-fill); color: var(--text-primary); cursor: pointer; }
-  .claim-btn:disabled { opacity: .6; }
-  .claim-pending { color: var(--text-muted); }
-  .pay-note { font-size: 0.82rem; color: var(--text-muted); margin: 0.7rem 0 0.2rem; }
-  .pay-btn {
-    display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 12px;
-    padding: 0 20px; border-radius: var(--radius-pill); background: var(--action-fill); color: #fff;
-    font-weight: 700; text-decoration: none;
-  }
-  .pay-badge { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
-  .pay-badge.paid { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); color: var(--accent3-strong); }
-  .pay-badge.owed { background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); }
-  .pay-badge.void { background: var(--bg-base); border: 1px solid var(--border-strong); color: var(--text-muted); text-decoration: line-through; }
 
   /* ── Family overview ── */
   .fam-head { margin-bottom: 1.2rem; }

@@ -7,6 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parentSource } from './family-source.mjs';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -50,18 +51,18 @@ test('a child is greeted by first name', () => {
 });
 
 test('the parent page no longer tells a child to type a join code at /portal', () => {
-  const p = read('src/routes/app/parent/+page.svelte');
+  const p = parentSource();
   assert.doesNotMatch(p, /קוד צירוף|joinCode/);
 });
 
 test('small copy: «לתיאום», and the next lesson is named once', () => {
   for (const f of sources()) assert.doesNotMatch(read(f), /לתאום/, f);
-  assert.doesNotMatch(read('src/routes/app/parent/+page.svelte'), />שיעור הבא</);
+  assert.doesNotMatch(parentSource(), />שיעור הבא</);
 });
 
 test('no 0% bar beside "nothing to measure yet"', () => {
-  const p = read('src/routes/app/parent/+page.svelte');
-  const guard = p.indexOf('{#if CURRENT.progress?.total}');
+  const p = parentSource();
+  const guard = p.indexOf('{#if progress?.total}');
   assert.ok(guard > 0, 'the bar is behind a total');
   assert.ok(guard < p.indexOf('class="bar-bg"') && guard < p.indexOf('class="po-pct"'));
 });

@@ -10,6 +10,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parentSource } from './family-source.mjs';
 import { register } from 'node:module';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -69,9 +70,9 @@ test('the after-lesson email says how to pay', async () => {
 });
 
 test('the parent board offers it where the money is', () => {
-  const p = read('src/routes/app/parent/+page.svelte');
+  const p = parentSource();
   assert.match(p, /import \{ PAYBOX_LINK, TUTOR_PHONE \} from '\$lib\/contact\.ts';/);
-  const payments = p.indexOf('<h2 class="sec-title">תשלומים</h2>');
+  const payments = p.indexOf('icon="payments" title=');
   const button = p.indexOf('href={PAYBOX_LINK}');
   assert.ok(payments > 0 && button > payments, 'in the payments section');
 });

@@ -7,10 +7,10 @@ export const JOURNEYS = [
   { id: 'tutor-profile', routes: ['/app/students/[code]', '/app/dashboard', '/api/students/[code]', '/api/students/[code]/activity', '/api/students/[code]/native-results'] },
   { id: 'homework-publish', routes: ['/app/students/[code]', '/app/student', '/app/parent', '/app/report/[booking]', '/api/students/[code]/activity', '/api/portal/[code]', '/api/portal/[code]/homework'] },
   { id: 'homework-submit', routes: ['/app/student', '/app/parent', '/app/students/[code]', '/api/students/[code]/activity', '/api/portal/[code]/homework', '/api/portal/[code]'] },
-  { id: 'parent-history', routes: ['/app/parent', '/api/portal/[code]', '/api/portal-students'] },
+  { id: 'parent-history', routes: ['/app/parent', '/app/student', '/api/portal/[code]', '/api/portal-students'] },
   { id: 'permissions', routes: ['/api/ask', '/api/remind', '/api/calendar-failures/[id]/resolve', '/api/enrollments/[id]', '/api/remind-family', '/api/students/import-local', '/api/teachers/[id]', '/app/student', '/app/parent', '/app/dashboard', '/app/students/[code]', '/api/portal/[code]', '/api/family', '/api/students/[code]/activity'] },
   { id: 'invitations', routes: ['/enter', '/portal', '/onboarding', '/app/parent', '/auth/google/start', '/auth/google/callback', '/api/student-link', '/api/students/[code]/link', '/api/access/redeem', '/api/access/inspect'] },
-  { id: 'payments', routes: ['/app/parent', '/app/students/[code]', '/api/payments', '/api/payments/all', '/api/payments/mark', '/api/payments/claim'] },
+  { id: 'payments', routes: ['/app/parent', '/app/student', '/api/portal/[code]', '/app/students/[code]', '/api/payments', '/api/payments/all', '/api/payments/mark', '/api/payments/claim'] },
   { id: 'learning', routes: ['/app/student', '/app/student/games', '/app/student/games/[bookingId]/[gameId]', '/api/student-games/[bookingId]', '/sample-game', '/api/sample-game', '/api/learning-pilot', '/api/reports', '/api/reports/prompt', '/app/plan/[code]', '/app/report/[booking]', '/api/plans', '/api/plans/[id]/events'] },
   { id: 'workspace', routes: ['/api/tutor-setup/start', '/app/tutor-setup/callback', '/api/central-drive', '/api/central-drive-sync', '/app/library', '/app/library/connection', '/app/marketing', '/app/metrics', '/api/calendar-failures', '/api/health/ops', '/api/teachers/[id]/setup-link', '/app/tutor-setup/[code]', '/app/tutor-setup/done'] },
 ];

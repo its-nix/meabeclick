@@ -7,11 +7,12 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parentSource } from './family-source.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const read = (f) => readFileSync(join(process.cwd(), f), 'utf8');
-const parent = read('src/routes/app/parent/+page.svelte');
+const parent = parentSource();
 const student = read('src/routes/app/student/+page.svelte');
 const { homeworkState } = await import('../../src/lib/family-homework.ts');
 const { lessonWhen } = await import('../../src/lib/dates.ts');
@@ -30,7 +31,7 @@ test('neither family page reads a `done` field the server never sends', () => {
 });
 
 test('the tutor\'s progress note is the parent\'s to read — not the child\'s', () => {
-  assert.match(parent, /CURRENT\.progress\?\.note/);
+  assert.match(parent, /progress\?\.note/);
   assert.doesNotMatch(parent, /\{@html CURRENT\.progressNote\}/);
   assert.doesNotMatch(student, /DATA\.progress\?\.note/);
   assert.match(read('src/routes/app/dashboard/+page.svelte'), /מוצגת להורים בלבד/);

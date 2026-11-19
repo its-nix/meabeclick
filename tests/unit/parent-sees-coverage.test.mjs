@@ -8,13 +8,14 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parentSource } from './family-source.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const page = readFileSync(join(process.cwd(), 'src/routes/app/parent/+page.svelte'), 'utf8');
+const page = parentSource();
 
 test('the parent page lists what was understood and what was covered', () => {
-  assert.match(page, /CURRENT\?\.progress\?\.seen/);
+  assert.match(page, /progress\?\.seen/);
   assert.match(page, /\{#each seen\.understood as u/);
   assert.match(page, /\{#each seen\.covered as title/);
 });

@@ -1011,7 +1011,7 @@
     border-radius: 8px; padding: 0.5rem 0.6rem; user-select: all;
   }
 
-  .claim-btn, .claim-pending { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px; font-size: .875rem; font-weight: 700; }
+  .claim-btn, .claim-pending { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: var(--radius-pill); font-size: .875rem; font-weight: 700; }
   .claim-btn { background: transparent; border: 1.5px solid var(--action-fill); color: var(--text-primary); cursor: pointer; }
   .claim-btn:disabled { opacity: .6; }
   .claim-pending { color: var(--text-muted); }

@@ -1823,7 +1823,7 @@
 
   /* Payments table */
   .ledger { border: 0; padding: 0; margin: 0; min-width: 0; }
-  .claim-flag { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 8px; padding: 2px 10px; border-radius: 999px; background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); font-weight: 700; font-size: .8rem; }
+  .claim-flag { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 8px; padding: 2px 10px; border-radius: var(--radius-pill); background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); font-weight: 700; font-size: .8rem; }
   .ledger-actions { display: flex; flex-wrap: wrap; gap: 8px; }
   .charge-check { width: 44px; height: 44px; accent-color: var(--accent); }
   .payment-summary { flex-wrap: wrap; }

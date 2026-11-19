@@ -97,6 +97,32 @@ test('an independent student or parent can onboard without booking, phone, or a 
   }
 });
 
+test('a self-signed-up adult never reaches the parent dashboard; a parent still does', async () => {
+  for (const role of ['learner', 'parent']) {
+    const s = await googleTestServer();
+    try {
+      const callback = await finishGoogle(s, await beginGoogle(s, {}));
+      const pending = cookieOf(callback, 'maab_google_pending');
+      const done = await fetch(s.baseUrl + '/onboarding', { method: 'POST', redirect: 'manual', headers: { Origin: s.baseUrl, Cookie: pending, Accept: 'text/html' },
+        body: new URLSearchParams({ role, name: 'נועה לדוגמה', level: 'כיתה ח' }) });
+      const session = done.headers.getSetCookie().map(c => c.split(';')[0]).filter(c => !c.startsWith('maab_google_pending')).join('; ');
+      const parent = await fetch(s.baseUrl + '/app/parent', { redirect: 'manual', headers: { Cookie: session } });
+      if (role === 'learner') {
+        assert.equal(parent.status, 303);
+        assert.match(parent.headers.get('location'), /^\/app\/student\?s=/);
+        const portal = await fetch(s.baseUrl + '/portal', { redirect: 'manual', headers: { Cookie: session } });
+        assert.match(portal.headers.get('location'), /^\/app\/student\?s=/);
+        const student = await fetch(s.baseUrl + portal.headers.get('location'), { headers: { Cookie: session } });
+        assert.doesNotMatch(await student.text(), /חזרה ללוח ההורה/);
+      } else {
+        assert.equal(parent.status, 200);
+      }
+      const booking = await (await fetch(s.baseUrl + '/booking', { headers: { Cookie: session } })).text();
+      assert.match(booking, /askSource:true/, 'a first-time account with no saved source is asked once');
+    } finally { await s.stop(); }
+  }
+});
+
 test('a conflicting Google identity cannot claim a child; the invitation remains available', async () => {
   const s = await googleTestServer();
   try {

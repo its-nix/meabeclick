@@ -61,10 +61,13 @@ test('the question is optional — no field named heardFrom is in the required-f
 // PR1 fix wave, item 2: the tutor already knows how she reached a returning
 // family — the question exists to find out for a FIRST booking, not to be
 // re-asked of someone whose account already exists.
-test('returning families get a source recap and only repeat the question when correcting it', () => {
-  assert.match(page, /מקור היכרות/);
-  assert.match(page, /\{#if !data\.known \|\| editingSource\}/);
-  assert.match(page, /onclick=\{cancelSourceEdit\}/);
+test('the source question is asked only when no source is saved yet', () => {
+  assert.match(page, /\{#if askSource\}/);
+  assert.doesNotMatch(page, /editingSource|cancelSourceEdit|מקור היכרות/, 'no recap or edit flow for returning families');
+  assert.match(page, /const includeSource = askSource;/);
+  const server = readFileSync(join(ROOT, 'src/routes/booking/+page.server.ts'), 'utf8');
+  assert.match(server, /askSource: savedSource === null/);
+  assert.match(server, /askSource: true/);
 });
 
 test('אחר reveals an optional free-text field, and skipping it cannot block a booking', () => {

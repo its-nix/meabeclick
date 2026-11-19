@@ -21,7 +21,7 @@
       const body = await r.json().catch(() => ({}));
       if (r.ok) {
         // Signed in by the answer: straight to the family's board.
-        location.href = '/app/parent';
+        location.href = '/portal';
         return;
       }
       error = body.error || 'האישור לא הצליח. נסו שוב, או כתבו לנו בוואטסאפ.';

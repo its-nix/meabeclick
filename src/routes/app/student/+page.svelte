@@ -53,6 +53,7 @@
     progressNote?: string; updated?: string;
     homework?: HwItem[]; lessons?: LessonItem[];
     /* Only sent when this student is the payer of record (pays for themselves). */
+    charges?: Array<{ id: number; status: string; date: string; claimed_at?: string | null }>;
     balance?: { owedAgorot: number; paidAgorot: number; dueAgorot: number; upcomingAgorot: number } | null;
   }
   interface ChatMsg {
@@ -132,6 +133,25 @@
     load();
     return () => removeEventListener('popstate', onPop);
   });
+
+  let claimBusy = $state(false);
+  let claimError = $state('');
+  const unclaimedOwed = $derived((DATA?.charges ?? []).filter(c => c.status === 'owed' && !c.claimed_at));
+  const hasPendingClaim = $derived((DATA?.charges ?? []).some(c => c.status === 'owed' && c.claimed_at));
+  /* "I paid" for the self-paying learner: a claim on every open charge the
+     tutor then confirms. It never marks anything paid. */
+  async function claimPaid() {
+    if (claimBusy) return;
+    claimBusy = true; claimError = '';
+    try {
+      for (const c of unclaimedOwed) {
+        const r = await fetch('/api/payments/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) });
+        if (!r.ok) throw new Error(String(r.status));
+        c.claimed_at = new Date().toISOString();
+      }
+    } catch { claimError = 'לא הצלחנו לשמור. נסו שוב.'; }
+    finally { claimBusy = false; }
+  }
 
   async function load() {
     view = 'loading';
@@ -422,7 +442,7 @@
               <div class="card-title"><Icon name="payments" /> התשלום שלי</div>
               <p class="self-pay-row"><span>לתשלום עכשיו</span><strong>{formatAgorot(DATA.balance.dueAgorot)}</strong></p>
               <p class="self-pay-row"><span>שולם עד כה</span><strong>{formatAgorot(DATA.balance.paidAgorot)}</strong></p>
-              {#if DATA.balance.dueAgorot > 0}<a class="play" href={PAYBOX_LINK} target="_blank" rel="noopener"><Icon name="payments" size={17} /> לתשלום ב-PayBox</a>{:else}<p class="card-meta">אין כרגע תשלום פתוח.</p>{/if}
+              {#if DATA.balance.dueAgorot > 0}<a class="play" href={PAYBOX_LINK} target="_blank" rel="noopener"><Icon name="payments" size={17} /> לתשלום ב-PayBox</a>{#if unclaimedOwed.length}<button type="button" class="play claim-btn" disabled={claimBusy} onclick={claimPaid}><Icon name="check" size={17} /> שילמתי</button>{:else if hasPendingClaim}<p class="card-meta"><Icon name="calendar" size={16} /> ממתין לאישור</p>{/if}{#if claimError}<p class="card-meta" role="alert">{claimError}</p>{/if}{:else}<p class="card-meta">אין כרגע תשלום פתוח.</p>{/if}
             </section>
           {/if}
           {#if (DATA.lessons ?? []).length}
@@ -722,6 +742,8 @@
   .badge.open { background: var(--accent2-dim); color: var(--accent2-strong); }
   .badge.late { background: var(--danger-bg); color: var(--danger-text); }
   .play { display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:var(--action-fill);color:var(--action-text);text-decoration:none;border-radius: var(--radius-pill);padding:10px 16px;min-height:44px;font-weight:600;font-size:.9375rem; }
+  .claim-btn { border:0;cursor:pointer;margin-inline-start:8px; }
+  .claim-btn:disabled { opacity:.6; }
   .play:hover { opacity: .9; }
   .progress-words { font-size: .9rem; color: var(--text-secondary, inherit); margin-bottom: .2rem; }
   .progress-outer { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin: .6rem 0 .3rem; }

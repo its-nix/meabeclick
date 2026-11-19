@@ -98,7 +98,7 @@
     dueAgorot: number; upcomingAgorot: number;
   }
   interface Charge {
-    id: number; date: string; kind: string; amount_agorot: number; status: string;
+    id: number; date: string; kind: string; amount_agorot: number; status: string; claimed_at?: string | null;
   }
   interface PortalData {
     name: string; emoji?: string; subject?: string; level?: string; tutor?: string;
@@ -147,6 +147,21 @@
       ? `${p.done} מתוך ${p.total} יכולות בתכנית הובנו`
       : `${p.done} מתוך ${p.total} שיעורי בית הוגשו`;
   });
+
+  let claimBusy = $state<number | null>(null);
+  let claimError = $state('');
+  /* "I paid": records a claim for the tutor to confirm. It never changes
+     what is owed; the charge only turns paid when the tutor confirms. */
+  async function claimPaid(c: Charge) {
+    if (claimBusy !== null) return;
+    claimBusy = c.id; claimError = '';
+    try {
+      const r = await fetch('/api/payments/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) });
+      if (!r.ok) throw new Error(String(r.status));
+      c.claimed_at = new Date().toISOString();
+    } catch { claimError = 'לא הצלחנו לשמור. נסו שוב.'; }
+    finally { claimBusy = null; }
+  }
 
   async function fetchPortal(code: string): Promise<PortalData | null> {
     const r = await fetch(`/api/portal/${encodeURIComponent(code)}?kind=parent`, { cache: 'no-store' });
@@ -317,6 +332,7 @@
    *  reads as a bug when the page claims otherwise. */
   const isDayOne = $derived(!!CURRENT && !totalSessions && !hwTotal);
 </script>
+{#snippet claimAction(c: Charge)}{#if c.status === 'owed'}{#if c.claimed_at}<span class="claim-pending"><Icon name="calendar" size={14} /> ממתין לאישור</span>{:else}<button type="button" class="claim-btn" disabled={claimBusy !== null} onclick={() => claimPaid(c)}><Icon name="check" size={16} /> שילמתי</button>{/if}{/if}{/snippet}
 
 <svelte:head>
   <title>פורטל הורים — מאה בקליק</title>
@@ -719,6 +735,7 @@
       <a class="pay-btn" href={PAYBOX_LINK} target="_blank" rel="noopener"><Icon name="payments" size={18} /> לתשלום ב-PayBox</a>
       <p class="pay-note">התשלום אחרי כל שיעור.</p>
 
+      {#if claimError}<p class="pay-note" role="alert">{claimError}</p>{/if}
       <div class="table-wrap charges-table">
         <table class="data-table">
           <thead><tr><th>תאריך</th><th>שיעור</th><th>סכום</th><th>סטטוס</th></tr></thead>
@@ -731,7 +748,7 @@
                   <td>{formatDateHe(c.date)}</td>
                   <td>{KIND_LABEL[c.kind] ?? c.kind}</td>
                   <td style="font-weight:700">{formatAgorot(c.amount_agorot)}</td>
-                  <td><span class="pay-badge {c.status}">{STATUS_LABEL[c.status] ?? c.status}</span></td>
+                  <td><span class="pay-badge {c.status}">{STATUS_LABEL[c.status] ?? c.status}</span> {@render claimAction(c)}</td>
                 </tr>
               {/each}
             {/if}
@@ -740,7 +757,7 @@
       </div>
       <ul class="mobile-charges" aria-label="החיובים של התלמיד/ה">
         {#each CURRENT.charges ?? [] as charge (charge.id)}
-          <li><div><strong>{formatDateHe(charge.date)}</strong><span class="charge-kind">{KIND_LABEL[charge.kind] ?? charge.kind}</span></div><div><strong>{formatAgorot(charge.amount_agorot)}</strong><span class="pay-badge {charge.status}">{STATUS_LABEL[charge.status] ?? charge.status}</span></div></li>
+          <li><div><strong>{formatDateHe(charge.date)}</strong><span class="charge-kind">{KIND_LABEL[charge.kind] ?? charge.kind}</span></div><div><strong>{formatAgorot(charge.amount_agorot)}</strong><span class="pay-badge {charge.status}">{STATUS_LABEL[charge.status] ?? charge.status}</span>{@render claimAction(charge)}</div></li>
         {:else}<li>אין עדיין חיובים</li>{/each}
       </ul>
     </section>
@@ -994,6 +1011,10 @@
     border-radius: 8px; padding: 0.5rem 0.6rem; user-select: all;
   }
 
+  .claim-btn, .claim-pending { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: var(--radius-pill); font-size: .875rem; font-weight: 700; }
+  .claim-btn { background: transparent; border: 1.5px solid var(--action-fill); color: var(--text-primary); cursor: pointer; }
+  .claim-btn:disabled { opacity: .6; }
+  .claim-pending { color: var(--text-muted); }
   .pay-note { font-size: 0.82rem; color: var(--text-muted); margin: 0.7rem 0 0.2rem; }
   .pay-btn {
     display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 12px;

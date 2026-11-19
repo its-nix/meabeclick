@@ -49,6 +49,7 @@ import { sql as sql047 } from './047_remove_classic_games.ts';
 import { sql as sql048 } from './048_drop_learning_progress.ts';
 import { sql as sql049 } from './049_native_result_assist.ts';
 import { sql as sql050 } from './050_remove_legacy_generator.ts';
+import { sql as sql051 } from './051_payment_claims.ts';
 
 export interface Migration {
   version: number;
@@ -117,4 +118,5 @@ export const MIGRATIONS: Migration[] = [
   { version: 48, name: '048_drop_learning_progress', sql: sql048 },
   { version: 49, name: '049_native_result_assist', sql: sql049 },
   { version: 50, name: '050_remove_legacy_generator', sql: sql050 },
+  { version: 51, name: '051_payment_claims', sql: sql051 },
 ];

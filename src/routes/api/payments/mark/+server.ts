@@ -9,7 +9,9 @@
 import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
 import { readJson } from '$server/http.ts';
-import { setPaymentStatus, paymentsExist } from '$server/payments.ts';
+import { setPaymentStatus, paymentsExist, paymentById } from '$server/payments.ts';
+import { confirmPayment } from '$server/payments/confirmation.ts';
+import { inTransaction } from '$server/db.ts';
 import type { RequestHandler } from './$types';
 
 const STATUSES = new Set(['owed', 'paid', 'void']);
@@ -32,5 +34,16 @@ export const POST: RequestHandler = async (event) => {
   if (!STATUSES.has(status)) return json({ error: 'unknown status' }, { status: 400 });
   if (!paymentsExist(ids)) return json({ error: 'unknown payment' }, { status: 400 });
 
-  return json({ updated: setPaymentStatus(ids, status as 'owed' | 'paid' | 'void') });
+  if (status === 'paid') {
+    /* The tutor's hand confirmation. confirmPayment is the only code that
+       sets a charge paid; one bad row rolls the whole batch back. */
+    try {
+      const updated = inTransaction(() => ids.reduce((n, id) => {
+        const charge = paymentById(id)!;
+        return n + (confirmPayment({ chargeId: id, source: 'manual', amountAgorot: charge.amount_agorot }).changed ? 1 : 0);
+      }, 0));
+      return json({ updated });
+    } catch { return json({ error: 'cannot confirm payment' }, { status: 400 }); }
+  }
+  return json({ updated: setPaymentStatus(ids, status as 'owed' | 'void') });
 };

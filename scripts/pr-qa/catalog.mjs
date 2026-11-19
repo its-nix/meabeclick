@@ -10,7 +10,7 @@ export const JOURNEYS = [
   { id: 'parent-history', routes: ['/app/parent', '/api/portal/[code]', '/api/portal-students'] },
   { id: 'permissions', routes: ['/api/ask', '/api/remind', '/api/calendar-failures/[id]/resolve', '/api/enrollments/[id]', '/api/remind-family', '/api/students/import-local', '/api/teachers/[id]', '/app/student', '/app/parent', '/app/dashboard', '/app/students/[code]', '/api/portal/[code]', '/api/family', '/api/students/[code]/activity'] },
   { id: 'invitations', routes: ['/enter', '/portal', '/onboarding', '/app/parent', '/auth/google/start', '/auth/google/callback', '/api/student-link', '/api/students/[code]/link', '/api/access/redeem', '/api/access/inspect'] },
-  { id: 'payments', routes: ['/app/parent', '/app/students/[code]', '/api/payments', '/api/payments/all', '/api/payments/mark'] },
+  { id: 'payments', routes: ['/app/parent', '/app/students/[code]', '/api/payments', '/api/payments/all', '/api/payments/mark', '/api/payments/claim'] },
   { id: 'learning', routes: ['/app/student', '/app/student/games', '/app/student/games/[bookingId]/[gameId]', '/api/student-games/[bookingId]', '/sample-game', '/api/sample-game', '/api/learning-pilot', '/api/reports', '/api/reports/prompt', '/app/plan/[code]', '/app/report/[booking]', '/api/plans', '/api/plans/[id]/events'] },
   { id: 'workspace', routes: ['/api/tutor-setup/start', '/app/tutor-setup/callback', '/api/central-drive', '/api/central-drive-sync', '/app/library', '/app/library/connection', '/app/marketing', '/app/metrics', '/api/calendar-failures', '/api/health/ops', '/api/teachers/[id]/setup-link', '/app/tutor-setup/[code]', '/app/tutor-setup/done'] },
 ];

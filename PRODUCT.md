@@ -180,9 +180,13 @@ Todoist: label `@Infra`
   `account` link reaches the whole family, a `student` link reaches one
   child's board. The join code that used to be the fallback for a device
   with no WhatsApp was removed on 2026-11-17 with the login page's code entry. This was a deliberate decision, not a temporary compromise.
-- **Payments are recorded by hand.** The product keeps a ledger; it does
-  not collect money. Automatic collection (Bit/PayBox) was evaluated and
-  explicitly rejected on 2026-08-23.
+- **Payments are a hand-confirmed ledger with payer claims; a payment
+  processor is planned.** The product keeps a ledger and does not collect
+  money yet. The payer can press "שילמתי", which only records a claim; the
+  tutor confirms or rejects it, and a charge becomes paid only through
+  `confirmPayment` (`payments/confirmation.ts`), the seam a processor will
+  later call. Automatic collection (Bit/PayBox) was rejected on 2026-08-23;
+  Lior reversed that direction for a processor on the site (2026-11-19).
 - **Two named tutors, shown by face.** The landing page sells Nikol and
   Lior by name, with testimonials that name them individually. This is
   the positioning, not decoration.
@@ -319,7 +323,7 @@ One noun each, everywhere — these replace the older, drifting mix of
 - **Learning plans & reports** — a per-enrollment skill tree, updated by an
   append-only event log; a one-line end-of-lesson report from the tutor.
 - **Payments ledger** — integer-agorot records, marked paid by hand from
-  the dashboard; no automatic collection.
+  the dashboard (or confirmed from a payer's claim); no automatic collection yet.
 - **Calendar** — per tutor, set on the dashboard's "מורים" card: private
   iCal feeds for reading their busy times, and their own lesson calendar,
   which a Google service account writes booked events into. Each booking

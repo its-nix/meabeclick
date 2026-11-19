@@ -222,7 +222,9 @@ test('003 preserves existing payment rows exactly', async () => {
   // Column by column, not a spot check: the copy lists its columns
   // positionally, so a mismatched list would shift every value one place
   // left and still leave a plausible-looking row behind.
-  assert.deepEqual(rows[0], before, 'a value changed across the table rebuild');
+  const { claimed_at, claim_note, paid_source, paid_reference, ...original } = rows[0];
+  assert.deepEqual([claimed_at, claim_note, paid_source, paid_reference], [null, null, null, null], '051 columns start empty');
+  assert.deepEqual({ ...original }, { ...before }, 'a value changed across the table rebuild');
   assert.equal(rows[0].id, before.id, 'the id must survive — charges point at it');
   assert.equal(rows[0].amount_agorot, 21500);
   assert.equal(rows[0].kind, 'double');
@@ -371,7 +373,7 @@ const KEPT_HISTORY_TABLES = ['lessons_v2', 'lesson_materials', 'learning_assignm
 test('050 on a fresh database leaves no legacy generator state and keeps the history the native pipeline reads', async () => {
   const db = await freshDb();
   migrate(db);
-  assert.equal(versions(db).at(-1), 50);
+  assert.ok(versions(db).includes(50));
   const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all().map(r => r.name);
   for (const gone of LEGACY_GENERATOR_TABLES) assert.ok(!tables.includes(gone), `${gone} should not exist`);
   for (const kept of KEPT_HISTORY_TABLES) assert.ok(tables.includes(kept), `${kept} stays`);
@@ -404,7 +406,7 @@ test('050 on a populated database drops only the generator state and keeps every
   db.exec('PRAGMA foreign_keys = ON');
 
   migrate(db);
-  assert.equal(versions(db).at(-1), 50);
+  assert.ok(versions(db).includes(50));
   const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all().map(r => r.name);
   for (const gone of LEGACY_GENERATOR_TABLES) assert.ok(!tables.includes(gone), `${gone} should be dropped`);
   const count = (t) => db.prepare(`SELECT COUNT(*) AS c FROM ${t}`).get().c;
@@ -419,5 +421,23 @@ test('050 is safe to apply twice and out of order', async () => {
   migrate(db);
   db.exec('DELETE FROM schema_version WHERE version = 50');
   migrate(db);
-  assert.equal(versions(db).at(-1), 50);
+  assert.ok(versions(db).includes(50));
+});
+
+test('051 adds claim columns on fresh and populated databases and keeps the unique reference index', async () => {
+  const fresh = await freshDb();
+  migrate(fresh);
+  for (const c of ['claimed_at', 'claim_note', 'paid_source', 'paid_reference']) assert.equal(hasColumn(fresh, 'payments', c), true, c);
+  const populated = await freshDb();
+  migrateUpTo(populated, 50);
+  populated.exec(`
+    INSERT INTO accounts (name, phone, credential, is_self, created_at) VALUES ('מ', NULL, 'x', 0, '2026-09-01T00:00:00Z');
+    INSERT INTO students_v2 (code, name, emoji, account_id, progress, progress_note, credential, created_at) VALUES ('k', 'ק', '🎓', 1, 0, NULL, 'x', '2026-09-01T00:00:00Z');
+    INSERT INTO payments (account_id, student_id, date, kind, amount_agorot, status) VALUES (1, 1, '2026-08-12', 'single', 100, 'paid');
+  `);
+  migrate(populated);
+  const row = populated.prepare(`SELECT * FROM payments`).get();
+  assert.equal(row.status, 'paid'); assert.equal(row.claimed_at, null);
+  populated.exec(`UPDATE payments SET paid_reference = 'r' WHERE id = 1`);
+  assert.throws(() => populated.exec(`INSERT INTO payments (account_id, student_id, date, kind, amount_agorot, status, paid_reference) VALUES (1, 1, '2026-08-13', 'single', 100, 'paid', 'r')`), /UNIQUE/);
 });

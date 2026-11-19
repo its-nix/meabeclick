@@ -9,6 +9,7 @@ import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
 import { getStudentByCode } from '$server/entities.ts';
 import { addPayment, chargesForStudent, balanceForAccount, todayInIsrael } from '$server/payments.ts';
+import { confirmPayment } from '$server/payments/confirmation.ts';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = (event) => {
@@ -39,7 +40,8 @@ export const POST: RequestHandler = async (event) => {
   const id = addPayment({
     accountId: student.account_id, studentId: student.id, date,
     kind: kind as 'single' | 'double' | 'triple', amountAgorot: amount,
-    status: body.paid ? 'paid' : 'owed', note: String(body.note ?? '').slice(0, 1000) || null,
+    status: 'owed', note: String(body.note ?? '').slice(0, 1000) || null,
   });
+  if (body.paid) confirmPayment({ chargeId: id, source: 'manual', amountAgorot: amount });
   return json({ id });
 };

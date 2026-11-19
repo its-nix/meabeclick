@@ -16,6 +16,8 @@ import { israelDay, israelToday } from '../dates.ts';
 export type PaymentRow = {
   id: number; account_id: number; student_id: number; booking_id: number | null;
   date: string; kind: string; amount_agorot: number; status: string; note: string | null;
+  claimed_at: string | null; claim_note: string | null;
+  paid_source: string | null; paid_reference: string | null;
 };
 
 export function addPayment(p: {
@@ -52,14 +54,19 @@ export function voidChargeForBooking(bookingId: number): void {
 }
 
 /** Sets the status of several charges at once, and reports how many rows
- *  changed. All-or-nothing is enforced by the caller checking existence
+ *  changed. Never to 'paid': only payments/confirmation.ts does that. All-or-nothing is enforced by the caller checking existence
  *  first — a half-applied batch on money is worse than a rejected one. */
-export function setPaymentStatus(ids: number[], status: 'owed' | 'paid' | 'void'): number {
+export function setPaymentStatus(ids: number[], status: 'owed' | 'void'): number {
   const db = handle();
-  const stmt = db.prepare(`UPDATE payments SET status = ? WHERE id = ?`);
+  const stmt = db.prepare(`UPDATE payments SET status = ?, claimed_at = NULL, claim_note = NULL, paid_source = NULL, paid_reference = NULL WHERE id = ?`);
   let changed = 0;
   for (const id of ids) changed += Number(stmt.run(status, id).changes);
   return changed;
+}
+
+/** One charge by id, for confirmation and claim routes. */
+export function paymentById(id: number): PaymentRow | null {
+  return (handle().prepare(`SELECT * FROM payments WHERE id = ?`).get(id) as PaymentRow | undefined) ?? null;
 }
 
 export function paymentsExist(ids: number[]): boolean {
@@ -75,9 +82,12 @@ export function paymentsExist(ids: number[]): boolean {
   return row.n === distinct.size;
 }
 
+/* Explicit columns: claim_note and paid_reference are not for portal payloads. */
+const PORTAL_COLUMNS = 'id, account_id, student_id, booking_id, date, kind, amount_agorot, status, note, claimed_at';
+
 export function paymentsForAccount(accountId: number): PaymentRow[] {
   return handle().prepare(
-    `SELECT * FROM payments WHERE account_id = ? ORDER BY date DESC, id DESC`
+    `SELECT ${PORTAL_COLUMNS} FROM payments WHERE account_id = ? ORDER BY date DESC, id DESC`
   ).all(accountId) as PaymentRow[];
 }
 
@@ -86,7 +96,7 @@ export function paymentsForAccount(accountId: number): PaymentRow[] {
  *  itemised under their name. */
 export function chargesForStudent(studentId: number): PaymentRow[] {
   return handle().prepare(
-    `SELECT * FROM payments WHERE student_id = ? ORDER BY date DESC, id DESC`
+    `SELECT ${PORTAL_COLUMNS} FROM payments WHERE student_id = ? ORDER BY date DESC, id DESC`
   ).all(studentId) as PaymentRow[];
 }
 

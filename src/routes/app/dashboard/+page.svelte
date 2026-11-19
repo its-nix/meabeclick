@@ -433,6 +433,16 @@
     } catch { toast('לא ניתן לעדכן את התשלום', { kind: 'error' }); }
     finally { ledgerBusy[code] = false; }
   }
+  async function rejectClaim(code: string, id: number) {
+    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
+    ledgerBusy[code] = true;
+    try {
+      const r = await api('/api/payments/claim', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [id] }) });
+      if (!r.ok) throw new Error();
+      await refreshLedger(code);
+    } catch { toast('לא ניתן לדחות את הדיווח', { kind: 'error' }); }
+    finally { ledgerBusy[code] = false; }
+  }
   async function voidSession(code: string, sessId: string) {
     if (!await confirmDialog('לבטל את החיוב הזה?')) return;
     if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
@@ -845,7 +855,7 @@
   const KIND_LABEL: Record<string, string> = { single: 'יחיד', double: 'כפול', triple: 'משולש' };
   const STATUS_LABEL: Record<string, string> = { owed: 'לתשלום', paid: 'שולם', void: 'בוטל' };
 
-  let chargesFor = $state<Record<string, Array<{ id: number; date: string; kind: string; amount_agorot: number; status: string }>>>({});
+  let chargesFor = $state<Record<string, Array<{ id: number; date: string; kind: string; amount_agorot: number; status: string; claimed_at?: string | null }>>>({});
   let picked = $state(new SvelteSet<number>());
 
 
@@ -1356,9 +1366,10 @@
                           <td data-label="תאריך">{formatDate(c.date)}</td>
                           <td data-label="סוג">{KIND_LABEL[c.kind] ?? c.kind}</td>
                           <td data-label="סכום">{formatAgorot(c.amount_agorot)}</td>
-                          <td data-label="מצב">{STATUS_LABEL[c.status] ?? c.status}</td>
+                          <td data-label="מצב">{STATUS_LABEL[c.status] ?? c.status}{#if c.status === 'owed' && c.claimed_at}<span class="claim-flag"><Icon name="check" size={14} /> דווח כשולם</span>{/if}</td>
                           <td data-label="פעולות"><div class="ledger-actions">
                             {#if c.status !== 'void'}
+                              {#if c.status === 'owed' && c.claimed_at}<button class="btn btn-gold btn-sm" onclick={() => togglePaid(s.code, String(c.id))}>אשר תשלום</button><button class="btn btn-ghost btn-sm" onclick={() => rejectClaim(s.code, c.id)}>דחה דיווח</button>{/if}
                               <button class="btn btn-ghost btn-sm" onclick={() => togglePaid(s.code, String(c.id))}>{c.status === 'paid' ? 'סמן כלא שולם' : 'סמן כשולם'}</button>
                               <button class="btn btn-danger btn-sm" onclick={() => voidSession(s.code, String(c.id))}>ביטול חיוב</button>
                             {/if}
@@ -1812,6 +1823,7 @@
 
   /* Payments table */
   .ledger { border: 0; padding: 0; margin: 0; min-width: 0; }
+  .claim-flag { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 8px; padding: 2px 10px; border-radius: 999px; background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); font-weight: 700; font-size: .8rem; }
   .ledger-actions { display: flex; flex-wrap: wrap; gap: 8px; }
   .charge-check { width: 44px; height: 44px; accent-color: var(--accent); }
   .payment-summary { flex-wrap: wrap; }

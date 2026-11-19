@@ -73,7 +73,7 @@
     color: var(--btn-text);
     font-weight: 700;
     font-size: 0.95rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     padding: 0.7rem 1.8rem;
     min-height: 44px;
     text-decoration: none;

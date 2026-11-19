@@ -95,7 +95,7 @@
   .nav-item {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 4px; min-block-size: 56px; min-inline-size: 0; padding: 6px 4px;
-    border: 0; border-radius: 14px; background: none; font-family: inherit;
+    border: 0; border-radius: var(--radius-pill); background: none; font-family: inherit;
     color: var(--text-muted); text-decoration: none; cursor: pointer;
     transition: color var(--motion-fast), background var(--motion-fast);
   }

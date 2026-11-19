@@ -161,10 +161,10 @@
 
   .note { font-size: .82rem; color: var(--text-muted); margin: 0 0 14px; }
 
-  .toggle { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-surface); }
+  .toggle { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg-surface); }
   .chip {
     display: inline-flex; align-items: center; justify-content: center;
-    min-height: 44px; padding: 6px 16px; border-radius: 7px;
+    min-height: 44px; padding: 6px 16px; border-radius: var(--radius-pill);
     border: 1px solid transparent;
     color: var(--text-muted-strong); font-family: inherit; font-size: .85rem; font-weight: 700;
     text-decoration: none;

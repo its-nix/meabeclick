@@ -619,7 +619,7 @@
   .continue-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;margin-bottom:16px}
   .continue-card h2{font-size:1.5rem;line-height:1.4;font-weight:600;margin:8px 0}
   .continue-card>p:not(.eyebrow){font-size:.9375rem;color:var(--text-muted)}
-  .continue-action{display:inline-flex;align-items:center;justify-content:center;gap:16px;background:var(--action-fill);color:var(--action-text);border:0;border-radius:10px;padding:12px 20px;min-height:48px;margin-top:20px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+  .continue-action{display:inline-flex;align-items:center;justify-content:center;gap:16px;background:var(--action-fill);color:var(--action-text);border:0;border-radius: var(--radius-pill);padding:12px 20px;min-height:48px;margin-top:20px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
   .next-symbol{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--control-bg);flex:none;color:var(--text-muted-strong)}
   .next-label,.next-meta{display:block;color:var(--text-muted);font-size:.8125rem}
   .next strong{display:block;font-size:1rem;font-weight:600;margin-block:4px}
@@ -638,7 +638,7 @@
   .hw-submit {
     display: inline-flex; align-items: center; gap: 6px;
     margin-top: 8px; padding: 8px 14px; min-height: 44px;
-    border: 1.5px solid var(--border-strong); border-radius: var(--r-sm);
+    border: 1.5px solid var(--border-strong); border-radius: var(--radius-pill);
     background: var(--bg-surface); color: var(--text-primary);
     font-family: inherit; font-size: 0.9rem; cursor: pointer;
   }
@@ -676,7 +676,7 @@
     grid-column: 3; justify-self: end;
     font-family: inherit; font-size: 0.82rem; font-weight: 700;
     color: var(--text-muted); background: none; border: 1px solid var(--border);
-    border-radius: var(--r-sm); padding: 6px 16px; cursor: pointer;
+    border-radius: var(--radius-pill); padding: 6px 16px; cursor: pointer;
     /* 44px, because this page is used on a phone more than anything else. */
     min-height: 44px;
     transition: color 0.2s, border-color 0.2s;
@@ -717,11 +717,11 @@
   progress { display: block; inline-size: 100%; accent-color: var(--accent); margin-block: .75rem; }
   .hw-submit:focus-visible, .homework-card .play:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   .hw-submit[aria-disabled="true"] { opacity: .6; cursor: wait; }
-  .badge { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 3px 11px; white-space: nowrap; flex-shrink: 0; }
+  .badge { font-size: .72rem; font-weight: 700; border-radius: var(--radius-pill); padding: 3px 11px; white-space: nowrap; flex-shrink: 0; }
   .badge.done { background: var(--accent3-dim); color: var(--accent3-strong); }
   .badge.open { background: var(--accent2-dim); color: var(--accent2-strong); }
   .badge.late { background: var(--danger-bg); color: var(--danger-text); }
-  .play { display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:var(--action-fill);color:var(--action-text);text-decoration:none;border-radius:10px;padding:10px 16px;min-height:44px;font-weight:600;font-size:.9375rem; }
+  .play { display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:var(--action-fill);color:var(--action-text);text-decoration:none;border-radius: var(--radius-pill);padding:10px 16px;min-height:44px;font-weight:600;font-size:.9375rem; }
   .play:hover { opacity: .9; }
   .progress-words { font-size: .9rem; color: var(--text-secondary, inherit); margin-bottom: .2rem; }
   .progress-outer { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin: .6rem 0 .3rem; }
@@ -740,7 +740,7 @@
     min-height: 44px; padding: .5rem .9rem; margin-top: .4rem;
     font-family: inherit; font-size: .9rem; font-weight: 700;
     color: var(--accent); background: var(--bg-card);
-    border: 1px solid var(--border); border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: var(--radius-pill); cursor: pointer;
   }
   .retry:disabled { opacity: .55; cursor: default; }
 
@@ -758,9 +758,9 @@
     border: 2px solid var(--border); border-radius: 14px; background: var(--bg-card); color: var(--text-primary);
   }
   input:focus { outline: none; border-color: var(--accent); }
-  .btn { background:var(--action-fill);color:var(--action-text);font-family:inherit;font-weight:600;font-size:1rem;border:0;border-radius:10px;padding:12px 20px;min-height:48px;cursor:pointer;flex-shrink:0; }
+  .btn { background:var(--action-fill);color:var(--action-text);font-family:inherit;font-weight:600;font-size:1rem;border:0;border-radius: var(--radius-pill);padding:12px 20px;min-height:48px;cursor:pointer;flex-shrink:0; }
   .btn:disabled { opacity: .55; cursor: default; }
-  .wa { display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;background:transparent;color:var(--whatsapp-strong);text-decoration:none;border:1px solid var(--border);border-radius:10px;padding:12px;min-height:48px;font-weight:600; }
+  .wa { display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;background:transparent;color:var(--whatsapp-strong);text-decoration:none;border:1px solid var(--border);border-radius: var(--radius-pill);padding:12px;min-height:48px;font-weight:600; }
   .hint { color:var(--text-muted);font-size:.875rem;margin:0 0 24px;line-height:1.7; }
   .msg-empty { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: .92rem; }
   .games-skeleton { display: grid; gap: 12px; padding: 16px; }
@@ -771,7 +771,7 @@
 
   .retry {
     margin-top: 12px; background: var(--action-fill); color: #fff; border: 0;
-    padding: 11px 30px; min-height: 44px; border-radius: 999px;
+    padding: 11px 30px; min-height: 44px; border-radius: var(--radius-pill);
     font-family: inherit; font-weight: 700; font-size: 1rem; cursor: pointer;
   }
 

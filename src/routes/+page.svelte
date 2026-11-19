@@ -416,9 +416,9 @@
 
 <style>
 .hero-primary-actions{display:flex;align-items:center;justify-content:center;gap:12px 24px;flex-wrap:wrap;margin:24px auto 40px}
-.hero-book{display:inline-flex;align-items:center;justify-content:center;gap:20px;min-height:48px;padding:12px 24px;border-radius:12px;background:var(--action-fill);color:var(--action-text);font-size:1rem;font-weight:600}
+.hero-book{display:inline-flex;align-items:center;justify-content:center;gap:20px;min-height:48px;padding:12px 24px;border-radius: var(--radius-pill);background:var(--action-fill);color:var(--action-text);font-size:1rem;font-weight:600}
 .hero-account{display:inline-flex;align-items:center;min-height:44px;font-size:.9375rem;color:var(--accent-deep)}
-.tutor-trigger{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;background:transparent;color:var(--text-primary);font:inherit;cursor:pointer;border-radius:16px;padding:4px}
+.tutor-trigger{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;background:transparent;color:var(--text-primary);font:inherit;cursor:pointer;border-radius: var(--radius-pill);padding:4px}
 .tutor-info:not([open]){display:none!important}
 dialog.tutor-info[open]{display:block;position:fixed;inset:0;width:min(420px,calc(100% - 32px));height:fit-content;max-height:calc(100dvh - 48px);margin:auto;padding:32px 24px 24px;transform:none;opacity:1;visibility:visible;pointer-events:auto;border:1px solid var(--border);border-radius:20px;background:var(--bg-card);color:var(--text-primary);text-align:start;overflow:auto;z-index:1700}
 dialog.tutor-info::backdrop{background:rgb(0 0 0 / .32);backdrop-filter:blur(4px)}
@@ -648,7 +648,7 @@ h1, h2, h3, h4 {
 .tutor-info h3{font-size:1.25rem;color:var(--text-primary);margin-bottom:16px;font-weight:600;padding-inline-end:32px}
 .tutor-info ul{display:flex;flex-direction:column;gap:12px}
 .tutor-info ul li{font-size:.9375rem;line-height:1.7;color:var(--text-muted-strong)}
-.popup-close{position:absolute;inset-inline-end:12px;top:12px;display:grid;place-items:center;width:44px;height:44px;min-height:44px;border:0;border-radius:12px;background:var(--control-bg);color:var(--text-primary);font:inherit;font-size:1.5rem;cursor:pointer}
+.popup-close{position:absolute;inset-inline-end:12px;top:12px;display:grid;place-items:center;width:44px;height:44px;min-height:44px;border:0;border-radius: var(--radius-pill);background:var(--control-bg);color:var(--text-primary);font:inherit;font-size:1.5rem;cursor:pointer}
 
 /* ── FEATURES SHOWCASE ────────────────────────────────────── */
 #features-showcase {
@@ -1131,7 +1131,7 @@ h1, h2, h3, h4 {
   font-size: 1.05rem;
   font-weight: 700;
   padding: 0.82rem 2.5rem;
-  border-radius: 40px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   box-shadow: 0 4px 20px var(--accent2-glow), 0 2px 8px var(--shadow);
   transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.22s ease;
@@ -1165,7 +1165,7 @@ h1, h2, h3, h4 {
   font-size: 1.05rem;
   font-weight: 700;
   padding: 0.82rem 2.2rem;
-  border-radius: 40px;
+  border-radius: var(--radius-pill);
   border: 1.5px solid var(--whatsapp-strong);
   text-decoration: none;
   transition: transform 0.22s ease, background 0.22s ease, opacity 0.22s ease;
@@ -1193,7 +1193,7 @@ h1, h2, h3, h4 {
   min-width: 44px;
   min-height: 44px;
   flex: none;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: var(--bg-card);
   color: var(--whatsapp-strong);
   border: 1.5px solid var(--whatsapp-strong);
@@ -1218,7 +1218,7 @@ h1, h2, h3, h4 {
   color: var(--accent);
   width: 42px;
   height: 42px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1670,7 +1670,7 @@ h1, h2, h3, h4 {
 .hero-dashboard-mini p{color:var(--text-muted);font-size:.9375rem;line-height:1.7}
 .hero-dashboard-mini a{display:inline-flex;gap:16px;align-items:center;min-height:44px;font-size:.9375rem;margin-top:12px;font-weight:500}
 #signup-button{background:var(--nav-bg);border-top:1px solid var(--border);backdrop-filter:blur(16px);padding-bottom:max(12px,env(safe-area-inset-bottom))}
-.book-cta{background:var(--action-fill);color:var(--action-text);box-shadow:none;border-radius:12px}
+.book-cta{background:var(--action-fill);color:var(--action-text);box-shadow:none;border-radius: var(--radius-pill)}
 .book-cta:hover{color:var(--action-text);transform:none;box-shadow:none}
 .pricing-card.featured{background:var(--bg-card);border-color:var(--border-strong);box-shadow:none}
 .pricing-card.featured:hover{box-shadow:none}

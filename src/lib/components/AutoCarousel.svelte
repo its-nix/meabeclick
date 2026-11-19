@@ -316,7 +316,7 @@
     height: 44px;
     padding: 0;
     border: 1.5px solid var(--border-strong);
-    border-radius: 50%;
+    border-radius: var(--radius-pill);
     background: var(--bg-card);
     color: var(--text-primary);
     box-shadow: 0 2px 10px var(--shadow-md);
@@ -351,6 +351,6 @@
   @media (prefers-reduced-motion: reduce) {
     .ac-btn { transition: none; }
   }
-  .ac-pause { display: block; min-height: 44px; margin: 4px auto 0; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: .875rem; cursor: pointer; }
+  .ac-pause { display: block; min-height: 44px; margin: 4px auto 0; padding: 8px 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-pill); background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: .875rem; cursor: pointer; }
   .ac-pause:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 </style>

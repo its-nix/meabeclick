@@ -233,9 +233,9 @@
   .node-progress{display:flex;align-items:center;gap:6px;min-width:64px;font-size:.75rem;color:var(--text-muted-strong);font-variant-numeric:tabular-nums}
   .progress-track{display:block;width:34px;height:4px;background:var(--border);border-radius:4px;overflow:hidden}
   .progress-track span{display:block;height:100%;border-radius:inherit;background:var(--action-fill)}
-  .status-editor-wrap{position:relative;flex:none}.status-edit{min-height:44px;border:1px solid var(--border);border-radius:10px;background:var(--bg-card);color:var(--accent-deep);font:inherit;font-size:.8125rem;padding:8px 12px;cursor:pointer}
+  .status-editor-wrap{position:relative;flex:none}.status-edit{min-height:44px;border:1px solid var(--border);border-radius: var(--radius-pill);background:var(--bg-card);color:var(--accent-deep);font:inherit;font-size:.8125rem;padding:8px 12px;cursor:pointer}
   .status-editor{position:absolute;z-index:5;inset-inline-start:0;top:48px;display:flex;flex-direction:column;gap:4px;min-width:160px;padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px var(--shadow-md)}
-  .status-editor button{min-height:44px;border:0;background:transparent;border-radius:8px;padding:10px;text-align:start;font:inherit;font-size:.875rem;cursor:pointer;color:var(--text-primary)}
+  .status-editor button{min-height:44px;border:0;background:transparent;border-radius: var(--radius-pill);padding:10px;text-align:start;font:inherit;font-size:.875rem;cursor:pointer;color:var(--text-primary)}
   .status-editor button:hover,.status-editor button.active{background:var(--accent-dim);color:var(--accent-deep)}
   .tree-node:focus-visible,.status-edit:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
   @media(max-width:700px){

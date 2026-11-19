@@ -50,7 +50,7 @@
   .workspace-label{padding-inline-start:8px;color:var(--text-muted);font-size:.8rem}
   .tutor-account{margin-inline-start:auto;display:flex;align-items:center;gap:12px;flex-shrink:0}
   .logout-error{position:absolute;top:calc(100% + 8px);inset-inline-end:16px;max-width:calc(100vw - 32px);padding:12px 16px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg-card);box-shadow:0 4px 16px var(--shadow);font-size:.85rem;color:var(--danger)}
-  .workspace-skip{position:absolute;inset-inline-start:16px;top:-100px;padding:12px 16px;background:var(--bg-card);border:2px solid var(--accent);border-radius:var(--r-sm);z-index:101}
+  .workspace-skip{position:absolute;inset-inline-start:16px;top:-100px;padding:12px 16px;background:var(--bg-card);border:2px solid var(--accent);border-radius: var(--radius-pill);z-index:101}
   .workspace-skip:focus{top:8px}
   .tutor-brand:focus-visible{outline:3px solid var(--accent);outline-offset:5px;border-radius:4px}
   @media(max-width:600px){.tutor-header-inner{min-height:64px;padding:8px 16px;gap:12px}.workspace-label{display:none}.tutor-brand{font-size:1rem}}

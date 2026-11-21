@@ -1,7 +1,7 @@
 import '../isolate-lesson-data.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import{mkdtemp,writeFile,readFile,rm,mkdir}from'node:fs/promises';import{tmpdir}from'node:os';import{join,dirname}from'node:path';
 import{visualDeckFixture}from'../visual-deck-fixture.mjs';
-const context={purpose:'review',skill:'התפלגות נורמלית',request:'היכרות חזותית לפני בחינה',track:'3',questionnaire:'35372',durationMin:90,history:[],notation:'school-normal-s'};
+const context={purpose:'review',subject:'מתמטיקה',level:'כיתה יא · 3 יחידות',request:'התפלגות נורמלית: היכרות חזותית לפני בחינה',durationMin:90,history:[]};
 async function inert(responses,action){const dir=await mkdtemp(join(tmpdir(),'visual-gen-test-'));const old={};for(const k of ['CODEX_BIN','VISUAL_STUB_DIR'])old[k]=process.env[k];try{
  await writeFile(join(dir,'responses.json'),JSON.stringify(responses));
  const bin=join(dir,'stub.mjs');await writeFile(bin,`#!/usr/bin/env node
@@ -13,7 +13,7 @@ if(r?.pause)await new Promise(resolve=>setTimeout(resolve,2000));if(r?.failure){
  }finally{for(const[k,v]of Object.entries(old)){if(v===undefined)delete process.env[k];else process.env[k]=v;}await rm(dir,{recursive:true,force:true});}}
 test('the real visual generation boundary uses compositional authoring rules and strict output',async()=>{
  const m=await import('../../src/lib/server/lesson/visual-generation.ts').catch(()=>null);assert.ok(m,'reusable visual authoring path exists');
- await inert([visualDeckFixture()],async dir=>{const p=await m.generateVisualLesson({context,sourceIds:[],model:'account-model',timeoutMs:3000});assert.equal(p.slides.length,20);const prompt=await readFile(join(dir,'prompt-0'),'utf8');assert.match(prompt,/mea-visual-v1/);assert.match(prompt,/storyboard|סטוריבורד/);assert.match(prompt,/מקורית|מקורי/);assert.match(prompt,/היכרות חזותית/);const schema=JSON.parse(await readFile(join(dir,'schema.json'),'utf8'));assert.equal(schema.additionalProperties,false);assert.ok(schema.properties.slides.items.properties.blocks);const questionModel=schema.properties.tasks.items.properties.model.anyOf.find(s=>s.properties);assert.deepEqual(questionModel.properties.interactive.enum,['none']);assert.deepEqual(questionModel.properties.showProbability.enum,[false]);});
+ await inert([visualDeckFixture()],async dir=>{const p=await m.generateVisualLesson({context,sourceIds:[],model:'account-model',timeoutMs:3000});assert.equal(p.slides.length,20);const prompt=await readFile(join(dir,'prompt-0'),'utf8');assert.match(prompt,/mea-visual-v1/);assert.match(prompt,/storyboard|סטוריבורד/);assert.doesNotMatch(prompt,/Official sources:/);assert.match(prompt,/Calibration corrections/);assert.match(prompt,/היכרות חזותית/);const schema=JSON.parse(await readFile(join(dir,'schema.json'),'utf8'));assert.equal(schema.additionalProperties,false);assert.ok(schema.properties.slides.items.properties.blocks);const questionModel=schema.properties.tasks.items.properties.model.anyOf.find(s=>s.properties);assert.deepEqual(questionModel.properties.interactive.enum,['none']);assert.deepEqual(questionModel.properties.showProbability.enum,[false]);});
 });
 test('invalid nested output repairs once; quota and unknown sources never retry',async()=>{
  const {generateVisualLesson}=await import('../../src/lib/server/lesson/visual-generation.ts');
@@ -75,5 +75,11 @@ test('chained revision parents reject missing or changed lineage evidence',async
 
 test('booking authoring passes the tutor readiness and request through the actual CLI prompt',async()=>{
  const{generateVisualLesson}=await import('../../src/lib/server/lesson/visual-generation.ts');
- await inert([visualDeckFixture()],async dir=>{await generateVisualLesson({context:{...context,purpose:'booking',readiness:'TUTOR_REPORTED_FRACTIONS_GAP',request:'PERSONALIZED_REQUEST'},sourceIds:[],timeoutMs:3000});const prompt=await readFile(join(dir,'prompt-0'),'utf8');assert.match(prompt,/TUTOR_REPORTED_FRACTIONS_GAP/);assert.match(prompt,/PERSONALIZED_REQUEST/);assert.match(prompt,/introductory learner assumption above is a fallback/);const args=JSON.parse(await readFile(join(dir,'args.json'),'utf8'));assert.ok(args.includes('read-only'));assert.ok(args.includes('shell_tool'));assert.ok(!args.includes('--dangerously-bypass-approvals-and-sandbox'));});
+ await inert([visualDeckFixture()],async dir=>{await generateVisualLesson({context:{...context,purpose:'booking',readiness:'TUTOR_REPORTED_FRACTIONS_GAP',request:'PERSONALIZED_REQUEST'},sourceIds:[],timeoutMs:3000});const prompt=await readFile(join(dir,'prompt-0'),'utf8');assert.match(prompt,/TUTOR_REPORTED_FRACTIONS_GAP/);assert.match(prompt,/PERSONALIZED_REQUEST/);assert.match(prompt,/prerequisite gap/);const args=JSON.parse(await readFile(join(dir,'args.json'),'utf8'));assert.ok(args.includes('read-only'));assert.ok(args.includes('shell_tool'));assert.ok(!args.includes('--dangerously-bypass-approvals-and-sandbox'));});
+});
+
+test('rules follow the booked subject, level and duration instead of one pilot topic',async()=>{
+ const{generateVisualLesson}=await import('../../src/lib/server/lesson/visual-generation.ts');
+ const primary={purpose:'booking',subject:'אנגלית',level:'כיתה א–ב',request:'להכיר צבעים באנגלית',durationMin:45,history:[],readiness:'מכיר כמה מילים'};
+ await inert([{...visualDeckFixture(),durationMin:45}],async dir=>{await generateVisualLesson({context:primary,sourceIds:[],timeoutMs:3000}).catch(()=>{});const prompt=await readFile(join(dir,'prompt-0'),'utf8');assert.match(prompt,/Sizing for 45 minutes/);assert.match(prompt,/early primary grades/);assert.match(prompt,/כיתה א–ב/);assert.doesNotMatch(prompt,/Calibration corrections|35372|Official sources:/);});
 });

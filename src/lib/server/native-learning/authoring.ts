@@ -6,9 +6,7 @@ import{handle}from'../db.ts';
 import{generateVisualLesson}from'../lesson/visual-generation.ts';
 import{visualAuthoringRules}from'../../learning/deck/rules.ts';
 import{visualLessonProblems,type VisualLesson}from'../../learning/deck/model.ts';
-import{officialQuestion}from'../lesson/official-questions.ts';
 import{acceptedFeedbackRules}from'../learning-feedback/store.ts';
-import{NORMAL_REVIEW_CONTEXT}from'./context.ts';
 import{getNativeLessonJob,type NativeLessonJob}from'./jobs.ts';
 import type{NativeValidation}from'./validation.ts';
 export interface AuthoredLesson{bundle:VisualLesson;version:string;kind?:string;model?:string;rulesHash?:string;contextHash?:string;cliVersion?:string;authoringFingerprint?:string;sources?:Array<{id:string;sha256:string}>;feedbackPolicyHash?:string;validation?:NativeValidation}
@@ -43,12 +41,10 @@ export async function authorNativeLesson(job:NativeLessonJob,generate:typeof gen
   const r=handle().prepare(`UPDATE native_lesson_jobs SET snapshot=json_set(snapshot,'$.authoredParent',json(?),'$.reviewRepair',json(?),'$.reviewParentValidation',json(?),'$.reviewParentValidationBinding',json(?)),updated_at=? WHERE id=? AND state='preparing' AND attempts=? AND lease_until>? AND bundle IS NULL AND json_extract(snapshot,'$.authored.version')=? AND COALESCE(json_extract(snapshot,'$.reviewRepair.count'),0)=0 AND json_extract(snapshot,'$.validation.status')='revise' AND json_extract(snapshot,'$.validation.contentHash')=? AND EXISTS(SELECT 1 FROM bookings_v2 b WHERE b.id=booking_id AND b.student_id=native_lesson_jobs.student_id AND b.status='confirmed')`).run(JSON.stringify(cached),JSON.stringify(lineage),JSON.stringify(snapshot.validation),JSON.stringify((snapshot as any).validationBinding??null),now,job.id,job.attempts,now,cached!.version,cached!.version);
   if(!r.changes)throw Error('paused');
  }
- const context={purpose:'booking' as const,skill:'התפלגות נורמלית',request:brief.request+(reviewFeedback?'\nתקנו את ממצאי הבדיקה העצמאית שבהיסטוריה. שמרו על מטרת השיעור, הרמה והמקור המאומת. הפיקו חבילה מלאה ומתוקנת.':''),track:'3',questionnaire:'35372',durationMin:90,history:[...(brief.observations??[]),...(brief.practice??[]).map(p=>({kind:'practice',...p,mastery:'not-inferred'})),...(brief.previousAssignedSourceIds??[]).map(sourceId=>({kind:'previous-assignment-source',sourceId,use:'not-confirmed'})),...(policy.guidance.length?[{kind:'human-approved-generation-guidance',hash:policy.hash,guidance:policy.guidance}]:[]),...(reviewFeedback?[{kind:'independent-review-required-corrections',parentVersion:cached!.version,parent:cached!.bundle,findings:reviewFeedback.findings}]:[])],notation:'school-normal-s',readiness:brief.priorKnowledge};
- const sourceId=NORMAL_REVIEW_CONTEXT.sourceId;
- const bundle=await generate({context,sourceIds:[sourceId],model});
- const source=officialQuestion(sourceId);const errors=visualLessonProblems(bundle,{durationMin:90,sourceAnswers:{[sourceId]:source!.answers!}});
- if(errors.length)throw Error('native_authoring_invalid');
- const authored={bundle,version:hash(JSON.stringify(bundle)),kind:'fresh-booking-generation',model,cliVersion,authoringFingerprint:manifest.fingerprint,sources:[{id:sourceId,sha256:hash(JSON.stringify(source))}],rulesHash:hash(JSON.stringify({base:visualAuthoringRules(),acceptedFeedback:policy})),contextHash:hash(JSON.stringify(context)),feedbackPolicyHash:policy.hash};
+ const context={purpose:'booking' as const,subject:brief.subject??'',level:brief.level??'',durationMin:brief.durationMin!,request:brief.request+(reviewFeedback?'\nתקנו את ממצאי הבדיקה העצמאית שבהיסטוריה. שמרו על מטרת השיעור והרמה. הפיקו חבילה מלאה ומתוקנת.':''),history:[...(brief.observations??[]),...(brief.practice??[]).map(p=>({kind:'practice',...p,mastery:'not-inferred'})),...(brief.previousAssignedSourceIds??[]).map(sourceId=>({kind:'previous-assignment-source',sourceId,use:'not-confirmed'})),...(policy.guidance.length?[{kind:'human-approved-generation-guidance',hash:policy.hash,guidance:policy.guidance}]:[]),...(reviewFeedback?[{kind:'independent-review-required-corrections',parentVersion:cached!.version,parent:cached!.bundle,findings:reviewFeedback.findings}]:[])],readiness:brief.priorKnowledge};
+ const bundle=await generate({context,sourceIds:[],model});
+ if(visualLessonProblems(bundle,{durationMin:context.durationMin}).length)throw Error('native_authoring_invalid');
+ const authored={bundle,version:hash(JSON.stringify(bundle)),kind:'fresh-booking-generation',model,cliVersion,authoringFingerprint:manifest.fingerprint,sources:[],rulesHash:hash(JSON.stringify({base:visualAuthoringRules(context),acceptedFeedback:policy})),contextHash:hash(JSON.stringify(context)),feedbackPolicyHash:policy.hash};
  if(reviewFeedback&&authored.version===cached!.version)throw Error('native_review_revise');
  const now=new Date().toISOString();
  const sql=reviewFeedback?`AND json_extract(snapshot,'$.authored.version')=? AND json_extract(snapshot,'$.reviewRepair.parentVersion')=? AND json_extract(snapshot,'$.reviewRepair.count')=1`:`AND json_extract(snapshot,'$.authored') IS NULL`;

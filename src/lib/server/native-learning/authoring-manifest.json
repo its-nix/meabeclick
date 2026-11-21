@@ -1,18 +1,18 @@
 {
   "version": 1,
   "files": {
-    "src/lib/learning/deck/model.ts": "0e97e38f81d26b12e466830a63c49248b2345e6a8c180093e20f8f800fa4c883",
-    "src/lib/learning/deck/review-rules.ts": "f5b65516fd9c5d60688e69f8610b9654b4fc1dbb82d06a7d1ec1875b884c6660",
-    "src/lib/learning/deck/rules.ts": "e5f8d8373da6e0f591399f734262d6e3a68ba3bbd18f7e61111fd6314733894e",
+    "src/lib/learning/deck/model.ts": "d13b861fce38cdfbdfbe5810fe77362b33ac85264742d6f17c574f6f749f7dab",
+    "src/lib/learning/deck/review-rules.ts": "416cf9b6d7c7894e635f8e76290e7be4c47a639c9ccadaedafed87e67a14bf4b",
+    "src/lib/learning/deck/rules.ts": "733fd6cd57357cc5a86565757421e097ad1aaa9edb030b8e396cacf64d08cf91",
     "src/lib/learning/deck/schema.ts": "8cb6290422e923f1e9953304157a2aeee9f514d1f8abd1506a5e73ff3de5776c",
     "src/lib/server/lesson/prompt.ts": "1b876cda3f21139d64426e39df92f9b711af534f444eacc45da9e3faae9dbfe3",
     "src/lib/server/lesson/structured-output.ts": "288b1f716e7cca075fe0509306ce178b9afa6f5a136a80fdeb14e01ff8a869f5",
-    "src/lib/server/lesson/visual-generation.ts": "fd29d36b29bcd7950776481b8a6c8af5935ff13bec140cf8dc8252bbe08cdee2",
-    "src/lib/server/native-learning/authoring.ts": "06f5d83a5b471b3b621b9946f8b3e92291c5fc8617ddfcaffc189195f0f16dc8",
-    "src/lib/server/native-learning/context.ts": "2da1ba094d34b01263a00d05db2c58ed30f4814115763b2daaa240884f98f919",
+    "src/lib/server/lesson/visual-generation.ts": "03b1725e4f5f5080c47e5d48fa6781697414a40b5972d72830af59f47b15942f",
+    "src/lib/server/native-learning/authoring.ts": "54d0568cab41952cb6697ec9ed21b77c520b8605498648cb8408e1e457085629",
+    "src/lib/server/native-learning/context.ts": "1ff701b30eeb3c8eba23eac0e6f04e184d596e71acc3e7e9d28d0e2d7789a937",
     "src/lib/server/native-learning/preparation-brief.ts": "dafea38b20ff8ff2d6e2e79bcd8e6cd6226bcff123d6d16d32a1bc17b4e5ca14",
     "src/lib/server/native-learning/preparation-review.ts": "a728f908efd9414cb85c08476d650d9e2019d4220ee4c7dcd27ba3fe5c4a2c45",
     "src/lib/server/native-learning/validation.ts": "24c3e0a89db7696bf56cabd3970221fb8966f9d119dd95a80fd06e25fa2a56d8"
   },
-  "fingerprint": "989811c001772b835a0cf7a9c29a7d10c20b47b1158a55ac960354ee1d50772f"
+  "fingerprint": "963a587869643a256b6982428eec754237eecff864437d2bab521c508229944f"
 }

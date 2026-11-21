@@ -33,7 +33,7 @@
  * the wrong existing student's record.
  */
 import { randomBytes } from 'node:crypto';
-import { israelToday, lessonWhen } from '../dates.ts';
+import { lessonWhen } from '../dates.ts';
 import { TUTOR_PHONE } from '../contact.ts';
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -183,7 +183,6 @@ export function writePortalFile(student: StudentRow, booking: BookingInput, tuto
     level: String(booking.level || ''),
     tutor: tutorName,
     tutorPhone: TUTOR_PHONE,
-    updated: israelToday(),
     nextLesson: nextLessonFrom(booking),
     progress: 0,
     progressNote: '',

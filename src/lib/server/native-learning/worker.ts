@@ -6,26 +6,21 @@ import {getStudentById,enrollmentsForStudent} from '../entities.ts';
 import {type AuthoredLesson} from './authoring.ts';
 import {prepareReviewedNativeLesson} from './preparation-review.ts';
 import type {VisualLesson} from '../../learning/deck/model.ts';
-import {claimNativeLessonJob,cacheNativePublication,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,listNativeLessonJobs,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
-import {supportedNativeContext,NORMAL_REVIEW_CONTEXT} from './context.ts';
+import {claimNativeLessonJob,cacheNativePublication,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
 import {nativeDraftRecords,appendNativeDraftRecords,validateNativeDraftFiles,writeNativeGamesFile} from './register.ts';
 
 interface Receipt {version:1;state:'draft';sourceHash:string;reviewFolderId:string;slides:{id:string;url:string;mimeType:string};notesLocation?:'slides';tutorNotes?:{id:string;url:string;mimeType:string};homework:{id:string;url:string;mimeType:string};activities:{id:string;title:string;url:string}[];provenance?:{kind:string;bundleVersion:string;sourceIds:string[];context:Record<string,unknown>;generation?:Omit<AuthoredLesson,'bundle'>}}
 interface Options {
  enabled:()=>boolean;workspace:()=>NativeWorkspace|null;access:()=>CentralAccess;
- source:()=>{bundle:VisualLesson;version:string}|null;
- generate?:(job:NativeLessonJob)=>Promise<AuthoredLesson>;
+ generate:(job:NativeLessonJob)=>Promise<AuthoredLesson>;
  publish:(input:{bundle:VisualLesson;key:string;activityBaseUrl:string},dependencies:{access:CentralAccess;workspace:NativeWorkspace})=>Promise<Receipt>;
  register:(access:CentralAccess,workspace:NativeWorkspace,job:NativeLessonJob,receipt:Receipt,bundle?:VisualLesson)=>Promise<void>;
  activityBaseUrl:()=>string;
 }
 export const NATIVE_PREPARATION_REASONS:Record<string,string>={
- unsupported_context:'נדרשת הכנת מורה: טרם נקשרו נושא, רמה, משך, ידע קודם ומקור מאומת שמתאימים לחבילה הנתמכת.',
  missing_brief:'יש להשלים את מטרת השיעור ותיאור הידע הקודם לפני יצירה חדשה.',
  authoring_disabled:'היצירה החדשה ממתינה לבדיקת איכות של חבילת הניסוי. נדרשת הכנת מורה.',
  workspace_unavailable:'מרחב ההוראה החדש עדיין אינו זמין. נדרשת הכנת מורה.',
- source_unavailable:'חבילת המקור המאומתת אינה זמינה. נדרשת הכנת מורה.',
- repeated_source:'לתלמיד/ה כבר הוכנה חבילת מבוא ממקור זה. יש להכין שיעור המשך ולבדוק שימוש חוזר בשאלה.',
 };
 /** A single serial drain per process. SQLite leases fence competing/restarted workers. */
 export function nativeLessonWorker(options:Options){
@@ -35,20 +30,19 @@ export function nativeLessonWorker(options:Options){
   const check=()=>{const current=getNativeLessonJob(job.bookingId);if(current?.state!=='preparing'||current.attempts!==job.attempts||!current.leaseUntil||Date.parse(current.leaseUntil)<=Date.now())throw Error('paused');};
   try{
    check();
-   if(!supportedNativeContext(job.snapshot)){finish('unsupported_context');return;}
+   if((job.snapshot.brief?.readiness!=='tutor-reported'||!job.snapshot.brief.request?.trim()||!job.snapshot.brief.priorKnowledge?.trim()||job.snapshot.brief.missing.length)){finish('missing_brief');return;}
    if(!options.enabled()){finish('authoring_disabled');return;}
-   if(options.generate&&(job.snapshot.brief?.readiness!=='tutor-reported'||!job.snapshot.brief.request?.trim()||!job.snapshot.brief.priorKnowledge?.trim()||job.snapshot.brief.missing.length)){finish('missing_brief');return;}
    const workspace=options.workspace();if(!workspace){finish('workspace_unavailable');return;}
-   if(listNativeLessonJobs({studentId:job.studentId}).some(previous=>previous.id!==job.id&&previous.state==='review')){finish('repeated_source');return;}
    const rawAccess=options.access(),access={...rawAccess,assertCurrent(){check();rawAccess.assertCurrent();if(!options.enabled()||options.workspace()?.archiveId!==workspace.archiveId)throw Error('paused');}};
    access.assertCurrent();
-   const source=options.generate?await options.generate(job):options.source();if(!source){finish('source_unavailable');return;}
+   const source=await options.generate(job);
    access.assertCurrent();
    const key=`booking-${job.bookingId}-student-${job.studentId}-${createHash('sha256').update(source.version).digest('hex').slice(0,20)}`;
    const pending=(job.bundle as {pendingPublication?:{receipt:Receipt;sourceVersion:string;archiveId:string}}|null)?.pendingPublication;
    if(pending&&(pending.sourceVersion!==source.version||pending.archiveId!==workspace.archiveId))throw Error('conflict');
-   const published=pending?.receipt??await options.publish({bundle:source.bundle,key,activityBaseUrl:options.generate?`${options.activityBaseUrl()}/${job.bookingId}`:options.activityBaseUrl()},{access,workspace});
-   const receipt={...published,provenance:{kind:options.generate?'fresh-booking-generation':'tutor-selected-calibration',bundleVersion:source.version,sourceIds:[NORMAL_REVIEW_CONTEXT.sourceId],context:{...NORMAL_REVIEW_CONTEXT,readiness:job.snapshot.brief?.readiness==='tutor-reported'?'tutor-reported':NORMAL_REVIEW_CONTEXT.readiness},...(options.generate?{generation:{version:source.version,model:(source as AuthoredLesson).model,rulesHash:(source as AuthoredLesson).rulesHash,contextHash:(source as AuthoredLesson).contextHash,cliVersion:(source as AuthoredLesson).cliVersion,authoringFingerprint:(source as AuthoredLesson).authoringFingerprint,sources:(source as AuthoredLesson).sources,feedbackPolicyHash:(source as AuthoredLesson).feedbackPolicyHash,validation:(source as AuthoredLesson).validation}}:{})}};
+   const published=pending?.receipt??await options.publish({bundle:source.bundle,key,activityBaseUrl:`${options.activityBaseUrl()}/${job.bookingId}`},{access,workspace});
+   const authored=source as AuthoredLesson,brief=job.snapshot.brief!;
+   const receipt={...published,provenance:{kind:'fresh-booking-generation',bundleVersion:source.version,sourceIds:(authored.sources??[]).map(x=>x.id),context:{subject:brief.subject,level:brief.level,durationMin:brief.durationMin,readiness:brief.readiness},generation:{version:source.version,model:authored.model,rulesHash:authored.rulesHash,contextHash:authored.contextHash,cliVersion:authored.cliVersion,authoringFingerprint:authored.authoringFingerprint,sources:authored.sources,feedbackPolicyHash:authored.feedbackPolicyHash,validation:authored.validation}}};
    access.assertCurrent();
    if(!pending&&!cacheNativePublication({bookingId:job.bookingId,attempt:job.attempts,publication:{receipt,sourceVersion:source.version,archiveId:workspace.archiveId}}))throw Error('paused');
    await options.register(access,workspace,job,receipt,source.bundle);
@@ -68,7 +62,7 @@ export function nativeLessonWorker(options:Options){
 }
 let worker:ReturnType<typeof nativeLessonWorker>|undefined;
 export function nativeLearningWorker(){return worker??=nativeLessonWorker({
- enabled:()=>process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',workspace:nativeWorkspace,access:()=>learningService().syncAccess(),source:()=>null,generate:prepareReviewedNativeLesson,
+ enabled:()=>process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',workspace:nativeWorkspace,access:()=>learningService().syncAccess(),generate:prepareReviewedNativeLesson,
  activityBaseUrl:()=>new URL('/app/native-review-activities',process.env.SITE_URL).href,
  async publish(input,dependencies){const{publishNativeReviewBundle}=await import('./bundle.ts');return publishNativeReviewBundle(input,dependencies);},
  async register(access,workspace,job,receipt,bundle){

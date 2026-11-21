@@ -1,7 +1,7 @@
 import {test,expect} from './fixtures.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {seedRetired} from '../learning-archive-fixture.mjs';
-const NORMAL_REVIEW_CONTEXT={kind:'normal-distribution35372',purpose:'review',subject:'mathematics',educationLevel:'high-school',topic:'normal-distribution',track:'3',questionnaire:'35372',notation:'school-normal-s',durationMin:90,readiness:'percentages-and-mean-ready-normal-new',sourceId:'moe-2025a-35372-3'};
+const PREPARATION={request:'להבין שטחים בעקומה',priorKnowledge:'מבין ממוצע ומתקשה באחוזים'};
 
 async function book(qa,level='כיתה יא · 3 יחידות'){
  const response=await qa.request('/api/book',{method:'POST',cookie:'',json:{name:'כיול נורמלית',subject:'מתמטיקה',level,phone:'0505551212',email:'native-calibration@example.test',durationMin:90,start:'2028-08-10T10:00:00+03:00',end:'2028-08-10T11:30:00+03:00'}});
@@ -10,7 +10,7 @@ async function book(qa,level='כיתה יא · 3 יחידות'){
  return{bookingId:booking.id,studentId:student.id,code:result.portal.code};
 }
 function mutate(qa,callback){const db=new DatabaseSync(qa.dbPath);try{db.exec('PRAGMA busy_timeout=5000');return callback(db);}finally{db.close();}}
-async function bind(qa,booking){return qa.request(`/api/native-lessons/${booking.bookingId}`,{method:'POST',json:{studentId:booking.studentId,context:NORMAL_REVIEW_CONTEXT}});}
+async function bind(qa,booking){return qa.request(`/api/native-lessons/${booking.bookingId}`,{method:'POST',json:{studentId:booking.studentId,preparation:PREPARATION}});}
 
 test('native-lessons: a real booking is durable and flag-off authoring stays tutor-visible and private',async({qa})=>{
  mutate(qa,db=>seedRetired(db));const booking=await book(qa);
@@ -29,7 +29,7 @@ test('native-lessons: a real booking is durable and flag-off authoring stays tut
 
 test.describe('explicit tutor context',()=>{
  test.use({nativeAuthoring:true});
- test('native-lessons: tutor confirms supported brief while unsupported bookings cannot be forced into it',async({qa})=>{
+ test('native-lessons: tutor confirms the brief for any booking and another student's booking cannot be bound',async({qa})=>{
   mutate(qa,db=>seedRetired(db));const booking=await book(qa);
   const page=await qa.page('tutor');await page.goto(`/app/students/${booking.code}`);
   const panel=page.getByRole('region',{name:'הכנת שיעורים במרחב ההוראה'});await panel.locator('summary').click();
@@ -38,13 +38,10 @@ test.describe('explicit tutor context',()=>{
   await panel.getByLabel('מה מטרת השיעור?').fill('להבין שטחים בעקומה');await panel.getByLabel('מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת?').fill('מבין ממוצע ומתקשה באחוזים');
   await panel.getByRole('checkbox').check();const binding=page.waitForResponse(r=>r.url().endsWith(`/api/native-lessons/${booking.bookingId}`)&&r.request().method()==='POST');await button.click();expect((await binding).status()).toBe(200);
   await expect(panel.getByRole('status')).toContainText('בקשת ההכנה נשמרה');
-  expect(JSON.parse(qa.row('SELECT snapshot FROM native_lesson_jobs WHERE booking_id=?',booking.bookingId).snapshot).context).toEqual(NORMAL_REVIEW_CONTEXT);
+  expect(JSON.parse(qa.row('SELECT snapshot FROM native_lesson_jobs WHERE booking_id=?',booking.bookingId).snapshot).brief).toMatchObject({request:PREPARATION.request,priorKnowledge:PREPARATION.priorKnowledge,readiness:'tutor-reported',missing:[]});
   // This isolated server has no personal OAuth token: the honest outcome is a private failure, never fake readiness.
   await expect.poll(()=>qa.row('SELECT state FROM native_lesson_jobs WHERE booking_id=?',booking.bookingId).state).toBe('failed');
   expect(qa.row('SELECT bundle FROM native_lesson_jobs WHERE booking_id=?',booking.bookingId).bundle).toBeNull();await qa.evidence(page,'native-explicit-context');
-  const unsupported=qa.row('SELECT booking_id FROM native_lesson_jobs WHERE student_id=?',qa.learner.studentId);
-  await expect.poll(()=>qa.row('SELECT reason FROM native_lesson_jobs WHERE booking_id=?',unsupported.booking_id).reason).toBe('unsupported_context');
-  expect((await qa.request(`/api/native-lessons/${unsupported.booking_id}`,{method:'POST',json:{studentId:qa.learner.studentId,context:NORMAL_REVIEW_CONTEXT}})).status).toBe(409);
   expect((await bind(qa,{...booking,studentId:qa.learner.studentId})).status).toBe(409);
   await page.reload();await panel.locator('summary').click();await panel.getByLabel('מה מטרת השיעור?').fill('להבין שטחים בעקומה');await panel.getByLabel('מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת?').fill('עדיין לא נבדק');await panel.getByRole('checkbox').check();
   await page.route(`**/api/native-lessons/${booking.bookingId}`,route=>route.fulfill({status:401,json:{error:'unauthorized'}}));

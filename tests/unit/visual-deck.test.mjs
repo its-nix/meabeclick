@@ -61,10 +61,6 @@ test('graded region bounds and missing ticks must be selectable by the actual co
  const region=visualDeckFixture();region.games[0].rounds[0].check.answer=[-1.75,.5];assert.ok(visualLessonProblems(region).length,'quarter-step region cannot be selected');
  const axis=visualDeckFixture();const t=axis.homework[0];t.model.mode='axis';t.model.states[0].hideZ=1.75;t.check.answer=87.5;assert.ok(visualLessonProblems(axis).length,'axis has no quarter-step tick to hide');
 });
-test('a band and accumulation ending at the same boundary must actually be compared',async()=>{
- const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();for(const s of p.slides)for(const b of s.blocks)if(b.model?.mode==='cumulative')b.model.states=b.model.states.slice(0,1).map(s=>({...s,lowerZ:0}));
- assert.ok(visualLessonProblems(p).some(x=>x.includes('מצטבר')));
-});
 test('prose rejects bare TeX commands while delimited prose and raw equation blocks remain valid',async()=>{
  const {visualLessonProblems}=await import('../../src/lib/learning/deck/model.ts');const p=visualDeckFixture();p.tasks[0].solution='משתמשים ב־x=\\mu+zs';assert.ok(visualLessonProblems(p).some(s=>s.includes('tasks.0.solution')),'diagnostic identifies the malformed solution field');
  p.tasks[0].solution='משתמשים ב־\\(x=\\mu+zs\\)';p.slides[0].blocks.push({type:'equation',text:'\\frac{1}{2}',model:null,sourceId:null,reveal:1});assert.deepEqual(visualLessonProblems(p),[]);

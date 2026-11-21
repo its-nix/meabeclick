@@ -65,11 +65,12 @@ read. Tutors prepare materials only in the native workspace, until a new Google
 Slides/Docs authoring bundle passes the agreed teaching review. Backfill and an empty native library are not evidence
 that the new generation engine is ready. See the Drive-native cutover design.
 
-The native draft path now durably queues one preparation job per booking and
-shows its state to the tutor. Unsupported or unbound contexts require tutor
-preparation. Opt-in authoring accepts only the explicitly confirmed 90-minute
-introductory normal-distribution calibration for high-school three-unit 35372,
-using the verified summer 2025 question 3 and school `s` convention. Tutors supply
+The native draft path durably queues one preparation job per booking and
+shows its state to the tutor. Native lessons are prepared for every grade,
+subject and lesson length (45, 90 or 135 minutes): the booking's enrollment
+supplies subject, level and duration, with no pilot-topic gate. Opt-in authoring
+needs no verified exam source; a source is optional grounding, and the tutor's
+goal and prior-knowledge text ground every draft. Tutors supply
 the lesson goal and a description of observed prior knowledge. The booking's exact
 enrollment and recorded coverage/practice inform a fresh generated draft; unknown
 readiness is never replaced by an introductory-learner assumption. Generation is
@@ -81,7 +82,7 @@ keys inside the same deck, automatically animated spread/area demonstrations
 after eligible static explanation steps, separate question-only homework and
 protected interactive review links, plus linked draft records in Sheets.
 Retry and restart preserve job identity and human edits. A prior native review
-for that learner blocks silently repeating the same introductory source.
+Every draft stays private to the tutor.
 This is a review workflow, not a general adaptive engine: automatic student
 release remains blocked until actual owner teaching review and approval.
 

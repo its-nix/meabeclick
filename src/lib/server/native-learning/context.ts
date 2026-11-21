@@ -1,29 +1,12 @@
 import {handle,inTransaction} from '../db.ts';
-import {getNativeLessonJob,type NativeLessonSnapshot} from './jobs.ts';
+import {getNativeLessonJob,type NativeLessonJob} from './jobs.ts';
 import {preparationBriefForBooking} from './preparation-brief.ts';
-import {levelUnitTracks} from '../../learning/education-level.ts';
 
-/** Explicit tutor calibration, never inferred from a learner's name or grade. */
-export const NORMAL_REVIEW_CONTEXT={kind:'normal-distribution35372',purpose:'review',subject:'mathematics',educationLevel:'high-school',topic:'normal-distribution',track:'3',questionnaire:'35372',notation:'school-normal-s',durationMin:90,readiness:'percentages-and-mean-ready-normal-new',sourceId:'moe-2025a-35372-3'} as const;
-export function supportedNativeContext(snapshot:NativeLessonSnapshot&{context?:unknown}):boolean {
- const context=snapshot.context;
- const level=snapshot.level??'',tracks=levelUnitTracks(level);
- if(tracks.some(track=>!track.startsWith('3')))return false;
- const highSchool=tracks.length>0||/(?:תיכון|בגרות|כיתה\s*י(?:\s|[אב"'״]|$))/.test(level);
- return snapshot.durationMin===90&&['מתמטיקה','math','mathematics'].includes((snapshot.subject??'').trim().toLowerCase())&&highSchool&&!!context&&typeof context==='object'&&Object.keys(context).length===Object.keys(NORMAL_REVIEW_CONTEXT).length&&Object.entries(NORMAL_REVIEW_CONTEXT).every(([k,v])=>(context as Record<string,unknown>)[k]===v);
-}
-export function bindNativeReviewContext(input:{bookingId:number;studentId:number;context:unknown}) {
- return inTransaction(()=>{
-  const job=getNativeLessonJob(input.bookingId);
-  if(!job||job.studentId!==input.studentId)throw Error('ownership');
-  if(!['queued','needs-preparation','failed'].includes(job.state))throw Error('state');
-  const snapshot={...job.snapshot,context:input.context};
-  if(!supportedNativeContext(snapshot))throw Error('unsupported_context');
-  const changed=handle().prepare(`UPDATE native_lesson_jobs SET snapshot=?,state='queued',reason=NULL,error_code=NULL,retry_at=NULL,lease_until=NULL,updated_at=?
-   WHERE id=? AND state IN ('queued','needs-preparation','failed') AND EXISTS(SELECT 1 FROM bookings_v2 WHERE id=? AND student_id=? AND status='confirmed')`).run(JSON.stringify(snapshot),new Date().toISOString(),job.id,input.bookingId,input.studentId);
-  if(!changed.changes)throw Error('state');
-  return getNativeLessonJob(input.bookingId)!;
- });
+const OPEN_STATES=['queued','needs-preparation','failed'];
+/** Subject, level and duration come from the confirmed booking; only the lesson goal and prior knowledge are tutor input. */
+export function nativePreparationOpen(job:Pick<NativeLessonJob,'state'|'snapshot'>):boolean{
+ const brief=job.snapshot.brief;
+ return OPEN_STATES.includes(job.state)&&!!brief&&brief.missing.every(k=>['topic','readiness'].includes(k));
 }
 
 /** Tutor supplies the missing teaching facts; level and booking identity come from storage. */
@@ -34,12 +17,10 @@ export function bindNativePreparation(input:{bookingId:number;studentId:number;r
  return inTransaction(()=>{
   const job=getNativeLessonJob(input.bookingId);
   if(!job||job.studentId!==input.studentId)throw Error('ownership');
-  if(!['queued','needs-preparation','failed'].includes(job.state))throw Error('state');
-  const snapshot={...job.snapshot,context:NORMAL_REVIEW_CONTEXT};
-  if(!supportedNativeContext(snapshot))throw Error('unsupported_context');
+  if(!OPEN_STATES.includes(job.state))throw Error('state');
   const brief=job.snapshot.brief??preparationBriefForBooking(input);
-  if(!brief||brief.missing.some(k=>!['topic','readiness'].includes(k)))throw Error('unsupported_context');
-  const updated={...snapshot,brief:{...brief,topic:'התפלגות נורמלית',request,priorKnowledge,readiness:'tutor-reported',missing:[]}};
+  if(brief.missing.some(k=>!['topic','readiness'].includes(k)))throw Error('incomplete_booking');
+  const updated={...job.snapshot,brief:{...brief,topic:request.slice(0,160),request,priorKnowledge,readiness:'tutor-reported',missing:[]}};
   // A saved generation may already have Drive files or acknowledged Sheets rows.
   // Retry it unchanged; editing it requires a separate versioned replacement.
   if((job.snapshot as any).authored&&(brief.request!==request||brief.priorKnowledge!==priorKnowledge))throw Error('generated_brief_locked');

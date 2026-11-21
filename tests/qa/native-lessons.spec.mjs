@@ -29,7 +29,7 @@ test('native-lessons: a real booking is durable and flag-off authoring stays tut
 
 test.describe('explicit tutor context',()=>{
  test.use({nativeAuthoring:true});
- test('native-lessons: tutor confirms the brief for any booking and another student's booking cannot be bound',async({qa})=>{
+ test('native-lessons: tutor confirms the brief for any booking and a booking of another student cannot be bound',async({qa})=>{
   mutate(qa,db=>seedRetired(db));const booking=await book(qa);
   const page=await qa.page('tutor');await page.goto(`/app/students/${booking.code}`);
   const panel=page.getByRole('region',{name:'הכנת שיעורים במרחב ההוראה'});await panel.locator('summary').click();

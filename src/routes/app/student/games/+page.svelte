@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '$lib/icons/Icon.svelte';
   let { data } = $props();
   const kindLabel: Record<string, string> = { quiz: 'חידון', region: 'סימון על הגרף', axis: 'ציר' };
 </script>
@@ -6,6 +7,7 @@
 <svelte:head><title>המשחקים שלי · מאה בקליק</title></svelte:head>
 
 <main class="wrap" dir="rtl">
+  <a class="back" href="/app/student" aria-label="חזרה לדף שלי" title="חזרה לדף שלי"><Icon name="dashboard" size={22} /></a>
   <header>
     <p class="eyebrow">שלום {data.name}</p>
     <h1>המשחקים שלי</h1>
@@ -40,5 +42,7 @@
   .card:focus-visible { outline: 2px solid var(--action-fill); outline-offset: 2px; }
   .card strong { display: block; font-size: 1.125rem; margin-block: 4px; }
   .meta, .intro { display: block; font-size: .875rem; color: var(--text-muted); }
+  .back { display: inline-grid; place-items: center; width: 44px; height: 44px; margin-bottom: 12px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--bg-card); color: inherit; text-decoration: none; }
+  .back:focus-visible { outline: 2px solid var(--action-fill); outline-offset: 2px; }
   .empty { color: var(--text-muted); }
 </style>

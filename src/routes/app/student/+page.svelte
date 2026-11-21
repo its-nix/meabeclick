@@ -54,7 +54,7 @@
     /* Computed by the server (see src/lib/server/progress.ts), not a
        hand-typed integer — that one was 0 for every student, forever. */
     progress?: ProgressFacts;
-    progressNote?: string; updated?: string;
+    progressNote?: string;
     homework?: HwItem[]; lessons?: LessonItem[];
     /* Only sent when this student is the payer of record (pays for themselves). */
     charges?: Charge[];
@@ -621,7 +621,6 @@
         </div>
       {/if}
 
-      <div class="foot">{DATA.updated ? `עודכן לאחרונה: ${fmtDate(DATA.updated)}` : ''}</div>
     </div>
   {:else if view === 'error'}
     <div class="msg-empty">
@@ -813,7 +812,6 @@
   .skeleton { background: var(--border); border-radius: 12px; opacity: .7; }
   .skeleton.heading { width: 45%; height: 24px; }
   .skeleton.card-shape { height: 112px; }
-  .foot { text-align: center; color: var(--text-muted); font-size: .78rem; margin-top: 1.4rem; }
 
   .retry {
     margin-top: 12px; background: var(--action-fill); color: #fff; border: 0;

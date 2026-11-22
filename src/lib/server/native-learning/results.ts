@@ -20,6 +20,8 @@ export interface NativeResult {
  id: number; studentId: number; bookingId: number | null; gameId: string; roundId: string;
  skillNodeId: string | null; outcome: NativeOutcome; attempts: number; seconds: number | null; at: string;
  hints?: number; revealed?: boolean;
+ /** Difficulty level (1-3) of the round as played; null for historical games. */
+ difficulty?: number | null;
 }
 const OUTCOMES: readonly string[] = ['correct', 'assisted', 'incorrect'];
 const norm = (s: unknown) => String(s ?? '').normalize('NFKC').trim().replace(/\s+/g, ' ');
@@ -29,7 +31,8 @@ function decode(r: Record<string, unknown>): NativeResult {
  return { id: Number(r.id), studentId: Number(r.student_id), bookingId: r.booking_id === null ? null : Number(r.booking_id),
   gameId: String(r.game_id), roundId: String(r.round_id), skillNodeId: r.skill_node_id === null ? null : String(r.skill_node_id),
   outcome: r.outcome as NativeOutcome, attempts: Number(r.attempts), seconds: r.seconds === null ? null : Number(r.seconds), at: String(r.at),
-  hints: Number(r.hints ?? 0), revealed: Number(r.revealed ?? 0) === 1 };
+  hints: Number(r.hints ?? 0), revealed: Number(r.revealed ?? 0) === 1,
+  difficulty: r.difficulty === null || r.difficulty === undefined ? null : Number(r.difficulty) };
 }
 
 
@@ -110,8 +113,9 @@ export function recordNativeResult(input: { studentId: number; bookingId: number
  const outcome: NativeOutcome = review ? 'awaiting-review' : (OUTCOMES.includes(input.outcome) ? input.outcome as FinalOutcome : (() => { throw new Error('native result outcome invalid'); })());
  const skill = resolveSkillNode(input.studentId, input.bookingId, String(round.objectiveId ?? ''));
  const at = new Date().toISOString();
- const id = handle().prepare(`INSERT INTO native_results (student_id,booking_id,game_id,round_id,skill_node_id,outcome,attempts,seconds,at)
-  VALUES (?,?,?,?,?,?,?,?,?)`).run(input.studentId, input.bookingId, input.gameId, input.roundId, skill, outcome, input.attempts, input.seconds, at).lastInsertRowid;
+ const difficulty = int(round.difficulty, 1, 3) ? Number(round.difficulty) : null;
+ const id = handle().prepare(`INSERT INTO native_results (student_id,booking_id,game_id,round_id,skill_node_id,outcome,attempts,seconds,at,difficulty)
+  VALUES (?,?,?,?,?,?,?,?,?,?)`).run(input.studentId, input.bookingId, input.gameId, input.roundId, skill, outcome, input.attempts, input.seconds, at, difficulty).lastInsertRowid;
  return decode(handle().prepare('SELECT * FROM native_results WHERE id=?').get(id)!);
 }
 
@@ -139,7 +143,7 @@ export function progressRowForResult(result: NativeResult, skillKey: string, ctx
   outcome: independent ? 'demonstrated' : result.outcome === 'incorrect' ? 'needs_review' : 'practising',
   support: independent ? 'independent' : result.outcome === 'incorrect' ? 'none' : 'guided',
   evidence_type: 'game', evidence_url: '',
-  note: `משחק ${result.gameId}, שאלה ${result.roundId}: ${result.attempts} ניסיונות`,
+  note: `משחק ${result.gameId}, שאלה ${result.roundId}: ${result.attempts} ניסיונות${result.difficulty ? `, רמה ${result.difficulty}` : ''}`,
   observed_at: result.at, is_demo: false,
  };
 }

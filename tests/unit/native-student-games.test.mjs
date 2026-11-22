@@ -68,7 +68,7 @@ test('a quiz game plays end to end: choice and number graded, open round waits f
  day++;const d=String(day).padStart(2,'0'),bookingId=E.reserveBooking({studentId:student.id,start:`2028-10-${d}T10:00:00.000Z`,end:`2028-10-${d}T11:30:00.000Z`,durationMin:90});
  J.enqueueNativeLesson({bookingId,studentId:student.id});
  const base=visualDeckFixture(),hw=base.homework[0],round=(id,patch)=>({...structuredClone(hw),id,model:null,...patch});
- base.games=[{id:'quiz-game',title:'חידון קצר',intro:'שלוש שאלות על מה שלמדנו.',kind:'quiz',rounds:[round('quiz-1',{check:{kind:'choice',answer:1,options:['א','ב','ג']}}),round('quiz-2',{check:{kind:'number',answer:7,options:[]}}),round('quiz-3',{grading:'tutor-review',check:null})]}];
+ base.games=[{id:'quiz-game',title:'חידון קצר',intro:'שלוש שאלות על מה שלמדנו.',kind:'quiz',rounds:[round('quiz-1',{check:{kind:'choice',answer:1,options:['א','ב','ג']}}),round('quiz-2',{check:{kind:'number',answer:7,options:[]}}),round('quiz-3',{grading:'tutor-review',check:null}),...Array.from({length:7},(_,i)=>round('quiz-'+(i+4),{check:{kind:'number',answer:i,options:[]}}))].map((r,i)=>({...r,difficulty:i<4?1:i<7?2:3}))}];
  const text=G.gamesFileText(G.exportGamesFile(base,`booking-${bookingId}`));
  await G.approveNativeLesson({bookingId,sheetRevision:'r',materialId:`m-${bookingId}`,releaseId:'rel',fileId:'fileAAAAAAAAAA',drive:{read:async()=>({revisionId:'v',text})}});
  const b={bookingId,version:createHash('sha256').update(text).digest('hex')};

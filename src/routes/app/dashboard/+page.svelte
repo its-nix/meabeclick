@@ -991,7 +991,7 @@
           {#each game.rounds as round (round.id)}
             <li class:awaiting={round.outcome==='awaiting-review'}>
               <strong>{round.prompt || `שאלה ${round.roundId}`}</strong>
-              <span class="native-results-meta">{round.skillTitle ?? 'ללא מיומנות בתוכנית'} · <bdi>{round.attempts}</bdi> ניסיונות{#if round.seconds!==null} · <bdi>{round.seconds}</bdi> שניות{/if} · <bdi>{formatDateTime(round.at)}</bdi></span>
+              <span class="native-results-meta">{round.skillTitle ?? 'ללא מיומנות בתוכנית'}{#if round.difficulty} · רמה <bdi>{round.difficulty}</bdi>{/if} · <bdi>{round.attempts}</bdi> ניסיונות{#if round.seconds!==null} · <bdi>{round.seconds}</bdi> שניות{/if} · <bdi>{formatDateTime(round.at)}</bdi></span>
               {#if round.outcome==='awaiting-review'}
                 <span class="native-results-outcome">ממתין לבדיקת המורה</span>
                 <span class="native-results-actions" role="group" aria-label="הכרעה בתשובה פתוחה">

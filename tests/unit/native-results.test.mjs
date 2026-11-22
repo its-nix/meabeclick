@@ -29,8 +29,8 @@ function setup() {
  const bundle = { objectives: [{ id: 'o1', title: 'חוקי חזקות' }, { id: 'o2', title: 'נושא אחר' }] };
  handle().prepare('UPDATE native_lesson_jobs SET bundle=? WHERE booking_id=?').run(JSON.stringify(bundle), bookingId);
  const game = { id: 'g1', kind: 'quiz', rounds: [
-  { id: 'r1', objectiveId: 'o1', grading: 'checked' }, { id: 'r2', objectiveId: 'o1', grading: 'checked' },
-  { id: 'r3', objectiveId: 'o1', grading: 'tutor-review' }, { id: 'r4', objectiveId: 'o2', grading: 'checked' }] };
+  { id: 'r1', objectiveId: 'o1', grading: 'checked', difficulty: 2 }, { id: 'r2', objectiveId: 'o1', grading: 'checked', difficulty: 9 },
+  { id: 'r3', objectiveId: 'o1', grading: 'tutor-review', difficulty: 3 }, { id: 'r4', objectiveId: 'o2', grading: 'checked' }] };
  handle().prepare(`INSERT INTO native_games (material_id,release_id,student_id,booking_id,game_id,kind,content_json,source_file_id,source_revision,content_sha256,approved_at)
   VALUES ('m'||?,'rel',?,?,'g1','quiz',?,'f','1','h','2029-01-01T00:00:00Z')`).run(seq, student.id, bookingId, JSON.stringify(game));
  return { student, bookingId, nodes };
@@ -45,6 +45,15 @@ test('the server resolves the plan skill from the approved round; unmatched obje
  assert.throws(() => rec(c, 'nope'), /approved game/);
  assert.throws(() => R.recordNativeResult({ studentId: c.student.id + 999, bookingId: c.bookingId, gameId: 'g1', roundId: 'r1', outcome: 'correct', attempts: 1, seconds: 1 }), /approved game/);
  assert.throws(() => rec(c, 'r1', 'bogus'), /outcome/);
+});
+
+test('the difficulty played is copied from the approved round; a missing or out-of-range level stores null', () => {
+ const c = setup();
+ assert.equal(rec(c, 'r1').difficulty, 2);
+ assert.equal(rec(c, 'r3').difficulty, 3);
+ assert.equal(rec(c, 'r2').difficulty, null);
+ assert.equal(rec(c, 'r4').difficulty, null);
+ assert.equal(R.nativeResultsForStudent(c.student.id).find(r => r.roundId === 'r1').difficulty, 2);
 });
 
 test('tutor-review rounds wait, and only the tutor function finalises them once', () => {

@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "rendererHash": "4217a68293151302acd41648339e43725b56f2430b79a38fc666c4318fd95808",
+  "rendererHash": "c6b09e5b4e63f217e19d94eeb05de1f095ae6c06663cbfef102bfe0ab062a64c",
   "files": {
     "Dockerfile": "770f95fba9d4cbe6cd5e164475d9c3435737be1f23e32d31ff0f2d92bb195a78",
     "package-lock.json": "9684bec27da525fe3cc1669b764bf70efa475297575177584112a293ae6cd6cc",
     "src/lib/brand.ts": "354f37bcbf0eb760732af67d0694e607e1183bdde4b983510c14e42cb469b9cd",
-    "src/lib/learning/deck/model.ts": "d13b861fce38cdfbdfbe5810fe77362b33ac85264742d6f17c574f6f749f7dab",
+    "src/lib/learning/deck/model.ts": "47cd2ed03ad0366d109feb4cc21e13c67d4377442e173099dcac89bbd66523c7",
     "src/lib/learning/deck/normal.ts": "55bbcde5a9b72349154b2e79e33b124725d79f1225345bbb01da1b421bc77c5c",
     "src/lib/learning/deck/runtime.ts": "be6ae61e02070fcdcf12f87a60a72ad4e88d919518ccdd090e8261400911e002",
     "src/lib/learning/deck/styles.ts": "a645fb6686d06a9ee2ae603cf7aae0f71a1a5da43b9550d2f0301755547dd56b",
@@ -15,9 +15,9 @@
     "src/lib/server/native-learning/bundle.ts": "e28a24b0641f5c3f080fb527cb235e8711e7a70bd1722e442978fc232e9a295c",
     "src/lib/server/native-learning/motion.ts": "3f896e945975600a2ec7f87a49c690b85acc3ea7ca26463c04ccd8ac0a0c7207",
     "src/lib/server/native-learning/names.ts": "e6fdda8fdb7c3e740995dfa96b1c405fa3119a369a2dd00b2c2902991f8a5634",
-    "src/lib/server/native-learning/player-evidence.ts": "40d2e6a270173715064376ba255aeb17b51617957c6a229c7222d745e9fb73d6",
+    "src/lib/server/native-learning/player-evidence.ts": "3ff0ae44eb4cad2f37519581e52fa7b4eda38ac5efbc3400624f9bebef9b37ea",
     "src/lib/server/native-learning/review-evidence.ts": "f807b3e86427c565ddb53c80ffdbc3291c4127a29d9318570cda520bf4773da2",
-    "src/lib/server/visual-deck-render.ts": "94e98047745e24c2860229883a750495842717470aed24e185026c354dc6a443",
+    "src/lib/server/visual-deck-render.ts": "2cea0296af6e43efa8d83a47926e62cd5a32ff250d1fd46612e0a67b61f22894",
     "src/lib/server/visual-pilot.ts": "bfa83555a307e8180322f34f8c68902e92fa190a8e448248b39d9ada09f24e53",
     "static/images/logos/logo-slate.svg": "8600682a9c1052517fa1b07a62d03391408532bddc559ab229f0f371baa348c1",
     "static/learning-assets/native-fonts/Heebo.ttf": "18f930b583fa8fe6b40b2f8263b7ac6afbac07adc91a12467874e7467d3ace30"

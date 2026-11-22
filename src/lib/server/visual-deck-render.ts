@@ -45,6 +45,7 @@ function taskMarkup(task:ReturnType<typeof publicVisualLesson>['tasks'][number],
 }
 export function renderVisualDeck(bundle:VisualLesson,options:DeckRenderOptions):string{
  const base=options.baseUrl,publicBundle=publicVisualLesson(bundle);
+ for(const g of publicBundle.games)g.rounds.sort((a,b)=>(a.difficulty??0)-(b.difficulty??0));// stable: the player serves rounds easiest first; historical rounds without a level keep their order
  const sourceIds=[...new Set(bundle.slides.flatMap(s=>s.blocks.filter(b=>b.type==='source').map(b=>b.sourceId)).filter((id):id is string=>!!id))];
  const dialogs=sourceIds.map(id=>{const q=officialQuestion(id),a=officialQuestionAsset(id);return q&&a?`<dialog class="source-dialog" id="source-${esc(id)}"><header><b>${esc(sourceCaption(id)?.label??'שאלת מקור')}</b><button data-close-source>סגירה ✕</button></header><div class="source-zoom"><img src="${a.image}" alt="${esc(q.accessibleText)}"></div><details><summary>קריאה נגישה של השאלה</summary><p>${mathText(q.transcript).replace(/\n/g,'<br>')}</p></details></dialog>`:'';}).join('');
  let body='';

@@ -10,7 +10,7 @@ import { nativeResultsForStudent, recordTutorReviewOutcome, type NativeOutcome, 
 
 export interface TutorRoundResult {
   id: number; roundId: string; prompt: string; outcome: NativeOutcome; attempts: number; seconds: number | null;
-  skillTitle: string | null; at: string;
+  skillTitle: string | null; difficulty: number | null; at: string;
 }
 export interface TutorGameResults { key: string; bookingId: number | null; gameId: string; gameTitle: string; rounds: TutorRoundResult[] }
 
@@ -36,7 +36,7 @@ export function tutorNativeResults(studentId: number): TutorGameResults[] {
   return [...games.values()].map(({ game, latest }) => ({
     ...game,
     rounds: [...latest.values()].map(r => ({ id: r.id, roundId: r.roundId, prompt: prompts.get(`${game.key}/${r.roundId}`) ?? '', outcome: r.outcome,
-      attempts: r.attempts, seconds: r.seconds, skillTitle: r.skillNodeId ? skills.get(r.skillNodeId) ?? null : null, at: r.at })),
+      attempts: r.attempts, seconds: r.seconds, skillTitle: r.skillNodeId ? skills.get(r.skillNodeId) ?? null : null, difficulty: r.difficulty ?? null, at: r.at })),
   })).sort((a, b) => Math.max(...b.rounds.map(r => Date.parse(r.at))) - Math.max(...a.rounds.map(r => Date.parse(r.at))));
 }
 

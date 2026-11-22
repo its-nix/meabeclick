@@ -22,10 +22,10 @@ interface Frame {label:string;file:string;width:number;height:number;taskId?:str
 export interface StudentEvidenceDependencies {launch?:()=>Promise<Browser>;staticRoot?:string}
 export function studentEvidencePlan(bundle:VisualLesson):StudentEvidenceTarget[]{
  if(!bundle||!Array.isArray(bundle.tasks)||!Array.isArray(bundle.homework)||!Array.isArray(bundle.games)||bundle.tasks.length>12||bundle.homework.length>6||bundle.games.length>2)fail('native_player_input');
- const targets:StudentEvidenceTarget[]=[];const states=(t:DeckTask)=>t.grading==='tutor-review'?['initial','tutor-attempt','hint','solution']:['initial','incorrect','hint','correct-assisted','solution'];
+ const targets:StudentEvidenceTarget[]=[];/* A practice game has 10-12 rounds: every round is captured on entry, but only the first walks every answer state, so a full lesson stays inside the frame budget. */const states=(t:DeckTask,brief=false)=>brief?['initial']:t.grading==='tutor-review'?['initial','tutor-attempt','hint','solution']:['initial','incorrect','hint','correct-assisted','solution'];
  for(const task of bundle.tasks){const slide=bundle.slides.find(s=>s.taskId===task.id);if(!slide)fail('native_player_missing_task');targets.push({task,surface:'lesson',slideId:slide.id,states:states(task)});}
  for(const task of bundle.homework)targets.push({task,surface:'homework',states:states(task)});
- for(const game of bundle.games){if(!Array.isArray(game.rounds)||game.rounds.length>8)fail('native_player_input');game.rounds.forEach((task,roundIndex)=>targets.push({task,surface:'game',gameId:game.id,roundIndex,states:states(task)}));}
+ for(const game of bundle.games){if(!Array.isArray(game.rounds)||game.rounds.length>12)fail('native_player_input');game.rounds.forEach((task,roundIndex)=>targets.push({task,surface:'game',gameId:game.id,roundIndex,states:states(task,roundIndex>0)}));}
  if(!targets.length||new Set(targets.map(t=>t.task.id)).size!==targets.length||targets.some(t=>!/^[-a-z0-9]{1,80}$/.test(t.task.id)))fail('native_player_input');
  const kinds=new Set(bundle.slides.flatMap(s=>s.blocks.flatMap(b=>b.model&&b.model.interactive!=='none'?[b.model.interactive]:[])));
  if(targets.reduce((n,t)=>n+t.states.length,0)*VIEWPORTS.length+kinds.size*2*VIEWPORTS.length+bundle.games.length*VIEWPORTS.length>MAX_FRAMES)fail('native_player_evidence_limit');
@@ -128,10 +128,12 @@ export async function renderStudentEvidence(bundle:VisualLesson,directory:string
      const article=page.locator(`[data-task="${target.task.id}"]:visible`);await article.waitFor();cursor={taskId:target.task.id,state:'initial',surface:target.surface,viewport:viewport.width};await initialSafety(page,article,target.task);const label=`${target.surface} ${target.task.id}`,surface=target.surface==='game'?page.locator('main.activities-page'):article;
      await capture(page,surface,label,'initial',target.surface,viewport.width,target.task.id);
      await action(article,'solution','help');if((await article.locator('[data-task-feedback]').innerText())!=='נסו קודם בעצמכם.')fail('native_player_privacy');
+     if(target.surface==='game'&&(target.roundIndex??0)>0){/* later rounds of a 10-12 round game are captured on entry only (see states() in the plan) */}else{
      await input(page,article,target.task,false);await action(article,'attempt','retry');await capture(page,surface,label,target.task.grading==='tutor-review'?'tutor-attempt':'incorrect',target.surface,viewport.width,target.task.id);
      await action(article,'hint','help');await capture(page,surface,label,'hint',target.surface,viewport.width,target.task.id);
      if(target.task.grading==='checked'){const pointer=target.task.check?.kind==='region'&&!pointerUsed;await input(page,article,target.task,true,pointer);if(pointer)pointerUsed=true;await action(article,'attempt','correct');await capture(page,surface,label,'correct-assisted',target.surface,viewport.width,target.task.id);}
      await action(article,'solution','help');await capture(page,surface,label,'solution',target.surface,viewport.width,target.task.id);
+     }
      if(target.surface==='game'){const game=bundle.games.find(g=>g.id===target.gameId)!;if(target.roundIndex===game.rounds.length-1){await page.locator('[data-round]:not([hidden]) [data-next-round]').click();if(!(await page.locator('[data-game-done]').innerText()).includes('סיימתם'))fail('native_player_controls');await capture(page,page.locator('main'),`game ${game.id}`,'completed',target.surface,viewport.width);}}
     }
     const live=new Map<string,{slideId:string;modelIndex:number}>();for(const slide of bundle.slides){let modelIndex=0;for(const block of slide.blocks){if(block.model){if(block.model.interactive!=='none'&&!live.has(block.model.interactive))live.set(block.model.interactive,{slideId:slide.id,modelIndex});modelIndex++;}}}

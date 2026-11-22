@@ -34,7 +34,7 @@ try{
   assert.equal(await page.locator('[data-round="1"].in-next').count(),reduced?0:1,'slide class');
   await frames('slide',[80,160,300]);
   // finish: use solutions through remaining rounds
-  for(const n of [1,2,3]){await click(n,'[data-task-action="solution"]');await result(n,'help');await click(n,'[data-next-round]');if(n<3)await round(n+1).waitFor({state:'visible'});}
+  for(const n of [1,2,3,4,5,6,7,8,9]){await click(n,'[data-task-action="solution"]');await result(n,'help');await click(n,'[data-next-round]');if(n<9)await round(n+1).waitFor({state:'visible'});}
   await page.locator('[data-game-done]').waitFor({state:'visible'});
   assert.equal(await page.locator('.fx-canvas').count(),reduced?0:1,'confetti only with motion');
   await frames('done',[200,600,1000,1600]);

@@ -21,7 +21,7 @@ test('the public sample quiz plays without login, grades on the server and write
   assert.equal((await act(round[0],'hint',null,'e0')).status,409,'no help before an attempt');
   assert.equal((await (await act(round[0],'attempt',1,'e1')).json()).correct,false);
   assert.equal((await (await act(round[0],'attempt',round[0].check.answer,'e2')).json()).correct,true);
-  assert.equal((await (await act(round[2],'attempt',3,'e3')).json()).correct,true);
+  assert.equal((await (await act(round.find(r=>r.id==='pq-3'),'attempt',3,'e3')).json()).correct,true);
   assert.equal((await post(server.baseUrl,'',{version,taskId:round[0].id,action:'attempt',input:0,eventId:'e4'})).status,409,'a session is required');
   assert.equal((await post(server.baseUrl,cookie,{version:'x',taskId:round[0].id,action:'attempt',input:0,eventId:'e5'})).status,409);
   assert.deepEqual(counts(server.dbPath),before,'no student results or approvals are written');

@@ -1,1861 +1,2406 @@
 {
-  "syntheticOnly": true,
-  "approval": "pending-owner-review",
-  "model": "gpt-5.6-terra",
-  "cliVersion": "codex-cli 0.149.0",
-  "kind": "reviewed-booking-generation",
-  "version": "210675170ef43d1ac7e965ef2a100dd0d90722e6cf84cfd5b23bcc4f08589327",
-  "bundle": {
-    "version": 1,
-    "ruleVersion": "mea-visual-v1",
-    "title": "מה מספרת הפעמון על ציונים?",
-    "subtitle": "מאחוזים ואנשים ועד שאלת בגרות",
-    "durationMin": 90,
-    "homeworkMinutes": 12,
-    "objectives": [
-      {
-        "id": "o1",
-        "title": "לקשר שטח, אחוז וכמות תלמידים"
-      },
-      {
-        "id": "o2",
-        "title": "לתאר מיקום בעזרת ממוצע, סטיית תקן ו־z"
-      },
-      {
-        "id": "o3",
-        "title": "לקרוא רצועות, שטח מצטבר ומשלים"
-      },
-      {
-        "id": "o4",
-        "title": "לפתור וליישם שאלת התפלגות נורמלית"
-      }
-    ],
-    "agenda": [
-      {
-        "title": "פתיחה: ציונים כאוכלוסייה",
-        "minutes": 2,
-        "slideId": "s1"
-      },
-      {
-        "title": "מן התלמידים אל עקומת הפעמון",
-        "minutes": 10,
-        "slideId": "s2"
-      },
-      {
-        "title": "מרכז ופיזור",
-        "minutes": 7,
-        "slideId": "s5"
-      },
-      {
-        "title": "שטח, אחוז וכמות",
-        "minutes": 12,
-        "slideId": "s7"
-      },
-      {
-        "title": "z ורצועות בית־ספריות",
-        "minutes": 19,
-        "slideId": "s10"
-      },
-      {
-        "title": "קוראים את שאלת המקור",
-        "minutes": 5,
-        "slideId": "s15"
-      },
-      {
-        "title": "פותרים את חלקי הבחינה",
-        "minutes": 16,
-        "slideId": "s16"
-      },
-      {
-        "title": "בדיקות העברה עצמאיות",
-        "minutes": 7,
-        "slideId": "s21"
-      },
-      {
-        "title": "סיכום וכרטיס יציאה",
-        "minutes": 6,
-        "slideId": "s23"
-      },
-      {
-        "title": "שני משחקי מושגים",
-        "minutes": 6,
-        "slideId": "s25"
-      }
-    ],
-    "slides": [
-      {
-        "id": "s1",
-        "title": "היכן נמצאים רוב הציונים?",
-        "kicker": "פתיחה",
-        "prompt": "דמיינו את כל תלמידי השכבה על ציר ציונים.",
-        "objectiveId": "o1",
-        "layout": "cover",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "אם רוב הציונים קרובים לממוצע, איך תיראה התמונה?",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "model",
-            "text": "רוב הנקודות ליד האמצע",
-            "model": {
-              "mode": "population",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                },
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                },
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 2,
-          "explanation": "פותחים בדימוי של שכבה שלמה, לא במדגם קטן. המטרה היא לראות שציונים יכולים להתרכז סביב ערך אופייני.",
-          "ask": "איפה לדעתכם נמצאים רוב הציונים?",
-          "expectedAnswer": "קרוב לאמצע, סביב הציון הטיפוסי.",
-          "ifStuck": "הציעו להשוות לתוצאות של מבחן מוכר: האם רוב הכיתה קיבלה קצוות או ציונים באמצע?",
-          "misconception": "לא כל תלמיד קיבל את הממוצע; הממוצע הוא נקודת ייחוס.",
-          "transition": "נראה תחילה אנשים, ואז דרך קומפקטית לצייר את אותה תמונה.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s2",
-        "title": "אותה שכבה, תמונה מסודרת יותר",
-        "kicker": "אוכלוסייה",
-        "prompt": "מה אפשר לראות בנקודות שקשה לראות ברשימה?",
-        "objectiveId": "o1",
-        "layout": "visual",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "כל נקודה מייצגת תלמיד. באזור האמצע הציונים קרובים יותר זה לזה.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "model",
-            "text": "נקודות, עקומה, ואז הצורה בלבד",
-            "model": {
-              "mode": "population",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                },
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                },
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "חשפו את שלוש התמונות ברצף: תלמידים מפוזרים, עקומה מעליהם, ואז העקומה. העקומה היא סיכום חזותי של פיזור הציונים, לא תלמיד נוסף ולא נתונים אמיתיים.",
-          "ask": "באיזה אזור יש יותר תלמידים: ליד האמצע או בקצוות?",
-          "expectedAnswer": "ליד האמצע.",
-          "ifStuck": "הצביעו על האזור שבו הנקודות צפופות יותר.",
-          "misconception": "גובה העקומה אינו ציון ולא מספר תלמידים יחיד; הוא מסמן ריכוז יחסי באזור.",
-          "transition": "הצורה שמתקבלת נקראת עקומת פעמון.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s3",
-        "title": "הפעמון מתאר ריכוז סביב האמצע",
-        "kicker": "צורה",
-        "prompt": "מה אומר לנו השיא של העקומה?",
-        "objectiveId": "o1",
-        "layout": "visual",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "העקומה גבוהה באמצע ונמוכה בקצוות: ציונים אמצעיים שכיחים יותר.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "model",
-            "text": "הצורה מסכמת את הפיזור",
-            "model": {
-              "mode": "curve",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "השם התפלגות נורמלית מתייחס לצורה המאוזנת והחלקה שאנו משתמשים בה כמודל. כרגע קוראים רק את התמונה.",
-          "ask": "מה השיא מרמז על הציונים באזור הזה?",
-          "expectedAnswer": "שהם נפוצים יותר.",
-          "ifStuck": "שאלו היכן הייתם מצפים למצוא יותר נקודות אם נחזיר את התלמידים לציור.",
-          "misconception": "עקומה גבוהה אינה אומרת שהציון עצמו גבוה.",
-          "transition": "כעת נסמן את נקודת האמצע של הפעמון.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s4",
-        "title": "המרכז מחלק את הפעמון לשניים",
-        "kicker": "סימטריה",
-        "prompt": "מה משתנה אם הופכים את הציור סביב המרכז?",
-        "objectiveId": "o2",
-        "layout": "split",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "הממוצע, \\(\\mu\\), נמצא במרכז. אותה צורה מופיעה משמאל ומימין.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "\\mu=65",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "שני הצדדים מאוזנים",
-            "model": {
-              "mode": "curve",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "מגדירים את \\(\\mu\\) כממוצע וכמרכז המודל. הסימטריה תאפשר לנו להסיק על צד אחד מן הצד האחר.",
-          "ask": "אם יש אזור מסוים מימין לממוצע, מה מתאים לו משמאל?",
-          "expectedAnswer": "אזור זהה במרחק זהה, עם אותו חלק של תלמידים.",
-          "ifStuck": "קפלו בדמיון את הציור לאורך הקו האמצעי.",
-          "misconception": "סימטריה אינה אומרת שכל ציון מופיע בזוג; היא מתארת את צורת האוכלוסייה.",
-          "transition": "מרכז זהה עדיין יכול לבוא עם פיזור שונה.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s5",
-        "title": "אותו ממוצע, פיזור אחר",
-        "kicker": "חקירה חיה",
-        "prompt": "לפני הגרירה: מה יקרה לפעמון כש־\\(s\\) יגדל?",
-        "objectiveId": "o2",
-        "layout": "visual",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "חזו תחילה. אחר כך גררו את \\(s\\) וצפו ברוחב ובגובה.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "model",
-            "text": "גררו את \\(s\\): מה משתנה?",
-            "model": {
-              "mode": "spread",
-              "interactive": "spread",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "בקשו תחזית, ואז גררו את הפיזור. שמרו את \\(\\mu\\) קבוע: ערך \\(s\\) גדול מפזר ציונים רחוק יותר מן המרכז ולכן הפעמון רחב ונמוך יותר.",
-          "ask": "מה נשאר קבוע, ומה משתנה בזמן הגרירה?",
-          "expectedAnswer": "הממוצע נשאר קבוע; רוחב הפעמון והפיזור משתנים.",
-          "ifStuck": "הצביעו על קו המרכז לפני ואחרי הגרירה.",
-          "misconception": "פעמון נמוך יותר אינו אומר שממוצע הציונים נמוך יותר.",
-          "transition": "נשווה שתי כיתות באותו סולם כדי לראות זאת בבת אחת.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s6",
-        "title": "מי אחידה יותר בציוניה?",
-        "kicker": "השוואה",
-        "prompt": "לשתי הכיתות אותו ממוצע. מי מפוזרת פחות?",
-        "objectiveId": "o2",
-        "layout": "compare",
-        "blocks": [
-          {
-            "type": "model",
-            "text": "כיתה א: \\(\\mu=65,\\ s=5\\)",
-            "model": {
-              "mode": "spread",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 5,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "model",
-            "text": "כיתה ב: \\(\\mu=65,\\ s=12\\)",
-            "model": {
-              "mode": "spread",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 12,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "callout",
-            "text": "פעמון צר יותר: ציונים קרובים יותר לממוצע.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "שתי התצוגות משתמשות באותו סולם ובאותו ממוצע. לכן ההבדל הנראה הוא הפיזור בלבד.",
-          "ask": "באיזו כיתה הציונים קרובים יותר לממוצע? למה?",
-          "expectedAnswer": "בכיתה א, כי הפעמון צר יותר ו־\\(s\\) קטן יותר.",
-          "ifStuck": "בקשו לזהות מי מגיעה רחוק יותר מן הקו האמצעי.",
-          "misconception": "אין להסיק מן הרוחב איזו כיתה קיבלה ממוצע גבוה יותר; הממוצעים זהים.",
-          "transition": "כדי לדבר על אחוז תלמידים, נסתכל על השטח שמתחת לפעמון.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s7",
-        "title": "שטח מתחת לפעמון הוא חלק מהכיתה",
-        "kicker": "חקירה חיה",
-        "prompt": "לפני הגרירה: אם נרחיב את האזור, מה יקרה לאחוז?",
-        "objectiveId": "o1",
-        "layout": "visual",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "גררו את שני הגבולות. השטח הצבוע מייצג את אחוז התלמידים שבין הגבולות.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "model",
-            "text": "גררו גבולות; השטח משתנה",
-            "model": {
-              "mode": "bands",
-              "interactive": "region",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": -0.5,
-                  "upperZ": 0.5,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "זהו ניסוי חי ראשון בשטח. הרחיבו והצרו את האזור אחרי תחזית. הדגישו ששטח, ולא גובה בנקודה אחת, מייצג את החלק מן האוכלוסייה.",
-          "ask": "כשהאזור הצבוע גדל, מה קורה לחלק התלמידים שהוא מייצג?",
-          "expectedAnswer": "הוא גדל.",
-          "ifStuck": "שאלו אם אזור גדול יותר יכול להכיל פחות תלמידים באותו מודל.",
-          "misconception": "גובה העקומה בנקודה אינו אחוז התלמידים בציון יחיד.",
-          "transition": "בבית הספר משתמשים ברצועות קבועות כדי לקרוא שטחים במהירות.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s8",
-        "title": "מרצועות למספר תלמידים",
-        "kicker": "עובדים יחד",
-        "prompt": "בקבוצה של 200 תלמידים, כמה תלמידים מייצג השטח של 38%?",
-        "objectiveId": "o3",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "שתי הרצועות המרכזיות הן \\(19\\%+19\\%=38\\%\\). בקבוצה שלנו 200 תלמידים — זה השלם, 100%. החצים מחברים בין האחוז לבין מספר התלמידים המתאים לו.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "\\begin{aligned}100\\%&\\leftrightarrow200\\\\1\\%&\\leftrightarrow200\\div100=2\\\\38\\%&\\leftrightarrow38\\cdot2=76\\end{aligned}",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "שתי רצועות מרכזיות",
-            "model": {
-              "mode": "bands",
-              "interactive": "none",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": -0.5,
-                  "upperZ": 0.5,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "מחברים את שתי הרצועות ומקבלים 38%. עכשיו מחברים בין האחוז לכמות: כל 200 התלמידים הם 100%. אם נחלק ל־100 חלקים שווים, בכל אחוז יהיו שני תלמידים. לכן 38 אחוזים הם \\(38\\cdot2=76\\) תלמידים. זה חישוב לדוגמה משותפת, לפני המשימה העצמאית בנתונים אחרים.",
-          "ask": "אם אחוז אחד הוא שני תלמידים, כמה תלמידים יהיו ב־38 אחוזים?",
-          "expectedAnswer": "76 תלמידים: כופלים 38 בשניים.",
-          "ifStuck": "ציירו 100 קופסאות שוות עבור 100 האחוזים. חלקו ביניהן 200 תלמידים: בכל קופסה שני תלמידים. בחרו 38 קופסאות וספרו בקבוצות של שניים.",
-          "misconception": "38% הוא חלק מן הקבוצה, ולא בהכרח 38 תלמידים. הכמות תלויה בגודל הקבוצה.",
-          "transition": "עכשיו נסו אותו רעיון עם קבוצה אחרת ואחוז אחר, לפני שמבקשים רמז.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s9",
-        "title": "מאחוז תלמידים לכמות תלמידים",
-        "kicker": "בדיקה עצמאית",
-        "prompt": "פתרו לפני שמבקשים רמז.",
-        "objectiveId": "o1",
-        "layout": "challenge",
-        "blocks": [],
-        "taskId": "t-percent-count",
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "זו בדיקה קצרה של הגשר מאחוז לכמות, בלי עקומה. התלמיד צריך לפרש אחוז כחלק מתוך כלל התלמידים.",
-          "ask": "איזו פעולה מחברת בין 16% לבין 150 תלמידים?",
-          "expectedAnswer": "מחשבים \\(0.16\\cdot150\\).",
-          "ifStuck": "הציעו להמיר 16% ל־0.16 לפני הכפל.",
-          "misconception": "חלוקה ב־16 אינה מוצאת 16% מן הכמות.",
-          "transition": "כעת נלמד לנסח מרחק מן הממוצע בצורה אחידה.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s10",
-        "title": "z אומר כמה סטיות תקן מהמרכז",
-        "kicker": "מיקום",
-        "prompt": "האם נקודה משמאל לממוצע תקבל \\(z\\) חיובי או שלילי?",
-        "objectiveId": "o2",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "\\(z\\) הוא מספר סטיות התקן מן הממוצע, עם סימן: ימינה חיובי ושמאלה שלילי.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "z=\\frac{x-\\mu}{s}",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "נקודה במרחק \\(-1.5s\\)",
-            "model": {
-              "mode": "position",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": -1.5,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "מציגים את \\(z\\) לפני שימוש בו ברצועות מצטברות. במודל הנקודה נמצאת \\(1.5s\\) שמאלה מן הממוצע, ולכן הסימן שלילי. הנוסחה מתארת את אותו מרחק ביחידות של \\(s\\).",
-          "ask": "מה פירוש \\(z=-1.5\\)?",
-          "expectedAnswer": "הציון נמצא סטיית תקן וחצי מתחת לממוצע.",
-          "ifStuck": "קראו יחד את הסימן תחילה, ואז את המרחק 1.5.",
-          "misconception": "\\(z\\) אינו ציון המבחן עצמו.",
-          "transition": "עכשיו אפשר לקרוא אזורים לפי מרחקי \\(z\\).",
-          "sources": []
-        }
-      },
-      {
-        "id": "s11",
-        "title": "בתוך סטיית תקן אחת נמצאים 68%",
-        "kicker": "אזור מרכזי",
-        "prompt": "כמה רצועות של חצי \\(s\\) נמצאות בין \\(-1\\) ל־\\(1\\)?",
-        "objectiveId": "o3",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "מן \\(-1s\\) עד \\(1s\\) יש ארבע רצועות: שתיים בכל צד של המרכז.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "15\\%+19\\%+19\\%+15\\%=68\\%",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "האזור המרכזי בין \\(-1\\) ל־\\(1\\)",
-            "model": {
-              "mode": "bands",
-              "interactive": "none",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": -1,
-                  "upperZ": 1,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "סופרים רצועות ולא קופצים ישר ל־68%. כל צד כולל 19% ו־15%, ולכן שני הצדדים יחד כוללים ארבע רצועות.",
-          "ask": "למה לא מחברים רק שתי רצועות?",
-          "expectedAnswer": "כי האזור מגיע עד \\(s\\) אחד לכל צד, ובכל צד יש שתי חצאי־סטיות תקן.",
-          "ifStuck": "עברו על הציר בחצאי צעדים: \\(-1\\), \\(-0.5\\), 0, \\(0.5\\), 1.",
-          "misconception": "38% שייך רק לאזור שבין \\(-0.5\\) ל־\\(0.5\\).",
-          "transition": "לפעמים השאלה מבקשת את כל מה שמשמאל לגבול אחד.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s12",
-        "title": "93% מצטברים מן הזנב השמאלי",
-        "kicker": "שטח מצטבר",
-        "prompt": "אילו רצועות צריך לצרף עד הגבול \\(z=1.5\\)?",
-        "objectiveId": "o3",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "שטח מצטבר כולל את כל מה שמשמאל לגבול. כאן הוא מתחיל בזנב השמאלי.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "50\\%+19\\%+15\\%+9\\%=93\\%",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "השטח המצטבר עד \\(z=1.5\\)",
-            "model": {
-              "mode": "cumulative",
-              "interactive": "none",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": -4,
-                  "upperZ": 1.5,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "מראים את ההצללה ומחברים בקול: 50% שמשמאל למרכז, ואז 19%, 15%, 9%. זה קירוב לפי תרשים בית הספר.",
-          "ask": "מדוע 50% מופיעים בחישוב?",
-          "expectedAnswer": "כי כל החצי השמאלי מן המרכז כלול בשטח המצטבר.",
-          "ifStuck": "החזירו את הגבול למרכז ושאלו כמה מהפעמון נשאר משמאל.",
-          "misconception": "93% אינו גובה העקומה ב־\\(z=1.5\\); הוא שטח מצטבר.",
-          "transition": "נבדיל במדויק בין רצועה אחת לבין כל מה שמצטבר עד אותו גבול.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s13",
-        "title": "אותו גבול, שני אזורים שונים",
-        "kicker": "ניגוד חשוב",
-        "prompt": "מה מייצגים 50 האחוזים הנוספים בתמונה הימנית?",
-        "objectiveId": "o3",
-        "layout": "compare",
-        "blocks": [
-          {
-            "type": "model",
-            "text": "רצועה מ־0 עד \\(0.5\\): 19%",
-            "model": {
-              "mode": "bands",
-              "interactive": "none",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": 0,
-                  "upperZ": 0.5,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "model",
-            "text": "מצטבר עד \\(0.5\\): 69%",
-            "model": {
-              "mode": "cumulative",
-              "interactive": "none",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": -4,
-                  "upperZ": 0.5,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "callout",
-            "text": "ההפרש הוא כל החצי השמאלי: 50%.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "שני הציורים באותו ממוצע, אותה סטיית תקן ואותו גבול עליון. השמאלי צובע רק רצועה; הימני כולל גם את כל מה שמשמאל למרכז.",
-          "ask": "מהו האזור שנוסף כשעוברים מרצועה לשטח מצטבר?",
-          "expectedAnswer": "כל החצי השמאלי, 50%.",
-          "ifStuck": "כסו את הרצועה 0 עד \\(0.5\\) בציור הימני ובדקו מה נשאר.",
-          "misconception": "גבול עליון זהה אינו מבטיח ששטח זהה; גם הגבול התחתון קובע.",
-          "transition": "לעיתים נוח למצוא אזור ימני בעזרת השלם פחות המצטבר.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s14",
-        "title": "מעל סטיית תקן אחת נשארים 16%",
-        "kicker": "משלים",
-        "prompt": "אם 84% נמצאים עד \\(z=1\\), מה נשאר מימין?",
-        "objectiveId": "o3",
-        "layout": "split",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "עד \\(z=1\\) מצטברים 84%. האזור שמעליו הוא החלק המשלים ל־100%.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "100\\%-84\\%=16\\%",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "הזנב שמימין ל־\\(z=1\\)",
-            "model": {
-              "mode": "bands",
-              "interactive": "none",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 65,
-                  "sd": 10,
-                  "lowerZ": 1,
-                  "upperZ": 4,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "הדגישו שהזנב הימני הוא כל מה שמעל הגבול, לא רצועה מסוימת בלבד. משתמשים במשלים כי קל לקרוא את המצטבר משמאל.",
-          "ask": "למה מחסרים מ־100%?",
-          "expectedAnswer": "כי יחד, כל השטח שמתחת לפעמון הוא 100%.",
-          "ifStuck": "שאלו איזה חלק אינו צבוע אם עד הגבול צבועים 84%.",
-          "misconception": "16% אינו המרחק מן הממוצע; הוא אחוז תלמידים.",
-          "transition": "יש לנו כעת את שפת הקריאה הדרושה לשאלת הבגרות המקורית.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s15",
-        "title": "נקרא את הנתונים לפני הפתרון",
-        "kicker": "מקורית",
-        "prompt": "סמנו: מה ידוע, ומה צריך לגלות בכל סעיף?",
-        "objectiveId": "o4",
-        "layout": "source",
-        "blocks": [
-          {
-            "type": "source",
-            "text": "שאלת בגרות מקורית: שאלון 35372, קיץ 2025, שאלה 3.",
-            "model": null,
-            "sourceId": "moe-2025a-35372-3",
-            "reveal": 0
-          },
-          {
-            "type": "copy",
-            "text": "קראו יחד את \\(s=8\\), את 93% שמתחת ל־84, ואת סעיפים א–ד.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 5,
-          "explanation": "פתחו את פרט המקור המוגדל וקראו את הנתונים בקול. עדיין לא מוסרים את \\(\\mu\\): הוא נדרש להיגזר מן השטח המצטבר והגבול 84.",
-          "ask": "איזה נתון מתאר פיזור, ואיזה נתון מתאר מיקום על הציר?",
-          "expectedAnswer": "\\(s=8\\) מתאר פיזור; 84 הוא ציון על הציר.",
-          "ifStuck": "בקשו להקיף את המילים סטיית תקן, 93%, ונמוך מ־84.",
-          "misconception": "93% אינם ממוצע הציונים; זה חלק התלמידים שמתחת לציון מסוים.",
-          "transition": "נתחיל בזיהוי המיקום של 84 על הפעמון.",
-          "sources": [
-            "moe-2025a-35372-3"
-          ]
-        }
-      },
-      {
-        "id": "s16",
-        "title": "93% מציבים את 84 במרחק \\(1.5s\\)",
-        "kicker": "מקורית א(1)",
-        "prompt": "לפני החישוב: האם 84 נמצא מימין או משמאל לממוצע?",
-        "objectiveId": "o4",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "93% מצטברים עד \\(z=1.5\\), לכן 84 נמצא \\(1.5s\\) מעל הממוצע.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "\\mu=84-1.5\\cdot8=72",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "הצטברות עד \\(z=1.5\\)",
-            "model": {
-              "mode": "cumulative",
-              "interactive": "none",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 72,
-                  "sd": 8,
-                  "lowerZ": -4,
-                  "upperZ": 1.5,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "הסיבה לחיסור היא ש־84 נמצא מעל הממוצע במרחק \\(1.5\\) סטיות תקן. תחילה מזהים את \\(z=1.5\\) לפי 50 ועוד 19 ועוד 15 ועוד 9, ואז מחזירים את המרחק לציונים.",
-          "ask": "מדוע מחסרים מן 84 ולא מוסיפים לו?",
-          "expectedAnswer": "כי 84 גבוה מן הממוצע ב־\\(1.5s\\), ואנו מחפשים את הממוצע.",
-          "ifStuck": "אמרו במילים: מתחילים ב־84 והולכים שמאלה סטיית תקן וחצי.",
-          "misconception": "אין לקרוא 93% כ־\\(z=0.93\\); משתמשים ברצועות.",
-          "transition": "כשהממוצע ידוע, אפשר למלא את כל ציר הציונים.",
-          "sources": [
-            "moe-2025a-35372-3"
-          ]
-        }
-      },
-      {
-        "id": "s17",
-        "title": "כל חצי \\(s\\) מוסיף ארבע נקודות",
-        "kicker": "מקורית א(2)",
-        "prompt": "מהו גודל הצעד בין שני מלבנים סמוכים?",
-        "objectiveId": "o4",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "כאן \\(s=8\\), לכן חצי סטיית תקן היא 4. מתקדמים מהמרכז בצעדים שווים.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "\\frac{s}{2}=\\frac{8}{2}=4",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "ממלאים את ציר חצאי־הסטיות",
-            "model": {
-              "mode": "axis",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 72,
-                  "sd": 8,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "מרכז הציר הוא 72, וכל סימון מתקדם בחצי \\(s\\), כלומר ב־4 נקודות. קוראים משמאל לימין את כל הערכים.",
-          "ask": "מה יהיה הציון מיד מימין ל־72?",
-          "expectedAnswer": "76.",
-          "ifStuck": "בקשו להוסיף 4 פעם אחת בלבד לפני שממלאים את השאר.",
-          "misconception": "המרווח בין המלבנים אינו 8; התרשים מסומן בחצאי סטיות תקן.",
-          "transition": "כעת נשתמש באותו ציר כדי למצוא את אחוז הקבלה.",
-          "sources": [
-            "moe-2025a-35372-3"
-          ]
-        }
-      },
-      {
-        "id": "s18",
-        "title": "מעל 80 נמצא הזנב של 16%",
-        "kicker": "מקורית ב",
-        "prompt": "כמה סטיות תקן מפרידות בין 72 ל־80?",
-        "objectiveId": "o4",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "80 הוא \\(s\\) אחד מעל \\(\\mu=72\\). מבקשים את כל השטח שמימין לגבול הזה.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "100\\%-84\\%=16\\%",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "model",
-            "text": "כל הציונים מעל \\(z=1\\)",
-            "model": {
-              "mode": "bands",
-              "interactive": "none",
-              "showProbability": true,
-              "states": [
-                {
-                  "mean": 72,
-                  "sd": 8,
-                  "lowerZ": 1,
-                  "upperZ": 4,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "80 הוא 8 נקודות מעל 72, כלומר \\(z=1\\). בתרשים 84% נמצאים עד הגבול הזה, ולכן הזנב הימני הוא 16%.",
-          "ask": "איזה חלק מהפעמון מייצג 'גבוה מ־80'?",
-          "expectedAnswer": "הזנב שמימין ל־80.",
-          "ifStuck": "בקשו לצבוע רק את מה שנשאר אחרי קו 80.",
-          "misconception": "84% ו־16% משלימים יחד ל־100%. מחסרים 84 מ־100 כדי למצוא את החלק החסר; אחר כך מחברים 84 ו־16 כדי לבדוק שקיבלנו את השלם.",
-          "transition": "האחוז הבא מאפשר לעבור מכמות ידועה לגודל השכבה.",
-          "sources": [
-            "moe-2025a-35372-3"
-          ]
-        }
-      },
-      {
-        "id": "s19",
-        "title": "32 תלמידים הם 16% מן השכבה",
-        "kicker": "מקורית ג",
-        "prompt": "איזו כמות שלמה, כשמוצאים ממנה 16%, נותנת 32?",
-        "objectiveId": "o1",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "מסעיף ב ידוע שהמתקבלים הם 16% מן הנבחנים. כאן ידועה הכמות של אותו חלק.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "\\begin{aligned}16\\%&\\leftrightarrow32\\\\1\\%&\\leftrightarrow32\\div16=2\\\\100\\%&\\leftrightarrow2\\cdot100=200\\end{aligned}",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "callout",
-            "text": "כלומר, 200 תלמידים נבחנו.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "ידוע ש־16% הם 32 תלמידים. מחלקים את 32 ל־16 חלקים שווים ומוצאים שאחוז אחד הוא שני תלמידים. כדי לחזור לשלם כופלים ב־100 ומקבלים 200 תלמידים. אחרי שהמשמעות ברורה אפשר להראות את הדרך המקוצרת: מחלקים את 32 ב־0.16. לבדיקה, \\(0.16\\cdot200=32\\).",
-          "ask": "למה כאן מחלקים ולא מכפילים?",
-          "expectedAnswer": "כי הכמות החלקית ידועה ואנחנו מחפשים את הכמות השלמה.",
-          "ifStuck": "ציירו 16 קופסאות שוות שמייצגות יחד 32 תלמידים. בכל קופסה שני תלמידים, וכל קופסה מייצגת אחוז אחד. כמה תלמידים יהיו ב־100 קופסאות?",
-          "misconception": "32 אינו מספר האחוזים אלא מספר תלמידים.",
-          "transition": "בסעיף האחרון מחליפים כיוון: מ־z חוזרים לציון.",
-          "sources": [
-            "moe-2025a-35372-3"
-          ]
-        }
-      },
-      {
-        "id": "s20",
-        "title": "ציון התקן מחזיר אותנו לציון",
-        "kicker": "מקורית ד",
-        "prompt": "חזו: האם ציון של \\(z=1.75\\) יהיה מעל או מתחת לממוצע?",
-        "objectiveId": "o4",
-        "layout": "working",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "\\(z=1.75\\) פירושו 1.75 סטיות תקן מעל הממוצע, ולכן מוסיפים את המרחק.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "equation",
-            "text": "x=\\mu+z\\cdot s=72+1.75\\cdot8=86",
-            "model": null,
-            "sourceId": null,
-            "reveal": 2
-          },
-          {
-            "type": "model",
-            "text": "נקודת הציון תופיע לאחר החישוב",
-            "model": {
-              "mode": "position",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 72,
-                  "sd": 8,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": 1.75,
-                  "hideZ": 1.75
-                }
-              ]
-            },
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "אפשרו תחזית איכותית לפני חשיפת הציון. לאחר מכן מכפילים את מספר הסטיות ב־8 ומוסיפים ל־72, משום שהסימן חיובי.",
-          "ask": "מדוע מוסיפים את המרחק לממוצע?",
-          "expectedAnswer": "כי \\(z\\) חיובי, ולכן עמית נמצא מימין לממוצע.",
-          "ifStuck": "חשבו תחילה את \\(1.75\\cdot8\\), ואז הזכירו מאיזה ציון יוצאים.",
-          "misconception": "אין לעגל את \\(1.75\\) לרצועה קרובה כדי לחשב ציון; הנוסחה עובדת בדיוק.",
-          "transition": "נבדוק אם אפשר להעביר את אותה קריאה להקשר חדש.",
-          "sources": [
-            "moe-2025a-35372-3"
-          ]
-        }
-      },
-      {
-        "id": "s21",
-        "title": "בדיקה חדשה: זנב ימני",
-        "kicker": "תרגול מקורי",
-        "prompt": "עבדו עצמאית; בדקו מה מבקש הביטוי 'מעל'.",
-        "objectiveId": "o3",
-        "layout": "challenge",
-        "blocks": [],
-        "taskId": "t-tail-new",
-        "presenterNotes": {
-          "minutes": 4,
-          "explanation": "זו בדיקת העברה עצמאית: הקשר, הממוצע וסטיית התקן שונים משאלת המקור. התלמיד צריך לזהות תחילה את מיקום הסף ואז להשתמש במשלים.",
-          "ask": "איזה חלק מן הפעמון מתאים למילה 'מעל'?",
-          "expectedAnswer": "החלק שמימין לסף.",
-          "ifStuck": "בקשו לחשב את המרחק בין 70 ל־76 ביחידות של \\(s\\), בלי לחשב את האחוז עדיין.",
-          "misconception": "אין להשתמש ב־84% כתשובה; 84% הוא החלק שמתחת לסף.",
-          "transition": "נעבור מבדיקת אחוז לבניית אזור על המודל.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s22",
-        "title": "בנו את האזור המרכזי",
-        "kicker": "תרגול מקורי",
-        "prompt": "סמנו את שני הגבולות לפני שליחת תשובה.",
-        "objectiveId": "o3",
-        "layout": "challenge",
-        "blocks": [],
-        "taskId": "t-build-central",
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "המשימה בודקת בניית אזור, לא חישוב מספרי. התלמיד מתרגם 'עד סטיית תקן אחת מן הממוצע' לשני גבולות סימטריים.",
-          "ask": "האם צריך גבול אחד או שניים?",
-          "expectedAnswer": "שני גבולות, אחד בכל צד של המרכז.",
-          "ifStuck": "הזכירו שהמילה 'בתוך' מכוונת לאזור מרכזי משני הצדדים.",
-          "misconception": "בחירה מ־0 עד 1 כוללת רק את הצד הימני, ולא את כל האזור המרכזי.",
-          "transition": "נסכם את שלוש הקריאות החשובות לפני כרטיס היציאה.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s23",
-        "title": "שלוש קריאות שמובילות לפתרון",
-        "kicker": "סיכום",
-        "prompt": "איזה כלי תבחרו בכל סוג שאלה?",
-        "objectiveId": "o4",
-        "layout": "recap",
-        "blocks": [
-          {
-            "type": "callout",
-            "text": "מיקום: \\(z\\) מודד מרחק חתום מן \\(\\mu\\).",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "callout",
-            "text": "אחוז: שטח צבוע מייצג חלק מן התלמידים.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          },
-          {
-            "type": "callout",
-            "text": "כמות: אחוז מן השלם או חלק ידוע שמחזיר לשלם.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 2
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "מחברים את השיעור לשלושה כלים. אין צורך לשנן את כל הפעמון; קוראים את המיקום, בוחרים אזור, ואז מתאימים את פעולת האחוזים.",
-          "ask": "איזה כלי חסר לנו אם יודעים \\(z\\) ורוצים ציון?",
-          "expectedAnswer": "הנוסחה \\(x=\\mu+z\\cdot s\\).",
-          "ifStuck": "בקשו להיזכר בסעיף ד של שאלת המקור.",
-          "misconception": "שטח, אחוז וכמות קשורים אך אינם אותו דבר.",
-          "transition": "כרטיס היציאה בודק את כיוון ההמרה האחרון.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s24",
-        "title": "כרטיס יציאה: מ־z לציון",
-        "kicker": "בדיקה עצמאית",
-        "prompt": "רשמו חישוב קצר והסבירו את סימן התשובה.",
-        "objectiveId": "o4",
-        "layout": "challenge",
-        "blocks": [],
-        "taskId": "t-exit-score",
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "המשימה מחליפה נתונים והקשר, ולכן בודקת הבנה של נוסחת ההמרה ולא זיכרון של תשובת הבגרות.",
-          "ask": "מה אומר הסימן השלילי לפני כל חישוב?",
-          "expectedAnswer": "שהציון יהיה מתחת לממוצע.",
-          "ifStuck": "הציעו לחשב תחילה את המרחק \\(1.5\\cdot4\\).",
-          "misconception": "אין להוסיף את המרחק כשה־z שלילי.",
-          "transition": "נסיים במשחקים קצרים שמחזקים אזורים וציר.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s25",
-        "title": "משחק: בונים את האזור הנכון",
-        "kicker": "משחק מושגים",
-        "prompt": "בכל סיבוב בנו את האזור לפני שבודקים.",
-        "objectiveId": "o3",
-        "layout": "challenge",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "משחק 1: קוראים את המילים ובונים את האזור המתאים על הפעמון.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "callout",
-            "text": "הגבולות חשובים יותר מן הגובה.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "הפעילו את משחק האזורים בשלושה סיבובים קצרים. בקשו נימוק של משפט אחד לפני בדיקה בכל סיבוב.",
-          "ask": "מה נבדוק לפני שנאשר אזור?",
-          "expectedAnswer": "את שני הגבולות ואת הכיוון של ההצללה.",
-          "ifStuck": "הציעו לסמן קודם את המרכז ואז את המרחקים ממנו.",
-          "misconception": "אזור ימני אינו מתחיל במרכז אלא בגבול שניתן.",
-          "transition": "המשחק הבא מחזיר מיקום על ציר לציון חסר.",
-          "sources": []
-        }
-      },
-      {
-        "id": "s26",
-        "title": "משחק: חושפים מספר חסר בציר",
-        "kicker": "משחק מושגים",
-        "prompt": "מצאו את גודל הצעד לפני שאתם מנחשים.",
-        "objectiveId": "o2",
-        "layout": "challenge",
-        "blocks": [
-          {
-            "type": "copy",
-            "text": "משחק 2: כל מספר חסר נמצא על ציר של חצאי סטיות תקן.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 0
-          },
-          {
-            "type": "callout",
-            "text": "קודם מוצאים \\(s/2\\), ואז זזים על הציר.",
-            "model": null,
-            "sourceId": null,
-            "reveal": 1
-          }
-        ],
-        "taskId": null,
-        "presenterNotes": {
-          "minutes": 3,
-          "explanation": "הפעילו את משחק הציר. אחרי כל תשובה בקשו לתאר את הצעד, לא רק את המספר.",
-          "ask": "מהו הצעד הקבוע בין סימונים סמוכים?",
-          "expectedAnswer": "חצי סטיית תקן.",
-          "ifStuck": "כתבו בצד \\(s/2\\) לפני קריאת הציר.",
-          "misconception": "אין לדלג ב־\\(s\\) שלם כשכל סימון הוא חצי \\(s\\).",
-          "transition": "הזכירו שהתרגול הביתי ממשיך מן אותו רעיון לשאלות חדשות.",
-          "sources": []
-        }
-      }
-    ],
-    "tasks": [
-      {
-        "id": "t-percent-count",
-        "title": "כמה תלמידים הם 16%?",
-        "prompt": "במועדון מדעים יש 150 תלמידים. 16% מהם נרשמו לסדנה. כמה תלמידים נרשמו?",
-        "givens": "הכמות הכוללת היא 150; החלק הוא 16%.",
-        "objectiveId": "o1",
-        "support": "independent",
-        "grading": "checked",
-        "model": null,
-        "check": {
-          "kind": "number",
-          "answer": 24,
-          "options": []
-        },
-        "hints": [
-          "המירו 16% למספר עשרוני.",
-          "כדי למצוא חלק מתוך שלם, כופלים את החלק העשרוני בכמות הכוללת."
-        ],
-        "solution": "\\(0.16\\cdot150=24\\), לכן נרשמו 24 תלמידים.",
-        "success": "נכון. חיברתם אחוז לכמות של תלמידים.",
-        "retry": "בדקו אם חיפשתם חלק מתוך 150 או את השלם כולו."
-      },
-      {
-        "id": "t-tail-new",
-        "title": "מי מעל סף הקבלה?",
-        "prompt": "ציוני מבחן במדעים מתפלגים נורמלית בקירוב בית־ספרי, עם \\(\\mu=70\\) ו־\\(s=6\\). איזה אחוז קיבל מעל 76?",
-        "givens": "הסף 76 נמצא 6 נקודות מעל הממוצע.",
-        "objectiveId": "o3",
-        "support": "independent",
-        "grading": "checked",
-        "model": {
-          "mode": "curve",
-          "interactive": "none",
-          "showProbability": false,
-          "states": [
-            {
-              "mean": 70,
-              "sd": 6,
-              "lowerZ": null,
-              "upperZ": null,
-              "pointZ": null,
-              "hideZ": null
-            }
-          ]
-        },
-        "check": {
-          "kind": "number",
-          "answer": 16,
-          "options": []
-        },
-        "hints": [
-          "חשבו את המרחק בין 76 ל־70 ביחידות של \\(s\\).",
-          "אחרי שמוצאים \\(z=1\\), השתמשו בשטח המשלים למה שנמצא עד הגבול."
-        ],
-        "solution": "\\(76-70=6=s\\), לכן הסף הוא \\(z=1\\). עד \\(z=1\\) יש 84%, ולכן מעליו \\(100\\%-84\\%=16\\%\\).",
-        "success": "נכון. זיהיתם זנב ימני והשתמשתם במשלים.",
-        "retry": "בדקו שהשאלה מבקשת את מה שמעל הסף, ולא את מה שמתחתיו."
-      },
-      {
-        "id": "t-build-central",
-        "title": "האזור שבתוך סטיית תקן אחת",
-        "prompt": "בנו על המודל את האזור של ציונים הנמצאים בתוך סטיית תקן אחת מן הממוצע.",
-        "givens": "\\(\\mu=80\\), \\(s=7\\). השתמשו בגבולות \\(z\\).",
-        "objectiveId": "o3",
-        "support": "independent",
-        "grading": "checked",
-        "model": {
-          "mode": "bands",
-          "interactive": "none",
-          "showProbability": false,
-          "states": [
-            {
-              "mean": 80,
-              "sd": 7,
-              "lowerZ": null,
-              "upperZ": null,
-              "pointZ": null,
-              "hideZ": null
-            }
-          ]
-        },
-        "check": {
-          "kind": "region",
-          "answer": [
-            -1,
-            1
-          ],
-          "options": []
-        },
-        "hints": [
-          "'בתוך סטיית תקן אחת' מתייחס לשני צדדי הממוצע.",
-          "הציבו גבול של סטיית תקן אחת שמאלה וגבול מקביל ימינה."
-        ],
-        "solution": "האזור המרכזי נבנה מן \\(z=-1\\) עד \\(z=1\\).",
-        "success": "נכון. בניתם אזור מרכזי סימטרי.",
-        "retry": "בדקו אם סימנתם גם את הצד השמאלי וגם את הצד הימני."
-      },
-      {
-        "id": "t-exit-score",
-        "title": "ציון התקן של נועה",
-        "prompt": "במבחן בהיסטוריה \\(\\mu=74\\) ו־\\(s=4\\). ציון התקן של נועה הוא \\(z=-1.5\\). מהו ציונה?",
-        "givens": "השתמשו בקשר בין \\(x\\), \\(\\mu\\), \\(z\\) ו־\\(s\\).",
-        "objectiveId": "o4",
-        "support": "independent",
-        "grading": "checked",
-        "model": null,
-        "check": {
-          "kind": "number",
-          "answer": 68,
-          "options": []
-        },
-        "hints": [
-          "חשבו תחילה את המרחק \\(1.5\\cdot4\\).",
-          "הסימן השלילי אומר שהציון נמצא מתחת לממוצע."
-        ],
-        "solution": "\\(x=74+(-1.5)\\cdot4=74-6=68\\).",
-        "success": "נכון. תרגמתם מרחק שלילי לציון שמתחת לממוצע.",
-        "retry": "שימו לב לכיוון: \\(z\\) שלילי מזיז שמאלה מן הממוצע."
-      }
-    ],
-    "homework": [
-      {
-        "id": "hw1",
-        "title": "חלק מתוך קבוצה",
-        "prompt": "בקבוצת רובוטיקה יש 125 תלמידים. 16% מהם נבחרו להציג ביריד. כמה תלמידים נבחרו?",
-        "givens": "הכמות הכוללת היא 125; החלק הוא 16%.",
-        "objectiveId": "o1",
-        "support": "guided",
-        "grading": "checked",
-        "model": null,
-        "check": {
-          "kind": "number",
-          "answer": 20,
-          "options": []
-        },
-        "hints": [
-          "המירו 16% ל־0.16.",
-          "כפלו את החלק העשרוני במספר התלמידים."
-        ],
-        "solution": "\\(0.16\\cdot125=20\\).",
-        "success": "נכון. מצאתם חלק מתוך קבוצה.",
-        "retry": "בדקו שהשתמשתם ב־0.16 ולא ב־16."
-      },
-      {
-        "id": "hw2",
-        "title": "מוצאים ממוצע משטח מצטבר",
-        "prompt": "ציוני מבחן באנגלית מתפלגים נורמלית בקירוב בית־ספרי ו־\\(s=4\\). ידוע ש־93% מן התלמידים קיבלו פחות מ־74. מצאו את \\(\\mu\\).",
-        "givens": "בתרשים בית הספר, 93% מצטברים עד \\(z=1.5\\).",
-        "objectiveId": "o4",
-        "support": "guided",
-        "grading": "checked",
-        "model": null,
-        "check": {
-          "kind": "number",
-          "answer": 68,
-          "options": []
-        },
-        "hints": [
-          "93% מציבים את 74 במרחק \\(1.5s\\) מעל הממוצע.",
-          "חשבו \\(1.5\\cdot4\\), ואז חזרו שמאלה מן 74."
-        ],
-        "solution": "\\(\\mu=74-1.5\\cdot4=68\\).",
-        "success": "נכון. החזרתם גבול מצטבר אל מרכז ההתפלגות.",
-        "retry": "בדקו את הכיוון: 74 נמצא מעל הממוצע."
-      },
-      {
-        "id": "hw3",
-        "title": "מציון תקן לציון",
-        "prompt": "במבחן בגאוגרפיה \\(\\mu=54\\), \\(s=12\\), וציון התקן של תלמיד הוא \\(z=1.75\\). מהו ציון התלמיד?",
-        "givens": "השתמשו ב־\\(x=\\mu+z\\cdot s\\).",
-        "objectiveId": "o2",
-        "support": "independent",
-        "grading": "checked",
-        "model": null,
-        "check": {
-          "kind": "number",
-          "answer": 75,
-          "options": []
-        },
-        "hints": [
-          "חשבו את המרחק \\(1.75\\cdot12\\).",
-          "מכיוון ש־\\(z\\) חיובי, מוסיפים את המרחק לממוצע."
-        ],
-        "solution": "\\(x=54+1.75\\cdot12=54+21=75\\).",
-        "success": "נכון. השתמשתם במרחק בסטיות תקן בלי לעגל אותו.",
-        "retry": "בדקו שלא החלפתם בין הכפל ב־\\(s\\) לבין חיבור לממוצע."
-      },
-      {
-        "id": "hw4",
-        "title": "מסבירים שטח וגובה",
-        "prompt": "כתבו 2–3 משפטים: מדוע אחוז תלמידים מיוצג על ידי שטח מתחת לפעמון ולא על ידי גובה העקומה בנקודה אחת?",
-        "givens": "התייחסו לאזור של ציונים ולא לציון יחיד.",
-        "objectiveId": "o1",
-        "support": "independent",
-        "grading": "tutor-review",
-        "model": null,
-        "check": null,
-        "hints": [
-          "חשבו מה מייצג אזור שמכיל טווח ציונים.",
-          "הבחינו בין 'ריכוז יחסי ליד נקודה' לבין 'חלק מן האוכלוסייה באזור'."
-        ],
-        "solution": "תשובה טובה מסבירה שהשטח כולל טווח ציונים ולכן מייצג חלק מן התלמידים. גובה העקומה מתאר ריכוז יחסי סביב נקודה ואינו אחוז בפני עצמו.",
-        "success": "נשלח לבדיקת המורה; ודאו שהסברתם גם שטח וגם גובה.",
-        "retry": "נסו להוסיף משפט שמבחין בין טווח ציונים לנקודה יחידה."
-      }
-    ],
-    "games": [
-      {
-        "id": "g-region",
-        "title": "בונים אזור, לא מנחשים אחוז",
-        "intro": "בכל סיבוב בנו את הגבולות המתאימים. אחר כך נמקו במילים קצרות.",
-        "kind": "region",
-        "rounds": [
-          {
-            "id": "gr1",
-            "title": "המרכז",
-            "prompt": "בנו את האזור שבתוך חצי סטיית תקן מן הממוצע.",
-            "givens": "השתמשו בגבולות \\(z\\).",
-            "objectiveId": "o3",
-            "support": "guided",
-            "grading": "checked",
-            "model": {
-              "mode": "bands",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 60,
-                  "sd": 8,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "check": {
-              "kind": "region",
-              "answer": [
-                -0.5,
-                0.5
-              ],
-              "options": []
-            },
-            "hints": [
-              "האזור סימטרי סביב 0.",
-              "חצי סטיית תקן לכל צד נותנת שני גבולות."
-            ],
-            "solution": "הגבולות הם \\(z=-0.5\\) ו־\\(z=0.5\\).",
-            "success": "הגבולות יוצרים את שתי הרצועות המרכזיות.",
-            "retry": "בדקו אם שני הצדדים של המרכז כלולים."
-          },
-          {
-            "id": "gr2",
-            "title": "הזנב הימני",
-            "prompt": "בנו את כל האזור של ציונים מעל סטיית תקן אחת מן הממוצע.",
-            "givens": "הגבול השמאלי הוא \\(z=1\\).",
-            "objectiveId": "o3",
-            "support": "independent",
-            "grading": "checked",
-            "model": {
-              "mode": "bands",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 60,
-                  "sd": 8,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "check": {
-              "kind": "region",
-              "answer": [
-                1,
-                4
-              ],
-              "options": []
-            },
-            "hints": [
-              "'מעל' מצביע ימינה על הציר.",
-              "האזור ממשיך מן הגבול אל הזנב הימני כולו."
-            ],
-            "solution": "האזור מתחיל ב־\\(z=1\\) וממשיך לכל הזנב הימני.",
-            "success": "נכון. זיהיתם אזור ימני שלם.",
-            "retry": "התחילו בגבול \\(z=1\\), לא במרכז."
-          },
-          {
-            "id": "gr3",
-            "title": "רצועה שמאלית",
-            "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
-            "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
-            "objectiveId": "o3",
-            "support": "independent",
-            "grading": "checked",
-            "model": {
-              "mode": "bands",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 60,
-                  "sd": 8,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": null
-                }
-              ]
-            },
-            "check": {
-              "kind": "region",
-              "answer": [
-                -1.5,
-                -1
-              ],
-              "options": []
-            },
-            "hints": [
-              "שני המיקומים נמצאים משמאל ל־0.",
-              "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
-            ],
-            "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
-            "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
-            "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר."
-          }
-        ]
-      },
-      {
-        "id": "g-axis",
-        "title": "המספר החסר על ציר הציונים",
-        "intro": "מצאו קודם את גודל הצעד \\(s/2\\), ואז את המספר המוסתר.",
-        "kind": "axis",
-        "rounds": [
-          {
-            "id": "ga1",
-            "title": "צעד ראשון",
-            "prompt": "במודל חסר הערך שב־\\(z=0.5\\). מהו?",
-            "givens": "\\(\\mu=64\\), \\(s=10\\).",
-            "objectiveId": "o2",
-            "support": "guided",
-            "grading": "checked",
-            "model": {
-              "mode": "axis",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 64,
-                  "sd": 10,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": 0.5
-                }
-              ]
-            },
-            "check": {
-              "kind": "number",
-              "answer": 69,
-              "options": []
-            },
-            "hints": [
-              "חצי סטיית תקן היא \\(10/2\\).",
-              "הוסיפו את הצעד לממוצע כי המיקום מימין."
-            ],
-            "solution": "\\(s/2=5\\), לכן הערך הוא \\(64+5=69\\).",
-            "success": "נכון. מצאתם צעד של חצי סטיית תקן.",
-            "retry": "בדקו אם השתמשתם בחצי \\(s\\), ולא ב־\\(s\\) שלם."
-          },
-          {
-            "id": "ga2",
-            "title": "צעד שמאלה",
-            "prompt": "במודל חסר הערך שב־\\(z=-1.5\\). מהו?",
-            "givens": "\\(\\mu=81\\), \\(s=6\\).",
-            "objectiveId": "o2",
-            "support": "independent",
-            "grading": "checked",
-            "model": {
-              "mode": "axis",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 81,
-                  "sd": 6,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": -1.5
-                }
-              ]
-            },
-            "check": {
-              "kind": "number",
-              "answer": 72,
-              "options": []
-            },
-            "hints": [
-              "חצי \\(s\\) הוא 3, ויש שלושה חצאי צעדים שמאלה.",
-              "אפשר גם לחשב \\(81-1.5\\cdot6\\)."
-            ],
-            "solution": "\\(81-1.5\\cdot6=72\\).",
-            "success": "נכון. קראתם מיקום שלילי על הציר.",
-            "retry": "בדקו שהלכתם שמאלה מן הממוצע."
-          },
-          {
-            "id": "ga3",
-            "title": "צעד מדויק",
-            "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
-            "givens": "\\(\\mu=57\\), \\(s=4\\).",
-            "objectiveId": "o2",
-            "support": "independent",
-            "grading": "checked",
-            "model": {
-              "mode": "axis",
-              "interactive": "none",
-              "showProbability": false,
-              "states": [
-                {
-                  "mean": 57,
-                  "sd": 4,
-                  "lowerZ": null,
-                  "upperZ": null,
-                  "pointZ": null,
-                  "hideZ": 2.5
-                }
-              ]
-            },
-            "check": {
-              "kind": "number",
-              "answer": 67,
-              "options": []
-            },
-            "hints": [
-              "בכל חצי צעד מוסיפים \\(4/2\\).",
-              "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
-            ],
-            "solution": "\\(57+2.5\\cdot4=67\\).",
-            "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
-            "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\)."
-          }
-        ]
-      }
-    ],
-    "sourceSolutions": [
-      {
-        "questionId": "moe-2025a-35372-3",
-        "part": "a1",
-        "slideId": "s16",
-        "answer": "72"
-      },
-      {
-        "questionId": "moe-2025a-35372-3",
-        "part": "a2",
-        "slideId": "s17",
-        "answer": "52,56,60,64,68,72,76,80,84,88,92"
-      },
-      {
-        "questionId": "moe-2025a-35372-3",
-        "part": "b",
-        "slideId": "s18",
-        "answer": "16"
-      },
-      {
-        "questionId": "moe-2025a-35372-3",
-        "part": "c",
-        "slideId": "s19",
-        "answer": "200"
-      },
-      {
-        "questionId": "moe-2025a-35372-3",
-        "part": "d",
-        "slideId": "s20",
-        "answer": "86"
-      }
-    ]
-  },
-  "authoringFingerprint": "ac6a21b6cde8429c506fd366bf2473cc060c80e07a1b0ba46324537b04a3d65d",
-  "sourceRevision": "1fbac89",
-  "sources": [
-    {
-      "id": "moe-2025a-35372-3",
-      "sha256": "006125d641f5c9e4e3e2c4bd4c3bf2c34bd52ea65a5e9156616240441ea916b5"
-    }
+ "syntheticOnly": true,
+ "approval": "pending-owner-review",
+ "model": "gpt-5.6-terra",
+ "cliVersion": "codex-cli 0.149.0",
+ "kind": "reviewed-booking-generation",
+ "version": "ca7543ef606e488d9e748d7286ec7a02b38cab89cd9f54d7ecb8808df3f4a318",
+ "bundle": {
+  "version": 1,
+  "ruleVersion": "mea-visual-v1",
+  "title": "מה מספרת הפעמון על ציונים?",
+  "subtitle": "מאחוזים ואנשים ועד שאלת בגרות",
+  "durationMin": 90,
+  "homeworkMinutes": 12,
+  "objectives": [
+   {
+    "id": "o1",
+    "title": "לקשר שטח, אחוז וכמות תלמידים"
+   },
+   {
+    "id": "o2",
+    "title": "לתאר מיקום בעזרת ממוצע, סטיית תקן ו־z"
+   },
+   {
+    "id": "o3",
+    "title": "לקרוא רצועות, שטח מצטבר ומשלים"
+   },
+   {
+    "id": "o4",
+    "title": "לפתור וליישם שאלת התפלגות נורמלית"
+   }
   ],
-  "revision": {
-    "mode": "editorial-text",
-    "reviewer": "Codex",
-    "parentVersion": "5a91d0d5465595dcad5ae769f4a9a4baa736a725dbdc2aaf672f8ab82cd0bdcf",
-    "fields": [
-      "/slides/7/title",
-      "/slides/7/kicker",
-      "/slides/7/prompt",
-      "/slides/7/blocks/0/text",
-      "/slides/7/blocks/1/text",
-      "/slides/7/presenterNotes/explanation",
-      "/slides/7/presenterNotes/ask",
-      "/slides/7/presenterNotes/expectedAnswer",
-      "/slides/7/presenterNotes/ifStuck",
-      "/slides/7/presenterNotes/misconception",
-      "/slides/7/presenterNotes/transition",
-      "/slides/17/presenterNotes/misconception",
-      "/slides/18/blocks/1/text",
-      "/slides/18/presenterNotes/explanation",
-      "/slides/18/presenterNotes/ifStuck"
+  "agenda": [
+   {
+    "title": "פתיחה: ציונים כאוכלוסייה",
+    "minutes": 2,
+    "slideId": "s1"
+   },
+   {
+    "title": "מן התלמידים אל עקומת הפעמון",
+    "minutes": 10,
+    "slideId": "s2"
+   },
+   {
+    "title": "מרכז ופיזור",
+    "minutes": 7,
+    "slideId": "s5"
+   },
+   {
+    "title": "שטח, אחוז וכמות",
+    "minutes": 12,
+    "slideId": "s7"
+   },
+   {
+    "title": "z ורצועות בית־ספריות",
+    "minutes": 19,
+    "slideId": "s10"
+   },
+   {
+    "title": "קוראים את שאלת המקור",
+    "minutes": 5,
+    "slideId": "s15"
+   },
+   {
+    "title": "פותרים את חלקי הבחינה",
+    "minutes": 16,
+    "slideId": "s16"
+   },
+   {
+    "title": "בדיקות העברה עצמאיות",
+    "minutes": 7,
+    "slideId": "s21"
+   },
+   {
+    "title": "סיכום וכרטיס יציאה",
+    "minutes": 6,
+    "slideId": "s23"
+   },
+   {
+    "title": "שני משחקי מושגים",
+    "minutes": 6,
+    "slideId": "s25"
+   }
+  ],
+  "slides": [
+   {
+    "id": "s1",
+    "title": "היכן נמצאים רוב הציונים?",
+    "kicker": "פתיחה",
+    "prompt": "דמיינו את כל תלמידי השכבה על ציר ציונים.",
+    "objectiveId": "o1",
+    "layout": "cover",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "אם רוב הציונים קרובים לממוצע, איך תיראה התמונה?",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "model",
+      "text": "רוב הנקודות ליד האמצע",
+      "model": {
+       "mode": "population",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        },
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        },
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 1
+     }
     ],
-    "patchSha256": "f311788cfd8b33b64699a1ae30fb5bc5cef370afefc4bd9dc6657190ff455651",
-    "reason": "Independent teaching review: visible percentage bridge before assessment and correct complement guidance",
-    "reviewedUnderFingerprint": "2b1818dd0aff45ae431ed5cf0e2785cabab40443c0351409e350bfdda1746fc1"
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 2,
+     "explanation": "פותחים בדימוי של שכבה שלמה, לא במדגם קטן. המטרה היא לראות שציונים יכולים להתרכז סביב ערך אופייני.",
+     "ask": "איפה לדעתכם נמצאים רוב הציונים?",
+     "expectedAnswer": "קרוב לאמצע, סביב הציון הטיפוסי.",
+     "ifStuck": "הציעו להשוות לתוצאות של מבחן מוכר: האם רוב הכיתה קיבלה קצוות או ציונים באמצע?",
+     "misconception": "לא כל תלמיד קיבל את הממוצע; הממוצע הוא נקודת ייחוס.",
+     "transition": "נראה תחילה אנשים, ואז דרך קומפקטית לצייר את אותה תמונה.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s2",
+    "title": "אותה שכבה, תמונה מסודרת יותר",
+    "kicker": "אוכלוסייה",
+    "prompt": "מה אפשר לראות בנקודות שקשה לראות ברשימה?",
+    "objectiveId": "o1",
+    "layout": "visual",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "כל נקודה מייצגת תלמיד. באזור האמצע הציונים קרובים יותר זה לזה.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "model",
+      "text": "נקודות, עקומה, ואז הצורה בלבד",
+      "model": {
+       "mode": "population",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        },
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        },
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "חשפו את שלוש התמונות ברצף: תלמידים מפוזרים, עקומה מעליהם, ואז העקומה. העקומה היא סיכום חזותי של פיזור הציונים, לא תלמיד נוסף ולא נתונים אמיתיים.",
+     "ask": "באיזה אזור יש יותר תלמידים: ליד האמצע או בקצוות?",
+     "expectedAnswer": "ליד האמצע.",
+     "ifStuck": "הצביעו על האזור שבו הנקודות צפופות יותר.",
+     "misconception": "גובה העקומה אינו ציון ולא מספר תלמידים יחיד; הוא מסמן ריכוז יחסי באזור.",
+     "transition": "הצורה שמתקבלת נקראת עקומת פעמון.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s3",
+    "title": "הפעמון מתאר ריכוז סביב האמצע",
+    "kicker": "צורה",
+    "prompt": "מה אומר לנו השיא של העקומה?",
+    "objectiveId": "o1",
+    "layout": "visual",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "העקומה גבוהה באמצע ונמוכה בקצוות: ציונים אמצעיים שכיחים יותר.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "model",
+      "text": "הצורה מסכמת את הפיזור",
+      "model": {
+       "mode": "curve",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "השם התפלגות נורמלית מתייחס לצורה המאוזנת והחלקה שאנו משתמשים בה כמודל. כרגע קוראים רק את התמונה.",
+     "ask": "מה השיא מרמז על הציונים באזור הזה?",
+     "expectedAnswer": "שהם נפוצים יותר.",
+     "ifStuck": "שאלו היכן הייתם מצפים למצוא יותר נקודות אם נחזיר את התלמידים לציור.",
+     "misconception": "עקומה גבוהה אינה אומרת שהציון עצמו גבוה.",
+     "transition": "כעת נסמן את נקודת האמצע של הפעמון.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s4",
+    "title": "המרכז מחלק את הפעמון לשניים",
+    "kicker": "סימטריה",
+    "prompt": "מה משתנה אם הופכים את הציור סביב המרכז?",
+    "objectiveId": "o2",
+    "layout": "split",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "הממוצע, \\(\\mu\\), נמצא במרכז. אותה צורה מופיעה משמאל ומימין.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "\\mu=65",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "שני הצדדים מאוזנים",
+      "model": {
+       "mode": "curve",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "מגדירים את \\(\\mu\\) כממוצע וכמרכז המודל. הסימטריה תאפשר לנו להסיק על צד אחד מן הצד האחר.",
+     "ask": "אם יש אזור מסוים מימין לממוצע, מה מתאים לו משמאל?",
+     "expectedAnswer": "אזור זהה במרחק זהה, עם אותו חלק של תלמידים.",
+     "ifStuck": "קפלו בדמיון את הציור לאורך הקו האמצעי.",
+     "misconception": "סימטריה אינה אומרת שכל ציון מופיע בזוג; היא מתארת את צורת האוכלוסייה.",
+     "transition": "מרכז זהה עדיין יכול לבוא עם פיזור שונה.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s5",
+    "title": "אותו ממוצע, פיזור אחר",
+    "kicker": "חקירה חיה",
+    "prompt": "לפני הגרירה: מה יקרה לפעמון כש־\\(s\\) יגדל?",
+    "objectiveId": "o2",
+    "layout": "visual",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "חזו תחילה. אחר כך גררו את \\(s\\) וצפו ברוחב ובגובה.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "model",
+      "text": "גררו את \\(s\\): מה משתנה?",
+      "model": {
+       "mode": "spread",
+       "interactive": "spread",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "בקשו תחזית, ואז גררו את הפיזור. שמרו את \\(\\mu\\) קבוע: ערך \\(s\\) גדול מפזר ציונים רחוק יותר מן המרכז ולכן הפעמון רחב ונמוך יותר.",
+     "ask": "מה נשאר קבוע, ומה משתנה בזמן הגרירה?",
+     "expectedAnswer": "הממוצע נשאר קבוע; רוחב הפעמון והפיזור משתנים.",
+     "ifStuck": "הצביעו על קו המרכז לפני ואחרי הגרירה.",
+     "misconception": "פעמון נמוך יותר אינו אומר שממוצע הציונים נמוך יותר.",
+     "transition": "נשווה שתי כיתות באותו סולם כדי לראות זאת בבת אחת.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s6",
+    "title": "מי אחידה יותר בציוניה?",
+    "kicker": "השוואה",
+    "prompt": "לשתי הכיתות אותו ממוצע. מי מפוזרת פחות?",
+    "objectiveId": "o2",
+    "layout": "compare",
+    "blocks": [
+     {
+      "type": "model",
+      "text": "כיתה א: \\(\\mu=65,\\ s=5\\)",
+      "model": {
+       "mode": "spread",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 5,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "model",
+      "text": "כיתה ב: \\(\\mu=65,\\ s=12\\)",
+      "model": {
+       "mode": "spread",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 12,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "callout",
+      "text": "פעמון צר יותר: ציונים קרובים יותר לממוצע.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "שתי התצוגות משתמשות באותו סולם ובאותו ממוצע. לכן ההבדל הנראה הוא הפיזור בלבד.",
+     "ask": "באיזו כיתה הציונים קרובים יותר לממוצע? למה?",
+     "expectedAnswer": "בכיתה א, כי הפעמון צר יותר ו־\\(s\\) קטן יותר.",
+     "ifStuck": "בקשו לזהות מי מגיעה רחוק יותר מן הקו האמצעי.",
+     "misconception": "אין להסיק מן הרוחב איזו כיתה קיבלה ממוצע גבוה יותר; הממוצעים זהים.",
+     "transition": "כדי לדבר על אחוז תלמידים, נסתכל על השטח שמתחת לפעמון.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s7",
+    "title": "שטח מתחת לפעמון הוא חלק מהכיתה",
+    "kicker": "חקירה חיה",
+    "prompt": "לפני הגרירה: אם נרחיב את האזור, מה יקרה לאחוז?",
+    "objectiveId": "o1",
+    "layout": "visual",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "גררו את שני הגבולות. השטח הצבוע מייצג את אחוז התלמידים שבין הגבולות.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "model",
+      "text": "גררו גבולות; השטח משתנה",
+      "model": {
+       "mode": "bands",
+       "interactive": "region",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": -0.5,
+         "upperZ": 0.5,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "זהו ניסוי חי ראשון בשטח. הרחיבו והצרו את האזור אחרי תחזית. הדגישו ששטח, ולא גובה בנקודה אחת, מייצג את החלק מן האוכלוסייה.",
+     "ask": "כשהאזור הצבוע גדל, מה קורה לחלק התלמידים שהוא מייצג?",
+     "expectedAnswer": "הוא גדל.",
+     "ifStuck": "שאלו אם אזור גדול יותר יכול להכיל פחות תלמידים באותו מודל.",
+     "misconception": "גובה העקומה בנקודה אינו אחוז התלמידים בציון יחיד.",
+     "transition": "בבית הספר משתמשים ברצועות קבועות כדי לקרוא שטחים במהירות.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s8",
+    "title": "מרצועות למספר תלמידים",
+    "kicker": "עובדים יחד",
+    "prompt": "בקבוצה של 200 תלמידים, כמה תלמידים מייצג השטח של 38%?",
+    "objectiveId": "o3",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "שתי הרצועות המרכזיות הן \\(19\\%+19\\%=38\\%\\). בקבוצה שלנו 200 תלמידים — זה השלם, 100%. החצים מחברים בין האחוז לבין מספר התלמידים המתאים לו.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "\\begin{aligned}100\\%&\\leftrightarrow200\\\\1\\%&\\leftrightarrow200\\div100=2\\\\38\\%&\\leftrightarrow38\\cdot2=76\\end{aligned}",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "שתי רצועות מרכזיות",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": -0.5,
+         "upperZ": 0.5,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "מחברים את שתי הרצועות ומקבלים 38%. עכשיו מחברים בין האחוז לכמות: כל 200 התלמידים הם 100%. אם נחלק ל־100 חלקים שווים, בכל אחוז יהיו שני תלמידים. לכן 38 אחוזים הם \\(38\\cdot2=76\\) תלמידים. זה חישוב לדוגמה משותפת, לפני המשימה העצמאית בנתונים אחרים.",
+     "ask": "אם אחוז אחד הוא שני תלמידים, כמה תלמידים יהיו ב־38 אחוזים?",
+     "expectedAnswer": "76 תלמידים: כופלים 38 בשניים.",
+     "ifStuck": "ציירו 100 קופסאות שוות עבור 100 האחוזים. חלקו ביניהן 200 תלמידים: בכל קופסה שני תלמידים. בחרו 38 קופסאות וספרו בקבוצות של שניים.",
+     "misconception": "38% הוא חלק מן הקבוצה, ולא בהכרח 38 תלמידים. הכמות תלויה בגודל הקבוצה.",
+     "transition": "עכשיו נסו אותו רעיון עם קבוצה אחרת ואחוז אחר, לפני שמבקשים רמז.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s9",
+    "title": "מאחוז תלמידים לכמות תלמידים",
+    "kicker": "בדיקה עצמאית",
+    "prompt": "פתרו לפני שמבקשים רמז.",
+    "objectiveId": "o1",
+    "layout": "challenge",
+    "blocks": [],
+    "taskId": "t-percent-count",
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "זו בדיקה קצרה של הגשר מאחוז לכמות, בלי עקומה. התלמיד צריך לפרש אחוז כחלק מתוך כלל התלמידים.",
+     "ask": "איזו פעולה מחברת בין 16% לבין 150 תלמידים?",
+     "expectedAnswer": "מחשבים \\(0.16\\cdot150\\).",
+     "ifStuck": "הציעו להמיר 16% ל־0.16 לפני הכפל.",
+     "misconception": "חלוקה ב־16 אינה מוצאת 16% מן הכמות.",
+     "transition": "כעת נלמד לנסח מרחק מן הממוצע בצורה אחידה.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s10",
+    "title": "z אומר כמה סטיות תקן מהמרכז",
+    "kicker": "מיקום",
+    "prompt": "האם נקודה משמאל לממוצע תקבל \\(z\\) חיובי או שלילי?",
+    "objectiveId": "o2",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "\\(z\\) הוא מספר סטיות התקן מן הממוצע, עם סימן: ימינה חיובי ושמאלה שלילי.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "z=\\frac{x-\\mu}{s}",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "נקודה במרחק \\(-1.5s\\)",
+      "model": {
+       "mode": "position",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": -1.5,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "מציגים את \\(z\\) לפני שימוש בו ברצועות מצטברות. במודל הנקודה נמצאת \\(1.5s\\) שמאלה מן הממוצע, ולכן הסימן שלילי. הנוסחה מתארת את אותו מרחק ביחידות של \\(s\\).",
+     "ask": "מה פירוש \\(z=-1.5\\)?",
+     "expectedAnswer": "הציון נמצא סטיית תקן וחצי מתחת לממוצע.",
+     "ifStuck": "קראו יחד את הסימן תחילה, ואז את המרחק 1.5.",
+     "misconception": "\\(z\\) אינו ציון המבחן עצמו.",
+     "transition": "עכשיו אפשר לקרוא אזורים לפי מרחקי \\(z\\).",
+     "sources": []
+    }
+   },
+   {
+    "id": "s11",
+    "title": "בתוך סטיית תקן אחת נמצאים 68%",
+    "kicker": "אזור מרכזי",
+    "prompt": "כמה רצועות של חצי \\(s\\) נמצאות בין \\(-1\\) ל־\\(1\\)?",
+    "objectiveId": "o3",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "מן \\(-1s\\) עד \\(1s\\) יש ארבע רצועות: שתיים בכל צד של המרכז.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "15\\%+19\\%+19\\%+15\\%=68\\%",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "האזור המרכזי בין \\(-1\\) ל־\\(1\\)",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": -1,
+         "upperZ": 1,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "סופרים רצועות ולא קופצים ישר ל־68%. כל צד כולל 19% ו־15%, ולכן שני הצדדים יחד כוללים ארבע רצועות.",
+     "ask": "למה לא מחברים רק שתי רצועות?",
+     "expectedAnswer": "כי האזור מגיע עד \\(s\\) אחד לכל צד, ובכל צד יש שתי חצאי־סטיות תקן.",
+     "ifStuck": "עברו על הציר בחצאי צעדים: \\(-1\\), \\(-0.5\\), 0, \\(0.5\\), 1.",
+     "misconception": "38% שייך רק לאזור שבין \\(-0.5\\) ל־\\(0.5\\).",
+     "transition": "לפעמים השאלה מבקשת את כל מה שמשמאל לגבול אחד.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s12",
+    "title": "93% מצטברים מן הזנב השמאלי",
+    "kicker": "שטח מצטבר",
+    "prompt": "אילו רצועות צריך לצרף עד הגבול \\(z=1.5\\)?",
+    "objectiveId": "o3",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "שטח מצטבר כולל את כל מה שמשמאל לגבול. כאן הוא מתחיל בזנב השמאלי.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "50\\%+19\\%+15\\%+9\\%=93\\%",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "השטח המצטבר עד \\(z=1.5\\)",
+      "model": {
+       "mode": "cumulative",
+       "interactive": "none",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": -4,
+         "upperZ": 1.5,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "מראים את ההצללה ומחברים בקול: 50% שמשמאל למרכז, ואז 19%, 15%, 9%. זה קירוב לפי תרשים בית הספר.",
+     "ask": "מדוע 50% מופיעים בחישוב?",
+     "expectedAnswer": "כי כל החצי השמאלי מן המרכז כלול בשטח המצטבר.",
+     "ifStuck": "החזירו את הגבול למרכז ושאלו כמה מהפעמון נשאר משמאל.",
+     "misconception": "93% אינו גובה העקומה ב־\\(z=1.5\\); הוא שטח מצטבר.",
+     "transition": "נבדיל במדויק בין רצועה אחת לבין כל מה שמצטבר עד אותו גבול.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s13",
+    "title": "אותו גבול, שני אזורים שונים",
+    "kicker": "ניגוד חשוב",
+    "prompt": "מה מייצגים 50 האחוזים הנוספים בתמונה הימנית?",
+    "objectiveId": "o3",
+    "layout": "compare",
+    "blocks": [
+     {
+      "type": "model",
+      "text": "רצועה מ־0 עד \\(0.5\\): 19%",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": 0,
+         "upperZ": 0.5,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "model",
+      "text": "מצטבר עד \\(0.5\\): 69%",
+      "model": {
+       "mode": "cumulative",
+       "interactive": "none",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": -4,
+         "upperZ": 0.5,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "callout",
+      "text": "ההפרש הוא כל החצי השמאלי: 50%.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "שני הציורים באותו ממוצע, אותה סטיית תקן ואותו גבול עליון. השמאלי צובע רק רצועה; הימני כולל גם את כל מה שמשמאל למרכז.",
+     "ask": "מהו האזור שנוסף כשעוברים מרצועה לשטח מצטבר?",
+     "expectedAnswer": "כל החצי השמאלי, 50%.",
+     "ifStuck": "כסו את הרצועה 0 עד \\(0.5\\) בציור הימני ובדקו מה נשאר.",
+     "misconception": "גבול עליון זהה אינו מבטיח ששטח זהה; גם הגבול התחתון קובע.",
+     "transition": "לעיתים נוח למצוא אזור ימני בעזרת השלם פחות המצטבר.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s14",
+    "title": "מעל סטיית תקן אחת נשארים 16%",
+    "kicker": "משלים",
+    "prompt": "אם 84% נמצאים עד \\(z=1\\), מה נשאר מימין?",
+    "objectiveId": "o3",
+    "layout": "split",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "עד \\(z=1\\) מצטברים 84%. האזור שמעליו הוא החלק המשלים ל־100%.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "100\\%-84\\%=16\\%",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "הזנב שמימין ל־\\(z=1\\)",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 65,
+         "sd": 10,
+         "lowerZ": 1,
+         "upperZ": 4,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "הדגישו שהזנב הימני הוא כל מה שמעל הגבול, לא רצועה מסוימת בלבד. משתמשים במשלים כי קל לקרוא את המצטבר משמאל.",
+     "ask": "למה מחסרים מ־100%?",
+     "expectedAnswer": "כי יחד, כל השטח שמתחת לפעמון הוא 100%.",
+     "ifStuck": "שאלו איזה חלק אינו צבוע אם עד הגבול צבועים 84%.",
+     "misconception": "16% אינו המרחק מן הממוצע; הוא אחוז תלמידים.",
+     "transition": "יש לנו כעת את שפת הקריאה הדרושה לשאלת הבגרות המקורית.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s15",
+    "title": "נקרא את הנתונים לפני הפתרון",
+    "kicker": "מקורית",
+    "prompt": "סמנו: מה ידוע, ומה צריך לגלות בכל סעיף?",
+    "objectiveId": "o4",
+    "layout": "source",
+    "blocks": [
+     {
+      "type": "source",
+      "text": "שאלת בגרות מקורית: שאלון 35372, קיץ 2025, שאלה 3.",
+      "model": null,
+      "sourceId": "moe-2025a-35372-3",
+      "reveal": 0
+     },
+     {
+      "type": "copy",
+      "text": "קראו יחד את \\(s=8\\), את 93% שמתחת ל־84, ואת סעיפים א–ד.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 5,
+     "explanation": "פתחו את פרט המקור המוגדל וקראו את הנתונים בקול. עדיין לא מוסרים את \\(\\mu\\): הוא נדרש להיגזר מן השטח המצטבר והגבול 84.",
+     "ask": "איזה נתון מתאר פיזור, ואיזה נתון מתאר מיקום על הציר?",
+     "expectedAnswer": "\\(s=8\\) מתאר פיזור; 84 הוא ציון על הציר.",
+     "ifStuck": "בקשו להקיף את המילים סטיית תקן, 93%, ונמוך מ־84.",
+     "misconception": "93% אינם ממוצע הציונים; זה חלק התלמידים שמתחת לציון מסוים.",
+     "transition": "נתחיל בזיהוי המיקום של 84 על הפעמון.",
+     "sources": [
+      "moe-2025a-35372-3"
+     ]
+    }
+   },
+   {
+    "id": "s16",
+    "title": "93% מציבים את 84 במרחק \\(1.5s\\)",
+    "kicker": "מקורית א(1)",
+    "prompt": "לפני החישוב: האם 84 נמצא מימין או משמאל לממוצע?",
+    "objectiveId": "o4",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "93% מצטברים עד \\(z=1.5\\), לכן 84 נמצא \\(1.5s\\) מעל הממוצע.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "\\mu=84-1.5\\cdot8=72",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "הצטברות עד \\(z=1.5\\)",
+      "model": {
+       "mode": "cumulative",
+       "interactive": "none",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 72,
+         "sd": 8,
+         "lowerZ": -4,
+         "upperZ": 1.5,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "הסיבה לחיסור היא ש־84 נמצא מעל הממוצע במרחק \\(1.5\\) סטיות תקן. תחילה מזהים את \\(z=1.5\\) לפי 50 ועוד 19 ועוד 15 ועוד 9, ואז מחזירים את המרחק לציונים.",
+     "ask": "מדוע מחסרים מן 84 ולא מוסיפים לו?",
+     "expectedAnswer": "כי 84 גבוה מן הממוצע ב־\\(1.5s\\), ואנו מחפשים את הממוצע.",
+     "ifStuck": "אמרו במילים: מתחילים ב־84 והולכים שמאלה סטיית תקן וחצי.",
+     "misconception": "אין לקרוא 93% כ־\\(z=0.93\\); משתמשים ברצועות.",
+     "transition": "כשהממוצע ידוע, אפשר למלא את כל ציר הציונים.",
+     "sources": [
+      "moe-2025a-35372-3"
+     ]
+    }
+   },
+   {
+    "id": "s17",
+    "title": "כל חצי \\(s\\) מוסיף ארבע נקודות",
+    "kicker": "מקורית א(2)",
+    "prompt": "מהו גודל הצעד בין שני מלבנים סמוכים?",
+    "objectiveId": "o4",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "כאן \\(s=8\\), לכן חצי סטיית תקן היא 4. מתקדמים מהמרכז בצעדים שווים.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "\\frac{s}{2}=\\frac{8}{2}=4",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "ממלאים את ציר חצאי־הסטיות",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 72,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "מרכז הציר הוא 72, וכל סימון מתקדם בחצי \\(s\\), כלומר ב־4 נקודות. קוראים משמאל לימין את כל הערכים.",
+     "ask": "מה יהיה הציון מיד מימין ל־72?",
+     "expectedAnswer": "76.",
+     "ifStuck": "בקשו להוסיף 4 פעם אחת בלבד לפני שממלאים את השאר.",
+     "misconception": "המרווח בין המלבנים אינו 8; התרשים מסומן בחצאי סטיות תקן.",
+     "transition": "כעת נשתמש באותו ציר כדי למצוא את אחוז הקבלה.",
+     "sources": [
+      "moe-2025a-35372-3"
+     ]
+    }
+   },
+   {
+    "id": "s18",
+    "title": "מעל 80 נמצא הזנב של 16%",
+    "kicker": "מקורית ב",
+    "prompt": "כמה סטיות תקן מפרידות בין 72 ל־80?",
+    "objectiveId": "o4",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "80 הוא \\(s\\) אחד מעל \\(\\mu=72\\). מבקשים את כל השטח שמימין לגבול הזה.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "100\\%-84\\%=16\\%",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "model",
+      "text": "כל הציונים מעל \\(z=1\\)",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": true,
+       "states": [
+        {
+         "mean": 72,
+         "sd": 8,
+         "lowerZ": 1,
+         "upperZ": 4,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "80 הוא 8 נקודות מעל 72, כלומר \\(z=1\\). בתרשים 84% נמצאים עד הגבול הזה, ולכן הזנב הימני הוא 16%.",
+     "ask": "איזה חלק מהפעמון מייצג 'גבוה מ־80'?",
+     "expectedAnswer": "הזנב שמימין ל־80.",
+     "ifStuck": "בקשו לצבוע רק את מה שנשאר אחרי קו 80.",
+     "misconception": "84% ו־16% משלימים יחד ל־100%. מחסרים 84 מ־100 כדי למצוא את החלק החסר; אחר כך מחברים 84 ו־16 כדי לבדוק שקיבלנו את השלם.",
+     "transition": "האחוז הבא מאפשר לעבור מכמות ידועה לגודל השכבה.",
+     "sources": [
+      "moe-2025a-35372-3"
+     ]
+    }
+   },
+   {
+    "id": "s19",
+    "title": "32 תלמידים הם 16% מן השכבה",
+    "kicker": "מקורית ג",
+    "prompt": "איזו כמות שלמה, כשמוצאים ממנה 16%, נותנת 32?",
+    "objectiveId": "o1",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "מסעיף ב ידוע שהמתקבלים הם 16% מן הנבחנים. כאן ידועה הכמות של אותו חלק.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "\\begin{aligned}16\\%&\\leftrightarrow32\\\\1\\%&\\leftrightarrow32\\div16=2\\\\100\\%&\\leftrightarrow2\\cdot100=200\\end{aligned}",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "callout",
+      "text": "כלומר, 200 תלמידים נבחנו.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "ידוע ש־16% הם 32 תלמידים. מחלקים את 32 ל־16 חלקים שווים ומוצאים שאחוז אחד הוא שני תלמידים. כדי לחזור לשלם כופלים ב־100 ומקבלים 200 תלמידים. אחרי שהמשמעות ברורה אפשר להראות את הדרך המקוצרת: מחלקים את 32 ב־0.16. לבדיקה, \\(0.16\\cdot200=32\\).",
+     "ask": "למה כאן מחלקים ולא מכפילים?",
+     "expectedAnswer": "כי הכמות החלקית ידועה ואנחנו מחפשים את הכמות השלמה.",
+     "ifStuck": "ציירו 16 קופסאות שוות שמייצגות יחד 32 תלמידים. בכל קופסה שני תלמידים, וכל קופסה מייצגת אחוז אחד. כמה תלמידים יהיו ב־100 קופסאות?",
+     "misconception": "32 אינו מספר האחוזים אלא מספר תלמידים.",
+     "transition": "בסעיף האחרון מחליפים כיוון: מ־z חוזרים לציון.",
+     "sources": [
+      "moe-2025a-35372-3"
+     ]
+    }
+   },
+   {
+    "id": "s20",
+    "title": "ציון התקן מחזיר אותנו לציון",
+    "kicker": "מקורית ד",
+    "prompt": "חזו: האם ציון של \\(z=1.75\\) יהיה מעל או מתחת לממוצע?",
+    "objectiveId": "o4",
+    "layout": "working",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "\\(z=1.75\\) פירושו 1.75 סטיות תקן מעל הממוצע, ולכן מוסיפים את המרחק.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "equation",
+      "text": "x=\\mu+z\\cdot s=72+1.75\\cdot8=86",
+      "model": null,
+      "sourceId": null,
+      "reveal": 2
+     },
+     {
+      "type": "model",
+      "text": "נקודת הציון תופיע לאחר החישוב",
+      "model": {
+       "mode": "position",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 72,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": 1.75,
+         "hideZ": 1.75
+        }
+       ]
+      },
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "אפשרו תחזית איכותית לפני חשיפת הציון. לאחר מכן מכפילים את מספר הסטיות ב־8 ומוסיפים ל־72, משום שהסימן חיובי.",
+     "ask": "מדוע מוסיפים את המרחק לממוצע?",
+     "expectedAnswer": "כי \\(z\\) חיובי, ולכן עמית נמצא מימין לממוצע.",
+     "ifStuck": "חשבו תחילה את \\(1.75\\cdot8\\), ואז הזכירו מאיזה ציון יוצאים.",
+     "misconception": "אין לעגל את \\(1.75\\) לרצועה קרובה כדי לחשב ציון; הנוסחה עובדת בדיוק.",
+     "transition": "נבדוק אם אפשר להעביר את אותה קריאה להקשר חדש.",
+     "sources": [
+      "moe-2025a-35372-3"
+     ]
+    }
+   },
+   {
+    "id": "s21",
+    "title": "בדיקה חדשה: זנב ימני",
+    "kicker": "תרגול מקורי",
+    "prompt": "עבדו עצמאית; בדקו מה מבקש הביטוי 'מעל'.",
+    "objectiveId": "o3",
+    "layout": "challenge",
+    "blocks": [],
+    "taskId": "t-tail-new",
+    "presenterNotes": {
+     "minutes": 4,
+     "explanation": "זו בדיקת העברה עצמאית: הקשר, הממוצע וסטיית התקן שונים משאלת המקור. התלמיד צריך לזהות תחילה את מיקום הסף ואז להשתמש במשלים.",
+     "ask": "איזה חלק מן הפעמון מתאים למילה 'מעל'?",
+     "expectedAnswer": "החלק שמימין לסף.",
+     "ifStuck": "בקשו לחשב את המרחק בין 70 ל־76 ביחידות של \\(s\\), בלי לחשב את האחוז עדיין.",
+     "misconception": "אין להשתמש ב־84% כתשובה; 84% הוא החלק שמתחת לסף.",
+     "transition": "נעבור מבדיקת אחוז לבניית אזור על המודל.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s22",
+    "title": "בנו את האזור המרכזי",
+    "kicker": "תרגול מקורי",
+    "prompt": "סמנו את שני הגבולות לפני שליחת תשובה.",
+    "objectiveId": "o3",
+    "layout": "challenge",
+    "blocks": [],
+    "taskId": "t-build-central",
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "המשימה בודקת בניית אזור, לא חישוב מספרי. התלמיד מתרגם 'עד סטיית תקן אחת מן הממוצע' לשני גבולות סימטריים.",
+     "ask": "האם צריך גבול אחד או שניים?",
+     "expectedAnswer": "שני גבולות, אחד בכל צד של המרכז.",
+     "ifStuck": "הזכירו שהמילה 'בתוך' מכוונת לאזור מרכזי משני הצדדים.",
+     "misconception": "בחירה מ־0 עד 1 כוללת רק את הצד הימני, ולא את כל האזור המרכזי.",
+     "transition": "נסכם את שלוש הקריאות החשובות לפני כרטיס היציאה.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s23",
+    "title": "שלוש קריאות שמובילות לפתרון",
+    "kicker": "סיכום",
+    "prompt": "איזה כלי תבחרו בכל סוג שאלה?",
+    "objectiveId": "o4",
+    "layout": "recap",
+    "blocks": [
+     {
+      "type": "callout",
+      "text": "מיקום: \\(z\\) מודד מרחק חתום מן \\(\\mu\\).",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "callout",
+      "text": "אחוז: שטח צבוע מייצג חלק מן התלמידים.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     },
+     {
+      "type": "callout",
+      "text": "כמות: אחוז מן השלם או חלק ידוע שמחזיר לשלם.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 2
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "מחברים את השיעור לשלושה כלים. אין צורך לשנן את כל הפעמון; קוראים את המיקום, בוחרים אזור, ואז מתאימים את פעולת האחוזים.",
+     "ask": "איזה כלי חסר לנו אם יודעים \\(z\\) ורוצים ציון?",
+     "expectedAnswer": "הנוסחה \\(x=\\mu+z\\cdot s\\).",
+     "ifStuck": "בקשו להיזכר בסעיף ד של שאלת המקור.",
+     "misconception": "שטח, אחוז וכמות קשורים אך אינם אותו דבר.",
+     "transition": "כרטיס היציאה בודק את כיוון ההמרה האחרון.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s24",
+    "title": "כרטיס יציאה: מ־z לציון",
+    "kicker": "בדיקה עצמאית",
+    "prompt": "רשמו חישוב קצר והסבירו את סימן התשובה.",
+    "objectiveId": "o4",
+    "layout": "challenge",
+    "blocks": [],
+    "taskId": "t-exit-score",
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "המשימה מחליפה נתונים והקשר, ולכן בודקת הבנה של נוסחת ההמרה ולא זיכרון של תשובת הבגרות.",
+     "ask": "מה אומר הסימן השלילי לפני כל חישוב?",
+     "expectedAnswer": "שהציון יהיה מתחת לממוצע.",
+     "ifStuck": "הציעו לחשב תחילה את המרחק \\(1.5\\cdot4\\).",
+     "misconception": "אין להוסיף את המרחק כשה־z שלילי.",
+     "transition": "נסיים במשחקים קצרים שמחזקים אזורים וציר.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s25",
+    "title": "משחק: בונים את האזור הנכון",
+    "kicker": "משחק מושגים",
+    "prompt": "בכל סיבוב בנו את האזור לפני שבודקים.",
+    "objectiveId": "o3",
+    "layout": "challenge",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "משחק 1: קוראים את המילים ובונים את האזור המתאים על הפעמון.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "callout",
+      "text": "הגבולות חשובים יותר מן הגובה.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "הפעילו את משחק האזורים בשלושה סיבובים קצרים. בקשו נימוק של משפט אחד לפני בדיקה בכל סיבוב.",
+     "ask": "מה נבדוק לפני שנאשר אזור?",
+     "expectedAnswer": "את שני הגבולות ואת הכיוון של ההצללה.",
+     "ifStuck": "הציעו לסמן קודם את המרכז ואז את המרחקים ממנו.",
+     "misconception": "אזור ימני אינו מתחיל במרכז אלא בגבול שניתן.",
+     "transition": "המשחק הבא מחזיר מיקום על ציר לציון חסר.",
+     "sources": []
+    }
+   },
+   {
+    "id": "s26",
+    "title": "משחק: חושפים מספר חסר בציר",
+    "kicker": "משחק מושגים",
+    "prompt": "מצאו את גודל הצעד לפני שאתם מנחשים.",
+    "objectiveId": "o2",
+    "layout": "challenge",
+    "blocks": [
+     {
+      "type": "copy",
+      "text": "משחק 2: כל מספר חסר נמצא על ציר של חצאי סטיות תקן.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 0
+     },
+     {
+      "type": "callout",
+      "text": "קודם מוצאים \\(s/2\\), ואז זזים על הציר.",
+      "model": null,
+      "sourceId": null,
+      "reveal": 1
+     }
+    ],
+    "taskId": null,
+    "presenterNotes": {
+     "minutes": 3,
+     "explanation": "הפעילו את משחק הציר. אחרי כל תשובה בקשו לתאר את הצעד, לא רק את המספר.",
+     "ask": "מהו הצעד הקבוע בין סימונים סמוכים?",
+     "expectedAnswer": "חצי סטיית תקן.",
+     "ifStuck": "כתבו בצד \\(s/2\\) לפני קריאת הציר.",
+     "misconception": "אין לדלג ב־\\(s\\) שלם כשכל סימון הוא חצי \\(s\\).",
+     "transition": "הזכירו שהתרגול הביתי ממשיך מן אותו רעיון לשאלות חדשות.",
+     "sources": []
+    }
+   }
+  ],
+  "tasks": [
+   {
+    "id": "t-percent-count",
+    "title": "כמה תלמידים הם 16%?",
+    "prompt": "במועדון מדעים יש 150 תלמידים. 16% מהם נרשמו לסדנה. כמה תלמידים נרשמו?",
+    "givens": "הכמות הכוללת היא 150; החלק הוא 16%.",
+    "objectiveId": "o1",
+    "support": "independent",
+    "grading": "checked",
+    "model": null,
+    "check": {
+     "kind": "number",
+     "answer": 24,
+     "options": []
+    },
+    "hints": [
+     "המירו 16% למספר עשרוני.",
+     "כדי למצוא חלק מתוך שלם, כופלים את החלק העשרוני בכמות הכוללת."
+    ],
+    "solution": "\\(0.16\\cdot150=24\\), לכן נרשמו 24 תלמידים.",
+    "success": "נכון. חיברתם אחוז לכמות של תלמידים.",
+    "retry": "בדקו אם חיפשתם חלק מתוך 150 או את השלם כולו."
+   },
+   {
+    "id": "t-tail-new",
+    "title": "מי מעל סף הקבלה?",
+    "prompt": "ציוני מבחן במדעים מתפלגים נורמלית בקירוב בית־ספרי, עם \\(\\mu=70\\) ו־\\(s=6\\). איזה אחוז קיבל מעל 76?",
+    "givens": "הסף 76 נמצא 6 נקודות מעל הממוצע.",
+    "objectiveId": "o3",
+    "support": "independent",
+    "grading": "checked",
+    "model": {
+     "mode": "curve",
+     "interactive": "none",
+     "showProbability": false,
+     "states": [
+      {
+       "mean": 70,
+       "sd": 6,
+       "lowerZ": null,
+       "upperZ": null,
+       "pointZ": null,
+       "hideZ": null
+      }
+     ]
+    },
+    "check": {
+     "kind": "number",
+     "answer": 16,
+     "options": []
+    },
+    "hints": [
+     "חשבו את המרחק בין 76 ל־70 ביחידות של \\(s\\).",
+     "אחרי שמוצאים \\(z=1\\), השתמשו בשטח המשלים למה שנמצא עד הגבול."
+    ],
+    "solution": "\\(76-70=6=s\\), לכן הסף הוא \\(z=1\\). עד \\(z=1\\) יש 84%, ולכן מעליו \\(100\\%-84\\%=16\\%\\).",
+    "success": "נכון. זיהיתם זנב ימני והשתמשתם במשלים.",
+    "retry": "בדקו שהשאלה מבקשת את מה שמעל הסף, ולא את מה שמתחתיו."
+   },
+   {
+    "id": "t-build-central",
+    "title": "האזור שבתוך סטיית תקן אחת",
+    "prompt": "בנו על המודל את האזור של ציונים הנמצאים בתוך סטיית תקן אחת מן הממוצע.",
+    "givens": "\\(\\mu=80\\), \\(s=7\\). השתמשו בגבולות \\(z\\).",
+    "objectiveId": "o3",
+    "support": "independent",
+    "grading": "checked",
+    "model": {
+     "mode": "bands",
+     "interactive": "none",
+     "showProbability": false,
+     "states": [
+      {
+       "mean": 80,
+       "sd": 7,
+       "lowerZ": null,
+       "upperZ": null,
+       "pointZ": null,
+       "hideZ": null
+      }
+     ]
+    },
+    "check": {
+     "kind": "region",
+     "answer": [
+      -1,
+      1
+     ],
+     "options": []
+    },
+    "hints": [
+     "'בתוך סטיית תקן אחת' מתייחס לשני צדדי הממוצע.",
+     "הציבו גבול של סטיית תקן אחת שמאלה וגבול מקביל ימינה."
+    ],
+    "solution": "האזור המרכזי נבנה מן \\(z=-1\\) עד \\(z=1\\).",
+    "success": "נכון. בניתם אזור מרכזי סימטרי.",
+    "retry": "בדקו אם סימנתם גם את הצד השמאלי וגם את הצד הימני."
+   },
+   {
+    "id": "t-exit-score",
+    "title": "ציון התקן של נועה",
+    "prompt": "במבחן בהיסטוריה \\(\\mu=74\\) ו־\\(s=4\\). ציון התקן של נועה הוא \\(z=-1.5\\). מהו ציונה?",
+    "givens": "השתמשו בקשר בין \\(x\\), \\(\\mu\\), \\(z\\) ו־\\(s\\).",
+    "objectiveId": "o4",
+    "support": "independent",
+    "grading": "checked",
+    "model": null,
+    "check": {
+     "kind": "number",
+     "answer": 68,
+     "options": []
+    },
+    "hints": [
+     "חשבו תחילה את המרחק \\(1.5\\cdot4\\).",
+     "הסימן השלילי אומר שהציון נמצא מתחת לממוצע."
+    ],
+    "solution": "\\(x=74+(-1.5)\\cdot4=74-6=68\\).",
+    "success": "נכון. תרגמתם מרחק שלילי לציון שמתחת לממוצע.",
+    "retry": "שימו לב לכיוון: \\(z\\) שלילי מזיז שמאלה מן הממוצע."
+   }
+  ],
+  "homework": [
+   {
+    "id": "hw1",
+    "title": "חלק מתוך קבוצה",
+    "prompt": "בקבוצת רובוטיקה יש 125 תלמידים. 16% מהם נבחרו להציג ביריד. כמה תלמידים נבחרו?",
+    "givens": "הכמות הכוללת היא 125; החלק הוא 16%.",
+    "objectiveId": "o1",
+    "support": "guided",
+    "grading": "checked",
+    "model": null,
+    "check": {
+     "kind": "number",
+     "answer": 20,
+     "options": []
+    },
+    "hints": [
+     "המירו 16% ל־0.16.",
+     "כפלו את החלק העשרוני במספר התלמידים."
+    ],
+    "solution": "\\(0.16\\cdot125=20\\).",
+    "success": "נכון. מצאתם חלק מתוך קבוצה.",
+    "retry": "בדקו שהשתמשתם ב־0.16 ולא ב־16."
+   },
+   {
+    "id": "hw2",
+    "title": "מוצאים ממוצע משטח מצטבר",
+    "prompt": "ציוני מבחן באנגלית מתפלגים נורמלית בקירוב בית־ספרי ו־\\(s=4\\). ידוע ש־93% מן התלמידים קיבלו פחות מ־74. מצאו את \\(\\mu\\).",
+    "givens": "בתרשים בית הספר, 93% מצטברים עד \\(z=1.5\\).",
+    "objectiveId": "o4",
+    "support": "guided",
+    "grading": "checked",
+    "model": null,
+    "check": {
+     "kind": "number",
+     "answer": 68,
+     "options": []
+    },
+    "hints": [
+     "93% מציבים את 74 במרחק \\(1.5s\\) מעל הממוצע.",
+     "חשבו \\(1.5\\cdot4\\), ואז חזרו שמאלה מן 74."
+    ],
+    "solution": "\\(\\mu=74-1.5\\cdot4=68\\).",
+    "success": "נכון. החזרתם גבול מצטבר אל מרכז ההתפלגות.",
+    "retry": "בדקו את הכיוון: 74 נמצא מעל הממוצע."
+   },
+   {
+    "id": "hw3",
+    "title": "מציון תקן לציון",
+    "prompt": "במבחן בגאוגרפיה \\(\\mu=54\\), \\(s=12\\), וציון התקן של תלמיד הוא \\(z=1.75\\). מהו ציון התלמיד?",
+    "givens": "השתמשו ב־\\(x=\\mu+z\\cdot s\\).",
+    "objectiveId": "o2",
+    "support": "independent",
+    "grading": "checked",
+    "model": null,
+    "check": {
+     "kind": "number",
+     "answer": 75,
+     "options": []
+    },
+    "hints": [
+     "חשבו את המרחק \\(1.75\\cdot12\\).",
+     "מכיוון ש־\\(z\\) חיובי, מוסיפים את המרחק לממוצע."
+    ],
+    "solution": "\\(x=54+1.75\\cdot12=54+21=75\\).",
+    "success": "נכון. השתמשתם במרחק בסטיות תקן בלי לעגל אותו.",
+    "retry": "בדקו שלא החלפתם בין הכפל ב־\\(s\\) לבין חיבור לממוצע."
+   },
+   {
+    "id": "hw4",
+    "title": "מסבירים שטח וגובה",
+    "prompt": "כתבו 2–3 משפטים: מדוע אחוז תלמידים מיוצג על ידי שטח מתחת לפעמון ולא על ידי גובה העקומה בנקודה אחת?",
+    "givens": "התייחסו לאזור של ציונים ולא לציון יחיד.",
+    "objectiveId": "o1",
+    "support": "independent",
+    "grading": "tutor-review",
+    "model": null,
+    "check": null,
+    "hints": [
+     "חשבו מה מייצג אזור שמכיל טווח ציונים.",
+     "הבחינו בין 'ריכוז יחסי ליד נקודה' לבין 'חלק מן האוכלוסייה באזור'."
+    ],
+    "solution": "תשובה טובה מסבירה שהשטח כולל טווח ציונים ולכן מייצג חלק מן התלמידים. גובה העקומה מתאר ריכוז יחסי סביב נקודה ואינו אחוז בפני עצמו.",
+    "success": "נשלח לבדיקת המורה; ודאו שהסברתם גם שטח וגם גובה.",
+    "retry": "נסו להוסיף משפט שמבחין בין טווח ציונים לנקודה יחידה."
+   }
+  ],
+  "games": [
+   {
+    "id": "g-region",
+    "title": "בונים אזור, לא מנחשים אחוז",
+    "intro": "בכל סיבוב בנו את הגבולות המתאימים. אחר כך נמקו במילים קצרות.",
+    "kind": "region",
+    "rounds": [
+     {
+      "id": "gr1",
+      "title": "המרכז",
+      "prompt": "בנו את האזור שבתוך חצי סטיית תקן מן הממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\).",
+      "objectiveId": "o3",
+      "support": "guided",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -0.5,
+        0.5
+       ],
+       "options": []
+      },
+      "hints": [
+       "האזור סימטרי סביב 0.",
+       "חצי סטיית תקן לכל צד נותנת שני גבולות."
+      ],
+      "solution": "הגבולות הם \\(z=-0.5\\) ו־\\(z=0.5\\).",
+      "success": "הגבולות יוצרים את שתי הרצועות המרכזיות.",
+      "retry": "בדקו אם שני הצדדים של המרכז כלולים.",
+      "difficulty": 1
+     },
+     {
+      "id": "gr2",
+      "title": "הזנב הימני",
+      "prompt": "בנו את כל האזור של ציונים מעל סטיית תקן אחת מן הממוצע.",
+      "givens": "הגבול השמאלי הוא \\(z=1\\).",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        1,
+        4
+       ],
+       "options": []
+      },
+      "hints": [
+       "'מעל' מצביע ימינה על הציר.",
+       "האזור ממשיך מן הגבול אל הזנב הימני כולו."
+      ],
+      "solution": "האזור מתחיל ב־\\(z=1\\) וממשיך לכל הזנב הימני.",
+      "success": "נכון. זיהיתם אזור ימני שלם.",
+      "retry": "התחילו בגבול \\(z=1\\), לא במרכז.",
+      "difficulty": 1
+     },
+     {
+      "id": "gr3",
+      "title": "רצועה שמאלית",
+      "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -1.5,
+        -1
+       ],
+       "options": []
+      },
+      "hints": [
+       "שני המיקומים נמצאים משמאל ל־0.",
+       "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
+      ],
+      "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
+      "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
+      "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר.",
+      "difficulty": 1
+     },
+     {
+      "id": "gr-4",
+      "title": "רצועה שמאלית",
+      "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -1.5,
+        -1
+       ],
+       "options": []
+      },
+      "hints": [
+       "שני המיקומים נמצאים משמאל ל־0.",
+       "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
+      ],
+      "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
+      "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
+      "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר.",
+      "difficulty": 1
+     },
+     {
+      "id": "gr-5",
+      "title": "רצועה שמאלית",
+      "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -1.5,
+        -1
+       ],
+       "options": []
+      },
+      "hints": [
+       "שני המיקומים נמצאים משמאל ל־0.",
+       "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
+      ],
+      "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
+      "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
+      "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר.",
+      "difficulty": 2
+     },
+     {
+      "id": "gr-6",
+      "title": "רצועה שמאלית",
+      "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -1.5,
+        -1
+       ],
+       "options": []
+      },
+      "hints": [
+       "שני המיקומים נמצאים משמאל ל־0.",
+       "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
+      ],
+      "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
+      "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
+      "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר.",
+      "difficulty": 2
+     },
+     {
+      "id": "gr-7",
+      "title": "רצועה שמאלית",
+      "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -1.5,
+        -1
+       ],
+       "options": []
+      },
+      "hints": [
+       "שני המיקומים נמצאים משמאל ל־0.",
+       "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
+      ],
+      "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
+      "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
+      "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר.",
+      "difficulty": 2
+     },
+     {
+      "id": "gr-8",
+      "title": "רצועה שמאלית",
+      "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -1.5,
+        -1
+       ],
+       "options": []
+      },
+      "hints": [
+       "שני המיקומים נמצאים משמאל ל־0.",
+       "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
+      ],
+      "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
+      "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
+      "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר.",
+      "difficulty": 3
+     },
+     {
+      "id": "gr-9",
+      "title": "רצועה שמאלית",
+      "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -1.5,
+        -1
+       ],
+       "options": []
+      },
+      "hints": [
+       "שני המיקומים נמצאים משמאל ל־0.",
+       "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
+      ],
+      "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
+      "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
+      "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר.",
+      "difficulty": 3
+     },
+     {
+      "id": "gr-10",
+      "title": "רצועה שמאלית",
+      "prompt": "בנו את הרצועה שבין סטיית תקן וחצי מתחת לממוצע לבין סטיית תקן אחת מתחת לממוצע.",
+      "givens": "השתמשו בגבולות \\(z\\) בסדר עולה.",
+      "objectiveId": "o3",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "bands",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 60,
+         "sd": 8,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": null
+        }
+       ]
+      },
+      "check": {
+       "kind": "region",
+       "answer": [
+        -1.5,
+        -1
+       ],
+       "options": []
+      },
+      "hints": [
+       "שני המיקומים נמצאים משמאל ל־0.",
+       "על הציר, \\(-1.5\\) נמצא שמאלה מ־\\(-1\\)."
+      ],
+      "solution": "הרצועה היא מן \\(z=-1.5\\) עד \\(z=-1\\).",
+      "success": "נכון. שמרתם על סדר הגבולות גם בצד השלילי.",
+      "retry": "בדקו איזה מספר שלילי נמצא שמאלה יותר.",
+      "difficulty": 3
+     }
+    ]
+   },
+   {
+    "id": "g-axis",
+    "title": "המספר החסר על ציר הציונים",
+    "intro": "מצאו קודם את גודל הצעד \\(s/2\\), ואז את המספר המוסתר.",
+    "kind": "axis",
+    "rounds": [
+     {
+      "id": "ga1",
+      "title": "צעד ראשון",
+      "prompt": "במודל חסר הערך שב־\\(z=0.5\\). מהו?",
+      "givens": "\\(\\mu=64\\), \\(s=10\\).",
+      "objectiveId": "o2",
+      "support": "guided",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 64,
+         "sd": 10,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 0.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 69,
+       "options": []
+      },
+      "hints": [
+       "חצי סטיית תקן היא \\(10/2\\).",
+       "הוסיפו את הצעד לממוצע כי המיקום מימין."
+      ],
+      "solution": "\\(s/2=5\\), לכן הערך הוא \\(64+5=69\\).",
+      "success": "נכון. מצאתם צעד של חצי סטיית תקן.",
+      "retry": "בדקו אם השתמשתם בחצי \\(s\\), ולא ב־\\(s\\) שלם.",
+      "difficulty": 1
+     },
+     {
+      "id": "ga2",
+      "title": "צעד שמאלה",
+      "prompt": "במודל חסר הערך שב־\\(z=-1.5\\). מהו?",
+      "givens": "\\(\\mu=81\\), \\(s=6\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 81,
+         "sd": 6,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": -1.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 72,
+       "options": []
+      },
+      "hints": [
+       "חצי \\(s\\) הוא 3, ויש שלושה חצאי צעדים שמאלה.",
+       "אפשר גם לחשב \\(81-1.5\\cdot6\\)."
+      ],
+      "solution": "\\(81-1.5\\cdot6=72\\).",
+      "success": "נכון. קראתם מיקום שלילי על הציר.",
+      "retry": "בדקו שהלכתם שמאלה מן הממוצע.",
+      "difficulty": 1
+     },
+     {
+      "id": "ga3",
+      "title": "צעד מדויק",
+      "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
+      "givens": "\\(\\mu=57\\), \\(s=4\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 57,
+         "sd": 4,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 2.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 67,
+       "options": []
+      },
+      "hints": [
+       "בכל חצי צעד מוסיפים \\(4/2\\).",
+       "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
+      ],
+      "solution": "\\(57+2.5\\cdot4=67\\).",
+      "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
+      "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\).",
+      "difficulty": 1
+     },
+     {
+      "id": "ga-4",
+      "title": "צעד מדויק",
+      "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
+      "givens": "\\(\\mu=57\\), \\(s=4\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 57,
+         "sd": 4,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 2.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 67,
+       "options": []
+      },
+      "hints": [
+       "בכל חצי צעד מוסיפים \\(4/2\\).",
+       "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
+      ],
+      "solution": "\\(57+2.5\\cdot4=67\\).",
+      "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
+      "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\).",
+      "difficulty": 1
+     },
+     {
+      "id": "ga-5",
+      "title": "צעד מדויק",
+      "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
+      "givens": "\\(\\mu=57\\), \\(s=4\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 57,
+         "sd": 4,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 2.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 67,
+       "options": []
+      },
+      "hints": [
+       "בכל חצי צעד מוסיפים \\(4/2\\).",
+       "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
+      ],
+      "solution": "\\(57+2.5\\cdot4=67\\).",
+      "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
+      "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\).",
+      "difficulty": 2
+     },
+     {
+      "id": "ga-6",
+      "title": "צעד מדויק",
+      "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
+      "givens": "\\(\\mu=57\\), \\(s=4\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 57,
+         "sd": 4,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 2.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 67,
+       "options": []
+      },
+      "hints": [
+       "בכל חצי צעד מוסיפים \\(4/2\\).",
+       "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
+      ],
+      "solution": "\\(57+2.5\\cdot4=67\\).",
+      "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
+      "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\).",
+      "difficulty": 2
+     },
+     {
+      "id": "ga-7",
+      "title": "צעד מדויק",
+      "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
+      "givens": "\\(\\mu=57\\), \\(s=4\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 57,
+         "sd": 4,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 2.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 67,
+       "options": []
+      },
+      "hints": [
+       "בכל חצי צעד מוסיפים \\(4/2\\).",
+       "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
+      ],
+      "solution": "\\(57+2.5\\cdot4=67\\).",
+      "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
+      "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\).",
+      "difficulty": 2
+     },
+     {
+      "id": "ga-8",
+      "title": "צעד מדויק",
+      "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
+      "givens": "\\(\\mu=57\\), \\(s=4\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 57,
+         "sd": 4,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 2.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 67,
+       "options": []
+      },
+      "hints": [
+       "בכל חצי צעד מוסיפים \\(4/2\\).",
+       "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
+      ],
+      "solution": "\\(57+2.5\\cdot4=67\\).",
+      "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
+      "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\).",
+      "difficulty": 3
+     },
+     {
+      "id": "ga-9",
+      "title": "צעד מדויק",
+      "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
+      "givens": "\\(\\mu=57\\), \\(s=4\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 57,
+         "sd": 4,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 2.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 67,
+       "options": []
+      },
+      "hints": [
+       "בכל חצי צעד מוסיפים \\(4/2\\).",
+       "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
+      ],
+      "solution": "\\(57+2.5\\cdot4=67\\).",
+      "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
+      "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\).",
+      "difficulty": 3
+     },
+     {
+      "id": "ga-10",
+      "title": "צעד מדויק",
+      "prompt": "במודל חסר הערך שב־\\(z=2.5\\). מהו?",
+      "givens": "\\(\\mu=57\\), \\(s=4\\).",
+      "objectiveId": "o2",
+      "support": "independent",
+      "grading": "checked",
+      "model": {
+       "mode": "axis",
+       "interactive": "none",
+       "showProbability": false,
+       "states": [
+        {
+         "mean": 57,
+         "sd": 4,
+         "lowerZ": null,
+         "upperZ": null,
+         "pointZ": null,
+         "hideZ": 2.5
+        }
+       ]
+      },
+      "check": {
+       "kind": "number",
+       "answer": 67,
+       "options": []
+      },
+      "hints": [
+       "בכל חצי צעד מוסיפים \\(4/2\\).",
+       "יש חמישה חצאי צעדים מ־0 עד \\(2.5\\)."
+      ],
+      "solution": "\\(57+2.5\\cdot4=67\\).",
+      "success": "נכון. חיברתם חמישה חצאי צעדים לציון מדויק.",
+      "retry": "נסו למנות חצאי צעדים או להשתמש ישירות ב־\\(z\\cdot s\\).",
+      "difficulty": 3
+     }
+    ]
+   }
+  ],
+  "sourceSolutions": [
+   {
+    "questionId": "moe-2025a-35372-3",
+    "part": "a1",
+    "slideId": "s16",
+    "answer": "72"
+   },
+   {
+    "questionId": "moe-2025a-35372-3",
+    "part": "a2",
+    "slideId": "s17",
+    "answer": "52,56,60,64,68,72,76,80,84,88,92"
+   },
+   {
+    "questionId": "moe-2025a-35372-3",
+    "part": "b",
+    "slideId": "s18",
+    "answer": "16"
+   },
+   {
+    "questionId": "moe-2025a-35372-3",
+    "part": "c",
+    "slideId": "s19",
+    "answer": "200"
+   },
+   {
+    "questionId": "moe-2025a-35372-3",
+    "part": "d",
+    "slideId": "s20",
+    "answer": "86"
+   }
+  ]
+ },
+ "authoringFingerprint": "ac6a21b6cde8429c506fd366bf2473cc060c80e07a1b0ba46324537b04a3d65d",
+ "sourceRevision": "1fbac89",
+ "sources": [
+  {
+   "id": "moe-2025a-35372-3",
+   "sha256": "006125d641f5c9e4e3e2c4bd4c3bf2c34bd52ea65a5e9156616240441ea916b5"
   }
+ ],
+ "revision": {
+  "mode": "editorial-text",
+  "reviewer": "Codex",
+  "parentVersion": "5a91d0d5465595dcad5ae769f4a9a4baa736a725dbdc2aaf672f8ab82cd0bdcf",
+  "fields": [
+   "/slides/7/title",
+   "/slides/7/kicker",
+   "/slides/7/prompt",
+   "/slides/7/blocks/0/text",
+   "/slides/7/blocks/1/text",
+   "/slides/7/presenterNotes/explanation",
+   "/slides/7/presenterNotes/ask",
+   "/slides/7/presenterNotes/expectedAnswer",
+   "/slides/7/presenterNotes/ifStuck",
+   "/slides/7/presenterNotes/misconception",
+   "/slides/7/presenterNotes/transition",
+   "/slides/17/presenterNotes/misconception",
+   "/slides/18/blocks/1/text",
+   "/slides/18/presenterNotes/explanation",
+   "/slides/18/presenterNotes/ifStuck"
+  ],
+  "patchSha256": "f311788cfd8b33b64699a1ae30fb5bc5cef370afefc4bd9dc6657190ff455651",
+  "reason": "Independent teaching review: visible percentage bridge before assessment and correct complement guidance",
+  "reviewedUnderFingerprint": "2b1818dd0aff45ae431ed5cf0e2785cabab40443c0351409e350bfdda1746fc1"
+ }
 }

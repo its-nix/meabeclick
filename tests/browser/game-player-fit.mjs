@@ -34,15 +34,15 @@ try{
   await click(0,'[data-choice="1"]');await click(0,'[data-task-action="attempt"]');await fb(0).filter({hasText:/\S/}).waitFor();assert.equal(await fb(0).getAttribute('data-result'),'retry');await shot('02-choice-wrong');
   await click(0,'[data-task-action="hint"]');await page.waitForFunction(()=>document.querySelector('[data-round="0"] [data-task-feedback]').dataset.result==='help');await shot('03-hint');
   await click(0,'[data-choice="0"]');await click(0,'[data-task-action="attempt"]');await page.waitForFunction(()=>document.querySelector('[data-round="0"] [data-task-feedback]').dataset.result==='correct');await shot('04-choice-right');
-  await click(0,'[data-next-round]');await round(1).waitFor({state:'visible'});assert.equal(await page.locator('[data-game-position]').getAttribute('aria-label'),'שאלה 2 מתוך 4');
+  await click(0,'[data-next-round]');await round(1).waitFor({state:'visible'});assert.equal(await page.locator('[data-game-position]').getAttribute('aria-label'),'שאלה 2 מתוך 10');
   await click(1,'[data-prev-round]');await round(0).waitFor({state:'visible'});await click(0,'[data-next-round]');
-  await click(1,'[data-next-round]');await shot('05-number');
-  await round(2).locator('[data-number]').fill('4');await click(2,'[data-task-action="attempt"]');await page.waitForFunction(()=>document.querySelector('[data-round="2"] [data-task-feedback]').dataset.result==='retry');await shot('06-number-wrong');
-  await round(2).locator('[data-number]').fill('3');await click(2,'[data-task-action="attempt"]');await page.waitForFunction(()=>document.querySelector('[data-round="2"] [data-task-feedback]').dataset.result==='correct');await shot('07-number-right');
-  await click(2,'[data-task-action="solution"]');await page.waitForFunction(()=>/\S/.test(document.querySelector('[data-round="2"] [data-task-feedback]').textContent));await shot('08-solution');
-  await click(2,'[data-next-round]');await shot('09-open-ended-last');assert.equal(await page.locator('[data-round="3"] [data-next-round]').getAttribute('aria-label'),'סיום');
-  await round(3).locator('textarea').fill('המספר 3 מזיז את הפרבולה ימינה');await click(3,'[data-task-action="attempt"]');await fb(3).filter({hasText:/\S/}).waitFor();await shot('10-open-ended-sent');
-  await click(3,'[data-next-round]');await page.locator('[data-game-done]').waitFor({state:'visible'});await shot('11-done');
+  await click(1,'[data-next-round]');await click(2,'[data-next-round]');await shot('05-number');
+  await round(3).locator('[data-number]').fill('4');await click(3,'[data-task-action="attempt"]');await page.waitForFunction(()=>document.querySelector('[data-round="3"] [data-task-feedback]').dataset.result==='retry');await shot('06-number-wrong');
+  await round(3).locator('[data-number]').fill('3');await click(3,'[data-task-action="attempt"]');await page.waitForFunction(()=>document.querySelector('[data-round="3"] [data-task-feedback]').dataset.result==='correct');await shot('07-number-right');
+  await click(3,'[data-task-action="solution"]');await page.waitForFunction(()=>/\S/.test(document.querySelector('[data-round="3"] [data-task-feedback]').textContent));await shot('08-solution');
+  for(const n of [3,4,5,6,7,8])await click(n,'[data-next-round]');await shot('09-open-ended-last');assert.equal(await page.locator('[data-round="9"] [data-next-round]').getAttribute('aria-label'),'סיום');
+  await round(9).locator('textarea').fill('המספר 3 מזיז את הפרבולה ימינה');await click(9,'[data-task-action="attempt"]');await fb(9).filter({hasText:/\S/}).waitFor();await shot('10-open-ended-sent');
+  await click(9,'[data-next-round]');await page.locator('[data-game-done]').waitFor({state:'visible'});await shot('11-done');
   assert.deepEqual(errors,[]);
   // student player chrome, graded by the sample session
   await page.route('**/student-player',r=>r.fulfill({contentType:'text/html',body:renderVisualDeck(sampleBundle(),{view:'game',gameId:SAMPLE_GAME_ID,baseUrl:'/app/student/games',actionUrl:'/api/sample-game',version:SAMPLE_VERSION,activitiesOnly:true,studentPlayer:true})}));

@@ -2,13 +2,23 @@ import {mathText,mathFormula} from '../math.ts';
 import {numericAnswer,type PresenterNotes} from '../model.ts';
 
 export const VISUAL_RULE_VERSION='mea-visual-v1';
+/** A practice game has at least this many rounds; each round carries a difficulty 1..GAME_LEVELS inside the lesson's own objectives. */
+export const GAME_MIN_ROUNDS=10,GAME_MAX_ROUNDS=12,GAME_LEVELS=3;
 export const DECK_LAYOUTS=['cover','visual','split','compare','source','working','challenge','recap'] as const;
 export interface NormalState {mean:number;sd:number;lowerZ:number|null;upperZ:number|null;pointZ:number|null;hideZ:number|null}
 export interface NormalModel {mode:'population'|'curve'|'spread'|'bands'|'cumulative'|'axis'|'position';interactive:'none'|'spread'|'region'|'position';showProbability:boolean;states:NormalState[]}
 export interface DeckBlock {type:'copy'|'equation'|'model'|'source'|'callout';text:string;model:NormalModel|null;sourceId:string|null;reveal:number}
-export interface DeckTask {id:string;title:string;prompt:string;givens:string;objectiveId:string;support:'guided'|'independent';grading:'checked'|'tutor-review';model:NormalModel|null;check:{kind:'number'|'choice'|'region';answer:number|number[];options:string[]}|null;hints:string[];solution:string;success:string;retry:string}
+export interface DeckTask {id:string;title:string;prompt:string;givens:string;objectiveId:string;support:'guided'|'independent';grading:'checked'|'tutor-review';model:NormalModel|null;check:{kind:'number'|'choice'|'region';answer:number|number[];options:string[]}|null;hints:string[];solution:string;success:string;retry:string;difficulty:number|null}
 export interface DeckSlide {id:string;title:string;kicker:string;prompt:string;objectiveId:string;layout:typeof DECK_LAYOUTS[number];blocks:DeckBlock[];taskId:string|null;presenterNotes:PresenterNotes}
 export interface VisualLesson {version:1;ruleVersion:string;title:string;subtitle:string;durationMin:number;homeworkMinutes:number;objectives:{id:string;title:string}[];agenda:{title:string;minutes:number;slideId:string}[];slides:DeckSlide[];tasks:DeckTask[];homework:DeckTask[];games:{id:string;title:string;intro:string;kind:'region'|'axis'|'quiz';rounds:DeckTask[]}[];sourceSolutions:{questionId:string;part:string;slideId:string;answer:string}[]}
+/** Game rounds only: 10-12 rounds, an integer difficulty 1-3 on each, and at least two levels so difficulty can actually move. */
+function gameRounds(errors:string[],rounds:any[]){
+ if(rounds.length<GAME_MIN_ROUNDS){errors.push('משחק תרגול דורש לפחות עשר שאלות');return;}
+ const levels=new Set<unknown>();
+ for(const r of rounds){if(!object(r))continue;if(!Number.isInteger(r.difficulty)||r.difficulty<1||r.difficulty>GAME_LEVELS)errors.push('לכל שאלה במשחק דרושה רמת קושי 1 עד 3');else levels.add(r.difficulty);}
+ for(let i=1;i<rounds.length;i++)if(object(rounds[i])&&object(rounds[i-1])&&Number.isInteger(rounds[i].difficulty)&&Number.isInteger(rounds[i-1].difficulty)&&rounds[i].difficulty<rounds[i-1].difficulty){errors.push('שאלות המשחק חייבות לעלות ברמת הקושי');break;}
+ if(levels.size<2)errors.push('רמת הקושי במשחק חייבת להשתנות לפחות בין שתי רמות');
+}
 export interface DeckValidation {durationMin?:number;sourceAnswers?:Record<string,Record<string,string>>}
 const object=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
 const text=(v:unknown,max=600,empty=false)=>typeof v==='string'&&v.length<=max&&(empty||!!v.trim())&&!/(?<!\$)\$(?!\$)/.test(v)&&!mathText(v).includes('data-math-error');
@@ -90,7 +100,7 @@ export function visualLessonProblems(raw:unknown,options:DeckValidation={}):stri
  let total=0;for(const a of agenda){need(object(a)&&text(a.title,140)&&Number.isInteger(a.minutes)&&a.minutes>0&&slideIds.has(a.slideId),'סדר שיעור לא תקין');if(object(a)&&finite(a.minutes))total+=a.minutes;}
  need(total===p.durationMin,'זמן סדר השיעור אינו שווה למשך השיעור');
  for(const t of [...tasks,...homework])checkTask(t);
- const gameIds=new Set<string>();for(const g of games){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis','quiz'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);for(const t of list(g.rounds,8,3))checkTask(t);}
+ const gameIds=new Set<string>();for(const g of games){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis','quiz'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);const rounds=list(g.rounds,GAME_MAX_ROUNDS,GAME_MIN_ROUNDS);gameRounds(errors,rounds);for(const t of rounds)checkTask(t);}
  for(const s of slides.filter(object))need(s.taskId===null||tasks.some(t=>object(t)&&t.id===s.taskId),'שקף מפנה למשימת כיתה חסרה');
  for(const goal of goals)need([...tasks,...homework].some(t=>object(t)&&t.objectiveId===goal&&t.support==='independent'),'יעד ללא בדיקה עצמאית חדשה');
  const solutions=list(p.sourceSolutions,20,0);
@@ -120,7 +130,7 @@ export function gradeDeckTask(task:DeckTask,input:unknown):boolean{
 /** Public data is rebuilt, including nested models; arbitrary generated properties never cross this boundary. */
 export function publicVisualLesson(p:VisualLesson){
  const model=(m:NormalModel|null)=>m?{mode:m.mode,interactive:m.interactive,showProbability:m.showProbability,states:m.states.map(s=>({mean:s.mean,sd:s.sd,lowerZ:s.lowerZ,upperZ:s.upperZ,pointZ:s.pointZ,hideZ:s.hideZ}))}:null;
- const task=(t:DeckTask)=>({id:t.id,title:t.title,prompt:t.prompt,givens:t.givens,objectiveId:t.objectiveId,support:t.support,grading:t.grading,model:model(t.model),check:t.check?{kind:t.check.kind,options:[...t.check.options]}:null});
+ const task=(t:DeckTask)=>({id:t.id,title:t.title,prompt:t.prompt,givens:t.givens,objectiveId:t.objectiveId,support:t.support,grading:t.grading,model:model(t.model),check:t.check?{kind:t.check.kind,options:[...t.check.options]}:null,difficulty:t.difficulty??null});
  return {version:p.version,ruleVersion:p.ruleVersion,title:p.title,subtitle:p.subtitle,durationMin:p.durationMin,homeworkMinutes:p.homeworkMinutes,objectives:p.objectives.map(o=>({id:o.id,title:o.title})),agenda:p.agenda.map(a=>({title:a.title,minutes:a.minutes,slideId:a.slideId})),slides:p.slides.map(s=>({id:s.id,title:s.title,kicker:s.kicker,prompt:s.prompt,objectiveId:s.objectiveId,layout:s.layout,taskId:s.taskId,blocks:s.blocks.map(b=>({type:b.type,text:b.text,model:model(b.model),sourceId:b.sourceId,reveal:b.reveal}))})),tasks:p.tasks.map(task),homework:p.homework.map(task),games:p.games.map(g=>({id:g.id,title:g.title,intro:g.intro,kind:g.kind,rounds:g.rounds.map(task)}))};
 }
 
@@ -130,7 +140,7 @@ export function visualGamesProblems(games:unknown,objectives:{id:string}[]):stri
  const list=(v:unknown,max:number,min=1):any[]=>{if(!Array.isArray(v)||v.length<min||v.length>max){errors.push('רשימת מצגת חסרה או ארוכה מדי');return [];}return v;};
  const goals=new Set(objectives.map(o=>o.id)),taskIds=new Set<string>(),{checkTask}=taskCheckers(errors,need,list,goals,taskIds);
  const gameIds=new Set<string>();
- for(const g of list(games,4,1)){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis','quiz'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);for(const t of list(g.rounds,8,3))checkTask(t);}
+ for(const g of list(games,4,1)){if(!object(g)){errors.push('משחק לא תקין');continue;}need(id(g.id)&&!gameIds.has(g.id)&&text(g.title,120)&&text(g.intro,300)&&['region','axis','quiz'].includes(g.kind),'משחק לא תקין');gameIds.add(g.id);const rounds=list(g.rounds,GAME_MAX_ROUNDS,GAME_MIN_ROUNDS);gameRounds(errors,rounds);for(const t of rounds)checkTask(t);}
  const prose=(v:unknown,d=0):void=>{if(d>10)return;if(typeof v==='string'){const plain=v.replace(/\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$/g,'');if(/\\[a-zA-Z]+/.test(plain)||/(?<!\$)\$(?!\$)/.test(plain)||/[\^{}]|(?<![A-Za-z0-9])[A-Za-z]_[A-Za-z0-9{]/.test(plain))errors.push('נוסחה בפרוזה חייבת להיות בין \\( ... \\)');}else if(Array.isArray(v))v.slice(0,80).forEach(x=>prose(x,d+1));else if(object(v))for(const x of Object.values(v).slice(0,80))prose(x,d+1);};
  prose(games);
  return [...new Set(errors)];

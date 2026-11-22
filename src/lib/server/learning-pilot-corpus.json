@@ -75,7 +75,7 @@
       "feedbackSha256": "8e10f91e75eb83adc5c2e6736b200d2281e4a9c5a4d78f81d75adc6edeb9cb2e",
       "patchSha256": "48dcf9b40f9f41b7be5158196a9c7d5dea318ce58de99ba387e7e1ebc6082f61"
     },
-    "bundleSha256": "ffd48786e4e08bff6097d3a507d6ecf36534a718c4c027f7e2b0317b3af6c420",
+    "bundleSha256": "45718170283b3e4aceb6d18e4c31c668f3e9471f3ae4e9b2b01bd68a1037780e",
     "seconds": 11.163,
     "finishedAt": "2026-11-10T21:35:20.303Z",
     "sourceVerification": {
@@ -1673,7 +1673,8 @@
             ],
             "solution": "הגבולות הם \\(z=-0.5\\) ו־\\(z=0.5\\), ולכן מסמנים את האזור המרכזי ביניהם.",
             "success": "בניתם אזור מרכזי מאוזן.",
-            "retry": "בדקו אם השטח שלכם נמצא בין שני הגבולות."
+            "retry": "בדקו אם השטח שלכם נמצא בין שני הגבולות.",
+            "difficulty": 1
           },
           {
             "id": "gr-r2",
@@ -1712,7 +1713,8 @@
             ],
             "solution": "מסמנים את כל הזנב הימני החל ב־\\(z=1\\).",
             "success": "כיוון הזנב והגבול נכונים.",
-            "retry": "בדקו אם סימנתם את הצד של ציוני התקן הגדולים יותר."
+            "retry": "בדקו אם סימנתם את הצד של ציוני התקן הגדולים יותר.",
+            "difficulty": 1
           },
           {
             "id": "gr-r3",
@@ -1751,7 +1753,8 @@
             ],
             "solution": "מסמנים את כל הזנב השמאלי עד \\(z=-1.5\\).",
             "success": "זיהיתם זנב שמאלי רחוק.",
-            "retry": "אל תסתפקו ברצועה הסמוכה לגבול; בדקו את כל הצד השמאלי."
+            "retry": "אל תסתפקו ברצועה הסמוכה לגבול; בדקו את כל הצד השמאלי.",
+            "difficulty": 1
           },
           {
             "id": "gr-r4",
@@ -1790,7 +1793,248 @@
             ],
             "solution": "מסמנים את הטווח \\(0.5\\leq z\\leq1.5\\), כולו מימין לממוצע.",
             "success": "בניתם נכון טווח שאינו מרכזי.",
-            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון."
+            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון.",
+            "difficulty": 1
+          },
+          {
+            "id": "gr-r-5",
+            "title": "סיבוב 4 — טווח לא סימטרי",
+            "prompt": "בנו את האזור שבין \\(z=0.5\\) ובין \\(z=1.5\\).",
+            "givens": "שני הגבולות נמצאים מעל הממוצע.",
+            "objectiveId": "obj-area",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 36,
+                  "sd": 4,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                0.5,
+                1.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "שני ציוני התקן חיוביים, ולכן שניהם מימין לממוצע.",
+              "סמנו רק את השטח שבין שני הגבולות."
+            ],
+            "solution": "מסמנים את הטווח \\(0.5\\leq z\\leq1.5\\), כולו מימין לממוצע.",
+            "success": "בניתם נכון טווח שאינו מרכזי.",
+            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון.",
+            "difficulty": 2
+          },
+          {
+            "id": "gr-r-6",
+            "title": "סיבוב 4 — טווח לא סימטרי",
+            "prompt": "בנו את האזור שבין \\(z=0.5\\) ובין \\(z=1.5\\).",
+            "givens": "שני הגבולות נמצאים מעל הממוצע.",
+            "objectiveId": "obj-area",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 36,
+                  "sd": 4,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                0.5,
+                1.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "שני ציוני התקן חיוביים, ולכן שניהם מימין לממוצע.",
+              "סמנו רק את השטח שבין שני הגבולות."
+            ],
+            "solution": "מסמנים את הטווח \\(0.5\\leq z\\leq1.5\\), כולו מימין לממוצע.",
+            "success": "בניתם נכון טווח שאינו מרכזי.",
+            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון.",
+            "difficulty": 2
+          },
+          {
+            "id": "gr-r-7",
+            "title": "סיבוב 4 — טווח לא סימטרי",
+            "prompt": "בנו את האזור שבין \\(z=0.5\\) ובין \\(z=1.5\\).",
+            "givens": "שני הגבולות נמצאים מעל הממוצע.",
+            "objectiveId": "obj-area",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 36,
+                  "sd": 4,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                0.5,
+                1.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "שני ציוני התקן חיוביים, ולכן שניהם מימין לממוצע.",
+              "סמנו רק את השטח שבין שני הגבולות."
+            ],
+            "solution": "מסמנים את הטווח \\(0.5\\leq z\\leq1.5\\), כולו מימין לממוצע.",
+            "success": "בניתם נכון טווח שאינו מרכזי.",
+            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון.",
+            "difficulty": 2
+          },
+          {
+            "id": "gr-r-8",
+            "title": "סיבוב 4 — טווח לא סימטרי",
+            "prompt": "בנו את האזור שבין \\(z=0.5\\) ובין \\(z=1.5\\).",
+            "givens": "שני הגבולות נמצאים מעל הממוצע.",
+            "objectiveId": "obj-area",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 36,
+                  "sd": 4,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                0.5,
+                1.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "שני ציוני התקן חיוביים, ולכן שניהם מימין לממוצע.",
+              "סמנו רק את השטח שבין שני הגבולות."
+            ],
+            "solution": "מסמנים את הטווח \\(0.5\\leq z\\leq1.5\\), כולו מימין לממוצע.",
+            "success": "בניתם נכון טווח שאינו מרכזי.",
+            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון.",
+            "difficulty": 3
+          },
+          {
+            "id": "gr-r-9",
+            "title": "סיבוב 4 — טווח לא סימטרי",
+            "prompt": "בנו את האזור שבין \\(z=0.5\\) ובין \\(z=1.5\\).",
+            "givens": "שני הגבולות נמצאים מעל הממוצע.",
+            "objectiveId": "obj-area",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 36,
+                  "sd": 4,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                0.5,
+                1.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "שני ציוני התקן חיוביים, ולכן שניהם מימין לממוצע.",
+              "סמנו רק את השטח שבין שני הגבולות."
+            ],
+            "solution": "מסמנים את הטווח \\(0.5\\leq z\\leq1.5\\), כולו מימין לממוצע.",
+            "success": "בניתם נכון טווח שאינו מרכזי.",
+            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון.",
+            "difficulty": 3
+          },
+          {
+            "id": "gr-r-10",
+            "title": "סיבוב 4 — טווח לא סימטרי",
+            "prompt": "בנו את האזור שבין \\(z=0.5\\) ובין \\(z=1.5\\).",
+            "givens": "שני הגבולות נמצאים מעל הממוצע.",
+            "objectiveId": "obj-area",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "bands",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 36,
+                  "sd": 4,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": null
+                }
+              ]
+            },
+            "check": {
+              "kind": "region",
+              "answer": [
+                0.5,
+                1.5
+              ],
+              "options": []
+            },
+            "hints": [
+              "שני ציוני התקן חיוביים, ולכן שניהם מימין לממוצע.",
+              "סמנו רק את השטח שבין שני הגבולות."
+            ],
+            "solution": "מסמנים את הטווח \\(0.5\\leq z\\leq1.5\\), כולו מימין לממוצע.",
+            "success": "בניתם נכון טווח שאינו מרכזי.",
+            "retry": "בדקו שלא כללתם את השטח שבין הממוצע לגבול הראשון.",
+            "difficulty": 3
           }
         ]
       },
@@ -1834,7 +2078,8 @@
             ],
             "solution": "חצי סטיית תקן הוא 4, ולכן הציון הוא \\(50+4=54\\).",
             "success": "מצאתם את הצעד ואת הכיוון.",
-            "retry": "חשבו תחילה את חצי סטיית התקן."
+            "retry": "חשבו תחילה את חצי סטיית התקן.",
+            "difficulty": 1
           },
           {
             "id": "ga-r2",
@@ -1870,7 +2115,8 @@
             ],
             "solution": "נעים 6 נקודות שמאלה: \\(70-6=64\\).",
             "success": "שמרתם על הכיוון השלילי.",
-            "retry": "בדקו אם הוספתם במקום לחסר מן הממוצע."
+            "retry": "בדקו אם הוספתם במקום לחסר מן הממוצע.",
+            "difficulty": 1
           },
           {
             "id": "ga-r3",
@@ -1906,7 +2152,8 @@
             ],
             "solution": "המרחק הוא \\(1.5\\cdot4=6\\), ולכן הציון הוא \\(82+6=88\\).",
             "success": "ספרתם נכון שלושה חצאי צעדים.",
-            "retry": "הפרידו בין מספר הצעדים ובין גודל כל צעד."
+            "retry": "הפרידו בין מספר הצעדים ובין גודל כל צעד.",
+            "difficulty": 1
           },
           {
             "id": "ga-r4",
@@ -1942,7 +2189,230 @@
             ],
             "solution": "המרחק הוא 25 נקודות, ולכן הציון הוא \\(60-25=35\\).",
             "success": "שילבתם מרחק גדול עם כיוון נכון.",
-            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע."
+            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע.",
+            "difficulty": 1
+          },
+          {
+            "id": "ga-r-5",
+            "title": "סיבוב 4 — רחוק משמאל",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 60, סטיית התקן 10, והתווית החסרה נמצאת \\(2.5\\) סטיות תקן מתחת לממוצע.",
+            "objectiveId": "obj-z",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 60,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": -2.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 35,
+              "options": []
+            },
+            "hints": [
+              "המרחק הוא \\(2.5\\cdot10\\) נקודות.",
+              "המיקום מתחת לממוצע, לכן נעים שמאלה."
+            ],
+            "solution": "המרחק הוא 25 נקודות, ולכן הציון הוא \\(60-25=35\\).",
+            "success": "שילבתם מרחק גדול עם כיוון נכון.",
+            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע.",
+            "difficulty": 2
+          },
+          {
+            "id": "ga-r-6",
+            "title": "סיבוב 4 — רחוק משמאל",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 60, סטיית התקן 10, והתווית החסרה נמצאת \\(2.5\\) סטיות תקן מתחת לממוצע.",
+            "objectiveId": "obj-z",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 60,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": -2.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 35,
+              "options": []
+            },
+            "hints": [
+              "המרחק הוא \\(2.5\\cdot10\\) נקודות.",
+              "המיקום מתחת לממוצע, לכן נעים שמאלה."
+            ],
+            "solution": "המרחק הוא 25 נקודות, ולכן הציון הוא \\(60-25=35\\).",
+            "success": "שילבתם מרחק גדול עם כיוון נכון.",
+            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע.",
+            "difficulty": 2
+          },
+          {
+            "id": "ga-r-7",
+            "title": "סיבוב 4 — רחוק משמאל",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 60, סטיית התקן 10, והתווית החסרה נמצאת \\(2.5\\) סטיות תקן מתחת לממוצע.",
+            "objectiveId": "obj-z",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 60,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": -2.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 35,
+              "options": []
+            },
+            "hints": [
+              "המרחק הוא \\(2.5\\cdot10\\) נקודות.",
+              "המיקום מתחת לממוצע, לכן נעים שמאלה."
+            ],
+            "solution": "המרחק הוא 25 נקודות, ולכן הציון הוא \\(60-25=35\\).",
+            "success": "שילבתם מרחק גדול עם כיוון נכון.",
+            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע.",
+            "difficulty": 2
+          },
+          {
+            "id": "ga-r-8",
+            "title": "סיבוב 4 — רחוק משמאל",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 60, סטיית התקן 10, והתווית החסרה נמצאת \\(2.5\\) סטיות תקן מתחת לממוצע.",
+            "objectiveId": "obj-z",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 60,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": -2.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 35,
+              "options": []
+            },
+            "hints": [
+              "המרחק הוא \\(2.5\\cdot10\\) נקודות.",
+              "המיקום מתחת לממוצע, לכן נעים שמאלה."
+            ],
+            "solution": "המרחק הוא 25 נקודות, ולכן הציון הוא \\(60-25=35\\).",
+            "success": "שילבתם מרחק גדול עם כיוון נכון.",
+            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע.",
+            "difficulty": 3
+          },
+          {
+            "id": "ga-r-9",
+            "title": "סיבוב 4 — רחוק משמאל",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 60, סטיית התקן 10, והתווית החסרה נמצאת \\(2.5\\) סטיות תקן מתחת לממוצע.",
+            "objectiveId": "obj-z",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 60,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": -2.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 35,
+              "options": []
+            },
+            "hints": [
+              "המרחק הוא \\(2.5\\cdot10\\) נקודות.",
+              "המיקום מתחת לממוצע, לכן נעים שמאלה."
+            ],
+            "solution": "המרחק הוא 25 נקודות, ולכן הציון הוא \\(60-25=35\\).",
+            "success": "שילבתם מרחק גדול עם כיוון נכון.",
+            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע.",
+            "difficulty": 3
+          },
+          {
+            "id": "ga-r-10",
+            "title": "סיבוב 4 — רחוק משמאל",
+            "prompt": "מהו הציון החסר על הציר?",
+            "givens": "הממוצע 60, סטיית התקן 10, והתווית החסרה נמצאת \\(2.5\\) סטיות תקן מתחת לממוצע.",
+            "objectiveId": "obj-z",
+            "support": "independent",
+            "grading": "checked",
+            "model": {
+              "mode": "axis",
+              "interactive": "none",
+              "showProbability": false,
+              "states": [
+                {
+                  "mean": 60,
+                  "sd": 10,
+                  "lowerZ": null,
+                  "upperZ": null,
+                  "pointZ": null,
+                  "hideZ": -2.5
+                }
+              ]
+            },
+            "check": {
+              "kind": "number",
+              "answer": 35,
+              "options": []
+            },
+            "hints": [
+              "המרחק הוא \\(2.5\\cdot10\\) נקודות.",
+              "המיקום מתחת לממוצע, לכן נעים שמאלה."
+            ],
+            "solution": "המרחק הוא 25 נקודות, ולכן הציון הוא \\(60-25=35\\).",
+            "success": "שילבתם מרחק גדול עם כיוון נכון.",
+            "retry": "בדקו את סימן המיקום לפני שאתם מחברים את המרחק לממוצע.",
+            "difficulty": 3
           }
         ]
       }

@@ -1,10 +1,10 @@
 {
   "version": 1,
   "files": {
-    "src/lib/learning/deck/model.ts": "d13b861fce38cdfbdfbe5810fe77362b33ac85264742d6f17c574f6f749f7dab",
+    "src/lib/learning/deck/model.ts": "47cd2ed03ad0366d109feb4cc21e13c67d4377442e173099dcac89bbd66523c7",
     "src/lib/learning/deck/review-rules.ts": "416cf9b6d7c7894e635f8e76290e7be4c47a639c9ccadaedafed87e67a14bf4b",
-    "src/lib/learning/deck/rules.ts": "733fd6cd57357cc5a86565757421e097ad1aaa9edb030b8e396cacf64d08cf91",
-    "src/lib/learning/deck/schema.ts": "8cb6290422e923f1e9953304157a2aeee9f514d1f8abd1506a5e73ff3de5776c",
+    "src/lib/learning/deck/rules.ts": "1e818b0f9697589f8f2dd50d6934e42922cfec46c09108ae24b17bed2a8c0e58",
+    "src/lib/learning/deck/schema.ts": "9c2fc9590009f32655a8da26c0d066f22c1dd6bed73ca258d0d90e482ba7f896",
     "src/lib/server/lesson/prompt.ts": "1b876cda3f21139d64426e39df92f9b711af534f444eacc45da9e3faae9dbfe3",
     "src/lib/server/lesson/structured-output.ts": "288b1f716e7cca075fe0509306ce178b9afa6f5a136a80fdeb14e01ff8a869f5",
     "src/lib/server/lesson/visual-generation.ts": "03b1725e4f5f5080c47e5d48fa6781697414a40b5972d72830af59f47b15942f",
@@ -14,5 +14,5 @@
     "src/lib/server/native-learning/preparation-review.ts": "a728f908efd9414cb85c08476d650d9e2019d4220ee4c7dcd27ba3fe5c4a2c45",
     "src/lib/server/native-learning/validation.ts": "24c3e0a89db7696bf56cabd3970221fb8966f9d119dd95a80fd06e25fa2a56d8"
   },
-  "fingerprint": "963a587869643a256b6982428eec754237eecff864437d2bab521c508229944f"
+  "fingerprint": "dde615ed058f0e2c8331c9efd9a459c4c57c48969f381db7699b8cd47612ecba"
 }

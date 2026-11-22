@@ -83,7 +83,7 @@ test('a quiz game may use multiple choice, numeric and tutor-reviewed open round
   return {id:'quiz-game',title:'חידון קצר',intro:'שלוש שאלות על מה שלמדנו.',kind:'quiz',rounds:[
    round('quiz-1',{check:{kind:'choice',answer:1,options:['תשובה א','תשובה ב','תשובה ג']}}),
    round('quiz-2',{check:{kind:'number',answer:7,options:[]}}),
-   round('quiz-3',{grading:'tutor-review',check:null})]};
+   round('quiz-3',{grading:'tutor-review',check:null})].concat(Array.from({length:7},(_,i)=>round('quiz-'+(i+4),{check:{kind:'number',answer:i,options:[]}}))).map((r,i)=>({...r,difficulty:i<4?1:i<7?2:3}))};
  };
  const p=visualDeckFixture();p.games[1]=quiz();
  assert.deepEqual(visualLessonProblems(p),[]);

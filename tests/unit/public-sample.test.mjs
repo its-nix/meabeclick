@@ -17,7 +17,7 @@ test('the public sample page has no review chrome and none of the removed filler
  const visible=html.slice(html.indexOf('<body'),html.indexOf('<script type="application/json"'));
  for(const gone of ['תצוגת בדיקה','פיילוט חזותי','חומרי השיעור','משימה משחקית','ארבע שאלות קצרות','השלמת המשחק','נרשם כעזרה'])assert.ok(!visible.includes(gone),gone);
  assert.ok(visible.includes('data-prev-round')&&visible.includes('data-next-round')&&visible.includes('aria-label="רמז"'));
- assert.equal((visible.match(/data-round="/g)??[]).length,4);
+ assert.equal((visible.match(/data-round="/g)??[]).length,10);
 });
 test('sessions grade correct and wrong, and cap memory',()=>{
  const id=S.startSampleSession(),r=S.sampleBundle().games[0].rounds[0];

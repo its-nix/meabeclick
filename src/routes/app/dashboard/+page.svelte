@@ -42,9 +42,8 @@
   import { onMount, untrack } from 'svelte';
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
-  import { SvelteSet } from 'svelte/reactivity';
   import { formatAgorot } from '$lib/plans.ts';
-  import { idsForPanel, dueAgorot } from '$lib/payments-selection.ts';
+  import { dueAgorot } from '$lib/payments-selection.ts';
   import { computeImportCandidates, buildImportPayload, type ImportCandidate } from '$lib/import-candidates.ts';
   import type { PageData } from './$types';
 
@@ -856,29 +855,16 @@
   const STATUS_LABEL: Record<string, string> = { owed: 'לתשלום', paid: 'שולם', void: 'בוטל' };
 
   let chargesFor = $state<Record<string, Array<{ id: number; date: string; kind: string; amount_agorot: number; status: string; claimed_at?: string | null }>>>({});
-  let picked = $state(new SvelteSet<number>());
-
-
-  function toggle(id: number) {
-    if (picked.has(id)) picked.delete(id); else picked.add(id);
-  }
-
-  async function mark(code: string, status: 'owed' | 'paid' | 'void') {
-    if (ledgerBusy[code] || ledgerLoading[code] || ledgerError[code]) return;
-    const ids = idsForPanel(picked, chargesFor[code] ?? []);
-    if (!ids.length) { toast('לא נבחרו חיובים', { kind: 'error' }); return; }
-    if (status === 'void' && !await confirmDialog('לבטל את החיובים שנבחרו?')) return;
-    ledgerBusy[code] = true;
-    try {
-      const r = await api('/api/payments/mark', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, status }),
-      });
-      if (!r.ok) throw new Error('payment update');
-      for (const id of ids) picked.delete(id);
-      await refreshLedger(code);
-    } catch { toast('לא ניתן לעדכן את החיובים. בדקו את הרשימה לפני ניסיון נוסף.', { kind: 'error' }); }
-    finally { ledgerBusy[code] = false; }
+  type PayFilter = 'all' | 'owed' | 'paid';
+  const PAY_FILTERS: { key: PayFilter; label: string }[] = [{ key: 'all', label: 'הכל' }, { key: 'owed', label: 'לא שולם' }, { key: 'paid', label: 'שולם' }];
+  let payFilter = $state<Record<string, PayFilter>>({});
+  const payFilterFor = (code: string): PayFilter => payFilter[code] ?? 'all';
+  /* Date-sorted (newest first, id as tiebreak); voided rows only under "all". */
+  function visibleCharges(code: string) {
+    const f = payFilterFor(code);
+    return [...(chargesFor[code] ?? [])]
+      .filter(c => f === 'all' ? true : c.status === f)
+      .sort((x, y) => y.date.localeCompare(x.date) || y.id - x.id);
   }
 
   /* ═══════════════════ calendar-write failures ═══════════════════ */
@@ -963,7 +949,7 @@
       <h2>הכנת שיעורים</h2>
       <ul>
         {#each pageData.nativePreparations as preparation (preparation.bookingId)}
-          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.reason}<p>{preparation.reason}</p>{/if}{#if preparation.error}<p>{preparation.error}</p>{/if}{#if preparation.validationFindings?.length}<details><summary>מה צריך לתקן בטיוטה?</summary><ul>{#each preparation.validationFindings as finding}<li><p>{finding.issue}</p><p>{finding.requestedChange}</p></li>{/each}</ul></details>{/if}
+          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.error}<p>{preparation.error} <strong>{preparation.nextStep}</strong></p>{:else if preparation.reason}<p>{preparation.reason} <strong>{preparation.nextStep}</strong></p>{/if}{#if preparation.validationFindings?.length}<details><summary>מה צריך לתקן בטיוטה?</summary><ul>{#each preparation.validationFindings as finding}<li><p>{finding.issue}</p><p>{finding.requestedChange}</p></li>{/each}</ul></details>{/if}
             {#if preparation.canBind && pageData.nativeAuthoringEnabled}
               <details><summary>הכנת שיעור מותאם לבדיקה</summary>
                 <p>ניצור טיוטה פרטית חדשה (מצגת, שיעורי בית ומשחקים) לפי מקצוע <bdi>{preparation.brief?.subject}</bdi>, רמה <bdi>{preparation.brief?.level}</bdi> ומשך <bdi>{preparation.brief?.durationMin}</bdi> דקות מההזמנה, ולפי מטרת השיעור והידע הקודם שתתארו. הטיוטה נשארת פרטית עד לבדיקה ואישור שלכם.</p>
@@ -1355,33 +1341,30 @@
               <fieldset class="ledger" disabled={ledgerBusy[s.code] || ledgerLoading[s.code] || !!ledgerError[s.code] || !chargesFor[s.code]}>
                 <legend class="sr-only">רישומי תשלום</legend>
                 {#if chargesFor[s.code]?.length}
+                  <div class="pay-filter" role="group" aria-label="סינון חיובים">
+                    {#each PAY_FILTERS as f (f.key)}<button type="button" class="pay-chip" class:active={payFilterFor(s.code) === f.key} aria-pressed={payFilterFor(s.code) === f.key} onclick={() => (payFilter[s.code] = f.key)}>{f.label}</button>{/each}
+                  </div>
+                  {#if visibleCharges(s.code).length}
                   <table class="payments-table">
-                    <caption class="sr-only">חיובים ותשלומים</caption>
-                    <thead><tr><th scope="col">בחירה</th><th scope="col">תאריך</th><th scope="col">סוג</th><th scope="col">סכום</th><th scope="col">מצב</th><th scope="col">פעולות</th></tr></thead>
+                    <caption class="sr-only">חיובים ותשלומים, מהחדש לישן</caption>
+                    <thead><tr><th scope="col">שולם</th><th scope="col">תאריך</th><th scope="col">סוג</th><th scope="col">סכום</th><th scope="col">מצב</th><th scope="col"><span class="sr-only">פעולות</span></th></tr></thead>
                     <tbody>
-                      {#each chargesFor[s.code] as c (c.id)}
-                        <tr>
-                          <td data-label="בחירה"><input class="charge-check" type="checkbox" aria-label="בחירת חיוב מ־{formatDate(c.date)} בסך {formatAgorot(c.amount_agorot)}" checked={picked.has(c.id)} onchange={() => toggle(c.id)} /></td>
+                      {#each visibleCharges(s.code) as c (c.id)}
+                        <tr class:is-void={c.status === 'void'}>
+                          <td data-label="שולם">{#if c.status !== 'void'}<input class="charge-check" type="checkbox" aria-label="{c.status === 'paid' ? 'סימון כלא שולם' : 'סימון כשולם'}: חיוב מ־{formatDate(c.date)} בסך {formatAgorot(c.amount_agorot)}" checked={c.status === 'paid'} onchange={() => togglePaid(s.code, String(c.id))} />{/if}</td>
                           <td data-label="תאריך">{formatDate(c.date)}</td>
                           <td data-label="סוג">{KIND_LABEL[c.kind] ?? c.kind}</td>
                           <td data-label="סכום">{formatAgorot(c.amount_agorot)}</td>
-                          <td data-label="מצב">{STATUS_LABEL[c.status] ?? c.status}{#if c.status === 'owed' && c.claimed_at}<span class="claim-flag"><Icon name="check" size={14} /> דווח כשולם</span>{/if}</td>
+                          <td data-label="מצב"><span class="pay-pill pay-{c.status}">{STATUS_LABEL[c.status] ?? c.status}</span>{#if c.status === 'owed' && c.claimed_at}<span class="claim-flag"><Icon name="check" size={14} /> דווח כשולם</span>{/if}</td>
                           <td data-label="פעולות"><div class="ledger-actions">
-                            {#if c.status !== 'void'}
-                              {#if c.status === 'owed' && c.claimed_at}<button class="btn btn-gold btn-sm" onclick={() => togglePaid(s.code, String(c.id))}>אשר תשלום</button><button class="btn btn-ghost btn-sm" onclick={() => rejectClaim(s.code, c.id)}>דחה דיווח</button>{/if}
-                              <button class="btn btn-ghost btn-sm" onclick={() => togglePaid(s.code, String(c.id))}>{c.status === 'paid' ? 'סמן כלא שולם' : 'סמן כשולם'}</button>
-                              <button class="btn btn-danger btn-sm" onclick={() => voidSession(s.code, String(c.id))}>ביטול חיוב</button>
-                            {/if}
+                            {#if c.status === 'owed' && c.claimed_at}<button class="pay-mini" onclick={() => rejectClaim(s.code, c.id)}>דחה דיווח</button>{/if}
+                            {#if c.status !== 'void'}<button class="pay-mini pay-mini-icon" aria-label="ביטול חיוב מ־{formatDate(c.date)}" onclick={() => voidSession(s.code, String(c.id))}><Icon name="close" size={14} /></button>{/if}
                           </div></td>
                         </tr>
                       {/each}
                     </tbody>
                   </table>
-                  <div class="pay-actions">
-                    <button class="btn btn-outline" onclick={() => mark(s.code, 'paid')}>סימון הנבחרים כשולם</button>
-                    <button class="btn btn-outline" onclick={() => mark(s.code, 'owed')}>החזרת הנבחרים לחוב</button>
-                    <button class="btn btn-danger" onclick={() => mark(s.code, 'void')}>ביטול החיובים שנבחרו</button>
-                  </div>
+                  {:else}<p>אין חיובים בסינון הזה.</p>{/if}
                 {:else if chargesFor[s.code] && !ledgerError[s.code]}
                   <p>אין רישומי תשלום עדיין.</p>
                 {/if}
@@ -1824,14 +1807,21 @@
   .ledger { border: 0; padding: 0; margin: 0; min-width: 0; }
   .claim-flag { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 8px; padding: 2px 10px; border-radius: var(--radius-pill); background: var(--warning-bg); border: 1px solid var(--warning-text); color: var(--warning-text); font-weight: 700; font-size: .8rem; }
   .ledger-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .charge-check { width: 44px; height: 44px; accent-color: var(--accent); }
+  .charge-check { width: 20px; height: 20px; margin: 12px; accent-color: var(--accent); cursor: pointer; }
+  .pay-filter { display: flex; gap: 6px; margin-bottom: 8px; }
+  .pay-chip { min-height: 36px; padding: 0 14px; border-radius: var(--radius-pill); border: 1.5px solid var(--border-strong); background: transparent; color: var(--text-muted); font: inherit; font-weight: 700; font-size: .8rem; cursor: pointer; }
+  .pay-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pay-pill { display: inline-block; padding: 1px 10px; border-radius: var(--radius-pill); font-size: .75rem; font-weight: 700; border: 1px solid var(--border-strong); }
+  .pay-pill.pay-paid { color: var(--accent3-strong); }
+  .pay-pill.pay-owed { color: var(--warning-text); }
+  .pay-mini { min-height: 32px; padding: 0 10px; border-radius: var(--radius-pill); border: 1px solid var(--border-strong); background: transparent; color: var(--text-muted); font: inherit; font-size: .75rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .pay-mini-icon { min-width: 32px; padding: 0; color: var(--danger-text); }
+  .payments-table tr.is-void td { opacity: .55; }
   .payment-summary { flex-wrap: wrap; }
   @media (max-width: 700px) {
-    .payments-table, .payments-table tbody, .payments-table tr, .payments-table td { display: block; width: 100%; }
-    .payments-table thead { display: none; }
-    .payments-table tr { border-bottom: 1px solid var(--border); padding-block: 12px; }
-    .payments-table td { border: 0; padding: 4px 0; overflow-wrap: anywhere; }
-    .payments-table td::before { content: attr(data-label); font-weight: 700; margin-inline-end: 12px; }
+    .payments-table th, .payments-table td { padding: 4px 4px; font-size: .78rem; }
+    .payments-table th:nth-child(3), .payments-table td:nth-child(3) { display: none; }
+    .claim-flag { margin-inline-start: 0; display: flex; width: max-content; margin-top: 2px; }
   }
   .payments-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
   .payments-table th { text-align: right; padding: 8px 10px; color: var(--accent); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1.5px solid var(--border-strong); background: var(--accent-dim); }

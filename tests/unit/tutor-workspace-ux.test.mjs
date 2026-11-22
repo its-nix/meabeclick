@@ -13,15 +13,18 @@ test('failed profile edits retain field-specific recoverable drafts and adjacent
   assert.match(page, /profileDrafts\[key\] === value/);
 });
 
-test('one payment ledger retains bulk actions and labels loading or stale data', () => {
+test('one compact payment ledger and labels loading or stale data', () => {
   assert.equal((page.match(/class="payments-table"/g) ?? []).length, 1);
   assert.doesNotMatch(page, /class="pay-row"/);
   assert.match(page, /activityError\[s.code\]/);
   assert.match(page, /activityLoading\[s.code\]/);
   assert.match(page, /ledgerBusy\[s.code\]/);
   assert.match(page, /activitySequence\[code\] !== sequence/);
-  assert.match(page, /checked=\{picked.has\(c.id\)\}/);
-  assert.match(page, /onclick=\{\(\) => mark\(s.code, 'paid'\)\}/);
+  assert.match(page, /checked=\{c.status === 'paid'\}/);
+  assert.match(page, /visibleCharges\(s.code\)/);
+  assert.match(page, /localeCompare/);
+  assert.doesNotMatch(page, /סימון הנבחרים כשולם|class="pay-actions"/);
+  assert.match(page, /rejectClaim\(s.code, c.id\)/);
   assert.match(page, /data-label="פעולות"/);
   assert.match(page, /לא ניתן לטעון כרגע/);
   const badges = page.slice(page.indexOf('class="sc-badges"'), page.indexOf('</div>', page.indexOf('class="sc-badges"')));
@@ -31,7 +34,6 @@ test('one payment ledger retains bulk actions and labels loading or stale data',
 test('destructive learner actions require confirmation before sending requests', () => {
   assert.match(page, /async function voidSession[^]*?if \(!await confirmDialog[^]*?return;[^]*?api\(/);
   assert.match(page, /async function deleteHw[^]*?if \(!await confirmDialog[^]*?return;[^]*?api\(/);
-  assert.match(page, /status === 'void' && !await confirmDialog/);
 });
 
 test('operations and direct report actions precede the student roster', () => {

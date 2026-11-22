@@ -20,7 +20,7 @@ test('native-lessons: a real booking is durable and flag-off authoring stays tut
  await expect.poll(()=>qa.row('SELECT state FROM native_lesson_jobs WHERE booking_id=?',booking.bookingId).state).toBe('needs-preparation');
  const job=await(await qa.request(`/api/native-lessons/${booking.bookingId}`)).json();expect(job.job.reason).toBe('authoring_disabled');expect(job.job.bundle).toBeNull();
  const page=await qa.page('tutor');await page.goto('/app/dashboard');
- await expect(page.getByRole('heading',{name:'הכנת שיעורים',exact:true})).toBeVisible();await expect(page.getByText('היצירה החדשה ממתינה לבדיקת איכות של חבילת הניסוי. נדרשת הכנת מורה.')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'הכנת שיעורים',exact:true})).toBeVisible();await expect(page.getByText('היצירה האוטומטית כבויה כרגע.')).toBeVisible();
  await expect(page.getByRole('button',{name:'הכנת טיוטה לבדיקה',exact:true})).toHaveCount(0);await qa.evidence(page,'native-authoring-disabled');
  for(const role of ['anonymous','student','parent']){
   const response=await qa.request(`/api/native-lessons/${booking.bookingId}`,{cookie:qa.cookies[role]});expect(response.status).toBe(401);expect(await response.text()).not.toContain('tutorNotes');

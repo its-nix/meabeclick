@@ -21,14 +21,11 @@
 
   let {
     title,
-    updated,
     intro,
     children,
   }: {
     /** Page heading, also used verbatim as the document title. */
     title: string;
-    /** Human-readable "last updated" date, e.g. '10 בספטמבר 2026'. */
-    updated: string;
     /** One-line summary under the heading, before the first section. */
     intro?: string;
     children: import('svelte').Snippet;
@@ -46,7 +43,6 @@
 
 <main>
   <h1>{title}</h1>
-  <p class="updated">עודכן לאחרונה: {updated}</p>
   {#if intro}<p class="intro">{intro}</p>{/if}
 
   <div class="prose">
@@ -84,11 +80,6 @@
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.25;
-  }
-  .updated {
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--text-faint);
   }
   .intro {
     margin-top: 1.25rem;

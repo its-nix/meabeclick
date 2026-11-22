@@ -18,10 +18,35 @@ interface Options {
  activityBaseUrl:()=>string;
 }
 export const NATIVE_PREPARATION_REASONS:Record<string,string>={
- missing_brief:'יש להשלים את מטרת השיעור ותיאור הידע הקודם לפני יצירה חדשה.',
- authoring_disabled:'היצירה החדשה ממתינה לבדיקת איכות של חבילת הניסוי. נדרשת הכנת מורה.',
- workspace_unavailable:'מרחב ההוראה החדש עדיין אינו זמין. נדרשת הכנת מורה.',
+ missing_brief:'חסרים מטרת השיעור או הידע הקודם של התלמיד/ה.',
+ authoring_disabled:'היצירה האוטומטית כבויה כרגע.',
+ workspace_unavailable:'מרחב ההוראה עדיין אינו זמין.',
+ /* Legacy code still stored in native_lesson_jobs rows from older releases. */
+ unsupported_context:'השיעור הזה לא נתמך עדיין ביצירה אוטומטית (מקצוע, כיתה או משך).',
 };
+/** Next step per reason; unknown or missing reasons fall back to manual preparation. */
+export const NATIVE_PREPARATION_NEXT_STEPS:Record<string,string>={
+ missing_brief:'השלימו את הפרטים בכרטיס השיעור והכנה תתחיל מחדש.',
+ authoring_disabled:'הכינו את השיעור ידנית, או נסו שוב כשהיצירה תופעל.',
+ workspace_unavailable:'הכינו את השיעור ידנית, או נסו שוב מאוחר יותר.',
+ unsupported_context:'הכינו את השיעור ידנית.',
+};
+const PREPARATION_FALLBACK={reason:'ההכנה האוטומטית לא יכלה להתחיל בשיעור הזה.',nextStep:'הכינו את השיעור ידנית.'};
+const PREPARATION_STATE_TEXT:Record<string,{reason:string;nextStep:string}>={
+ queued:{reason:'השיעור ממתין בתור להכנה אוטומטית.',nextStep:'אין צורך לעשות דבר.'},
+ preparing:{reason:'הטיוטה בהכנה עכשיו.',nextStep:'אין צורך לעשות דבר.'},
+ review:{reason:'הטיוטה מוכנה ועדיין לא נשלחה לתלמיד/ה.',nextStep:'בדקו ואשרו אותה.'},
+ failed:{reason:'ההכנה האוטומטית נכשלה.',nextStep:'בדקו את חיבור Google וחומרי המקור, או הכינו ידנית.'},
+ cancelled:{reason:'השיעור בוטל.',nextStep:'אין צורך להכין.'},
+};
+/** Human-readable reason and next step for any job state, including stale or unknown reasons. */
+export function describeNativePreparation(state:string,reason:string|null|undefined):{reason:string;nextStep:string}{
+ if(state==='needs-preparation'){
+  const known=reason?NATIVE_PREPARATION_REASONS[reason]:undefined;
+  return known?{reason:known,nextStep:NATIVE_PREPARATION_NEXT_STEPS[reason!]??PREPARATION_FALLBACK.nextStep}:PREPARATION_FALLBACK;
+ }
+ return PREPARATION_STATE_TEXT[state]??PREPARATION_FALLBACK;
+}
 /** A single serial drain per process. SQLite leases fence competing/restarted workers. */
 export function nativeLessonWorker(options:Options){
  let active:Promise<void>|null=null;

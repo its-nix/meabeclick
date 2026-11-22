@@ -259,10 +259,10 @@ test('payments: teacher marks debt paid and parent balance follows persisted dat
   await expect(parent.locator('.pay-sum-card.paid .psc-amount')).toHaveText('₪0');
   const tutor = await qa.page('tutor');
   await tutor.goto(profilePath(qa) + '?tab=payments');
-  await tutor.locator('.payments-table tbody tr').filter({ hasText: '2026' }).getByRole('button', { name: 'סמן כשולם', exact: true }).click();
+  await tutor.locator('.payments-table tbody tr').filter({ hasText: '2026' }).getByRole('checkbox', { name: /סימון כשולם/ }).check();
   await expect.poll(balance).toBe(0);
   await tutor.reload();
-  await expect(tutor.getByRole('button', { name: 'סמן כלא שולם', exact: true })).toBeVisible();
+  await expect(tutor.getByRole('checkbox', { name: /סימון כלא שולם/ })).toBeChecked();
   await parent.reload();
   await expect(parent.getByRole('heading', { name: 'תשלומים', exact: true })).toBeVisible();
   await expect(parent.locator('.pay-sum-card.pending .psc-amount')).toHaveText('₪0');

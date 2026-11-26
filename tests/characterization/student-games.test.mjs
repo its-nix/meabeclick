@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, familySession } from './harness.mjs';
 import { visualDeckFixture } from '../visual-deck-fixture.mjs';
-import { exportGamesFile } from '../../src/lib/server/native-learning/games.ts';
+import { exportGamesFile } from '../../src/lib/server/native-learning/games-file.ts';
 
 const book = (baseUrl) => fetch(`${baseUrl}/api/book`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },

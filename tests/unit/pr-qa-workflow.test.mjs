@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 const workflow = readFileSync('.github/workflows/deploy.yml', 'utf8');
 test('required build selects merge checkout impact against the PR base with full history', () => {
   assert.match(workflow, /fetch-depth: 0/);
@@ -24,4 +27,18 @@ test('visual pilot shares learning browser selection and reports its actual outc
   assert.match(pilot, /if: steps.pr_qa_select.outputs.learning == 'true'/);
   assert.match(pilot, /run: npm run test:pilot:browser/);
   assert.match(workflow, /QA_PILOT_OUTCOME: \$\{\{ steps.qa_pilot.outcome \}\}/);
+});
+
+test('Playwright discovery does not open the application database', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'meabeclick-qa-discovery-'));
+  const dbPath = join(scratch, 'results.db');
+  try {
+    execFileSync(process.execPath, [
+      'node_modules/@playwright/test/cli.js', 'test', '--config', 'playwright.qa.config.mjs',
+      '--list', '--project', 'chromium-phone',
+    ], { env: { ...process.env, DB_PATH: dbPath, PR_QA_PLAN: '' }, timeout: 20_000 });
+    assert.equal(existsSync(dbPath), false, 'test imports must not create or write a shared database');
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });

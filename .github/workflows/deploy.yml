@@ -177,34 +177,45 @@ jobs:
         id: image
         run: echo "name=${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build release image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify release image
+        timeout-minutes: 2
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}:${{ github.sha }}
+        run: bash scripts/smoke-release-image.sh "$IMAGE"
+
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          # Built on every event, pushed only when something is being
-          # released. A pull_request token is read-only for packages, and a
-          # tag per PR would fill the registry with images nothing deploys.
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ steps.image.outputs.name }}:${{ github.sha }}
-            ${{ steps.image.outputs.name }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Publish verified image
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          LATEST: ${{ steps.image.outputs.name }}:latest
+        run: |
+          docker push "$IMAGE"
+          docker tag "$IMAGE" "$LATEST"
+          docker push "$LATEST"
 
   deploy:
     needs: build
     # Never on a pull request: this job triggers a real production deploy.
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # One deploy touches the box at a time.
     #

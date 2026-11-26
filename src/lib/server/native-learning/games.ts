@@ -2,19 +2,15 @@ import {createHash} from 'node:crypto';
 import {handle,inTransaction} from '../db.ts';
 import {publicVisualLesson,visualGamesProblems,type VisualLesson} from '../../learning/deck/model.ts';
 
+import type { GamesFile } from './games-file.ts';
+export { exportGamesFile, gamesFileText, type GamesFile } from './games-file.ts';
+
 type Game=VisualLesson['games'][number];
-export interface GamesFile {version:1;lessonRef:string;objectives:{id:string;title:string}[];games:Game[]}
 /** Reads one Drive file at its current revision. Real Google access lives behind this seam. */
 export interface GamesDrive {read(fileId:string):Promise<{revisionId:string;text:string}>}
 export interface ApprovedGame {materialId:string;releaseId:string;gameId:string;kind:string;sourceRevision:string;contentSha256:string}
 const MAX_BYTES=512*1024;
 const sha=(text:string)=>createHash('sha256').update(text).digest('hex');
-
-/** The editable Drive source for one lesson. Answers stay in it; Drive is private to staff. */
-export function exportGamesFile(bundle:VisualLesson,lessonRef:string):GamesFile {
- return {version:1,lessonRef,objectives:bundle.objectives.map(o=>({id:o.id,title:o.title})),games:structuredClone(bundle.games)};
-}
-export function gamesFileText(file:GamesFile){return JSON.stringify(file,null,1);}
 
 function parseGamesFile(text:string,lessonRef:string):GamesFile {
  if(typeof text!=='string'||Buffer.byteLength(text)>MAX_BYTES)throw new Error('games_file_invalid: size');

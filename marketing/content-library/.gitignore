@@ -1,0 +1,7 @@
+outputs/
+node_modules/
+__pycache__/
+**/.hyperframes/
+**/.thumbnails/
+**/.waveform-cache/
+**/renders/

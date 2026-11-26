@@ -1,0 +1,433 @@
+{
+  "batch": "W001",
+  "reviewBudgetMinutes": 30,
+  "queue": [
+    {
+      "id": "P001",
+      "format": "Ad",
+      "title": "שאלה אחת שהופכת למבוך",
+      "asset": "ad-playful",
+      "slot": "Day 1",
+      "goal": "Qualified tutoring inquiries",
+      "decision": "Pending",
+      "feedback": "",
+      "status": "Review",
+      "caption": "לפעמים גם שאלה אחת מרגישה כמו מבוך. במאה בקליק עוזרים במתמטיקה, צעד אחר צעד. שיעורים פרטיים בקריית גת וגם אונליין. לפרטים ולקביעת שיעור: meabeclick.com",
+      "alt": "שאלת חיבור נפתחת למבוך. נקודה כתומה עוברת בו, ולבסוף מופיע מסלול ברור. כרטיס הסיום מציג שיעורים פרטיים במתמטיקה בקריית גת ואונליין."
+    },
+    {
+      "id": "P002",
+      "format": "Riddle",
+      "title": "כמה ריבועים יש בציור?",
+      "asset": "riddle-squares",
+      "slot": "Day 3",
+      "goal": "Relevant participation",
+      "decision": "Pending",
+      "feedback": "",
+      "status": "Review",
+      "caption": "כמה ריבועים מצאתם בציור? ספרו לפני שהפתרון מופיע, ואז בדקו אם מצאתם את כולם. כתבו בתגובות מה הייתה הספירה הראשונה שלכם. מאה בקליק",
+      "alt": "רשת של שני ריבועים על שני ריבועים. ארבעת הריבועים הקטנים מסומנים בזה אחר זה, ואז מודגש הריבוע הגדול שמקיף אותם. בסך הכול חמישה ריבועים."
+    },
+    {
+      "id": "P003",
+      "format": "Tip",
+      "title": "לחבר 18 דרך 20",
+      "asset": "tip-add18",
+      "slot": "Day 5",
+      "goal": "Useful saves and shares",
+      "decision": "Pending",
+      "feedback": "",
+      "status": "Review",
+      "caption": "27 ועוד 18 בראש? אפשר להוסיף 20 ולהחזיר 2: 27 + 20 = 47, ואז 47 − 2 = 45. נסו את אותה דרך עם 36 + 18. שמרו לחיבור הבא. מאה בקליק",
+      "alt": "ישר מספרים מדגים קפיצה מ־27 ל־47 בהוספת 20, וחזרה בשתיים ל־45. החישוב מדגים שהוספת 18 שקולה להוספת 20 ולהחסרת 2."
+    }
+  ],
+  "components": [
+    [
+      "H001",
+      "Hook",
+      "Parents",
+      "Homework feels complicated",
+      "רק שאלה אחת?",
+      "B001",
+      "1",
+      "Review",
+      "ad-playful"
+    ],
+    [
+      "H002",
+      "Hook",
+      "Parents",
+      "Homework feels complicated",
+      "רק שאלה אחת? — close-up reveal",
+      "B001",
+      "1",
+      "Review",
+      "ad-mystery"
+    ],
+    [
+      "B001",
+      "Body",
+      "Parents",
+      "Guided help",
+      "Maze route: עוזרים למצוא את הדרך. צעד אחר צעד",
+      "H001,H002; C001",
+      "1",
+      "Review",
+      "ad-playful"
+    ],
+    [
+      "C001",
+      "CTA",
+      "Parents",
+      "Book a lesson",
+      "לפרטים ולקביעת שיעור — meabeclick.com",
+      "B001",
+      "1",
+      "Review",
+      "ad-playful"
+    ],
+    [
+      "H003",
+      "Hook",
+      "Families",
+      "Visual challenge",
+      "כמה ריבועים יש בציור?",
+      "B002",
+      "1",
+      "Review",
+      "riddle-squares"
+    ],
+    [
+      "B002",
+      "Body",
+      "Families",
+      "Count all sizes",
+      "Four small squares plus one large square = five",
+      "H003; C002",
+      "1",
+      "Review",
+      "riddle-squares"
+    ],
+    [
+      "C002",
+      "CTA",
+      "Families",
+      "Participate",
+      "מי מצא את החמישי?",
+      "B002",
+      "1",
+      "Review",
+      "riddle-squares"
+    ],
+    [
+      "H004",
+      "Hook",
+      "Families",
+      "Mental addition",
+      "27 + 18 בראש?",
+      "B003",
+      "1",
+      "Review",
+      "tip-add18"
+    ],
+    [
+      "B003",
+      "Body",
+      "Families",
+      "Compensation",
+      "27 + 20 = 47; 47 − 2 = 45",
+      "H004; C003",
+      "1",
+      "Review",
+      "tip-add18"
+    ],
+    [
+      "C003",
+      "CTA",
+      "Families",
+      "Save a method",
+      "שמרו לחיבור הבא",
+      "B003",
+      "1",
+      "Review",
+      "tip-add18"
+    ],
+    [
+      "B004",
+      "Body",
+      "Teens",
+      "Private math support",
+      "Age-appropriate example and straightforward lesson offer",
+      "Needs a teen-specific hook",
+      "1",
+      "Idea",
+      ""
+    ],
+    [
+      "B005",
+      "Body",
+      "Parents",
+      "Homework support feature",
+      "Candidate demonstration: assigned practice after a lesson",
+      "Verify actual student flow before claims",
+      "1",
+      "Verify",
+      ""
+    ],
+    [
+      "B006",
+      "Body",
+      "Parents",
+      "Progress visibility feature",
+      "Candidate demonstration: what the child learned",
+      "Verify implemented parent flow before claims",
+      "1",
+      "Verify",
+      ""
+    ],
+    [
+      "B007",
+      "Body",
+      "Teens",
+      "Practice game feature",
+      "Candidate demonstration: one useful practice interaction",
+      "Verify current game and benefit before claims",
+      "1",
+      "Verify",
+      ""
+    ]
+  ],
+  "recipes": [
+    [
+      "R001",
+      "P001",
+      "Parents",
+      "H001@1",
+      "B001@1",
+      "C001@1",
+      "Playful 2D",
+      "Silent",
+      "Opening recommendation; A/B preference still open",
+      "Review"
+    ],
+    [
+      "R001B",
+      "P001 alternative",
+      "Parents",
+      "H002@1",
+      "B001@1",
+      "C001@1",
+      "Mysterious 2D",
+      "Silent",
+      "Alternative opening; not an extra post",
+      "Review"
+    ],
+    [
+      "R002",
+      "P002",
+      "Families",
+      "H003@1",
+      "B002@1",
+      "C002@1",
+      "Counting diagram",
+      "Silent",
+      "Can viewers find the larger square?",
+      "Review"
+    ],
+    [
+      "R003",
+      "P003",
+      "Families",
+      "H004@1",
+      "B003@1",
+      "C003@1",
+      "Proportional number line",
+      "Silent",
+      "Does the motion explain compensation?",
+      "Review"
+    ]
+  ],
+  "ideas": [
+    [
+      "I001",
+      "Visual explanation",
+      "למה 3/4 גדול מ־2/3? Animate equal-sized fraction strips.",
+      "Teens",
+      "Understanding / shares",
+      "Check fraction diagram and reading time",
+      "Idea"
+    ],
+    [
+      "I002",
+      "Everyday math",
+      "שתי אריזות, שני מחירים: compare price per 100g using fictional labeled prices.",
+      "Families",
+      "Practical relevance",
+      "Original packaging illustration; correct units",
+      "Idea"
+    ],
+    [
+      "I003",
+      "Parent question",
+      "מה כדאי להכין לפני שיעור פרטי ראשון? Show a checklist with book, recent work and one question.",
+      "Parents",
+      "Reduce inquiry uncertainty",
+      "Confirm actual lesson preparation expectations",
+      "Idea"
+    ],
+    [
+      "I004",
+      "Audience poll",
+      "מה הייתם רוצים שנדגים: שברים או בעיות מילוליות? Next post follows the responses.",
+      "Families",
+      "Learn topic demand",
+      "Account poll support or comment-based execution",
+      "Idea"
+    ],
+    [
+      "I005",
+      "Compare methods",
+      "אותו תרגיל, שתי דרכים: 25×16 as (100×16)/4 or 25×(8+8).",
+      "Teens",
+      "Invite method preference",
+      "Correct arithmetic; readable side-by-side pacing",
+      "Idea"
+    ],
+    [
+      "I006",
+      "Behind the lesson",
+      "איך מתרגיל אחד בונים תרגול המשך? Animate an original example becoming three practice questions.",
+      "Parents",
+      "Show teaching care",
+      "Use a synthetic example; verify workflow shown",
+      "Idea"
+    ],
+    [
+      "I007",
+      "Printable activity",
+      "אתגר משפחתי לסוף השבוע: one original visual activity and a printable sheet.",
+      "Families",
+      "Useful shares / return visits",
+      "Create and verify the actual downloadable sheet first",
+      "Idea"
+    ],
+    [
+      "I008",
+      "Math story",
+      "איך מודדים גובה בלי לטפס? An illustrated similar-triangles story with shadows.",
+      "Teens",
+      "Curiosity / understanding",
+      "Source factual context and verify geometry",
+      "Idea"
+    ],
+    [
+      "I009",
+      "Audience follow-up",
+      "בחרתם שברים — הנה ההסבר: build a post from actual poll results.",
+      "Families",
+      "Participation / continuity",
+      "Wait for real responses; do not invent audience quotes",
+      "Idea"
+    ],
+    [
+      "I010",
+      "Local learning connection",
+      "קריית גת במספרים: an original map or everyday local measurement question.",
+      "Local families",
+      "Local relevance",
+      "Verify any local facts; use public non-sensitive places",
+      "Idea"
+    ],
+    [
+      "I011",
+      "Mistake analysis",
+      "איפה החישוב שינה סימן? Reveal one fictional algebra mistake and explain the turning point.",
+      "Teens",
+      "Discussion / understanding",
+      "Label as authored example; no real student work",
+      "Idea"
+    ],
+    [
+      "I012",
+      "Choose the explanation",
+      "איזה הסבר ברור יותר? Two short original animations of the same idea.",
+      "Parents / teens",
+      "Learn explanation preferences",
+      "Keep correctness and content fixed across versions",
+      "Idea"
+    ],
+    [
+      "I013",
+      "Visual proof",
+      "למה 1 + 3 + 5 + 7 = 16? Colored L-shaped layers assemble into a 4×4 square; finish with a replayable full-square reveal.",
+      "Families",
+      "Satisfying understanding / saves",
+      "Proposed odd-squares template: n=2..6; exact n² tiles; one whole preserved; silent Hebrew; pending build and visual review.",
+      "Idea"
+    ],
+    [
+      "I014",
+      "Percentage reversal",
+      "20% הנחה ואז 20% תוספת — חוזרים להתחלה? Fictional ₪100 price drops to ₪80, then rises to ₪96; the percentage base visibly changes.",
+      "Teens",
+      "Discuss a surprising everyday result",
+      "Proposed percentage-base template; label fictional prices; exact rational math; show the base for each operation; pending build/review.",
+      "Idea"
+    ],
+    [
+      "I015",
+      "False proof detective",
+      "הוכחנו ש־2 = 1. איפה זה נשבר? A short authored proof freezes on division by zero, then unwraps the invalid step.",
+      "Teens",
+      "Curiosity / comments / reasoning",
+      "Proposed error-reveal template; show a=b=1 and explicitly label the false proof; never present the false equality as the conclusion; pending build/review.",
+      "Idea"
+    ],
+    [
+      "I016",
+      "Turn words into a picture",
+      "פי 3 או עוד 3? Two animated bar models show the difference: x=4 becomes 12 versus 7, with each phrase attached to its own model.",
+      "Parents / teens",
+      "Reading comprehension / useful shares",
+      "Proposed word-to-model template; fixed same unit blocks; age-specific copy; correct Hebrew and LTR math; pending build/review.",
+      "Idea"
+    ],
+    [
+      "I017",
+      "Area conservation",
+      "גוזרים משולש. מקבלים מלבן. Does the area change? A right triangle with base6 and height4 cuts/reassembles into a 3×4 rectangle: area12.",
+      "Teens",
+      "Visual understanding / rewatches",
+      "Proposed cut-and-reassemble template; verify geometric pieces conserve area with no gaps/overlap; no invented impossible geometry; pending build/review.",
+      "Idea"
+    ],
+    [
+      "I018",
+      "Scale intuition",
+      "מכפילים את הצלע — מה קורה לשטח? A 3×3 square grows to 6×6, then four original-size squares snap into place:9→36.",
+      "Families",
+      "Challenge intuition / comments",
+      "Proposed scale-and-area template; area proportional to s²; fixed scale labels; comparison remains on screen; pending build/review.",
+      "Idea"
+    ],
+    [
+      "I019",
+      "One question, three practice steps",
+      "פתרנו 4×6. מה מנסים עכשיו? A worked 4×6=24 card branches into 4×7,7×4,4×□=28 and reveals28,28,7.",
+      "Parents",
+      "Demonstrate teaching / save for practice",
+      "Proposed practice-ladder template; synthetic authored material; do not imply a real student's result or unverified app feature; pending build/review.",
+      "Idea"
+    ],
+    [
+      "I020",
+      "Reading a graph",
+      "אותו גרף, רושם אחר. Bars for40 and44 look dramatic with a cropped axis; zoom out to zero and keep the values visible.",
+      "Teens",
+      "Critical thinking / useful shares",
+      "Proposed axis-reveal template; fictional labeled values, +10% change; baseline/crop explicitly marked; pending build/review.",
+      "Idea"
+    ]
+  ]
+}

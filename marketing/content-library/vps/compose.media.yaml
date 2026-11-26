@@ -1,0 +1,41 @@
+# Opt-in overlay: never changes the worker or the existing site's services.
+services:
+  media:
+    image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    user: "1002:1002"
+    command: [caddy, run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+    restart: unless-stopped
+    read_only: true
+    cpus: 0.25
+    mem_limit: 64m
+    pids_limit: 64
+    cap_drop: [ALL]
+    # Official Caddy binary has this file capability; keep its bounding bit so
+    # exec works under a non-root uid. no-new-privileges prevents gaining it.
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - type: bind
+        source: ./Caddy.media
+        target: /etc/caddy/Caddyfile
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./media/public
+        target: /media/public
+        read_only: true
+        bind:
+          create_host_path: false
+    networks:
+      site:
+        aliases: [content-machine-media]
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+networks:
+  site:
+    external: true
+    name: ${CONTENT_MACHINE_SITE_NETWORK:?Set the existing site Caddy Docker network name}

@@ -1,0 +1,22 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	@approved_mp4 {
+		method GET HEAD
+		path_regexp approved_mp4 ^/[0-9a-f]{64}\.mp4$
+	}
+	handle @approved_mp4 {
+		root * /media/public
+		header X-Content-Type-Options nosniff
+		file_server {
+			disable_canonical_uris
+		}
+	}
+	handle {
+		respond 404
+	}
+}

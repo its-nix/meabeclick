@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["concepts"],
+  "properties": {
+    "concepts": {
+      "type": "array", "maxItems": 12,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["audience", "hook_he", "premise", "beats", "payoff", "cta", "format", "math_spec", "claims", "source_needs", "production_requirements", "novelty_rationale"],
+        "properties": {
+          "audience": {"enum": ["Parents", "Teens", "Families"]},
+          "hook_he": {"type": "string", "minLength": 8, "maxLength": 100},
+          "premise": {"type": "string", "minLength": 12, "maxLength": 500},
+          "beats": {"type": "array", "minItems": 2, "maxItems": 6, "items": {"type": "string", "minLength": 4, "maxLength": 180}},
+          "payoff": {"type": "string", "minLength": 8, "maxLength": 240},
+          "cta": {"type": "string", "minLength": 4, "maxLength": 120},
+          "format": {"type": "string", "pattern": "^[a-z0-9-]{2,40}$"},
+          "math_spec": {
+            "type": "object", "additionalProperties": false,
+            "required": ["statement", "assertions"],
+            "properties": {
+              "statement": {"type": "string", "maxLength": 500},
+              "assertions": {"type": "array", "maxItems": 12, "items": {
+                "type": "object", "additionalProperties": false,
+                "required": ["expression", "result"],
+                "properties": {"expression": {"type": "string", "maxLength": 100}, "result": {"type": "number"}}
+              }}
+            }
+          },
+          "claims": {"type": "array", "maxItems": 5, "items": {"type": "string", "minLength": 3, "maxLength": 180}},
+          "source_needs": {"type": "array", "maxItems": 5, "items": {"type": "string", "maxLength": 180}},
+          "production_requirements": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "string", "pattern": "^[a-z0-9-]{2,40}$"}},
+          "novelty_rationale": {"type": "string", "minLength": 12, "maxLength": 240}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "state_dir": "/absolute/private/content-machine-state",
+  "prepare_enabled": true,
+  "paused": false,
+  "auto_plan": true,
+  "launch_through": "2026-11-21",
+  "snapshot_file": "/absolute/private/native-snapshot.json",
+  "google_credentials": "/absolute/private/authorized-user.json",
+  "spreadsheet_id": "CONFIGURE_VERIFIED_SHEET_ID",
+  "releases_sheet_id": 0,
+  "upload_folder_id": "CONFIGURE_VERIFIED_FOLDER_ID",
+  "bounds": {
+    "Queue": 40,
+    "Components": 80,
+    "Recipes": 40,
+    "References": 40,
+    "Ideas": 50
+  },
+  "destinations": [],
+  "requests": [],
+  "seed_bundles": [],
+  "preview_urls": {},
+  "daily_limit": 2,
+  "monthly_limit": 20,
+  "capacity": {
+    "total_hours": 0,
+    "occupied_hours": 0,
+    "observed_at": null
+  },
+  "document_mirrors": []
+}

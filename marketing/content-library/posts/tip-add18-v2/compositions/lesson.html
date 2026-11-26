@@ -1,0 +1,52 @@
+<template><style>@font-face{font-family:Heebo;src:url('assets/fonts/heebo-hebrew-wght-normal.woff2');font-weight:100 900;unicode-range:U+0590-05FF}@font-face{font-family:Heebo;src:url('assets/fonts/heebo-latin-wght-normal.woff2');font-weight:100 900}*{box-sizing:border-box}#root{position:absolute;inset:0;overflow:hidden;font-family:Heebo,sans-serif;direction:rtl;color:#173d9a;background:#fffaf1}#brand{position:absolute;left:100px;top:198px;width:820px;height:74px;display:flex;align-items:center;justify-content:center;gap:20px;font-size:44px;font-weight:800}#brand img{width:90px;height:74px;object-fit:contain}.title{position:absolute;left:100px;top:325px;width:820px;text-align:center;font-size:82px;line-height:1.25;font-weight:850}.line{position:absolute;left:100px;width:820px;text-align:center;font-size:48px;line-height:1.4;font-weight:650}.math{direction:ltr;unicode-bidi:isolate}#cta{position:absolute;left:100px;top:1190px;width:820px;text-align:center;font-size:48px;line-height:1.4;font-weight:750;opacity:0}#question{top:325px}#hint{top:475px}#eq1,#eq2,#answer{top:340px;opacity:0;font-size:91px}.step{top:495px;opacity:0;font-size:48px}#stage{position:absolute;left:120px;top:640px;width:780px;height:370px;direction:ltr;overflow:visible}#axis{position:absolute;left:50px;top:250px;width:680px;height:5px;background:#173d9a;border-radius:3px}.tick{position:absolute;top:239px;width:4px;height:26px;background:#173d9a}.mark{position:absolute;top:275px;width:56px;text-align:center;font-size:34px;font-weight:750}#m45{opacity:0;color:#a6420e}#paths{position:absolute;inset:0;width:780px;height:370px;overflow:visible}.jump{fill:none;stroke-width:8;stroke-linecap:round;stroke-dasharray:1000;stroke-dashoffset:1000}#plus{stroke:#2563eb}#minus{stroke:#bd4c10;opacity:0}#return-direction{fill:none;stroke:#bd4c10;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:0}#traveler{position:absolute;left:55px;top:207px;width:50px;height:50px;background:#173d9a;border-radius:50%;transform-origin:50% 50%}#shadow{position:absolute;left:50px;top:257px;width:60px;height:10px;background:#173d9a;opacity:.14;border-radius:50%}#plus-label{position:absolute;left:315px;top:-70px;font-size:58px;font-weight:800;color:#173d9a;opacity:0}#minus-label{position:absolute;left:610px;top:40px;font-size:49px;font-weight:800;color:#a6420e;opacity:0}#extra{position:absolute;left:150px;top:1070px;width:740px;display:flex;justify-content:center;align-items:center;gap:22px;direction:ltr;opacity:0}.pill{height:88px;border:3px solid #173d9a;border-radius:22px;background:#e4edff;display:flex;align-items:center;justify-content:center;font-size:49px;font-weight:850}.eighteen{width:180px}.two{width:105px;background:#ffe3ce;border-color:#bd4c10;color:#9b3a0b}.symbol{font-size:48px;font-weight:750}#settle{position:absolute;left:555px;top:192px;width:130px;height:130px;border:5px solid #bd4c10;border-radius:50%;opacity:0;pointer-events:none}#extra-note{top:1185px;font-size:43px;opacity:0}#cta{top:1210px}#net{position:absolute;left:190px;top:1070px;width:660px;height:100px;text-align:center;font-size:61px;font-weight:850;opacity:0}#m47{opacity:0}</style><div id="root" data-composition-id="lesson" data-duration="15" data-width="1080" data-height="1920"><div id="brand"><img src="assets/logo.svg" alt=""><span>מאה בקליק</span></div><div id="question" class="title"><bdi dir="ltr">27 + 18</bdi> בראש?</div><div id="hint" class="line">קפיצה גדולה. תיקון קטן.</div><div id="eq1" class="title math">27 + 20 = 47</div><div id="step1" class="line step">קופצים 20 קדימה</div><div id="eq2" class="title math">47 − 2 = 45</div><div id="step2" class="line step">חוזרים 2 שמאלה</div><div id="answer" class="title math">27 + 18 = 45</div><div id="stage"><div id="axis"></div><div class="tick" style="left:80px"></div><div class="tick" style="left:620px"></div><div class="tick" style="left:680px"></div><svg id="paths" viewBox="0 0 780 370"><path id="plus" class="jump" d="M80,232Q380,-150 680,232"/><path id="minus" class="jump" d="M680,232Q650,90 620,232"/><path id="return-direction" d="M659,151L648,161L659,171"/></svg><div id="plus-label" class="math" data-layout-allow-overflow="true">+20</div><div id="minus-label" class="math">−2</div><div id="shadow"></div><div id="settle"></div><div id="traveler"></div><div class="mark" style="left:52px">27</div><div id="m45" class="mark" style="left:592px">45</div><div id="m47" class="mark" style="left:652px">47</div></div><div id="extra"><div class="pill eighteen">18</div><span class="symbol">+</span><div id="extra-two" class="pill two">2</div><span class="symbol">=</span><div id="twenty" class="pill eighteen">20</div></div><div id="extra-note" class="line">התוספת העודפת חוזרת אחורה</div><div id="net" class="math">+20 − 2 = +18</div><div id="cta">שמרו לחיבור הבא</div></div><script>const tl=gsap.timeline({paused:true});
+// Sample the actual SVG length. Every segment uses the same linear progress
+// for its point, drawn tip and baseline shadow; no independent position ease.
+function traceJump(selector,start,duration){
+  const path=document.querySelector(selector), length=path.getTotalLength();
+  const origin=path.getPointAtLength(0);
+  gsap.set(path,{strokeDasharray:length,strokeDashoffset:length});
+  const segments=300;
+  for(let i=1;i<=segments;i++){
+    const progress=i/segments, point=path.getPointAtLength(progress*length);
+    const at=start+(i-1)*duration/segments;
+    const timing={duration:duration/segments,ease:'none'};
+    tl.to('#traveler',{x:point.x-80,y:point.y-232,...timing},at);
+    tl.to('#shadow',{x:point.x-80,...timing},at);
+    tl.to(path,{strokeDashoffset:length*(1-progress),autoRound:false,...timing},at);
+  }
+}
+traceJump('#plus',3.02,1.46);
+traceJump('#minus',7.28,.76);
+tl.to('#question,#hint',{opacity:0,duration:.25},2.35);
+tl.fromTo('#eq1,#step1',{opacity:0},{opacity:1,duration:.3},2.65);
+tl.to('#traveler',{scaleX:1.25,scaleY:.72,duration:.22,ease:'power2.in'},2.8);
+tl.to('#traveler',{scaleX:.86,scaleY:1.15,duration:.2},3.02);
+tl.to('#plus-label',{opacity:1,duration:.25},3.15);
+tl.to('#shadow',{scaleX:.7,opacity:.06,duration:.73,ease:'power2.out'},3.02);
+tl.to('#shadow',{scaleX:1,opacity:.14,duration:.73,ease:'power2.in'},3.75);
+tl.to('#traveler',{scaleX:1.28,scaleY:.7,duration:.12},4.48);
+tl.to('#traveler',{scaleX:1,scaleY:1,duration:.55,ease:'elastic.out(1,.45)'},4.6);
+tl.fromTo('#m47',{opacity:0,y:8},{opacity:1,y:0,duration:.35,ease:'back.out(1.4)'},4.48);
+tl.fromTo('#extra',{opacity:0,y:20},{opacity:1,y:0,duration:.4,ease:'power3.out'},.6);
+tl.to('#eq1,#step1',{opacity:0,duration:.25},6.1);
+tl.to('#eq2,#step2',{opacity:1,duration:.3},6.4);
+tl.to('#extra-two',{y:-23,rotation:-8,scale:1.1,duration:.3,ease:'back.out(1.4)'},6.65);
+tl.to('#extra,#plus-label',{opacity:0,duration:.25},6.1);
+tl.to('#plus',{opacity:.18,duration:.25},6.9);
+tl.to('#traveler',{scaleX:1.18,scaleY:.8,duration:.18},7.1);
+tl.to('#traveler',{scaleX:.9,scaleY:1.1,duration:.15},7.28);tl.to('#minus-label',{opacity:1,duration:.2},7.28);
+tl.to('#extra .symbol,#twenty',{opacity:0,duration:.18},7.28);
+tl.to('#extra-two',{x:-160,y:-80,rotation:-18,opacity:0,duration:.76,ease:'power2.in'},7.28);
+tl.set('#minus',{opacity:1},7.28);
+tl.to('#return-direction',{opacity:1,duration:.12},8.04);
+tl.to('#traveler',{scaleX:1.2,scaleY:.8,duration:.12},8.04);
+tl.to('#traveler',{scaleX:1,scaleY:1,duration:.5,ease:'elastic.out(1,.45)'},8.16);
+tl.fromTo('#m45',{opacity:0,y:10},{opacity:1,y:0,duration:.4,ease:'back.out(1.4)'},8.04);
+tl.fromTo('#settle',{opacity:.7,scale:.45},{opacity:0,scale:1.15,duration:.65,ease:'power2.out',immediateRender:false},8.04);
+tl.to('#m47',{opacity:.4,duration:.3},8.3);
+tl.to('#plus',{opacity:0,duration:.3},8.3);
+tl.to('#extra,#extra-note',{opacity:0,duration:.25},9.4);
+tl.to('#net',{opacity:1,duration:.3},9.7);
+tl.to('#eq2,#step2',{opacity:0,duration:.25},10.65);
+tl.fromTo('#answer',{opacity:0,scale:.94},{opacity:1,scale:1,duration:.5,ease:'back.out(1.25)'},10.95);
+tl.to('#cta',{opacity:1,duration:.3},11.4);window.__timelines=window.__timelines||{};window.__timelines.lesson=tl;</script></template>

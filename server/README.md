@@ -463,10 +463,16 @@ docker compose pull app && docker compose up -d --no-build
 
 ## Deploy
 
-CI (`.github/workflows/deploy.yml`) runs `npm test` and `npm run check`,
-builds the Docker image, and pushes it to GHCR tagged with both the commit
-SHA and `latest` — **before** telling the VPS to deploy. A broken build or
-failing test now fails in CI; it never reaches the VPS.
+CI (`.github/workflows/deploy.yml`) runs the test suite, type checks and
+browser checks, then boots the release image in an isolated container. The
+image smoke check signs in as a synthetic tutor, books a synthetic lesson and
+verifies that the native preparation job stays private. The container uses
+scratch data, a loopback calendar feed and no external network.
+
+Only a successful `main` run publishes that same image to GHCR, tagged with
+the commit SHA and `latest`, before telling the VPS to deploy. To run the
+image check locally, use `bash scripts/smoke-release-image.sh IMAGE` with
+an image already built or loaded in Docker.
 
 Pushing to `main` then triggers the SSH step, which connects to the VPS as
 `meabeclick`. That SSH key is forced (via `command=` in `meabeclick`'s

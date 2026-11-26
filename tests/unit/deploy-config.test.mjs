@@ -61,25 +61,34 @@ test('pull requests run the gates', () => {
   assert.match(workflow, /npm run check/, 'the type-check must run');
 });
 
-test('a pull request never pushes an image or deploys', () => {
-  // A PR token is read-only for packages, and a deploy from an unmerged
-  // branch would put unreviewed code in front of families.
-  assert.match(workflow, /push:\s*\$\{\{\s*github\.event_name\s*!=\s*'pull_request'\s*\}\}/,
-    'the image push must be conditional on the event');
-
+test('only main publishes and deploys the image', () => {
+  const publish = step('Publish verified image');
   const deployJob = workflow.slice(workflow.indexOf('\n  deploy:'));
-  assert.match(deployJob, /if:\s*github\.event_name\s*!=\s*'pull_request'/,
-    'the deploy job must be gated to non-PR events');
+  for (const gated of [publish, deployJob]) {
+    assert.match(gated, /if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'/);
+  }
+  assert.match(deployJob, /needs: build/);
 });
 
-test('the image is still BUILT on a pull request', () => {
-  // The point of building without pushing: a Dockerfile or .dockerignore
-  // fault fails no test and no type-check. One such fault — a runtime bind
-  // mount left in the build context — already broke a deploy before any of
-  // this ran on PRs.
-  const buildStep = workflow.slice(workflow.indexOf('Build and push image'));
-  assert.doesNotMatch(buildStep.split('\n').slice(0, 12).join('\n'), /if:/,
-    'the build step itself must not be skipped on pull requests');
+function step(name) {
+  const start = workflow.indexOf(`      - name: ${name}\n`);
+  assert.notEqual(start, -1, `missing workflow step: ${name}`);
+  return workflow.slice(start).split(/\n      - |\n  deploy:/, 1)[0];
+}
+
+test('the required build boots the same image that it publishes', () => {
+  const build = step('Build release image');
+  const smoke = step('Verify release image');
+  const publish = step('Publish verified image');
+  assert.match(build, /load: true/);
+  assert.doesNotMatch(build, /if:|push:|continue-on-error:/);
+  assert.doesNotMatch(smoke, /if:|continue-on-error:/);
+  const tag = '${{ steps.image.outputs.name }}:${{ github.sha }}';
+  for (const imageStep of [build, smoke, publish]) assert.ok(imageStep.includes(tag));
+  assert.match(smoke, /bash scripts\/smoke-release-image\.sh "\$IMAGE"/);
+  assert.match(publish, /docker push "\$IMAGE"/);
+  assert.ok(workflow.indexOf(build) < workflow.indexOf(smoke));
+  assert.ok(workflow.indexOf(smoke) < workflow.indexOf(publish));
 });
 
 test('only one deploy touches the box at a time', () => {

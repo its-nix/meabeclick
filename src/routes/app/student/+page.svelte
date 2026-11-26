@@ -467,6 +467,14 @@
 
       {#if activeView === 'hw'}
         <h1 class="view-title">שיעורי הבית שלי</h1>
+        {#each data.nativeHomework as homework (homework.url)}
+          <div class="card" dir="rtl">
+            <a href={homework.url} target="_blank" rel="noopener noreferrer">פתיחת מטלה ב־Google Docs</a>
+            {#if homework.forwardable}
+              <p class="card-meta">כל מי שמקבל את הקישור יכול לערוך את המסמך.</p>
+            {/if}
+          </div>
+        {/each}
         <div class="card" dir="rtl">
           <p class="progress-words" role="status" aria-atomic="true">
             {writtenSubmitted} מתוך {writtenHomework.length} מטלות בכתב הוגשו או נבדקו

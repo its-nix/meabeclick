@@ -121,6 +121,13 @@ export function studentGoogleEmail(studentId: number): string | null {
   const account = db.prepare(`SELECT email FROM google_identities WHERE scope_kind = 'account' AND scope_id = ?`).get(self.id) as { email: string } | undefined;
   return account?.email ?? null;
 }
+export function parentGoogleEmail(studentId: number): string | null {
+  const row = handle().prepare(`SELECT g.email FROM students_v2 s
+    JOIN accounts a ON a.id=s.account_id AND a.is_self=0
+    JOIN google_identities g ON g.scope_kind='account' AND g.scope_id=a.id
+    WHERE s.id=?`).get(studentId) as { email: string } | undefined;
+  return row?.email ?? null;
+}
 const same = (a: FamilyIdentity, b: FamilyIdentity) => a.kind === b.kind && a.id === b.id;
 
 export function linkGoogleIdentity(profile: GoogleProfile, identity: FamilyIdentity): void {

@@ -20,7 +20,7 @@ export async function writeNativeGamesFile(api:{blob:(a:CentralArtifact,parent:s
 interface Receipt {sourceHash:string;slides:{url:string};notesLocation?:'slides';tutorNotes?:{url:string};homework:{url:string};activities:{id:string;title:string;url:string}[];provenance?:{kind?:string;bundleVersion:string;sourceIds:string[]}}
 interface Api {scope:string;json:(url:string,init?:RequestInit)=>Promise<any>}
 /** Recheck sealed native files before linking them, including after a registration retry. */
-export async function validateNativeDraftFiles(api:Api&{privateFolder:(id:string,parent:string)=>Promise<unknown>},workspace:{workspaceId:string;reviewId:string},receipt:{reviewFolderId:string;slides:{id:string};homework:{id:string};tutorNotes?:{id:string}},config:{learningFolderId:string;ownerEmail:string}){
+export async function validateNativeDraftFiles(api:Api&{privateFolder:(id:string,parent:string)=>Promise<unknown>},workspace:{workspaceId:string;reviewId:string},receipt:{reviewFolderId:string;slides:{id:string};homework:{id:string};tutorNotes?:{id:string}},config:{learningFolderId:string;ownerEmail:string},homeworkParent?:string){
  await api.privateFolder(workspace.workspaceId,config.learningFolderId);
  await api.privateFolder(workspace.reviewId,workspace.workspaceId);
  await api.privateFolder(receipt.reviewFolderId,workspace.reviewId);
@@ -28,7 +28,10 @@ export async function validateNativeDraftFiles(api:Api&{privateFolder:(id:string
  for(const item of items){
   if(!/^[A-Za-z0-9_-]{10,200}$/.test(item.id))throw Error('conflict');
   const file=await api.json(`https://www.googleapis.com/drive/v3/files/${item.id}?fields=id,mimeType,parents,owners(emailAddress),permissions(type),trashed,appProperties`);
-  if(file.id!==item.id||file.mimeType!==item.type||file.trashed||!file.parents?.includes(receipt.reviewFolderId)||file.appProperties?.meaCentralScope!==api.scope)throw Error('conflict');
+  const parent=file.parents?.length===1?file.parents[0]:null;
+  const expectedParent=parent===receipt.reviewFolderId||
+    item.type==='application/vnd.google-apps.document'&&item.id===receipt.homework.id&&parent===homeworkParent;
+  if(file.id!==item.id||file.mimeType!==item.type||file.trashed||!expectedParent||file.appProperties?.meaCentralScope!==api.scope)throw Error('conflict');
   if(!file.owners?.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===config.ownerEmail.toLowerCase()))throw Error('ownership');
   if(!Array.isArray(file.permissions)||file.permissions.some((p:{type?:string})=>!['user','group'].includes(p.type??'')))throw Error('privacy');
  }
@@ -57,18 +60,18 @@ export async function appendNativeDraftRecords(api:Api,indexId:string,records:Wo
   const owned=meta.sheets.filter((s:any)=>s.developerMetadata?.some((m:any)=>m.metadataKey==='meaNativeRecords'&&m.metadataValue===marker));
   if(owned.length>1)throw Error('conflict');
   let sheet=owned[0],existing:unknown[][]=[];
-  const base=workspaceTables[role].map(workspaceHeader),site=(workspaceSiteColumns[role]??[]).map(workspaceHeader),header=[...base,...site];
+  const columns=workspaceTables[role].map(workspaceHeader),site=(workspaceSiteColumns[role]??[]).map(workspaceHeader),header=[...columns,...site];
   if(sheet){
    if(sheet.properties.title!==title)throw Error('conflict');
    const result=await api.json(`${base}/values/${encodeURIComponent(`'${title}'!A1:P5002`)}?valueRenderOption=UNFORMATTED_VALUE`);
    existing=result.values??[];
-   const lacksSite=site.length>0&&JSON.stringify(existing?.[0])===JSON.stringify(base);
+   const lacksSite=site.length>0&&JSON.stringify(existing?.[0])===JSON.stringify(columns);
    if(!Array.isArray(existing)||existing.length>5001||JSON.stringify(existing[0])!==JSON.stringify(header)&&!lacksSite)throw Error('conflict');
    if(lacksSite){
     // Add the site-owned header only into a column nobody has written to.
-    if(existing.some(r=>!Array.isArray(r)||r.length>base.length))throw Error('conflict');
-    if((sheet.properties.gridProperties?.columnCount??0)<header.length)requests.push({appendDimension:{sheetId:sheet.properties.sheetId,dimension:'COLUMNS',length:header.length-(sheet.properties.gridProperties?.columnCount??base.length)}});
-    requests.push({updateCells:{start:{sheetId:sheet.properties.sheetId,rowIndex:0,columnIndex:base.length},rows:[{values:site.map(v=>({userEnteredValue:{stringValue:v}}))}],fields:'userEnteredValue'}});
+    if(existing.some(r=>!Array.isArray(r)||r.length>columns.length))throw Error('conflict');
+    if((sheet.properties.gridProperties?.columnCount??0)<header.length)requests.push({appendDimension:{sheetId:sheet.properties.sheetId,dimension:'COLUMNS',length:header.length-(sheet.properties.gridProperties?.columnCount??columns.length)}});
+    requests.push({updateCells:{start:{sheetId:sheet.properties.sheetId,rowIndex:0,columnIndex:columns.length},rows:[{values:site.map(v=>({userEnteredValue:{stringValue:v}}))}],fields:'userEnteredValue'}});
    }
   }else{
    if(meta.sheets.some((s:any)=>s.properties?.title===title))throw Error('conflict');

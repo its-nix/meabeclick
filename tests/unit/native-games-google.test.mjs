@@ -33,9 +33,16 @@ function fake({file={...{id:FILE,mimeType:'application/json',size:String(text.le
  const api={scope:SCOPE,ownerEmail:OWNER,
   async json(url,init){
    if(url.startsWith(`https://www.googleapis.com/drive/v3/files/${FILE}?`))return file;
-   if(url.startsWith(`https://www.googleapis.com/drive/v3/files/${INDEX}?`))return {id:INDEX,mimeType:'application/vnd.google-apps.spreadsheet',version:state.version,appProperties:{meaCentralScope:SCOPE},owners:[{emailAddress:OWNER}]};
+   if(url.startsWith(`https://www.googleapis.com/drive/v3/files/${INDEX}?`))return {id:INDEX,mimeType:'application/vnd.google-apps.spreadsheet',version:state.version,permissions:[{type:'user'}],appProperties:{meaCentralScope:SCOPE},owners:[{emailAddress:OWNER}]};
    if(url.includes('?fields=sheets(properties(title))'))return {sheets:['Students','Lessons','Materials','Assignments'].map(n=>({properties:{title:`Native ${n}`}}))};
-   const m=decodeURIComponent(url).match(/'Native (\w+)'!A1/);if(m)return {values:state.grids[m[1]]};
+   if(url.includes('/values:batchGet?')){
+    const valueRanges=new URL(url).searchParams.getAll('ranges').map(range=>{
+     const name=range.match(/'Native (\w+)'!/)[1];
+     return {range,values:state.grids[name]};
+    });
+    if(state.editDuringRead)state.version='changed';
+    return {valueRanges};
+   }
    if(url.endsWith('/values:batchUpdate')){const body=JSON.parse(init.body);for(const d of body.data){const [,c,r]=d.range.match(/!([A-Z]+)(\d+)$/);const g=state.grids.Materials;g[Number(r)-1][c.charCodeAt(0)-65]=d.values[0][0];state.writes.push(d);}return {};}
    throw Error('unexpected '+url);
   },
@@ -74,4 +81,11 @@ test('the existing cron-key central sync endpoint schedules the approval pass',a
 test('with no connected workspace the live pass resolves null instead of throwing',async()=>{
  process.env.DATA_DIR=mkdtempSync(join(tmpdir(),'ngg-'));
  const out=await A.runNativeGameApprovals().catch(e=>'threw');assert.ok(out===null||out==='threw');
+});
+
+
+test('approval refuses a snapshot that changed while Sheets read both release tabs',async()=>{
+ const ctx=fake();ctx.state.tutorApproves();ctx.state.editDuringRead=true;
+ await assert.rejects(A.googleApprovalSheet(ctx.api,INDEX).read(),/conflict/);
+ assert.deepEqual(ctx.state.writes,[]);
 });

@@ -105,7 +105,7 @@ test('staging verifies the current digest even when an older request arrives whi
     assert.equal(skipped.code, 0, skipped.stderr);
     assert.match(skipped.stdout, new RegExp(`Skipped staging commit ${olderCommit}`));
     const dockerLog = await readFile(log, 'utf8');
-    assert.ok(dockerLog.includes(`@${currentDigest} compose --env-file /dev/null --project-name meabeclick-staging up `));
+    assert.ok(dockerLog.includes(`@${currentDigest} compose --env-file /dev/null --project-name meabeclick-staging -f compose.yml up `));
     assert.ok(!dockerLog.includes(olderDigest));
   });
 

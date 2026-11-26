@@ -1,0 +1,17 @@
+services:
+  app:
+    network_mode: !reset null
+    environment:
+      HOST: 0.0.0.0
+      SITE_URL: https://staging.meabeclick.com
+      ORIGIN: https://staging.meabeclick.com
+      HOST_HEADER: x-forwarded-host
+    networks:
+      staging-ingress:
+        aliases:
+          - meabeclick-staging
+
+networks:
+  staging-ingress:
+    external: true
+    name: meabeclick-staging-ingress

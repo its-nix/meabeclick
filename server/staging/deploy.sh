@@ -56,7 +56,10 @@ if [[ "$published_digest" != "$digest" ]]; then
 fi
 
 export STAGING_IMAGE="$repository@$digest"
-compose=(docker compose --env-file /dev/null --project-name meabeclick-staging)
+compose=(docker compose --env-file /dev/null --project-name meabeclick-staging -f compose.yml)
+if [[ -f https.compose.yml ]]; then
+  compose+=(-f https.compose.yml)
+fi
 if ! bounded 5s docker image inspect "$STAGING_IMAGE" >/dev/null 2>&1; then
   bounded 75s "${compose[@]}" pull app
 fi

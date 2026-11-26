@@ -509,6 +509,31 @@ A dedicated Google sandbox, test-only access over HTTPS, and the real
 lesson workflow verification are required before staging becomes a production
 promotion gate.
 
+### Staging HTTPS
+
+After the `staging.meabeclick.com` A record resolves to the VPS, create the
+shared ingress bridge with `docker network create --internal --opt
+com.docker.network.bridge.gateway_mode_ipv4=isolated meabeclick-staging-ingress`.
+Only the edge Caddy and the staging app join this bridge. The staging app
+has no published port.
+
+Install `server/staging/proxy.compose.yml` as `docker-compose.override.yml`
+next to the VPS production Compose file. Install `server/staging/proxy.caddy`
+as `/srv/meabeclick-staging/proxy/staging.caddy`. In the same private
+directory, create `users` with one `operator <bcrypt-hash>` line. Generate a
+dedicated staging proxy password and use Caddy's `hash-password` command.
+Keep the cleartext password out of deployment files and Git.
+
+Install `server/staging/https.compose.yml` next to the staging Compose file,
+then run the staging deployment to apply the HTTPS origin and bridge. Apply
+the production Caddy Compose override after validating both configurations.
+Verify that unauthenticated staging requests receive 401 and that an
+authenticated `/booking` request returns the booking page. The Google OAuth
+redirect URI for the staging project is
+`https://staging.meabeclick.com/auth/google/callback`. The ingress bridge
+allows local proxy traffic. Google integration requires separate staging
+credentials and an outbound network before authoring is enabled.
+
 ## Deploy
 
 CI (`.github/workflows/deploy.yml`) runs the test suite, type checks and

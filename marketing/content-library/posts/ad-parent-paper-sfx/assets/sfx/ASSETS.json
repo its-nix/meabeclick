@@ -1,0 +1,20 @@
+[
+  {
+    "path": "assets/sfx/page-turn.mp3",
+    "creator": "OwlStorm / Ashe Kirk / Owlish Media",
+    "source": "https://freesound.org/people/OwlStorm/sounds/151221/",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "0e6737d635998d90f015249c0215691d3cb63d2ff37d49949914284160b6e9e0",
+    "verification": "CC0 confirmed on source page; Openverse metadata retained in private retrieval evidence"
+  },
+  {
+    "path": "assets/sfx/wood-click.mp3",
+    "creator": "husamalhomsi; Openverse alias Sawuare",
+    "source": "https://freesound.org/s/500927/",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "sha256": "c4802131d34fe986179749743a0ffb4878d9eca313e3333b6141f47e3680b90f",
+    "verification": "CC0 confirmed on source page; Openverse metadata retained in private retrieval evidence"
+  }
+]

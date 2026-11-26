@@ -1,0 +1,63 @@
+{
+  "parent_artifact": "P004-57c872602173b78dcb7d",
+  "duration": 15,
+  "intent": "Restrained tactile SFX on visible actions; fixed approved visuals; no speech or music in this comparison",
+  "cues": [
+    {
+      "id": "opening-paper",
+      "asset": "page-turn.mp3",
+      "source_start": 0.69,
+      "duration": 0.26,
+      "at": 0.05,
+      "gain_db": 6,
+      "purpose": "Opening paper settles"
+    },
+    {
+      "id": "working-sheet",
+      "asset": "page-turn.mp3",
+      "source_start": 0.69,
+      "duration": 0.41,
+      "at": 3.28,
+      "gain_db": 7,
+      "purpose": "Paper consolidates into the worked example"
+    },
+    {
+      "id": "first-result",
+      "asset": "wood-click.mp3",
+      "source_start": 0,
+      "duration": 0.0618,
+      "at": 5.15,
+      "gain_db": -16,
+      "purpose": "32 arrives"
+    },
+    {
+      "id": "answer",
+      "asset": "wood-click.mp3",
+      "source_start": 0,
+      "duration": 0.0618,
+      "at": 7.47,
+      "gain_db": -13,
+      "purpose": "25 resolves"
+    },
+    {
+      "id": "offer-page",
+      "asset": "page-turn.mp3",
+      "source_start": 0.69,
+      "duration": 0.41,
+      "at": 10.32,
+      "gain_db": 10,
+      "purpose": "Opaque page handoff"
+    },
+    {
+      "id": "booking-action",
+      "asset": "wood-click.mp3",
+      "source_start": 0,
+      "duration": 0.0618,
+      "at": 11.02,
+      "gain_db": -18,
+      "purpose": "CTA becomes readable"
+    }
+  ],
+  "master_gain_db": 6,
+  "parent_media_sha256": "eb9bf2c4d4e23e09a1e7c7bd5029828e49a0e5dc416fd9f9d529e69ba1fa30fa"
+}

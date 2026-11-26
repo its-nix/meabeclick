@@ -1,0 +1,138 @@
+name: content-machine
+services:
+  worker:
+    image: meabeclick-content-machine:20261118
+    user: "1002:1002"
+    restart: unless-stopped
+    read_only: true
+    cpus: 1.0
+    mem_limit: 3g
+    pids_limit: 256
+    shm_size: 256m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      PRODUCER_LOW_MEMORY_MODE: "1"
+      HOME: /home/worker
+      XDG_CACHE_HOME: /state/cache
+      CODEX_HOME: /state/codex
+      CODEX_REVIEW_HOME: /state/codex
+      CODEX_IDEATION_HOME: /state/codex
+      CODEX_CREATIVE_HOME: /state/codex
+      CONTENT_MACHINE_STATE: /state
+      RENDER_SPOOL: /render-spool
+      TMPDIR: /state/tmp
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=536870912,uid=1002,gid=1002,mode=1770
+      - /home/worker:rw,nosuid,nodev,size=67108864,uid=1002,gid=1002,mode=0700
+    volumes:
+      - type: bind
+        source: /home/meabeclick/mea-beclick/mea-beclick-kb/content-machine-learning
+        target: /knowledge
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./state
+        target: /state
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./config/machine.json
+        target: /run/config/machine.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./state/render-spool
+        target: /render-spool
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./media
+        target: /media
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, python3, /app/marketing/content-library/vps/run-worker.py, --healthcheck]
+      interval: 60s
+      timeout: 10s
+      retries: 2
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  renderer:
+    image: meabeclick-content-renderer:20261118
+    user: "1002:1002"
+    command: [python3, /app/marketing/content-library/renderer/run_renderer.py]
+    restart: unless-stopped
+    read_only: true
+    cpus: 1.0
+    mem_limit: 3g
+    pids_limit: 384
+    ulimits:
+      fsize:
+        soft: 104857600
+        hard: 104857600
+    shm_size: 256m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      HOME: /home/worker
+      TMPDIR: /tmp
+      RENDER_SPOOL: /spool
+      HTTPS_PROXY: http://egress:3128
+      https_proxy: http://egress:3128
+      HTTP_PROXY: http://egress:3128
+      http_proxy: http://egress:3128
+      ALL_PROXY: http://egress:3128
+      all_proxy: http://egress:3128
+      NO_PROXY: localhost,127.0.0.1,::1
+      no_proxy: localhost,127.0.0.1,::1
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=2147483648,uid=1002,gid=1002,mode=1770
+      - /home/worker:rw,nosuid,nodev,size=67108864,uid=1002,gid=1002,mode=0700
+    volumes:
+      - type: bind
+        source: ./state/render-spool
+        target: /spool
+        bind:
+          create_host_path: false
+    networks: [render-internal]
+    depends_on:
+      egress:
+        condition: service_healthy
+
+  egress:
+    image: meabeclick-content-renderer:20261118
+    user: "1002:1002"
+    command: [python3, /app/marketing/content-library/renderer/egress_proxy.py]
+    restart: unless-stopped
+    read_only: true
+    cpus: 0.25
+    mem_limit: 128m
+    pids_limit: 32
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python3, -c, "import socket; s=socket.create_connection(('127.0.0.1',3128),2); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks: [render-internal, render-public]
+
+networks:
+  render-internal:
+    internal: true
+  render-public:
+    driver: bridge

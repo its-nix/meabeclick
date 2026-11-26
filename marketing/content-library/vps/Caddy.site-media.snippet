@@ -1,0 +1,6 @@
+# Insert inside the existing HTTPS site. Wrap its app proxy in a separate
+# `handle { reverse_proxy app:3000 }` fallback so it cannot preempt this route.
+# This is a reviewable snippet, not a standalone Caddyfile and not auto-imported.
+handle_path /content-media/* {
+	reverse_proxy content-machine-media:8080
+}

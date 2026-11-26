@@ -1,0 +1,118 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "patches",
+    "caption",
+    "learnings",
+    "summary",
+    "actions"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "repair",
+        "held"
+      ]
+    },
+    "patches": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "before",
+          "after"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "before": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "caption": {
+      "type": "string",
+      "maxLength": 5000
+    },
+    "learnings": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "format_id",
+          "rule",
+          "supersedes"
+        ],
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "global",
+              "format"
+            ]
+          },
+          "format_id": {
+            "type": "string"
+          },
+          "rule": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "supersedes": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "string"
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "center",
+        "music",
+        "caption_suffix"
+      ],
+      "properties": {
+        "center": {
+          "type": "boolean"
+        },
+        "music": {
+          "type": "string",
+          "enum": [
+            "add",
+            "remove",
+            "preserve"
+          ]
+        },
+        "caption_suffix": {
+          "type": "string",
+          "enum": [
+            "remove",
+            "preserve"
+          ]
+        }
+      }
+    }
+  }
+}

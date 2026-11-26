@@ -1,0 +1,9 @@
+{
+  "name": "meabeclick-tip-add18-v2",
+  "private": true,
+  "scripts": {
+    "check": "npx --yes hyperframes@0.9.9 check",
+    "render": "npx --yes hyperframes@0.9.9 render",
+    "dev": "npx --yes hyperframes@0.9.9 preview"
+  }
+}

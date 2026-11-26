@@ -1,0 +1,232 @@
+{
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string"
+    },
+    "artifact_id": {
+      "type": "string"
+    },
+    "media_sha256": {
+      "type": "string"
+    },
+    "context_sha256": {
+      "type": "string"
+    },
+    "policy_sha256": {
+      "type": "string"
+    },
+    "evidence_sha256": {
+      "type": "string"
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "revise",
+        "needs_human"
+      ]
+    },
+    "checks": {
+      "type": "object",
+      "properties": {
+        "math": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        },
+        "teaching": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        },
+        "motion": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        },
+        "timing": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        },
+        "readability": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        },
+        "hebrew": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        },
+        "brand": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        },
+        "hook_payoff": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        },
+        "audio": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "unverified"
+          ]
+        }
+      },
+      "required": [
+        "math",
+        "teaching",
+        "motion",
+        "timing",
+        "readability",
+        "hebrew",
+        "brand",
+        "hook_payoff",
+        "audio"
+      ],
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "original_frame_indices": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "sheet_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "motion_windows": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "continuous_playback": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "original_frame_indices",
+        "sheet_ids",
+        "motion_windows",
+        "continuous_playback"
+      ],
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "time_seconds": {
+            "type": "number"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "P0",
+              "P1"
+            ]
+          },
+          "issue": {
+            "type": "string"
+          },
+          "change": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "time_seconds",
+          "severity",
+          "issue",
+          "change"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "patches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "before": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "before",
+          "after"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "role",
+    "artifact_id",
+    "media_sha256",
+    "context_sha256",
+    "policy_sha256",
+    "evidence_sha256",
+    "session_id",
+    "summary",
+    "verdict",
+    "checks",
+    "coverage",
+    "findings",
+    "patches"
+  ],
+  "additionalProperties": false
+}

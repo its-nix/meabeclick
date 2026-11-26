@@ -9,8 +9,8 @@
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
 import { nativeReportBundle, nativeReportSource } from '$server/reports/native-source.ts';
-import { bookingForReport, reportForBooking, coverageHistory, lastReportFiling } from '$server/reports/store.ts';
-import { planForEnrollment, planData, lastLessonAt } from '$server/plans/store.ts';
+import { bookingForReport, reportForBooking, coverageHistory, lastReportFiling, planForReport, coveredSkillsForReport } from '$server/reports/store.ts';
+import { planData, lastLessonAt } from '$server/plans/store.ts';
 import { evidenceForSkill } from '$server/plans/evidence.ts';
 import { suggestStatus } from '$server/plans/suggest.ts';
 import { buildTree, type TopicView } from '$server/plans/view.ts';
@@ -60,7 +60,7 @@ export const load: PageServerLoad = async (event) => {
     };
   }
 
-  const plan = booking.enrollment_id ? planForEnrollment(booking.enrollment_id) : null;
+  const plan = planForReport(booking);
   const report = reportForBooking(booking.id);
   if (report && report.student_id !== student.id) error(404, 'לא נמצא');
 
@@ -83,6 +83,11 @@ export const load: PageServerLoad = async (event) => {
     }
   }
 
+  const coveredSkillIds = report && plan ? coveredSkillsForReport(plan.id, report.id).map(e => e.node_id) : [];
+  const covered = new Set(coveredSkillIds);
+  const offerFirst = (s: { id: number; recommended: boolean; status: SkillStatus }) =>
+    covered.has(s.id) || s.recommended || IN_PROGRESS.includes(s.status);
+
   /* A DRAFT beside each skill, computed from the practice the system
      already recorded (spec §6 step 5). It is offered, never applied: the
      page must not preselect it, because a tutor confirming the system's
@@ -97,7 +102,7 @@ export const load: PageServerLoad = async (event) => {
       ...s, topic: t.title, branch: b.title,
       draft: suggestStatus(evidenceForSkill(student.id, s.id)),
     }))))
-    .filter(s => s.visibility !== 'hidden');
+    .filter(s => s.visibility !== 'hidden' || covered.has(s.id));
 
   const expectedFiling = report ? lastReportFiling(report.id) : 0;
   const history = report ? coverageHistory(report.id).map(({ id, at, coverage }) => ({
@@ -124,9 +129,10 @@ export const load: PageServerLoad = async (event) => {
       url: `https://docs.google.com/presentation/d/${current.slidesId}/edit`,
     } : null,
     filedEntries,
+    coveredSkillIds,
     // Offered first, then everything else behind the search line.
-    suggested: skills.filter(s => s.recommended || IN_PROGRESS.includes(s.status)),
-    rest: skills.filter(s => !(s.recommended || IN_PROGRESS.includes(s.status))),
+    suggested: skills.filter(offerFirst),
+    rest: skills.filter(s => !offerFirst(s)),
     templates: !plan && enrollment
       ? templatesForSubject(enrollment.subject).map(t => ({ id: t.id, track: t.track }))
       : [],

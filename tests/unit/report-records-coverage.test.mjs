@@ -126,6 +126,29 @@ test('explicit zero coverage is recorded independently from a skill judgment', (
   assert.equal(coveredEvents(planId, nodes[0].id).length, 0);
 });
 
+test('a coverage correction updates prep and metrics while preserving other evidence', async () => {
+  const { preparationBriefForBooking } = await import('../../src/lib/server/native-learning/preparation-brief.ts');
+  const { skillsCovered } = await import('../../scripts/skills-covered.mjs');
+  const { planId, nodes, bookingId, student } = fresh();
+  const [taught, unrelated] = nodes;
+  S.addCoveredEvent(planId, unrelated.id, {});
+  const input = { bookingId, note: null, entries: [] };
+  const reportId = R.fileReport({ ...input, expectedFiling: 0, coveredSkillIds: [taught.id] });
+  const briefSkills = () => preparationBriefForBooking({ bookingId, studentId: student.id }).observations
+    .filter(event => event.kind === 'covered').map(event => event.topic);
+  const count = () => skillsCovered(handle(), new Date(), { minStudents: 1 }).totals.events;
+  assert.deepEqual(briefSkills(), [taught.title, unrelated.title]);
+  const before = count();
+
+  R.fileReport({ ...input, expectedFiling: R.lastReportFiling(reportId), coveredSkillIds: [] });
+  assert.deepEqual(briefSkills(), [unrelated.title]);
+  assert.equal(count(), before - 1);
+
+  R.fileReport({ ...input, expectedFiling: R.lastReportFiling(reportId), coveredSkillIds: [taught.id] });
+  assert.deepEqual(briefSkills(), [taught.title, unrelated.title]);
+  assert.equal(count(), before);
+});
+
 test('explicit manual corrections keep the prior coverage and reject a stale form', () => {
   const { bookingId } = fresh();
   const input = { bookingId, entries: [] };

@@ -149,9 +149,12 @@ export function currentStatus(events: EventRow[], nodeId: number): SkillStatus {
  * «נלמד, טרם נבדק» rather than a bare «לא נבדק».
  */
 export function lastCoveredAt(events: EventRow[], nodeId: number): string | null {
+  const retracted = new Set(events
+    .filter(e => e.type === 'covered' && e.node_id === nodeId && e.corrects != null)
+    .map(e => e.corrects));
   let best: EventRow | null = null;
   for (const e of events) {
-    if (e.type !== 'covered' || e.node_id !== nodeId) continue;
+    if (e.type !== 'covered' || e.node_id !== nodeId || e.corrects != null || retracted.has(e.id)) continue;
     if (!best || e.id > best.id) best = e;
   }
   return best?.at ?? null;
@@ -178,7 +181,7 @@ export function buildTree(
     if (node.kind === 'skill') status.set(node.id, currentStatus(events, node.id));
   }
   for (const e of events) {
-    if (e.type !== 'status' || e.node_id === null) continue;
+    if ((e.type !== 'status' && e.type !== 'covered') || e.node_id === null) continue;
     const seen = changedAt.get(e.node_id);
     if (!seen || e.at > seen) changedAt.set(e.node_id, e.at);
   }

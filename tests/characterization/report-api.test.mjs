@@ -119,6 +119,9 @@ test('the same enrollment-less booking with an entry is a 400, never a 500', asy
       bookingId, note: null, entries: [{ nodeId: 1, status: 'guided' }],
     }, cookie);
     assert.equal(res.status, 400, 'no plan exists to validate the entry against');
+    assert.equal((await post(`${baseUrl}/api/reports`, {
+      bookingId, expectedFiling: 0, coveredSkillIds: [1],
+    }, cookie)).status, 400);
     const body = await res.json();
     assert.doesNotMatch(JSON.stringify(body), new RegExp(String(bookingId)), 'the booking id must not leak into the response');
   } finally { await stop(); }
@@ -205,6 +208,9 @@ test("a node from another student's plan is refused", async () => {
       bookingId: mine.bookingId, entries: [{ nodeId: foreign.id, status: 'guided' }],
     }, mine.cookie);
     assert.equal(res.status, 404, "one lesson's report may not move another student's plan");
+    assert.equal((await post(`${baseUrl}/api/reports`, {
+      bookingId: mine.bookingId, expectedFiling: 0, coveredSkillIds: [foreign.id],
+    }, mine.cookie)).status, 404);
   } finally { await stop(); }
 });
 
@@ -246,6 +252,65 @@ test('no report reaches the family', async () => {
   } finally { await stop(); }
 });
 
+test('a report records taught plan skills separately from topics and assessments', async () => {
+  const { baseUrl, dbPath, stop } = await startServer();
+  try {
+    const { cookie, bookingId, skill, planId } = await pastLesson(baseUrl, dbPath);
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(dbPath);
+    try {
+      const assessed = db.prepare("SELECT id, title FROM plan_nodes WHERE plan_id = ? AND kind = 'skill' AND id != ? LIMIT 1")
+        .get(planId, skill.id);
+      const topic = db.prepare("SELECT id FROM plan_nodes WHERE plan_id = ? AND kind = 'topic' LIMIT 1").get(planId);
+      const url = `${baseUrl}/api/reports`;
+      const input = {
+        bookingId, expectedFiling: 0, entries: [{ nodeId: assessed.id, status: 'guided' }],
+        coverage: { source: 'manual', topics: [{ title: assessed.title, covered: true, comment: 'PRIVATE-SKILL-TEST' }] },
+        coveredSkillIds: [skill.id, skill.id],
+      };
+      for (const [ids, status] of [[null, 400], [[String(skill.id)], 400], [[topic.id], 400], [[999999], 404]]) {
+        assert.equal((await post(url, { ...input, coveredSkillIds: ids }, cookie)).status, status);
+      }
+      assert.equal(db.prepare('SELECT count(*) AS count FROM lesson_reports').get().count, 0);
+
+      const filed = await post(url, input, cookie);
+      assert.equal(filed.status, 200);
+      const body = await filed.json();
+      const byId = (response, id) => response.tree.flatMap(t => t.branches.flatMap(b => b.skills)).find(s => s.id === id);
+      assert.ok(byId(body, skill.id).coveredAt, 'a taught skill needs no assessment');
+      assert.equal(byId(body, skill.id).status, 'not_checked');
+      assert.equal(byId(body, assessed.id).status, 'guided');
+      assert.equal(byId(body, assessed.id).coveredAt, null, 'an assessment or matching free-text title does not mark a skill taught');
+      assert.doesNotMatch(JSON.stringify(body.events), /PRIVATE-SKILL-TEST/);
+
+      const filingId = () => db.prepare('SELECT max(id) AS id FROM lesson_report_notes WHERE report_id = ?').get(body.report.id).id;
+      const page = await fetch(`${baseUrl}/app/report/${bookingId}`, { headers: { Cookie: cookie } });
+      assert.match(await page.text(), /<input[^>]*type="checkbox"[^>]*checked[^>]*aria-label="נלמד בשיעור:/,
+        'the correction form shows the saved taught skill already checked');
+
+      const noteEdit = { ...input, expectedFiling: filingId(), coveredSkillIds: undefined, entries: [] };
+      assert.equal((await post(url, noteEdit, cookie)).status, 200);
+      const sameCoverage = await post(url, { ...noteEdit, expectedFiling: filingId(), coveredSkillIds: [skill.id] }, cookie);
+      assert.equal(sameCoverage.status, 200);
+      assert.equal((await sameCoverage.json()).events.filter(e => e.type === 'covered').length, 1);
+
+      // Coverage from the plan itself survives clearing this report.
+      const planEvent = await post(`${baseUrl}/api/plans/${planId}/events`, { type: 'covered', nodeId: skill.id }, cookie);
+      assert.equal(planEvent.status, 200);
+      const clear = { ...noteEdit, expectedFiling: filingId(), coveredSkillIds: [] };
+      const correction = await post(url, clear, cookie);
+      assert.equal(correction.status, 200);
+      const corrected = await correction.json();
+      assert.ok(byId(corrected, skill.id).coveredAt);
+      const reportEvents = corrected.events.filter(e => e.type === 'covered' && e.report_id === body.report.id);
+      assert.equal(reportEvents.length, 2);
+      assert.equal(reportEvents[1].corrects, reportEvents[0].id);
+      assert.equal(byId(corrected, assessed.id).status, 'guided');
+      assert.equal((await post(url, clear, cookie)).status, 409);
+    } finally { db.close(); }
+  } finally { await stop(); }
+});
+
 test('manual coverage re-filing rejects stale forms and keeps coverage tutor-only', async () => {
   const { baseUrl, dbPath, stop } = await startServer();
   try {
@@ -284,7 +349,7 @@ test('filing a native report rechecks the displayed Drive version and preserves 
     FAKE_REPORT_SLIDES_FILE: slidesPath,
   } });
   try {
-    const { bookingId, cookie, booked } = await pastLesson(baseUrl, dbPath);
+    const { bookingId, cookie, booked, skill } = await pastLesson(baseUrl, dbPath);
     const connect = await fetch(baseUrl + '/app/library/connection?/connect', {
       method: 'POST', redirect: 'manual', headers: { Cookie: cookie, Origin: baseUrl, Accept: 'text/html' },
       body: new URLSearchParams(),
@@ -319,7 +384,7 @@ test('filing a native report rechecks the displayed Drive version and preserves 
       const setVersion = version => writeFile(slidesPath, JSON.stringify({ ...meta, version }));
       const pagePath = baseUrl + '/app/report/' + bookingId;
       const url = baseUrl + '/api/reports';
-      const body = { bookingId, expectedFiling: 0, entries: [], coverage: {
+      const body = { bookingId, expectedFiling: 0, entries: [], coveredSkillIds: [skill.id], coverage: {
         source: 'native', selection: 'current', confirmed: true,
         token: sha([binding, '5']), topics: [{ objectiveId: 'exponents', covered: false, comment: 'PRIVATE-PIN-COMMENT' }],
       } };
@@ -331,6 +396,8 @@ test('filing a native report rechecks the displayed Drive version and preserves 
       assert.ok(html.includes(body.coverage.token));
       assert.ok(!html.includes(receipt.homework.id));
       const family = await familySession(booked.portal.link);
+      const parentPortal = () => fetch(`${baseUrl}/api/portal/${booked.portal.code}?kind=parent`,
+        { headers: { Cookie: family } }).then(res => res.json());
       assert.equal((await post(url, body, family)).status, 401);
       assert.equal((await post(url, { ...body, coverage: { ...body.coverage, confirmed: false } }, cookie)).status, 409);
       await setVersion('6');
@@ -340,14 +407,22 @@ test('filing a native report rechecks the displayed Drive version and preserves 
 
       db.prepare('UPDATE native_lesson_jobs SET approved_release_id=NULL WHERE booking_id=?').run(bookingId);
       body.coverage.token = sha([binding, '6']);
-      assert.equal((await post(url, body, cookie)).status, 200);
+      const filed = await post(url, body, cookie);
+      assert.equal(filed.status, 200);
+      assert.ok((await filed.json()).tree[0].branches[0].skills[0].coveredAt);
+      const parent = await parentPortal();
+      assert.deepEqual(parent.progress.seen.covered, [skill.title]);
+      assert.doesNotMatch(JSON.stringify(parent), /PRIVATE-PIN-COMMENT|report-synthetic-slides/);
       const first = db.prepare('SELECT * FROM lesson_report_notes').get();
       assert.equal(JSON.parse(first.teaching_coverage).coverage.bundle.slides.version, '6');
 
       await setVersion('7');
-      const correction = { ...body, expectedFiling: first.id,
+      const correction = { ...body, expectedFiling: first.id, coveredSkillIds: [],
         coverage: { ...body.coverage, selection: 'saved', confirmed: false } };
-      assert.equal((await post(url, correction, cookie)).status, 200);
+      const corrected = await post(url, correction, cookie);
+      assert.equal(corrected.status, 200);
+      assert.equal((await corrected.json()).tree[0].branches[0].skills[0].coveredAt, null);
+      assert.deepEqual((await parentPortal()).progress.seen.covered, []);
       assert.deepEqual(db.prepare('SELECT teaching_coverage FROM lesson_report_notes ORDER BY id').all()
         .map(row => JSON.parse(row.teaching_coverage).coverage.bundle.slides.version), ['6', '6']);
       const familyView = await fetch(baseUrl + '/app/parent', { headers: { Cookie: family } });

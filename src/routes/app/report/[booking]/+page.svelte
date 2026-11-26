@@ -7,9 +7,8 @@
    *
    * Every write here follows the plan page's "never optimistic" rule: POST,
    * then navigate only once the server has confirmed the write. Nothing on
-   * this screen is pre-ticked, and a ticked skill starts with no status —
-   * a hurried submit must never record a judgement she did not make, so
-   * the button stays disabled until every ticked row has one.
+   * a new report is preselected. Corrections start with the saved coverage
+   * and leave assessments blank for the tutor to record any new judgment.
    */
   import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
@@ -43,9 +42,7 @@
   let rest = $derived((data.reportable ? data.rest : []) as SkillRow[]);
   let filedEntries = $derived((data.reportable ? data.filedEntries : []) as FiledEntry[]);
 
-  // Seeded for every skill in the plan (not just the ones on screen), so
-  // opening the search disclosure later never meets an unseeded id.
-  let ticked = $state<Record<number, boolean>>({});
+  let coveredSkillIds = $state<number[]>(untrack(() => data.reportable ? [...data.coveredSkillIds] : []));
   let statusChoice = $state<Record<number, SkillStatus | ''>>({});
   // `note` MUST have a real value on the very first render, server-side
   // included, where no $effect ever runs (same reasoning as the plan
@@ -78,9 +75,8 @@
   // its own synchronous initial value.
   $effect(() => {
     if (!data.reportable) return;
-    const all = [...data.suggested, ...data.rest] as SkillRow[];
-    ticked = Object.fromEntries(all.map(s => [s.id, false]));
-    statusChoice = Object.fromEntries(all.map(s => [s.id, '']));
+    coveredSkillIds = [...data.coveredSkillIds];
+    statusChoice = {};
     note = data.report?.note ?? '';
     resetCoverage(pinned ? 'saved' : priorCoverage ? 'manual' : '');
     saving = false;
@@ -105,41 +101,24 @@
     searchTerm.trim() ? rest.filter(s => s.title.includes(searchTerm.trim())) : [],
   );
 
-  let tickedIds = $derived(
-    Object.entries(ticked).filter(([, on]) => on).map(([id]) => Number(id)),
-  );
-  // Item 1: a lesson with no plan (no enrollment resolved, or an enrollment
-  // with no plan yet) has nothing to validate a skill claim against — the
-  // store refuses an entry there, so ticking one here must never reach
-  // submit as though it could succeed. A note-only submit is unaffected.
-  let noPlanToRecordAgainst = $derived((!data.reportable || data.planId === null) && tickedIds.length > 0);
   let canSubmit = $derived(
-    !saving && !noPlanToRecordAgainst && tickedIds.every(id => !!statusChoice[id]) &&
+    !saving &&
     (!data.reportable || !data.requiresCoverage || !!mode) &&
     (mode !== 'current' || confirmed) &&
     (!mode || topics.every(topic => topic.title.trim() && topic.covered !== '')),
   );
 
-  function toggle(id: number) {
-    ticked[id] = !ticked[id];
-    if (!ticked[id]) statusChoice[id] = '';
+  function toggleCovered(id: number) {
+    coveredSkillIds = coveredSkillIds.includes(id)
+      ? coveredSkillIds.filter(selected => selected !== id)
+      : [...coveredSkillIds, id];
   }
 
   function setStatus(id: number, e: Event) {
     statusChoice[id] = (e.currentTarget as HTMLSelectElement).value as SkillStatus | '';
   }
 
-  /* The ONLY route from a draft into the form, and it is a click.
-
-     Nothing preselects a draft and nothing ticks a skill because one
-     exists. The approval gate is the feature (spec §7): a tutor confirming
-     the system's opinion rather than recording her own is precisely the
-     inference this work removes, and a preselected draft is that with an
-     extra step. Ticking here too is deliberate — accepting a suggestion
-     means "yes, record this", and leaving the row unticked would drop it
-     silently at submit. */
   function acceptDraft(id: number, status: SkillStatus) {
-    ticked[id] = true;
     statusChoice[id] = status;
   }
 
@@ -174,7 +153,9 @@
             confirmed, topics,
           } : undefined,
           note: note.trim() ? note.trim() : null,
-          entries: tickedIds.map(id => ({ nodeId: id, status: statusChoice[id] })),
+          coveredSkillIds: data.planId === null ? undefined : coveredSkillIds,
+          entries: Object.entries(statusChoice).filter(([, status]) => status)
+            .map(([id, status]) => ({ nodeId: Number(id), status })),
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -320,35 +301,35 @@
     </p>
   {:else}
     {#if data.report && filedEntries.length}
-      <!-- Read-only: shows what the previous filing recorded, but ticks
-           nothing. Pre-ticking here would mean an unchanged re-submit
-           appends a second, identical judgement to the plan's history —
-           a correction should record only what she actively changes now. -->
+      <!-- Assessments stay blank so re-filing records only new judgments. -->
       <p class="filed-summary">
         בדיווח הקודם: {filedEntries.map(e => `${e.title} — ${STATUS_LABEL[e.status]}`).join(' · ')}
       </p>
     {/if}
 
-    <h2 class="section-title">{mode ? 'הערכת הבנה (לא חובה)' : 'מה עברתם?'}</h2>
+    <h2 class="section-title">מה עברתם בתכנית הלימודים?</h2>
+    <p class="empty">סמנו את היכולות שנלמדו בשיעור. אפשר גם להוסיף הערכת הבנה לכל יכולת.</p>
+    <p class="empty" aria-live="polite">יכולות שסומנו כנלמדות: {coveredSkillIds.length}</p>
 
     {#if suggested.length}
       <div class="skill-list">
         {#each suggested as s (s.id)}
           <div class="skill-row">
             <label class="skill-check">
-              <input type="checkbox" checked={!!ticked[s.id]} onchange={() => toggle(s.id)} disabled={saving} />
+              <input type="checkbox" checked={coveredSkillIds.includes(s.id)} onchange={() => toggleCovered(s.id)}
+                aria-label="נלמד בשיעור: {s.title}" disabled={saving} />
               <span class="skill-text">
                 <span class="skill-title">{s.title}</span>
                 <span class="skill-branch">{s.branch}</span>
               </span>
             </label>
             <select
-              value={statusChoice[s.id]}
-              disabled={saving || !ticked[s.id]}
+              value={statusChoice[s.id] ?? ''}
+              disabled={saving}
               onchange={(e) => setStatus(s.id, e)}
-              aria-label="מצב עבור {s.title}"
+              aria-label="הערכת הבנה עבור {s.title}"
             >
-              <option value="">בחרו מצב</option>
+              <option value="">הערכת הבנה (לא חובה)</option>
               {#each STATUSES as st (st)}
                 <option value={st}>{STATUS_LABEL[st]}</option>
               {/each}
@@ -392,19 +373,20 @@
             {#each filteredRest as s (s.id)}
               <div class="skill-row">
                 <label class="skill-check">
-                  <input type="checkbox" checked={!!ticked[s.id]} onchange={() => toggle(s.id)} disabled={saving} />
+                  <input type="checkbox" checked={coveredSkillIds.includes(s.id)} onchange={() => toggleCovered(s.id)}
+                    aria-label="נלמד בשיעור: {s.title}" disabled={saving} />
                   <span class="skill-text">
                     <span class="skill-title">{s.title}</span>
                     <span class="skill-branch">{s.topic} · {s.branch}</span>
                   </span>
                 </label>
                 <select
-                  value={statusChoice[s.id]}
-                  disabled={saving || !ticked[s.id]}
+                  value={statusChoice[s.id] ?? ''}
+                  disabled={saving}
                   onchange={(e) => setStatus(s.id, e)}
-                  aria-label="מצב עבור {s.title}"
+                  aria-label="הערכת הבנה עבור {s.title}"
                 >
-                  <option value="">בחרו מצב</option>
+                  <option value="">הערכת הבנה (לא חובה)</option>
                   {#each STATUSES as st (st)}
                     <option value={st}>{STATUS_LABEL[st]}</option>
                   {/each}
@@ -438,10 +420,6 @@
         bind:value={note} disabled={saving}
       ></textarea>
     </label>
-
-    {#if noPlanToRecordAgainst}
-      <p class="banner error" role="alert">אי אפשר לרשום יכולות בלי תכנית לימודים לשיעור הזה — אפשר לשלוח הערה בלבד.</p>
-    {/if}
 
     <button class="submit-btn" disabled={!canSubmit} onclick={submit}>
       {saving ? 'שולח…' : (data.report ? 'תיקון הדיווח' : 'שליחת הדיווח')}

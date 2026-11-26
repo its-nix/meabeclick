@@ -10,9 +10,9 @@
     "src/lib/server/lesson/visual-generation.ts": "03b1725e4f5f5080c47e5d48fa6781697414a40b5972d72830af59f47b15942f",
     "src/lib/server/native-learning/authoring.ts": "54d0568cab41952cb6697ec9ed21b77c520b8605498648cb8408e1e457085629",
     "src/lib/server/native-learning/context.ts": "1ff701b30eeb3c8eba23eac0e6f04e184d596e71acc3e7e9d28d0e2d7789a937",
-    "src/lib/server/native-learning/preparation-brief.ts": "dafea38b20ff8ff2d6e2e79bcd8e6cd6226bcff123d6d16d32a1bc17b4e5ca14",
+    "src/lib/server/native-learning/preparation-brief.ts": "3f26c3e3ea9211e76e7f817ad94669e19b863b8f6369a6e84e33b43892b32a57",
     "src/lib/server/native-learning/preparation-review.ts": "a728f908efd9414cb85c08476d650d9e2019d4220ee4c7dcd27ba3fe5c4a2c45",
     "src/lib/server/native-learning/validation.ts": "24c3e0a89db7696bf56cabd3970221fb8966f9d119dd95a80fd06e25fa2a56d8"
   },
-  "fingerprint": "dde615ed058f0e2c8331c9efd9a459c4c57c48969f381db7699b8cd47612ecba"
+  "fingerprint": "7d3c7ed253e32986aab084be62e3e5ddaa31984d48140447b7f1814b25e92a46"
 }

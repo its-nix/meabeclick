@@ -22,6 +22,7 @@ export function preparationBriefForBooking(input:{bookingId:number;studentId:num
  const observations=booking.enrollment_id?db.prepare(`SELECT pn.title topic,pe.type,pe.status,pe.at
  FROM plan_events pe JOIN plans p ON p.id=pe.plan_id JOIN plan_nodes pn ON pn.id=pe.node_id AND pn.plan_id=p.id
  WHERE p.enrollment_id=? AND p.student_id=? AND pe.type IN ('status','covered') AND pn.visibility!='hidden'
+ AND (pe.type!='covered' OR pe.corrects IS NULL)
  AND NOT EXISTS(SELECT 1 FROM plan_events correction WHERE correction.corrects=pe.id)
  ORDER BY pe.at DESC,pe.id DESC LIMIT 8`).all(booking.enrollment_id,input.studentId).map(row=>({kind:String(row.type),topic:String(row.topic).slice(0,160),status:row.status===null?null:String(row.status),at:String(row.at)})):[];
  const practice=db.prepare(`SELECT COALESCE(pn.title,r.game_id) topic,r.game_id,r.round_id,r.outcome,r.attempts,r.at FROM native_results r LEFT JOIN plan_nodes pn ON pn.id=r.skill_node_id WHERE r.student_id=? ORDER BY r.at DESC,r.id DESC LIMIT 4`).all(input.studentId).map(r=>({topic:String(r.topic).slice(0,160),gameId:String(r.game_id),roundId:String(r.round_id),outcome:String(r.outcome),attempts:Number(r.attempts),at:String(r.at)}));

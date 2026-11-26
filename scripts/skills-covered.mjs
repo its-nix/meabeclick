@@ -8,10 +8,9 @@
  *   node scripts/skills-covered.mjs [--days 7] [--min-students 2] [--by topic|skill] [--json]
  *   ssh mea 'docker exec -i $(docker ps -qf name=mea-beclick-app) node --input-type=module - --json' < scripts/skills-covered.mjs
  *
- * "Covered" is a `plan_events` row with type 'covered' (migration 011). It
- * is written by saveReport() for every skill in a filed lesson report
- * (source 'report'), and by the plan's events API when the tutor marks a
- * skill «נלמד» by hand (source 'teacher'). It says the skill was TAUGHT,
+ * Active coverage is a `plan_events` row of type 'covered' without a
+ * retraction. It comes from a filed lesson report (source 'report') or
+ * from marking a skill «נלמד» directly in the plan (source 'teacher'). It says the skill was TAUGHT,
  * not that it was understood; status events are a different fact and are
  * not counted here. A mark made when a report is filed is dated by when
  * the report was filed, not when the lesson happened.
@@ -43,7 +42,8 @@ export function skillsCovered(db, now, { days = 7, minStudents = 2, by = 'topic'
   const events = db.prepare(
     `SELECT e.node_id, e.at, p.student_id, p.template_id
        FROM plan_events e JOIN plans p ON p.id = e.plan_id
-      WHERE e.type = 'covered' AND e.node_id IS NOT NULL`).all()
+      WHERE e.type = 'covered' AND e.node_id IS NOT NULL AND e.corrects IS NULL
+        AND NOT EXISTS (SELECT 1 FROM plan_events correction WHERE correction.corrects = e.id)`).all()
     .filter((e) => { const t = new Date(e.at).getTime(); return t > from && t <= to; });
 
   const nodes = new Map(db.prepare(

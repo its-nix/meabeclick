@@ -238,6 +238,10 @@ jobs:
         run: |
           set -euo pipefail
           tip=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if ! [[ "$tip" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not verify the current main commit."
+            exit 1
+          fi
           if [[ "$tip" != "$GITHUB_SHA" ]]; then
             echo "::notice::A newer main commit superseded this staging deployment."
             exit 0
@@ -249,7 +253,7 @@ jobs:
           trap 'unlink "$key"' EXIT
           printf '%s\n' "$STAGING_KEY" > "$key"
           printf '%s\n' '76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR' > "$known_hosts"
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             if printf '%s\n' "$IMAGE_DIGEST" "$GITHUB_ACTOR" "$GH_TOKEN" | ssh -T -i "$key" \
                 -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
                 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" \
@@ -257,8 +261,8 @@ jobs:
               exit 0
             else
               status=$?
-              if [[ "$status" != 255 || "$attempt" == 3 ]]; then exit "$status"; fi
-              sleep 10
+              if [[ "$status" != 255 || "$attempt" == 5 ]]; then exit "$status"; fi
+              sleep 30
             fi
           done
 

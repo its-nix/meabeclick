@@ -26,6 +26,8 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const compose = readFileSync(join(root, 'docker-compose.yml'), 'utf8');
 const workflow = readFileSync(join(root, '.github/workflows/deploy.yml'), 'utf8');
+const productionJob = workflow.slice(workflow.indexOf('\n  deploy:'));
+const stagingJob = workflow.slice(workflow.indexOf('\n  staging:'), workflow.indexOf('\n  deploy:'));
 const runbook = readFileSync(join(root, 'server', 'README.md'), 'utf8');
 const restoreScript = readFileSync(join(root, 'server', 'restore-db.sh'), 'utf8');
 
@@ -73,7 +75,7 @@ test('only main publishes and deploys the image', () => {
 function step(name) {
   const start = workflow.indexOf(`      - name: ${name}\n`);
   assert.notEqual(start, -1, `missing workflow step: ${name}`);
-  return workflow.slice(start).split(/\n      - |\n  deploy:/, 1)[0];
+  return workflow.slice(start).split(/\n      - |\n  [a-z][\w-]*:\n/, 1)[0];
 }
 
 test('the required build boots the same image that it publishes', () => {
@@ -108,8 +110,8 @@ test('the SSH retry window is wide enough for a transient blip', () => {
   // The observed failures were TCP connect timeouts with nothing reaching
   // sshd, over a ~70s window. A wider window is the fix for a transient one;
   // a shorter timeout is not.
-  const attempts = Number(workflow.match(/attempt"?\s*-ge\s*(\d+)/)?.[1] ?? 0);
-  const backoff = Number(workflow.match(/sleep\s+(\d+)/)?.[1] ?? 0);
+  const attempts = Number(productionJob.match(/attempt"?\s*-ge\s*(\d+)/)?.[1] ?? 0);
+  const backoff = Number(productionJob.match(/sleep\s+(\d+)/)?.[1] ?? 0);
   assert.ok(attempts >= 5, `expected at least 5 attempts, found ${attempts}`);
   assert.ok(attempts * backoff >= 120, `retry window is ${attempts * backoff}s, want >= 120s`);
 });
@@ -264,11 +266,15 @@ test('the documented forced command satisfies Compose\'s APP_TAG contract', () =
 });
 
 test('a GitHub API error cannot masquerade as a superseding commit',()=>{
- const guard=workflow.split('tip=$(gh api')[1]?.split('attempt=0')[0]??'';
+ const guard=productionJob.split('tip=$(gh api')[1]?.split('attempt=0')[0]??'';
  assert.match(guard,/\[\[ "\$tip" =~ \^\[0-9a-f\]\{40\}\$ \]\]/);
  for(const tip of ['', '{"message":"Server Error"}', 'null'])assert.equal(/^[0-9a-f]{40}$/.test(tip),false);
 });
 
+
+test('staging rejects an invalid main SHA before skipping a superseded run', () => {
+  assert.match(stagingJob, /if ! \[\[ "\$tip" =~ \^\[0-9a-f\]\{40\}\$ \]\]; then[\s\S]*?exit 1\s+fi\s+if \[\[ "\$tip" != "\$GITHUB_SHA" \]\]/);
+});
 
 test('the production browser smoke script is included in the Docker build context',()=>{
  const ignore=readFileSync(join(root,'.dockerignore'),'utf8');

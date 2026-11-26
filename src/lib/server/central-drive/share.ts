@@ -1,5 +1,6 @@
 import {CentralDriveError,DOC} from './api.ts';
 import type {CentralFile} from './api.ts';
+import type {HomeworkGrant} from '../native-learning/homework-share.ts';
 import {isValidEmailAddress,normalizeEmail} from '../email-address.ts';
 
 interface ShareApi {scope:string;ownerEmail:string;json:(url:string,init?:RequestInit)=>Promise<any>;request:(url:string,init?:RequestInit,allowed?:number[])=>Promise<Response>}
@@ -57,40 +58,55 @@ function assertParent(file:CentralFile,parentId:string){
  if(file.parents?.length!==1||file.parents[0]!==parentId)fail('conflict');
 }
 
+function checkGrant(permissions:Permission[],grantee:string,role:'reader'|'writer',prior?:HomeworkGrant){
+ const matches=permissions.filter(p=>isGrantee(p,grantee)||p.id===prior?.permissionId);
+ if(matches.length>1)fail('conflict');
+ const existing=matches[0];
+ if(existing&&(prior?.role!==role||existing.role!==role||!isGrantee(existing,grantee)||prior.permissionId&&prior.permissionId!==existing.id||
+    grantee==='*'&&existing.allowFileDiscovery!==false))fail('homework_role_conflict');
+ if(existing&&grantee!=='*'&&!prior?.permissionId)fail('homework_named_grant_needs_review');
+ return existing;
+}
+
 /** Release-only ACL operations on a receipt-verified Google Doc. */
 export function homeworkDeliveryPermissions(api:ShareApi){
  return {
-  async restrictSharing(docId:string,parentId:string,managedLink:boolean){
+  async restrictSharing(docId:string,parentId:string,grants:ReadonlyMap<string,'reader'|'writer'>,prior:ReadonlyMap<string,HomeworkGrant>){
    const file=await homeworkDoc(api,docId);
    assertParent(file,parentId);
    const permissions=await listPermissions(api,docId);
-   if(permissions.some(p=>p.type==='domain'||p.type==='anyone'&&!managedLink))fail('privacy');
+   if(permissions.some(p=>p.type==='domain'||p.type==='anyone'&&(!grants.has('*')||prior.get('*')?.role!=='writer')))fail('privacy');
+   for(const [grantee,role] of grants){
+    if(grantee!=='*'&&clean(grantee)===api.ownerEmail.toLowerCase())fail('homework_role_conflict');
+    checkGrant(permissions,grantee,role,prior.get(grantee));
+   }
    if(file.writersCanShare!==false){
     const updated=await api.json(`${API}/${docId}?fields=id,writersCanShare`,jsonRequest('PATCH',{writersCanShare:false}));
     if(updated.id!==docId||updated.writersCanShare!==false)fail('google_response');
    }
   },
-  async ensure(docId:string,parentId:string,grantee:string,role:'reader'|'writer',managed:boolean,beforeWrite:()=>void){
+  async ensure(docId:string,parentId:string,grantee:string,role:'reader'|'writer',prior:HomeworkGrant|undefined,checkCurrent:()=>Promise<void>,beforeWrite:()=>void){
    const email=grantee==='*'?null:clean(grantee);
    const file=await homeworkDoc(api,docId);
    assertParent(file,parentId);
    if(file.writersCanShare!==false)fail('privacy');
-   const matches=(await listPermissions(api,docId)).filter(p=>isGrantee(p,email??'*'));
-   if(matches.length>1)fail('conflict');
-   const existing=matches[0];
-   const correct=existing?.role===role&&(email!==null||existing?.allowFileDiscovery===false);
-   if(correct)return false;
-   // Preserve preexisting named grants and operator roles. Only our grants can be changed.
-   if(existing&&(!managed||existing.role==='owner')||email===api.ownerEmail.toLowerCase())fail('homework_role_conflict');
-   beforeWrite();
-   if(existing){
-    await api.json(permissionUrl(docId,existing.id),jsonRequest('PATCH',{role,...(email===null?{allowFileDiscovery:false}:{})}));
-   }else{
-    const body=email===null?{type:'anyone',role,allowFileDiscovery:false}:{type:'user',role,emailAddress:email};
-    const query=email===null?'':'&sendNotificationEmail=false';
-    await api.json(`${API}/${docId}/permissions?supportsAllDrives=false${query}`,jsonRequest('POST',body));
+   let existing=checkGrant(await listPermissions(api,docId),email??'*',role,prior);
+   if(!existing){
+    await checkCurrent();
+    existing=checkGrant(await listPermissions(api,docId),email??'*',role,prior);
    }
-   return true;
+   if(existing){
+    permissionUrl(docId,existing.id);
+    return {created:false,permissionId:existing.id};
+   }
+   if(email===api.ownerEmail.toLowerCase())fail('homework_role_conflict');
+   beforeWrite();
+   const body=email===null?{type:'anyone',role,allowFileDiscovery:false}:{type:'user',role,emailAddress:email};
+   const query=email===null?'':'&sendNotificationEmail=false';
+   const result=await api.json(`${API}/${docId}/permissions?supportsAllDrives=false&fields=id${query}`,jsonRequest('POST',body));
+   if(typeof result.id!=='string')fail('google_response');
+   permissionUrl(docId,result.id);
+   return {created:true,permissionId:result.id as string};
   },
   async verifyDelivery(docId:string,parentId:string,grants:ReadonlyMap<string,'reader'|'writer'>){
    const file=await homeworkDoc(api,docId);
@@ -105,12 +121,27 @@ export function homeworkDeliveryPermissions(api:ShareApi){
    if(file.resourceKey&&!/^[\w-]{1,256}$/.test(file.resourceKey))fail('google_response');
    return file.resourceKey??null;
   },
-  async revoke(docId:string,grantee:string){
-   if(grantee!=='*')return (await revokeHomeworkShare(api,docId,grantee)).revoked;
-   await homeworkDoc(api,docId);
-   const permissions=(await listPermissions(api,docId)).filter(p=>p.type==='anyone');
-   for(const p of permissions)await api.request(permissionUrl(docId,p.id),{method:'DELETE'},[404]);
-   return permissions.length>0;
+  async revoke(docId:string,grantee:string,grant:HomeworkGrant){
+   const file=await homeworkDoc(api,docId);
+   const email=grantee==='*'?null:clean(grantee);
+   const matches=()=>listPermissions(api,docId).then(permissions=>permissions.filter(p=>isGrantee(p,email??'*')||p.id===grant.permissionId));
+   const permissions=await matches();
+   if(!permissions.length)return false;
+   // The old ledger did not distinguish an existing operator grant from one the app created.
+   if(!grant.role)fail('legacy_homework_grant_needs_review');
+   if(email!==null&&!grant.permissionId)fail('homework_named_grant_needs_review');
+   const p=permissions[0];
+   if(permissions.length!==1||p.role!==grant.role||grant.permissionId&&p.id!==grant.permissionId||
+      email===null&&p.allowFileDiscovery!==false)fail('homework_role_conflict');
+   const parent=file.parents?.length===1?file.parents[0]:null;
+   if(!parent||!ID.test(parent))throw new CentralDriveError('conflict');
+   if((await listPermissions(api,parent)).some(inherited=>isGrantee(inherited,email??'*')||inherited.id===p.id)){
+    fail('homework_inherited_grant_needs_review');
+   }
+   await api.request(permissionUrl(docId,p.id),{method:'DELETE'},[404]);
+   if((await matches()).length)fail('homework_revocation_unverified');
+   return true;
   },
+
  };
 }

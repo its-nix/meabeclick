@@ -92,9 +92,9 @@ function homeworkApi(calls,failRevoke=()=>false){
   async place(){return 'studentFolderAA';},
   async restrictSharing(){},
   async verifyDelivery(){return null;},
-  async ensure(doc,_folder,email,_role,_managed,beforeWrite){
-   if(grants.has(email))return false;
-   beforeWrite();calls.push(['share',email,doc]);grants.add(email);return true;
+  async ensure(doc,_folder,email,_role,_managed,checkCurrent,beforeWrite){
+   if(grants.has(email))return {created:false,permissionId:email};
+   await checkCurrent();beforeWrite();calls.push(['share',email,doc]);grants.add(email);return {created:true,permissionId:email};
   },
   async revoke(doc,email){
    calls.push(['revoke',email,doc]);if(failRevoke())throw Error('quota');return grants.delete(email);

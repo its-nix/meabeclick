@@ -8,6 +8,7 @@ import {homeworkDeliveryPermissions} from '../central-drive/share.ts';
 import {nativeStudentFolder,placeHomeworkDoc} from './homework-placement.ts';
 import {getStudentById} from '../entities.ts';
 import type {HomeworkShareApi} from './homework-share.ts';
+import {SHEET} from '../central-drive/api.ts';
 
 /** The slice of the central Drive client these adapters need (centralDriveApi satisfies it). */
 export interface GoogleApi {scope:string;ownerEmail:string;json:(url:string,init?:RequestInit)=>Promise<any>;request:(url:string,init?:RequestInit,allowed?:number[])=>Promise<Response>}
@@ -38,9 +39,12 @@ export function googleApprovalSheet(api:GoogleApi,indexId:string):ApprovalSheet 
  if(!ID.test(indexId))fail('google_response');
  const base=`https://sheets.googleapis.com/v4/spreadsheets/${indexId}`;
  const version=async()=>{
-  const meta=await api.json(`${FILES}/${indexId}?fields=id,mimeType,version,trashed,owners(emailAddress),appProperties`);
-  if(meta.id!==indexId||meta.trashed||meta.appProperties?.meaCentralScope!==api.scope||!meta.owners?.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===api.ownerEmail.toLowerCase()))fail('ownership');
-  return String(meta.version??'');
+  const meta=await api.json(`${FILES}/${indexId}?fields=id,mimeType,version,trashed,owners(emailAddress),permissions(type),appProperties`);
+  if(meta.id!==indexId||meta.mimeType!==SHEET||meta.trashed||meta.appProperties?.meaCentralScope!==api.scope||!meta.owners?.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===api.ownerEmail.toLowerCase()))fail('ownership');
+  if(!Array.isArray(meta.permissions)||meta.permissions.some((p:{type?:string})=>p.type!=='user'&&p.type!=='group'))fail('privacy');
+  const revision=String(meta.version??'');
+  if(!revision)fail('google_response');
+  return revision;
  };
  return {
   async read(){
@@ -49,12 +53,20 @@ export function googleApprovalSheet(api:GoogleApi,indexId:string):ApprovalSheet 
    if(!Array.isArray(meta.sheets))fail('google_response');
    const titles=new Set(meta.sheets.map((s:any)=>s.properties?.title));
    const grids:Record<string,WorkspaceCell[][]>={};
-   for(const name of Object.keys(workspaceTables)){
-    const header=workspaceTables[name].map(workspaceHeader),title=`Native ${name}`;
-    if(!(roles as readonly string[]).includes(name)||!titles.has(title)){grids[name]=[header];continue;}
-    const out=await api.json(`${base}/values/${encodeURIComponent(`'${title}'!A1:Z${RANGE_ROWS}`)}?valueRenderOption=UNFORMATTED_VALUE`);
-    grids[name]=Array.isArray(out.values)&&out.values.length?out.values:[header];
+   const present=roles.filter(name=>titles.has(`Native ${name}`));
+   for(const [name,columns] of Object.entries(workspaceTables))grids[name]=[columns.map(workspaceHeader)];
+   if(present.length){
+    const query=new URLSearchParams({valueRenderOption:'UNFORMATTED_VALUE'});
+    for(const name of present)query.append('ranges',`'Native ${name}'!A1:Z${RANGE_ROWS}`);
+    const out=await api.json(`${base}/values:batchGet?${query}`);
+    if(!Array.isArray(out.valueRanges)||out.valueRanges.length!==present.length)fail('google_response');
+    for(const [i,name] of present.entries()){
+     const range=out.valueRanges[i];
+     if(typeof range?.range!=='string'||!range.range.startsWith(`'Native ${name}'!`)&&!range.range.startsWith(`Native ${name}!`))fail('google_response');
+     if(Array.isArray(range.values)&&range.values.length)grids[name]=range.values;
+    }
    }
+   if(await version()!==revision)fail('conflict');
    return {revision,grids};
   },
   async update(cells,revision){

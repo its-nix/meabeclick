@@ -37,12 +37,13 @@ function fixture(){
  const file={id:docId,mimeType:docType,parents:[review],owners:[{emailAddress:owner}],writersCanShare:true,resourceKey:'fixture-key',appProperties:{meaCentralScope:'fixture'}};
  const permissions=[{id:'owner',type:'user',role:'owner',emailAddress:owner},{id:'tutor',type:'user',role:'writer',emailAddress:'tutor@example.test'}];
  const writes=[];
- let failCreate=false,failDelete=false,value='original worksheet',differentFolders=false;
+ let failCreate=false,failDelete=false,afterCreate=()=>{},keepPermissionOnDelete=false,inherited=false,value='original worksheet',differentFolders=false;
  const api={scope:'fixture',ownerEmail:owner,
   async json(raw,init){
    const url=new URL(raw),fileId=url.pathname.split('/')[4];
    if([review,target].includes(fileId)){
     assert.equal(init?.method,undefined);
+    if(url.pathname.endsWith('/permissions'))return {permissions:structuredClone(inherited?permissions:permissions.slice(0,2))};
     return {id:fileId,mimeType:'application/vnd.google-apps.folder',permissions:differentFolders&&fileId===target?permissions.slice(0,1):permissions.slice(0,2)};
    }
    assert.equal(fileId,docId);
@@ -57,6 +58,7 @@ function fixture(){
     const entry={id:body.type==='anyone'?'anyone':`user-${body.emailAddress.replace(/\W/g,'-')}`,...body};
     assert.ok(!permissions.some(p=>p.id===entry.id));
     permissions.push(entry);
+    afterCreate();
     if(failCreate){failCreate=false;throw Error('lost_response');}
     return entry;
    }
@@ -68,7 +70,7 @@ function fixture(){
    assert.equal(init.method,'DELETE');
    if(failDelete){failDelete=false;throw Error('retry_revoke');}
    const i=permissions.findIndex(p=>url.pathname.endsWith('/'+p.id));
-   if(i>=0){writes.push({method:'DELETE',path:url.pathname});permissions.splice(i,1);}
+   if(i>=0){writes.push({method:'DELETE',path:url.pathname});if(!keepPermissionOnDelete)permissions.splice(i,1);}
    return new Response(null,{status:i<0?404:204});
   },
  };
@@ -77,7 +79,7 @@ function fixture(){
  const sync=()=>H.syncHomeworkShares({sheet,api:{...acl,async place(t){assert.equal(t.docId,docId);await placeHomeworkDoc(api,t.docId,t.reviewFolderId,target);return target;}}});
  const approve=()=>{Object.assign(material,{review_status:'approved',publication_status:'published',release_id:'rel-1'});assignment.status='assigned';};
  const edit=(text,email)=>{const grant=permissions.find(p=>p.type==='anyone'||p.emailAddress===email);if(!['writer','owner'].includes(grant?.role))return false;value=text;return true;};
- return {student,account,material,assignment,permissions,writes,file,api,approve,sync,edit,get value(){return value;},unlinkAccount(){handle().prepare('DELETE FROM google_identities WHERE subject=?').run(`google-${serial}`);},linkAccount(){handle().prepare("INSERT INTO google_identities(subject,scope_kind,scope_id,email,created_at) VALUES (?,'student',?,?,?)").run(`google-${serial}`,student.id,writer,new Date().toISOString());},conflictingFolders(){differentFolders=true;},failCreate(){failCreate=true;},failDelete(){failDelete=true;}};
+ return {student,account,material,assignment,permissions,writes,file,api,approve,sync,edit,get value(){return value;},unlinkAccount(){handle().prepare('DELETE FROM google_identities WHERE subject=?').run(`google-${serial}`);},linkAccount(){handle().prepare("INSERT INTO google_identities(subject,scope_kind,scope_id,email,created_at) VALUES (?,'student',?,?,?)").run(`google-${serial}`,student.id,writer,new Date().toISOString());},onCreate(callback){afterCreate=callback;},inheritedOnDelete(active){keepPermissionOnDelete=active;},inheritGrant(active){inherited=active;},conflictingFolders(){differentFolders=true;},failCreate(){failCreate=true;},failDelete(){failDelete=true;}};
 }
 
 test('an approved anonymous editor can edit through the exact unlisted file grant until withdrawal',async()=>{
@@ -177,4 +179,83 @@ test('unlinking the student removes both named grants before granting unlisted w
  assert.equal(result.revoked,2);assert.equal(result.shared,1);
  assert.ok(!f.permissions.some(p=>[writer,parent].includes(p.emailAddress)));
  assert.equal(f.edit('signed out'),true);
+});
+
+
+test('an approved and active assignment still needs a Sheets release ID',async()=>{
+ const f=fixture();f.approve();f.material.release_id='';
+ assert.equal((await f.sync()).shared,0);assert.deepEqual(f.writes,[]);
+});
+
+test('ambiguous legacy permissions retain an existing operator ACL and block sharing until reconciled',async()=>{
+ const f=fixture();f.approve();
+ const tutor=f.permissions.find(p=>p.id==='tutor');
+ handle().prepare('INSERT INTO native_homework_grants(material_id,doc_id,grantee) VALUES (?,?,?)')
+  .run(f.material.material_id,docId,tutor.emailAddress);
+ let result=await f.sync();
+ assert.match(result.problems[0],/legacy_homework_grant_needs_review/);
+ assert.equal(tutor.role,'writer');
+ assert.deepEqual(f.writes,[]);
+ // An operator independently removed the old grant. A later pass clears the legacy hold.
+ f.permissions.splice(f.permissions.indexOf(tutor),1);
+ f.file.parents=[target];
+ result=await f.sync();assert.equal(result.shared,1);
+});
+
+test('a conflicting preexisting parent grant stops the named release before any permission write',async()=>{
+ const f=fixture();f.approve();f.linkAccount();
+ f.file.parents=[target];
+ f.permissions.push({id:'existing-parent',type:'user',role:'writer',emailAddress:parent});
+ assert.match((await f.sync()).problems[0],/homework_role_conflict/);
+ assert.deepEqual(f.writes,[]);
+ assert.ok(!f.permissions.some(p=>p.emailAddress===writer));
+});
+
+test('withdrawal during a lost Drive response compensates the pending public grant',async()=>{
+ const f=fixture();f.approve();f.failCreate();
+ f.onCreate(()=>{f.assignment.status='cancelled';});
+ const result=await f.sync();
+ assert.equal(result.failed,1);assert.equal(result.revoked,1);
+ assert.equal(f.edit('signed out'),false);
+ assert.equal(handle().prepare('SELECT count(*) n FROM native_homework_grants WHERE material_id=?').get(f.material.material_id).n,0);
+});
+
+test('unchanged effective permission after DELETE is retained and retried',async()=>{
+ const f=fixture();f.approve();await f.sync();
+ f.assignment.status='cancelled';f.inheritedOnDelete(true);
+ assert.match((await f.sync()).problems[0],/homework_revocation_unverified/);
+ assert.equal(handle().prepare('SELECT count(*) n FROM native_homework_grants WHERE material_id=?').get(f.material.material_id).n,1);
+ f.inheritedOnDelete(false);
+ assert.equal((await f.sync()).revoked,1);
+ assert.equal(f.edit('signed out'),false);
+});
+
+
+test('an inherited permission is reported before attempting to delete it',async()=>{
+ const f=fixture();f.approve();await f.sync();
+ f.assignment.status='cancelled';f.inheritGrant(true);
+ const writes=f.writes.length;
+ assert.match((await f.sync()).problems[0],/homework_inherited_grant_needs_review/);
+ assert.equal(f.writes.length,writes);
+ f.inheritGrant(false);
+ assert.equal((await f.sync()).revoked,1);
+});
+
+test('withdrawal uses the recorded Drive permission ID after a Google account email changes',async()=>{
+ const f=fixture();f.approve();f.linkAccount();await f.sync();
+ const studentGrant=f.permissions.find(p=>p.emailAddress===writer);
+ studentGrant.emailAddress='renamed@example.test';
+ f.assignment.status='cancelled';
+ assert.equal((await f.sync()).revoked,2);
+ assert.ok(!f.permissions.some(p=>p.id===studentGrant.id));
+});
+
+test('an uncertain named grant is held for review, never claimed or deleted automatically',async()=>{
+ const f=fixture();f.approve();f.linkAccount();f.failCreate();
+ assert.equal((await f.sync()).failed,1);
+ assert.match((await f.sync()).problems[0],/homework_named_grant_needs_review/);
+ f.assignment.status='cancelled';
+ assert.match((await f.sync()).problems[0],/homework_named_grant_needs_review/);
+ assert.ok(f.permissions.some(p=>p.emailAddress===writer));
+ assert.ok(!f.writes.some(w=>w.method==='DELETE'));
 });

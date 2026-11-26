@@ -7,12 +7,13 @@ import type {ApprovalSheet} from './approval-sync.ts';
 const LINK='*';
 const idPattern=/^[\w-]{10,200}$/;
 type Role='reader'|'writer';
-type Target={materialId:string;studentId:number;docId:string;reviewFolderId:string};
+export type HomeworkGrant={role:Role|null;permissionId:string|null};
+type Target={materialId:string;studentId:number;docId:string;reviewFolderId:string;releaseId:string};
 export interface HomeworkShareApi {
  place(target:Target):Promise<string>;
- restrictSharing(docId:string,parentId:string,managedLink:boolean):Promise<void>;
- ensure(docId:string,parentId:string,grantee:string,role:Role,managed:boolean,beforeWrite:()=>void):Promise<boolean>;
- revoke(docId:string,grantee:string):Promise<boolean>;
+ restrictSharing(docId:string,parentId:string,grants:ReadonlyMap<string,Role>,prior:ReadonlyMap<string,HomeworkGrant>):Promise<void>;
+ ensure(docId:string,parentId:string,grantee:string,role:Role,prior:HomeworkGrant|undefined,checkCurrent:()=>Promise<void>,beforeWrite:()=>void):Promise<{created:boolean;permissionId:string}>;
+ revoke(docId:string,grantee:string,grant:HomeworkGrant):Promise<boolean>;
  verifyDelivery(docId:string,parentId:string,grants:ReadonlyMap<string,Role>):Promise<string|null>;
 }
 
@@ -38,7 +39,7 @@ function eligibleHomework(grids:Awaited<ReturnType<ApprovalSheet['read']>>['grid
   if(m.kind!=='homework'||m.provider!=='google_docs'||m.review_status!=='approved'||m.publication_status!=='published'||m.audience!=='student'||m.is_demo!==false)continue;
   const materialId=String(m.material_id),jobId=/^native-(\d+)-homework$/.exec(materialId)?.[1];
   const docId=homeworkId(m.url);
-  if(!jobId||!docId)continue;
+  if(!jobId||!docId||typeof m.release_id!=='string'||!m.release_id.trim())continue;
   const job=currentJob(Number(jobId));
   if(job?.state!=='review'||m.student_id!==`student-${job.student_id}`||!job.bundle)continue;
   const receipt=JSON.parse(String(job.bundle));
@@ -48,7 +49,7 @@ function eligibleHomework(grids:Awaited<ReturnType<ApprovalSheet['read']>>['grid
   if(!live)continue;
   if(seen.has(docId)){for(const [key,t] of targets)if(t.docId===docId)targets.delete(key);continue;}
   seen.add(docId);
-  targets.set(materialId,{materialId,docId,studentId:Number(job.student_id),reviewFolderId:receipt.reviewFolderId});
+  targets.set(materialId,{materialId,docId,studentId:Number(job.student_id),reviewFolderId:receipt.reviewFolderId,releaseId:m.release_id});
  }
  return {targets,problems:[...materials.problems,...assignments.problems]};
 }
@@ -60,14 +61,22 @@ export async function syncHomeworkShares(input:{sheet:ApprovalSheet;api:Homework
  let snapshot:ReturnType<typeof eligibleHomework>;
  try{snapshot=eligibleHomework((await input.sheet.read()).grids);}catch(e){out.error=safeCode(e);return out;}
  out.problems=snapshot.problems;
+ function wanted(studentId:number):Map<string,Role>|null {
+  const student=(input.emailFor??studentGoogleEmail)(studentId)?.toLowerCase();
+  const parent=student?(input.parentEmailFor??parentGoogleEmail)(studentId)?.toLowerCase():null;
+  if(parent&&parent===student)return null;
+  if(!student)return new Map([[LINK,'writer']]);
+  return new Map([[student,'writer'],...(parent?[[parent,'reader'] as const]:[])]);
+ }
  const desired=new Map<string,Map<string,Role>>();
  for(const target of snapshot.targets.values()){
-  const student=(input.emailFor??studentGoogleEmail)(target.studentId)?.toLowerCase();
-  const parent=student?(input.parentEmailFor??parentGoogleEmail)(target.studentId)?.toLowerCase():null;
-  if(parent&&parent===student){out.failed++;out.problems.push(`${target.materialId}: student and parent use the same Google account`);continue;}
-  desired.set(target.materialId,student?new Map([[student,'writer'],...(parent?[[parent,'reader'] as const]:[])]):new Map([[LINK,'writer']]));
+  const grants=wanted(target.studentId);
+  if(!grants){out.failed++;out.problems.push(`${target.materialId}: student and parent use the same Google account`);continue;}
+  desired.set(target.materialId,grants);
  }
- const record=db.prepare(`INSERT OR IGNORE INTO native_homework_grants VALUES (?,?,?)`);
+ const record=db.prepare(`INSERT INTO native_homework_grants(material_id,doc_id,grantee,role) VALUES (?,?,?,?)
+   ON CONFLICT(material_id,doc_id,grantee) DO NOTHING`);
+ const bind=db.prepare(`UPDATE native_homework_grants SET permission_id=? WHERE material_id=? AND doc_id=? AND grantee=?`);
  const forget=db.prepare(`DELETE FROM native_homework_grants WHERE material_id=? AND doc_id=? AND grantee=?`);
  const pending=db.prepare(`INSERT INTO native_homework_delivery(material_id,student_id,doc_id,ready,access_mode) VALUES (?,?,?,0,?)
    ON CONFLICT(material_id) DO UPDATE SET student_id=excluded.student_id,doc_id=excluded.doc_id,ready=CASE WHEN native_homework_delivery.doc_id=excluded.doc_id
@@ -75,34 +84,73 @@ export async function syncHomeworkShares(input:{sheet:ApprovalSheet;api:Homework
    access_mode=excluded.access_mode`);
  const ready=db.prepare('UPDATE native_homework_delivery SET ready=1,resource_key=? WHERE material_id=?');
  const hide=db.prepare('UPDATE native_homework_delivery SET ready=0 WHERE material_id=?');
- const managed=new Set<string>();
+ const grantRows=db.prepare('SELECT grantee,role,permission_id FROM native_homework_grants WHERE material_id=? AND doc_id=?');
+ const decodeGrant=(row:Record<string,unknown>):HomeworkGrant=>({
+  role:row.role as Role|null,permissionId:row.permission_id as string|null,
+ });
  const failed=new Set<string>();
  for(const old of db.prepare('SELECT material_id FROM native_homework_delivery').all()){
   if(!desired.has(String(old.material_id)))hide.run(old.material_id);
  }
- for(const row of db.prepare('SELECT material_id,doc_id,grantee FROM native_homework_grants').all()){
-  const id=String(row.material_id),doc=String(row.doc_id),grantee=String(row.grantee);
-  if(snapshot.targets.get(id)?.docId===doc&&desired.get(id)?.has(grantee)){managed.add(JSON.stringify([id,doc,grantee]));continue;}
+ async function revoke(id:string,doc:string,grantee:string,grant:HomeworkGrant){
+  if(!registeredDoc(id,doc))throw Error('unverified_homework_grant');
+  if(await input.api.revoke(doc,grantee,grant))out.revoked++;
+  forget.run(id,doc,grantee);
+ }
+ for(const row of db.prepare('SELECT material_id,doc_id,grantee,role,permission_id FROM native_homework_grants').all()){
+  const id=String(row.material_id),doc=String(row.doc_id),grantee=String(row.grantee),grant=decodeGrant(row);
+  if(grant.role&&snapshot.targets.get(id)?.docId===doc&&desired.get(id)?.get(grantee)===grant.role)continue;
   hide.run(id);
-  if(!registeredDoc(id,doc)){out.failed++;out.problems.push(`${id}: unverified legacy grant`);continue;}
-  try{if(await input.api.revoke(doc,grantee))out.revoked++;forget.run(id,doc,grantee);}
+  try{await revoke(id,doc,grantee,grant);}
   catch(e){failed.add(id);out.failed++;out.problems.push(`${id}: revoke ${safeCode(e)}`);}
  }
  for(const [id,grants] of desired){
   if(failed.has(id))continue;
   const target=snapshot.targets.get(id)!;
   pending.run(id,target.studentId,target.docId,grants.has(LINK)?'link':'named');
+  const checkCurrent=async()=>{
+   // Read the approval again at the grant boundary, then check the current local identities.
+   const current=eligibleHomework((await input.sheet.read()).grids).targets.get(id);
+   if(JSON.stringify(current)!==JSON.stringify(target)||JSON.stringify([...(wanted(target.studentId)??[])])!==JSON.stringify([...grants])){
+    throw Error('homework_approval_changed');
+   }
+  };
+  let grantAttempted=false;
+  let recoveringGrant=false;
   try{
    const parentId=await input.api.place(target);
-   await input.api.restrictSharing(target.docId,parentId,grants.has(LINK)&&managed.has(JSON.stringify([id,target.docId,LINK])));
+   const prior=new Map(grantRows.all(id,target.docId).map(row=>[String(row.grantee),decodeGrant(row)]));
+   recoveringGrant=[...prior.values()].some(grant=>!grant.permissionId);
+   await input.api.restrictSharing(target.docId,parentId,grants,prior);
    for(const [grantee,role] of grants){
-    const owns=managed.has(JSON.stringify([id,target.docId,grantee]));
-    if(await input.api.ensure(target.docId,parentId,grantee,role,owns,()=>record.run(id,target.docId,grantee)))out.shared++;
+    const result=await input.api.ensure(target.docId,parentId,grantee,role,prior.get(grantee),checkCurrent,()=>{
+     record.run(id,target.docId,grantee,role);
+     grantAttempted=true;
+    });
+    bind.run(result.permissionId,id,target.docId,grantee);
+    if(result.created)out.shared++;
    }
    const key=await input.api.verifyDelivery(target.docId,parentId,grants);
+   const current=currentJob(Number(/^native-(\d+)-homework$/.exec(id)?.[1]));
+   if(grantAttempted||recoveringGrant)await checkCurrent();
+   else if(current?.state!=='review'||JSON.stringify([...(wanted(target.studentId)??[])])!==JSON.stringify([...grants]))throw Error('homework_approval_changed');
    ready.run(key,id);
-  }catch(e){hide.run(id);out.failed++;out.problems.push(`${id}: ${safeCode(e)}`);}
+  }catch(e){
+   hide.run(id);out.failed++;out.problems.push(`${id}: ${safeCode(e)}`);
+   // Even if Drive lost its response, stop an obsolete grant from surviving the failed publication pass.
+   let withdraw=['homework_approval_changed','homework_role_conflict','privacy'].includes(safeCode(e));
+   if((grantAttempted||recoveringGrant)&&!withdraw){
+    try{await checkCurrent();}catch{withdraw=true;}
+   }
+   if(withdraw){
+    for(const row of grantRows.all(id,target.docId)){
+     try{await revoke(id,target.docId,String(row.grantee),decodeGrant(row));}
+     catch(error){out.problems.push(`${id}: revoke ${safeCode(error)}`);}
+    }
+   }
+  }
  }
+
  return out;
 }
 

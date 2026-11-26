@@ -132,3 +132,28 @@ test('native-lessons: tutor sees native game results and decides an open answer,
  expect((await qa.request(`/api/students/${booking.code}/native-results`,{method:'POST',json:{resultId:1,outcome:'correct'}})).status).toBe(409);
  for(const role of ['anonymous','student','parent']){const r=await qa.request(`/api/students/${booking.code}/native-results`,{cookie:qa.cookies[role]});expect(r.status).toBe(401);}
 });
+
+test('native-lessons: a forwardable homework URL is rendered for the student only',async({qa})=>{
+ const id='SyntheticReleasedHomeworkDoc',resource='fixture-resource-key';
+ const {studentId,code}=qa.learner;
+ mutate(qa,db=>{
+  const booking=db.prepare('SELECT id FROM bookings_v2 WHERE student_id=?').get(studentId);
+  db.prepare("UPDATE bookings_v2 SET status='confirmed' WHERE id=?").run(booking.id);
+  const job=db.prepare(`INSERT INTO native_lesson_jobs(booking_id,student_id,state,snapshot,bundle,created_at,updated_at)
+    VALUES (?,?,'review','{}',?,datetime('now'),datetime('now'))
+    ON CONFLICT(booking_id) DO UPDATE SET state='review',bundle=excluded.bundle RETURNING id`)
+   .get(booking.id,studentId,JSON.stringify({homework:{id}}));
+  db.prepare(`INSERT INTO native_homework_delivery(material_id,student_id,doc_id,resource_key,ready,access_mode)
+    VALUES (?,?,?,?,1,'link')`).run(`native-${job.id}-homework`,studentId,id,resource);
+ });
+ const path=`/app/student?s=${encodeURIComponent(code)}&v=hw`;
+ const student=await qa.page('student');await student.goto(path);
+ const link=student.getByRole('link',{name:'פתיחת מטלה ב־Google Docs'});
+ await expect(link).toHaveAttribute('href',`https://docs.google.com/document/d/${id}/edit?resourcekey=${resource}`);
+ const parent=await qa.page('parent');const response=await parent.goto(path);
+ await expect(parent.getByRole('heading',{name:'שיעורי הבית שלי'})).toBeVisible();
+ await expect(parent.getByRole('link',{name:'פתיחת מטלה ב־Google Docs'})).toHaveCount(0);
+ expect(await response.text()).not.toContain(id);
+ mutate(qa,db=>db.prepare('UPDATE native_homework_delivery SET ready=0 WHERE doc_id=?').run(id));
+ await student.reload();await expect(link).toHaveCount(0);
+});

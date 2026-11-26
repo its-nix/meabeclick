@@ -11,8 +11,10 @@ CREATE TABLE native_homework_grants (
  material_id TEXT NOT NULL,
  doc_id TEXT NOT NULL,
  grantee TEXT NOT NULL,
+ role TEXT CHECK (role IN ('reader','writer')),
+ permission_id TEXT,
  PRIMARY KEY(material_id,doc_id,grantee)
 );
-INSERT OR IGNORE INTO native_homework_grants SELECT material_id,doc_id,lower(email) FROM native_homework_shares WHERE status='shared' AND email IS NOT NULL;
-INSERT OR IGNORE INTO native_homework_grants SELECT material_id,doc_id,lower(email) FROM native_homework_revocations;
+INSERT OR IGNORE INTO native_homework_grants(material_id,doc_id,grantee) SELECT material_id,doc_id,lower(email) FROM native_homework_shares WHERE status='shared' AND email IS NOT NULL;
+INSERT OR IGNORE INTO native_homework_grants(material_id,doc_id,grantee) SELECT material_id,doc_id,lower(email) FROM native_homework_revocations;
 `;

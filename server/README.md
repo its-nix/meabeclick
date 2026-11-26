@@ -477,6 +477,25 @@ The deploy command checks the running image ID and verifies startup, the
 booking page and tutor sign-in. Deployments to the GitHub `staging`
 environment are restricted to `main`.
 
+For a new VPS, create `meabeclick-stage` as a dedicated account with a shell
+and no password or Docker group membership. Keep its home, `.ssh` directory
+and `authorized_keys` owned by root, and give the account read access to
+`authorized_keys` with mode 0644. Install the CI public key as a single line
+with these options (substitute the complete public key):
+
+```text
+restrict,command="sudo -n /usr/local/sbin/meabeclick-staging-deploy" ssh-ed25519 <staging-public-key>
+```
+
+`restrict` disables forwarding, PTY allocation and user startup scripts.
+Install the root-owned deploy script with mode 0755. Use
+`visudo -f /etc/sudoers.d/meabeclick-staging` to grant only the fixed command
+with no arguments:
+
+```sudoers
+meabeclick-stage ALL=(root) NOPASSWD: /usr/local/sbin/meabeclick-staging-deploy ""
+```
+
 When updating this configuration, install the Compose file and deploy script
 on the VPS before running CI. Keep `staging.env` outside the checkout with
 mode 0600. The staging app uses test settings with lesson authoring disabled.

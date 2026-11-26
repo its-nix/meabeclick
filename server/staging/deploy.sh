@@ -3,9 +3,18 @@ set -euo pipefail
 
 # Forced SSH command. Read deploy inputs from stdin and ignore the SSH command.
 cd /srv/meabeclick-staging
-IFS= read -r -n 72 digest
-if [[ ! "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+if ! IFS= read -r -n 72 -t 5 digest || [[ ! "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
   echo 'Expected one sha256 image digest' >&2
+  exit 2
+fi
+
+registry_user_pattern='^[A-Za-z0-9_-]{1,49}(\[bot\])?$'
+if ! IFS= read -r -n 56 -t 5 registry_user || [[ ! "$registry_user" =~ $registry_user_pattern ]]; then
+  echo 'Expected a GitHub registry username' >&2
+  exit 2
+fi
+if ! IFS= read -r -n 4096 -t 5 registry_token || [[ -z "$registry_token" || ${#registry_token} -ge 4096 ]]; then
+  echo 'Expected a GitHub registry token' >&2
   exit 2
 fi
 
@@ -15,12 +24,11 @@ flock --exclusive 9
 export STAGING_IMAGE="ghcr.io/its-nix/meabeclick@$digest"
 compose=(docker compose --env-file /dev/null --project-name meabeclick-staging)
 if ! docker image inspect "$STAGING_IMAGE" >/dev/null 2>&1; then
-  IFS= read -r -n 50 registry_user
-  [[ "$registry_user" =~ ^[A-Za-z0-9_-]{1,49}$ ]]
   export DOCKER_CONFIG
   DOCKER_CONFIG=$(mktemp -d)
   trap 'test ! -f "$DOCKER_CONFIG/config.json" || unlink "$DOCKER_CONFIG/config.json"; rmdir "$DOCKER_CONFIG"' EXIT
-  docker login ghcr.io --username "$registry_user" --password-stdin
+  printf '%s\n' "$registry_token" | docker login ghcr.io --username "$registry_user" --password-stdin
+  unset registry_token
   "${compose[@]}" pull app
 fi
 "${compose[@]}" up --detach --no-build --pull never

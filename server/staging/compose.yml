@@ -1,0 +1,20 @@
+services:
+  app:
+    image: ${STAGING_IMAGE:?Set STAGING_IMAGE to a registry digest}
+    restart: unless-stopped
+    network_mode: none
+    env_file: staging.env
+    environment:
+      HOST: 127.0.0.1
+      PORT: 3000
+      NODE_ENV: production
+      PROTOCOL_HEADER: x-forwarded-proto
+      DATA_DIR: /app/data
+      PORTAL_DIR: /app/data/portal
+      CODEX_HOME: /app/data/codex-home
+    volumes:
+      - ./data:/app/data
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

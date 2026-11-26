@@ -461,6 +461,54 @@ export APP_TAG=$(git rev-parse HEAD)
 docker compose pull app && docker compose up -d --no-build
 ```
 
+## Private staging
+
+The VPS keeps staging files in `/srv/meabeclick-staging`. The Compose
+project uses its own `data/` and `staging.env`, including freshly generated
+tutor and session secrets. The app listens on its own loopback and CI runs its
+checks inside the container. Use synthetic records in staging.
+
+After publishing the release image, the `staging` job sends the commit SHA
+and registry digest to the VPS. The environment secret `STAGING_DEPLOY_SSH_KEY` connects
+as `meabeclick-stage` and can only invoke the root-owned
+`/usr/local/sbin/meabeclick-staging-deploy` (source in `server/staging/deploy.sh`).
+The job provides a short-lived registry token. The deploy command uses
+Docker Buildx to verify the digest against the commit tag in GHCR, including
+when the image is cached.
+The VPS serializes staging requests with a lock. While holding it, the deploy
+command checks the current tip of `main` and skips superseded requests. For
+the current request, it checks the running image ID and verifies startup,
+the booking page and tutor sign-in. Lock waits, registry operations and
+container checks have server-side deadlines. Deployments to the GitHub `staging`
+environment are restricted to `main`.
+
+For a new VPS, create `meabeclick-stage` as a dedicated account with a shell
+and no password or Docker group membership. Keep its home, `.ssh` directory
+and `authorized_keys` owned by root, and give the account read access to
+`authorized_keys` with mode 0644. Install the CI public key as a single line
+with these options (substitute the complete public key):
+
+```text
+restrict,command="sudo -n /usr/local/sbin/meabeclick-staging-deploy" ssh-ed25519 <staging-public-key>
+```
+
+`restrict` disables forwarding, PTY allocation and user startup scripts.
+Install the root-owned deploy script as `/srv/meabeclick-staging/deploy.sh`
+with mode 0755 and symlink `/usr/local/sbin/meabeclick-staging-deploy` to it.
+Use `visudo -f /etc/sudoers.d/meabeclick-staging` to grant only the fixed command
+with no arguments:
+
+```sudoers
+meabeclick-stage ALL=(root) NOPASSWD: /usr/local/sbin/meabeclick-staging-deploy ""
+```
+
+When updating this configuration, install the Compose file and deploy script
+on the VPS before running CI. Keep `staging.env` outside the checkout with
+mode 0600. The staging app uses test settings with lesson authoring disabled.
+A dedicated Google sandbox, test-only access over HTTPS, and the real
+lesson workflow verification are required before staging becomes a production
+promotion gate.
+
 ## Deploy
 
 CI (`.github/workflows/deploy.yml`) runs the test suite, type checks and

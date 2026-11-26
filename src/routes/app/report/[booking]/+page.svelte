@@ -58,8 +58,12 @@
   let note = $state(untrack(() => (data.reportable ? data.report?.note : null) ?? ''));
   let history = $derived(data.reportable ? data.coverageHistory : []);
   let priorCoverage = $derived(history.at(-1)?.coverage);
-  let reportCoverage = $state(untrack(() => !!priorCoverage));
-  let topics = $state<{ title: string; covered: boolean | ''; comment: string | null }[]>(
+  type CoverageMode = '' | 'manual' | 'current' | 'saved';
+  let nativeSource = $derived(data.reportable ? data.nativeSource : null);
+  let pinned = $derived(priorCoverage?.source === 'native' ? priorCoverage.bundle : null);
+  let mode = $state<CoverageMode>(untrack(() => pinned ? 'saved' : priorCoverage ? 'manual' : ''));
+  let confirmed = $state(false);
+  let topics = $state<{ objectiveId?: string; title: string; covered: boolean | ''; comment: string | null }[]>(
     untrack(() => priorCoverage?.topics.map(topic => ({ ...topic })) ?? []),
   );
   let saving = $state(false);
@@ -78,13 +82,24 @@
     ticked = Object.fromEntries(all.map(s => [s.id, false]));
     statusChoice = Object.fromEntries(all.map(s => [s.id, '']));
     note = data.report?.note ?? '';
-    reportCoverage = !!priorCoverage;
-    topics = priorCoverage?.topics.map(topic => ({ ...topic })) ?? [];
+    resetCoverage(pinned ? 'saved' : priorCoverage ? 'manual' : '');
     saving = false;
     formError = null;
     searchOpen = false;
     searchTerm = '';
   });
+
+  function resetCoverage(selected: CoverageMode) {
+    mode = selected;
+    confirmed = false;
+    if (selected === 'saved' || (selected === 'manual' && priorCoverage?.source === 'manual')) {
+      topics = priorCoverage?.topics.map(topic => ({ ...topic })) ?? [];
+    } else if (selected === 'current') {
+      topics = nativeSource?.objectives.map(({ id, title }) => ({ objectiveId: id, title, covered: '', comment: null })) ?? [];
+    } else {
+      topics = [];
+    }
+  }
 
   let filteredRest = $derived(
     searchTerm.trim() ? rest.filter(s => s.title.includes(searchTerm.trim())) : [],
@@ -100,7 +115,9 @@
   let noPlanToRecordAgainst = $derived((!data.reportable || data.planId === null) && tickedIds.length > 0);
   let canSubmit = $derived(
     !saving && !noPlanToRecordAgainst && tickedIds.every(id => !!statusChoice[id]) &&
-    (!reportCoverage || topics.every(topic => topic.title.trim() && topic.covered !== '')),
+    (!data.reportable || !data.requiresCoverage || !!mode) &&
+    (mode !== 'current' || confirmed) &&
+    (!mode || topics.every(topic => topic.title.trim() && topic.covered !== '')),
   );
 
   function toggle(id: number) {
@@ -152,7 +169,10 @@
         body: JSON.stringify({
           bookingId: data.booking.id,
           expectedFiling: data.expectedFiling,
-          coverage: reportCoverage ? { source: 'manual', topics } : undefined,
+          coverage: mode === 'manual' ? { source: 'manual', topics } : mode ? {
+            source: 'native', selection: mode, token: mode === 'saved' ? pinned?.token : nativeSource?.token,
+            confirmed, topics,
+          } : undefined,
           note: note.trim() ? note.trim() : null,
           entries: tickedIds.map(id => ({ nodeId: id, status: statusChoice[id] })),
         }),
@@ -197,17 +217,42 @@
   {#if data.reportable}
     <fieldset class="coverage">
       <legend class="section-title">נושאים שנלמדו</legend>
-      <label class="skill-check">
-        <input type="checkbox" bind:checked={reportCoverage} disabled={saving || !!priorCoverage} />
-        דיווח נושאים ידני
+      <label class="field">
+        <span>חומר השיעור</span>
+        <select value={mode} onchange={(event) => resetCoverage(event.currentTarget.value as CoverageMode)} disabled={saving}>
+          <option value="" disabled={data.requiresCoverage}>{data.requiresCoverage ? 'בחרו חומר לשיעור' : 'דיווח ללא פירוט נושאים'}</option>
+          <option value="manual">דיווח נושאים ידני</option>
+          {#if pinned}<option value="saved">גרסת המצגת שנשמרה בדיווח</option>{/if}
+          {#if nativeSource && nativeSource.token !== pinned?.token}
+            <option value="current">הגרסה הנוכחית של המצגת ב־Drive</option>
+          {/if}
+        </select>
       </label>
-      {#if reportCoverage}
+      {#if data.nativeUnavailable}
+        <p class="empty">אימות גרסת המצגת הנוכחית ב־Drive אינו זמין כרגע.</p>
+      {/if}
+      {#if mode === 'current' && nativeSource}
+        <p><a href={nativeSource.url} target="_blank" rel="noreferrer"><bdi>{nativeSource.slides.name}</bdi></a>
+          · גרסה <bdi>{nativeSource.slides.version}</bdi> · {fmtDate(nativeSource.slides.modifiedAt)} {fmtTime(nativeSource.slides.modifiedAt)}</p>
+        <label class="skill-check">
+          <input type="checkbox" bind:checked={confirmed} disabled={saving} />
+          לימדתי מהגרסה הזו של המצגת
+        </label>
+        <p class="empty">הנושאים המוצעים מבוססים על התכנון המקורי של השיעור. אפשר להוסיף נושאים שעלו בשיעור.</p>
+      {:else if mode === 'saved' && pinned}
+        <p><bdi>{pinned.slides.name}</bdi> · גרסה <bdi>{pinned.slides.version}</bdi></p>
+      {/if}
+      {#if mode}
         {#each topics as topic, i}
           <div class="coverage-topic">
-            <label class="field">
-              <span>שם הנושא</span>
-              <input type="text" maxlength="200" dir="auto" bind:value={topic.title} disabled={saving} />
-            </label>
+            {#if topic.objectiveId}
+              <strong><bdi>{topic.title}</bdi></strong>
+            {:else}
+              <label class="field">
+                <span>שם הנושא</span>
+                <input type="text" maxlength="200" dir="auto" bind:value={topic.title} disabled={saving} />
+              </label>
+            {/if}
             <label class="field">
               <span>כיסוי הנושא</span>
               <select bind:value={topic.covered} disabled={saving}>
@@ -220,8 +265,10 @@
               <span>הערה פרטית למורה (לא חובה)</span>
               <textarea rows="2" maxlength="2000" dir="auto" bind:value={topic.comment} disabled={saving}></textarea>
             </label>
-            <button type="button" class="search-toggle" disabled={saving}
-              onclick={() => topics.splice(i, 1)}>הסרת נושא</button>
+            {#if !topic.objectiveId}
+              <button type="button" class="search-toggle" disabled={saving}
+                onclick={() => topics.splice(i, 1)}>הסרת נושא</button>
+            {/if}
           </div>
         {/each}
         {#if topics.length === 0}
@@ -237,6 +284,9 @@
             {#each history as filing (filing.id)}
               <li>
                 <time datetime={filing.at}>{fmtDate(filing.at)} · {fmtTime(filing.at)}</time>
+                {#if filing.coverage.source === 'native'}
+                  · <bdi>{filing.coverage.bundle.slides.name}</bdi> · גרסה <bdi>{filing.coverage.bundle.slides.version}</bdi>
+                {/if}
                 {#if filing.coverage.topics.length}
                   <ul>
                     {#each filing.coverage.topics as topic}
@@ -279,7 +329,7 @@
       </p>
     {/if}
 
-    <h2 class="section-title">{reportCoverage ? 'הערכת הבנה (לא חובה)' : 'מה עברתם?'}</h2>
+    <h2 class="section-title">{mode ? 'הערכת הבנה (לא חובה)' : 'מה עברתם?'}</h2>
 
     {#if suggested.length}
       <div class="skill-list">

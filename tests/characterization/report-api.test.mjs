@@ -3,6 +3,10 @@
 // what a malformed one does.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { startServer, login, familySession } from './harness.mjs';
 
 const book = (baseUrl, over = {}) => fetch(`${baseUrl}/api/book`, {
@@ -262,4 +266,95 @@ test('manual coverage re-filing rejects stale forms and keeps coverage tutor-onl
     assert.equal(publicPage.status, 302);
     assert.doesNotMatch(await publicPage.text(), /PRIVATE-COVERAGE-EXAMPLE/);
   } finally { await stop(); }
+});
+
+test('filing a native report rechecks the displayed Drive version and preserves the filed version', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'report-drive-'));
+  const workspacePath = join(dir, 'workspace.json');
+  const slidesPath = join(dir, 'slides.json');
+  const workspace = { version: 1, ownerEmail: 'owner@example.test', projectFolderId: 'project12345',
+    learningFolderId: 'learning12345', spreadsheetId: 'spreadsheet12345', templatesFolderId: 'templates12345',
+    libraryFolderId: 'library12345', studentsFolderId: 'students12345', reviewFolderId: 'review12345',
+    studentProfileTemplateId: 'profile12345', lessonBriefTemplateId: 'brief12345' };
+  const sha = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  await writeFile(workspacePath, JSON.stringify(workspace));
+  const { baseUrl, dbPath, stop } = await startServer({ fakeGoogle: true, env: {
+    LEARNING_GOOGLE_CLIENT_ID: 'synthetic-learning-client', LEARNING_GOOGLE_CLIENT_SECRET: 'synthetic-learning-secret',
+    LEARNING_GOOGLE_WORKSPACE_FILE: workspacePath, LEARNING_GOOGLE_TOKEN_KEY: 'ab'.repeat(32),
+    FAKE_REPORT_SLIDES_FILE: slidesPath,
+  } });
+  try {
+    const { bookingId, cookie, booked } = await pastLesson(baseUrl, dbPath);
+    const connect = await fetch(baseUrl + '/app/library/connection?/connect', {
+      method: 'POST', redirect: 'manual', headers: { Cookie: cookie, Origin: baseUrl, Accept: 'text/html' },
+      body: new URLSearchParams(),
+    });
+    const state = new URL(connect.headers.get('location')).searchParams.get('state');
+    const browser = connect.headers.getSetCookie()[0].split(';')[0];
+    const complete = await fetch(baseUrl + '/auth/google/callback?' + new URLSearchParams({
+      state, code: 'learning.synthetic-code', picked_file_ids: workspace.learningFolderId,
+    }), { redirect: 'manual', headers: { Cookie: cookie + '; ' + browser } });
+    assert.equal(complete.headers.get('location'), '/app/library/connection');
+
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(dbPath);
+    try {
+      const booking = db.prepare('SELECT * FROM bookings_v2 WHERE id=?').get(bookingId);
+      const bundle = { objectives: [{ id: 'exponents', title: 'חזקות' }] };
+      const version = sha(bundle);
+      const receipt = { version: 1, state: 'draft', sourceHash: '9'.repeat(64),
+        reviewFolderId: 'report-synthetic-folder', slides: { id: 'report-synthetic-slides' },
+        homework: { id: 'report-synthetic-homework' }, notesLocation: 'slides',
+        provenance: { bundleVersion: version } };
+      const snapshot = { bookingId, studentId: booking.student_id, enrollmentId: booking.enrollment_id,
+        start: booking.start, authored: { version, bundle } };
+      db.prepare(`UPDATE native_lesson_jobs SET state='review', snapshot=?, bundle=?, approved_release_id=?
+        WHERE booking_id=?`).run(JSON.stringify(snapshot), JSON.stringify(receipt), 'student-game-only', bookingId);
+      const binding = sha([db.prepare('SELECT id FROM native_lesson_jobs WHERE booking_id=?').get(bookingId).id,
+        bookingId, booking.student_id, booking.enrollment_id, booking.start, receipt]);
+      const meta = { id: receipt.slides.id, name: 'מצגת בדיקה', modifiedTime: '2026-07-01T10:00:00Z',
+        mimeType: 'application/vnd.google-apps.presentation', parents: [receipt.reviewFolderId],
+        owners: [{ emailAddress: workspace.ownerEmail }], permissions: [{ type: 'user' }], trashed: false,
+        appProperties: { meaCentralScope: sha(['meabeclick-central-v1', workspace.ownerEmail, workspace.learningFolderId]) } };
+      const setVersion = version => writeFile(slidesPath, JSON.stringify({ ...meta, version }));
+      const pagePath = baseUrl + '/app/report/' + bookingId;
+      const url = baseUrl + '/api/reports';
+      const body = { bookingId, expectedFiling: 0, entries: [], coverage: {
+        source: 'native', selection: 'current', confirmed: true,
+        token: sha([binding, '5']), topics: [{ objectiveId: 'exponents', covered: false, comment: 'PRIVATE-PIN-COMMENT' }],
+      } };
+      await setVersion('5');
+      const reportPage = await fetch(pagePath, { headers: { Cookie: cookie } });
+      const html = await reportPage.text();
+      assert.equal(reportPage.status, 200);
+      assert.match(html, /הגרסה הנוכחית של המצגת/);
+      assert.ok(html.includes(body.coverage.token));
+      assert.ok(!html.includes(receipt.homework.id));
+      const family = await familySession(booked.portal.link);
+      assert.equal((await post(url, body, family)).status, 401);
+      assert.equal((await post(url, { ...body, coverage: { ...body.coverage, confirmed: false } }, cookie)).status, 409);
+      await setVersion('6');
+      assert.equal((await post(url, body, cookie)).status, 409);
+      assert.equal((await post(url, { ...body, coverage: { ...body.coverage, token: 'student-game-only' } }, cookie)).status, 409);
+      assert.equal(db.prepare('SELECT count(*) AS count FROM lesson_reports').get().count, 0);
+
+      db.prepare('UPDATE native_lesson_jobs SET approved_release_id=NULL WHERE booking_id=?').run(bookingId);
+      body.coverage.token = sha([binding, '6']);
+      assert.equal((await post(url, body, cookie)).status, 200);
+      const first = db.prepare('SELECT * FROM lesson_report_notes').get();
+      assert.equal(JSON.parse(first.teaching_coverage).coverage.bundle.slides.version, '6');
+
+      await setVersion('7');
+      const correction = { ...body, expectedFiling: first.id,
+        coverage: { ...body.coverage, selection: 'saved', confirmed: false } };
+      assert.equal((await post(url, correction, cookie)).status, 200);
+      assert.deepEqual(db.prepare('SELECT teaching_coverage FROM lesson_report_notes ORDER BY id').all()
+        .map(row => JSON.parse(row.teaching_coverage).coverage.bundle.slides.version), ['6', '6']);
+      const familyView = await fetch(baseUrl + '/app/parent', { headers: { Cookie: family } });
+      assert.doesNotMatch(await familyView.text(), /PRIVATE-PIN-COMMENT|report-synthetic-slides/);
+    } finally { db.close(); }
+  } finally {
+    await stop();
+    await rm(dir, { recursive: true, force: true });
+  }
 });

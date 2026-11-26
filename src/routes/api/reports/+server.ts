@@ -9,7 +9,8 @@ import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
 import { readJson } from '$server/http.ts';
 import { STATUSES, type SkillStatus } from '$lib/plan-status.ts';
-import { ReportConflict } from '$server/reports/coverage.ts';
+import { nativeReportSource } from '$server/reports/native-source.ts';
+import { coverageInput, ReportConflict } from '$server/reports/coverage.ts';
 import { fileReport, reportForBooking, bookingForReport } from '$server/reports/store.ts';
 import { planForEnrollment, planData, nodeInPlan, lastLessonAt } from '$server/plans/store.ts';
 import { buildTree } from '$server/plans/view.ts';
@@ -72,14 +73,17 @@ export const POST: RequestHandler = async (event) => {
 
   // fileReport can still refuse (a non-skill node id, or — for a direct
   // store caller rather than this validated route — a booking/plan
-  // mismatch this route already checked above). Its error messages carry
-  // booking and plan ids for the log, which must never reach the tutor's
-  // browser as a raw 500; map every failure to a 400 with a fixed message.
+  // mismatch this route already checked above). Do not return internal errors.
   try {
-    fileReport({ bookingId: booking.id, note, entries, expectedFiling: body.expectedFiling, coverage: body.coverage });
+    const selection = body.coverage === undefined ? null : coverageInput(body.coverage);
+    const verifiedNative = selection?.source === 'native' && selection.selection === 'current' &&
+      selection.confirmed === true && typeof selection.token === 'string' && /^[a-f0-9]{64}$/.test(selection.token)
+      ? await nativeReportSource(booking) : undefined;
+    fileReport({ bookingId: booking.id, note, entries, expectedFiling: body.expectedFiling,
+      coverage: body.coverage, verifiedNative });
   } catch (err) {
     if (err instanceof ReportConflict) {
-      return json({ error: 'הדיווח השתנה. העתיקו את השינויים ורעננו את העמוד לפני השליחה.' }, { status: 409 });
+      return json({ error: 'הדיווח או גרסת המצגת השתנו או אינם זמינים. העתיקו את השינויים ורעננו את העמוד.' }, { status: 409 });
     }
     console.error('[reports] file failed:', (err as Error).message);
     return json({ error: 'אי אפשר לשמור את הדיווח הזה' }, { status: 400 });

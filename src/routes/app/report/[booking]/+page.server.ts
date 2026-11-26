@@ -8,6 +8,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
+import { nativeReportBundle, nativeReportSource } from '$server/reports/native-source.ts';
 import { bookingForReport, reportForBooking, coverageHistory, lastReportFiling } from '$server/reports/store.ts';
 import { planForEnrollment, planData, lastLessonAt } from '$server/plans/store.ts';
 import { evidenceForSkill } from '$server/plans/evidence.ts';
@@ -61,6 +62,7 @@ export const load: PageServerLoad = async (event) => {
 
   const plan = booking.enrollment_id ? planForEnrollment(booking.enrollment_id) : null;
   const report = reportForBooking(booking.id);
+  if (report && report.student_id !== student.id) error(404, 'לא נמצא');
 
   let tree: TopicView[] = [];
   // What THIS report actually recorded, for the correction view — resolved
@@ -97,6 +99,15 @@ export const load: PageServerLoad = async (event) => {
     }))))
     .filter(s => s.visibility !== 'hidden');
 
+  const expectedFiling = report ? lastReportFiling(report.id) : 0;
+  const history = report ? coverageHistory(report.id).map(({ id, at, coverage }) => ({
+    id, at, coverage: coverage.source === 'native'
+      ? { source: coverage.source, topics: coverage.topics, bundle: { token: coverage.bundle.token, slides: coverage.bundle.slides } }
+      : coverage,
+  })) : [];
+  const hasNativeBundle = !!nativeReportBundle(booking);
+  const current = hasNativeBundle ? await nativeReportSource(booking).catch(() => null) : null;
+
   return {
     reportable: true as const,
     booking: { id: booking.id, start: booking.start, end: booking.end },
@@ -104,8 +115,14 @@ export const load: PageServerLoad = async (event) => {
     subject: enrollment?.subject ?? null,
     planId: plan?.id ?? null,
     report,
-    expectedFiling: report ? lastReportFiling(report.id) : 0,
-    coverageHistory: report ? coverageHistory(report.id) : [],
+    expectedFiling,
+    coverageHistory: history,
+    requiresCoverage: !!history.length || (!report && hasNativeBundle),
+    nativeUnavailable: hasNativeBundle && !current,
+    nativeSource: current ? {
+      token: current.token, slides: current.slides, objectives: current.objectives,
+      url: `https://docs.google.com/presentation/d/${current.slidesId}/edit`,
+    } : null,
     filedEntries,
     // Offered first, then everything else behind the search line.
     suggested: skills.filter(s => s.recommended || IN_PROGRESS.includes(s.status)),

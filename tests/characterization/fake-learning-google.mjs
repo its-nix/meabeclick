@@ -18,7 +18,11 @@ export async function fakeLearningGoogle(url,init){
  }
  if(url.pathname==='/drive/v3/about')return disabledDrive?Response.json({error:{message:'private-provider-detail',details:[{reason:'SERVICE_DISABLED',metadata:{service:'drive.googleapis.com'}}]}},{status:403}):{user:{emailAddress:workspace.ownerEmail}};
  if(url.pathname.startsWith('/drive/v3/files/')){
-  const file=learningFiles(workspace).find(f=>f.id===url.pathname.split('/').at(-1));
+  const id=url.pathname.split('/').at(-1);
+  if (id === 'report-synthetic-slides' && process.env.FAKE_REPORT_SLIDES_FILE) {
+   return JSON.parse(readFileSync(process.env.FAKE_REPORT_SLIDES_FILE, 'utf8'));
+  }
+  const file=learningFiles(workspace).find(f=>f.id===id);
   if(file)return {id:file.id,mimeType:file.type,parents:file.parent?[file.parent]:[],owners:[{emailAddress:workspace.ownerEmail}],permissions:[{type:'user'}],trashed:false};
   return central.fetch(url,init);
  }

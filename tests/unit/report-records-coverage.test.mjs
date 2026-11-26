@@ -158,3 +158,99 @@ test('manual coverage and re-filing preserve earlier objective records', () => {
   assert.equal(handle().prepare('SELECT teaching_coverage FROM lesson_report_notes WHERE id = ?').get(existing.id).teaching_coverage, legacy);
   assert.deepEqual(R.notesForReport(reportId).map(row => row.note), ['earlier report', 'manual correction']);
 });
+
+const { createHash } = await import('node:crypto');
+
+function nativeDraft(lesson) {
+  const booking = R.bookingForReport(lesson.bookingId);
+  const bundle = { objectives: [{ id: 'exponents', title: 'חזקות' }] };
+  const version = createHash('sha256').update(JSON.stringify(bundle)).digest('hex');
+  const snapshot = { bookingId: booking.id, studentId: booking.student_id,
+    enrollmentId: booking.enrollment_id, start: booking.start, authored: { version, bundle } };
+  const receipt = { version: 1, state: 'draft', sourceHash: 'a'.repeat(64),
+    reviewFolderId: 'synthetic-review-folder', slides: { id: 'synthetic-slide-file' },
+    homework: { id: 'synthetic-homework-doc' }, notesLocation: 'slides',
+    provenance: { bundleVersion: version } };
+  handle().prepare(`INSERT INTO native_lesson_jobs
+    (booking_id, student_id, state, snapshot, bundle, created_at, updated_at)
+    VALUES (?, ?, 'review', ?, ?, ?, ?)`).run(booking.id, booking.student_id,
+      JSON.stringify(snapshot), JSON.stringify(receipt), booking.start, booking.start);
+  return { booking, receipt };
+}
+
+function driveFor(receipt) {
+  return {
+    scope: 'synthetic-scope', ownerEmail: 'tutor@example.test', version: '5', public: false,
+    async json(url) {
+      assert.equal(new URL(url).pathname, '/drive/v3/files/' + receipt.slides.id);
+      return { id: receipt.slides.id, version: this.version, name: 'מצגת לשיעור',
+        modifiedTime: '2026-07-01T10:00:00Z', mimeType: 'application/vnd.google-apps.presentation',
+        parents: [receipt.reviewFolderId], owners: [{ emailAddress: this.ownerEmail }],
+        permissions: [{ type: this.public ? 'anyone' : 'user' }], trashed: false,
+        appProperties: { meaCentralScope: this.scope } };
+    },
+  };
+}
+
+function nativeCoverage(token, selection = 'current') {
+  return { source: 'native', token, selection, confirmed: true,
+    topics: [{ objectiveId: 'exponents', covered: false, comment: null }] };
+}
+
+test('a tutor confirms the live Drive version and can correct its coverage after Drive changes', async () => {
+  const { nativeReportSource } = await import('../../src/lib/server/reports/native-source.ts');
+  const lesson = fresh();
+  const { booking, receipt } = nativeDraft(lesson);
+  const drive = driveFor(receipt);
+  const first = await nativeReportSource(booking, drive);
+  const input = { bookingId: booking.id, note: null, entries: [] };
+
+  assert.throws(() => R.fileReport(input), { name: 'ReportConflict' });
+  assert.throws(() => R.fileReport({ ...input, expectedFiling: 0, verifiedNative: first,
+    coverage: { ...nativeCoverage(first.token), confirmed: false },
+  }), { name: 'ReportConflict' });
+  const reportId = R.fileReport({ ...input, expectedFiling: 0, verifiedNative: first,
+    coverage: nativeCoverage(first.token),
+  });
+  const [initial] = R.coverageHistory(reportId);
+  assert.equal(initial.coverage.bundle.slides.version, '5');
+  assert.equal(initial.coverage.bundle.sourceHash, receipt.sourceHash);
+  assert.equal(initial.coverage.bundle.homeworkId, receipt.homework.id);
+  assert.deepEqual(initial.coverage.topics, [{ objectiveId: 'exponents', title: 'חזקות', covered: false, comment: null }]);
+
+  drive.version = '6';
+  const next = await nativeReportSource(booking, drive);
+  assert.throws(() => R.fileReport({ ...input, expectedFiling: initial.id, verifiedNative: next,
+    coverage: nativeCoverage(first.token),
+  }), { name: 'ReportConflict' });
+  R.fileReport({ ...input, expectedFiling: initial.id, coverage: nativeCoverage(first.token, 'saved') });
+  const corrected = R.coverageHistory(reportId).at(-1);
+  assert.equal(corrected.coverage.bundle.slides.version, '5');
+  R.fileReport({ ...input, expectedFiling: corrected.id, verifiedNative: next, coverage: nativeCoverage(next.token) });
+  assert.deepEqual(R.coverageHistory(reportId).map(f => f.coverage.bundle.slides.version), ['5', '5', '6']);
+});
+
+test('a foreign bundle, replaced receipt, or public Drive file cannot be filed as taught', async () => {
+  const { nativeReportSource } = await import('../../src/lib/server/reports/native-source.ts');
+  const a = nativeDraft(fresh());
+  const b = nativeDraft(fresh());
+  const drive = driveFor(a.receipt);
+  const verifiedNative = await nativeReportSource(a.booking, drive);
+  const input = { note: null, entries: [], expectedFiling: 0, verifiedNative, coverage: nativeCoverage(verifiedNative.token) };
+  assert.throws(() => R.fileReport({ ...input, bookingId: b.booking.id }), { name: 'ReportConflict' });
+
+  assert.throws(() => R.fileReport({ ...input, bookingId: a.booking.id,
+    coverage: { ...input.coverage, topics: [{ objectiveId: 'foreign-goal', covered: true, comment: null }] },
+  }), /objective/);
+  handle().prepare("UPDATE native_lesson_jobs SET bundle=json_set(bundle,'$.homework.id','replacement-homework') WHERE booking_id=?").run(a.booking.id);
+  assert.throws(() => R.fileReport({ ...input, bookingId: a.booking.id }), { name: 'ReportConflict' });
+  assert.equal(R.reportForBooking(a.booking.id), null);
+  assert.equal(R.reportForBooking(b.booking.id), null);
+
+  drive.public = true;
+  await assert.rejects(nativeReportSource(a.booking, drive), { name: 'ReportConflict' });
+  R.fileReport({ bookingId: a.booking.id, note: null, entries: [], expectedFiling: 0,
+    coverage: { source: 'manual', topics: [] },
+  });
+  assert.equal(R.coverageHistory(R.reportForBooking(a.booking.id).id)[0].coverage.source, 'manual');
+});

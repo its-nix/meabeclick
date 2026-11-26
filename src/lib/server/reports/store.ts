@@ -12,7 +12,8 @@
  */
 import { handle } from '../db.ts';
 import { nodeInPlan, planForEnrollment } from '../plans/store.ts';
-import { decodeCoverage, manualCoverage, ReportConflict } from './coverage.ts';
+import { coverageInput, decodeCoverage, validateCoverage, ReportConflict } from './coverage.ts';
+import { nativeReportBundle, type NativeReportSource } from './native-source.ts';
 import type { SkillStatus } from '../../plan-status.ts';
 
 export type ReportRow = {
@@ -153,7 +154,7 @@ export function lastReportFiling(reportId: number): number {
 export function fileReport(input: {
   bookingId: number; note: string | null;
   entries: { nodeId: number; status: SkillStatus }[];
-  expectedFiling?: unknown; coverage?: unknown;
+  expectedFiling?: unknown; coverage?: unknown; verifiedNative?: NativeReportSource;
 }): number {
   const db = handle();
   db.exec('BEGIN IMMEDIATE');
@@ -162,13 +163,30 @@ export function fileReport(input: {
     if (!booking) throw new Error(`no booking ${input.bookingId}`);
     const at = now();
     const existing = reportForBooking(input.bookingId);
+    if (existing && existing.student_id !== booking.student_id) throw new ReportConflict();
     const priorFiling = existing ? latestFiling(existing.id) : null;
     const currentFiling = Number(priorFiling?.id ?? 0);
     const priorCoverage = decodeCoverage(priorFiling?.teaching_coverage);
     if ((input.coverage !== undefined || input.expectedFiling !== undefined || priorCoverage) &&
         input.expectedFiling !== currentFiling) throw new ReportConflict();
     if (priorCoverage && input.coverage === undefined) throw new ReportConflict();
-    const coverage = input.coverage === undefined ? null : manualCoverage(input.coverage);
+    if (booking.status !== 'confirmed' || Date.parse(booking.end) > Date.now()) throw new ReportConflict();
+    if (!existing && input.coverage === undefined && nativeReportBundle(booking)) throw new ReportConflict();
+
+    let bundle: NativeReportSource | undefined;
+    if (input.coverage !== undefined) {
+      const { source, selection, token, confirmed } = coverageInput(input.coverage);
+      if (source === 'native') {
+        if (selection === 'saved' && priorCoverage?.source === 'native') {
+          bundle = priorCoverage.bundle;
+        } else if (selection === 'current' && confirmed === true && input.verifiedNative &&
+            input.verifiedNative.binding === nativeReportBundle(booking)?.binding) {
+          bundle = input.verifiedNative;
+        }
+        if (!bundle || bundle.token !== token) throw new ReportConflict();
+      }
+    }
+    const coverage = input.coverage === undefined ? null : validateCoverage(input.coverage, bundle);
 
     // If entries are provided, enrollment must exist and have a plan.
     // A note-only report (entries.length === 0) needs neither.

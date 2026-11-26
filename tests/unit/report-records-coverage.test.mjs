@@ -111,3 +111,50 @@ test('the plan shows a taught-but-unassessed skill as taught', () => {
   const skills = V.buildTree(n, prereqs, events, null).flatMap(t => t.branches).flatMap(b => b.skills);
   assert.ok(skills.find(s => s.id === nodes[0].id).coveredAt, 'coveredAt must now be set');
 });
+
+test('explicit zero coverage is recorded independently from a skill judgment', () => {
+  const { planId, nodes, bookingId } = fresh();
+  const reportId = R.fileReport({
+    bookingId, note: null, entries: [{ nodeId: nodes[0].id, status: 'guided' }],
+    expectedFiling: 0, coverage: { source: 'manual', topics: [] },
+  });
+
+  assert.deepEqual(R.coverageHistory(reportId).map(filing => filing.coverage), [
+    { source: 'manual', topics: [] },
+  ]);
+  assert.equal(V.currentStatus(S.planData(planId).events, nodes[0].id), 'guided');
+  assert.equal(coveredEvents(planId, nodes[0].id).length, 0);
+});
+
+test('explicit manual corrections keep the prior coverage and reject a stale form', () => {
+  const { bookingId } = fresh();
+  const input = { bookingId, entries: [] };
+  const reportId = R.fileReport({ ...input, note: 'first', expectedFiling: 0,
+    coverage: { source: 'manual', topics: [{ title: 'חזקות', covered: true, comment: 'פרטי' }] },
+  });
+  const [initial] = R.coverageHistory(reportId);
+  R.fileReport({ ...input, note: 'correction', expectedFiling: initial.id,
+    coverage: { source: 'manual', topics: [{ title: 'חזקות', covered: false, comment: null }] },
+  });
+  assert.throws(() => R.fileReport({ ...input, note: 'stale', expectedFiling: initial.id,
+    coverage: { source: 'manual', topics: [] },
+  }), { name: 'ReportConflict' });
+  assert.throws(() => R.fileReport({ ...input, note: 'legacy request' }), { name: 'ReportConflict' });
+  assert.equal(R.reportForBooking(bookingId).note, 'correction');
+  assert.deepEqual(R.coverageHistory(reportId).map(filing => filing.coverage.topics[0].covered), [true, false]);
+});
+
+test('manual coverage and re-filing preserve earlier objective records', () => {
+  const { bookingId } = fresh();
+  const input = { bookingId, entries: [] };
+  const reportId = R.fileReport({ ...input, note: 'earlier report' });
+  const existing = R.notesForReport(reportId)[0];
+  const legacy = JSON.stringify({ lessonSlug: 'archived-lesson', materialVersion: 2, objectiveIds: ['obj-1'] });
+  handle().prepare('UPDATE lesson_report_notes SET teaching_coverage = ? WHERE id = ?').run(legacy, existing.id);
+
+  R.fileReport({ ...input, note: 'manual correction', expectedFiling: existing.id,
+    coverage: { source: 'manual', topics: [] },
+  });
+  assert.equal(handle().prepare('SELECT teaching_coverage FROM lesson_report_notes WHERE id = ?').get(existing.id).teaching_coverage, legacy);
+  assert.deepEqual(R.notesForReport(reportId).map(row => row.note), ['earlier report', 'manual correction']);
+});

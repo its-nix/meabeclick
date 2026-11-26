@@ -12,6 +12,7 @@
  */
 import { handle } from '../db.ts';
 import { nodeInPlan, planForEnrollment } from '../plans/store.ts';
+import { decodeCoverage, manualCoverage, ReportConflict } from './coverage.ts';
 import type { SkillStatus } from '../../plan-status.ts';
 
 export type ReportRow = {
@@ -114,6 +115,27 @@ export function notesForReport(reportId: number): ReportNoteRow[] {
   ).all(reportId) as ReportNoteRow[];
 }
 
+/** Tutor-only coverage snapshots, oldest first. Legacy rows retain their original data. */
+export function coverageHistory(reportId: number) {
+  const rows = handle().prepare(
+    `SELECT id, at, teaching_coverage FROM lesson_report_notes WHERE report_id = ? ORDER BY id`
+  ).all(reportId) as { id: number; at: string; teaching_coverage: string | null }[];
+  return rows.flatMap(({ id, at, teaching_coverage }) => {
+    const coverage = decodeCoverage(teaching_coverage);
+    return coverage ? [{ id, at, coverage }] : [];
+  });
+}
+
+function latestFiling(reportId: number) {
+  return handle().prepare(
+    `SELECT id, teaching_coverage FROM lesson_report_notes WHERE report_id = ? ORDER BY id DESC LIMIT 1`
+  ).get(reportId);
+}
+
+export function lastReportFiling(reportId: number): number {
+  return Number(latestFiling(reportId)?.id ?? 0);
+}
+
 /**
  * Files a report, or corrects one. Returns the report id.
  *
@@ -131,14 +153,22 @@ export function notesForReport(reportId: number): ReportNoteRow[] {
 export function fileReport(input: {
   bookingId: number; note: string | null;
   entries: { nodeId: number; status: SkillStatus }[];
+  expectedFiling?: unknown; coverage?: unknown;
 }): number {
   const db = handle();
-  const booking = bookingForReport(input.bookingId);
-  if (!booking) throw new Error(`no booking ${input.bookingId}`);
-
-  db.exec('BEGIN');
+  db.exec('BEGIN IMMEDIATE');
   try {
+    const booking = bookingForReport(input.bookingId);
+    if (!booking) throw new Error(`no booking ${input.bookingId}`);
     const at = now();
+    const existing = reportForBooking(input.bookingId);
+    const priorFiling = existing ? latestFiling(existing.id) : null;
+    const currentFiling = Number(priorFiling?.id ?? 0);
+    const priorCoverage = decodeCoverage(priorFiling?.teaching_coverage);
+    if ((input.coverage !== undefined || input.expectedFiling !== undefined || priorCoverage) &&
+        input.expectedFiling !== currentFiling) throw new ReportConflict();
+    if (priorCoverage && input.coverage === undefined) throw new ReportConflict();
+    const coverage = input.coverage === undefined ? null : manualCoverage(input.coverage);
 
     // If entries are provided, enrollment must exist and have a plan.
     // A note-only report (entries.length === 0) needs neither.
@@ -149,7 +179,6 @@ export function fileReport(input: {
       if (!plan) throw new Error(`enrollment ${booking.enrollment_id} has no plan`);
     }
 
-    const existing = reportForBooking(input.bookingId);
     let reportId: number;
 
     if (existing) {
@@ -170,8 +199,8 @@ export function fileReport(input: {
     // The note's own history — a row per filing, appended never rewritten
     // (spec §4/§3 apply to the note the same way they apply to skill status).
     db.prepare(
-      `INSERT INTO lesson_report_notes (report_id, note, at) VALUES (?, ?, ?)`
-    ).run(reportId, input.note, at);
+      `INSERT INTO lesson_report_notes (report_id, note, at, teaching_coverage) VALUES (?, ?, ?, ?)`
+    ).run(reportId, input.note, at, coverage ? JSON.stringify({ schema: 'drive-report-v1', coverage }) : null);
 
     // For each entry, verify it belongs to this lesson's plan before writing.
     // plan is guaranteed non-null here because we only reach this if entries is non-empty
@@ -187,6 +216,8 @@ export function fileReport(input: {
         `INSERT INTO plan_events (plan_id, node_id, type, status, note, evidence, source, report_id, at)
          VALUES (?, ?, 'status', ?, ?, 'lesson', 'report', ?, ?)`
       ).run(plan!.id, entry.nodeId, entry.status, input.note, reportId, at);
+
+      if (coverage) continue;
 
       /* And the separate fact that it was TAUGHT.
        

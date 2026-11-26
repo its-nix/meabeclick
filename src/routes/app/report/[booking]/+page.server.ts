@@ -8,7 +8,7 @@
  */
 import { error } from '@sveltejs/kit';
 import { requireAuth } from '$server/auth.ts';
-import { bookingForReport, reportForBooking } from '$server/reports/store.ts';
+import { bookingForReport, reportForBooking, coverageHistory, lastReportFiling } from '$server/reports/store.ts';
 import { planForEnrollment, planData, lastLessonAt } from '$server/plans/store.ts';
 import { evidenceForSkill } from '$server/plans/evidence.ts';
 import { suggestStatus } from '$server/plans/suggest.ts';
@@ -104,6 +104,8 @@ export const load: PageServerLoad = async (event) => {
     subject: enrollment?.subject ?? null,
     planId: plan?.id ?? null,
     report,
+    expectedFiling: report ? lastReportFiling(report.id) : 0,
+    coverageHistory: report ? coverageHistory(report.id) : [],
     filedEntries,
     // Offered first, then everything else behind the search line.
     suggested: skills.filter(s => s.recommended || IN_PROGRESS.includes(s.status)),

@@ -221,7 +221,13 @@ test('no report reaches the family', async () => {
   try {
     const { booked, bookingId, cookie } = await pastLesson(baseUrl, dbPath);
     const family = await familySession(booked.portal.link);
-    await post(`${baseUrl}/api/reports`, { bookingId, note: 'הערה פנימית', entries: [] }, cookie);
+    const filed = await post(`${baseUrl}/api/reports`, {
+      bookingId, note: 'הערה פנימית', entries: [], expectedFiling: 0,
+      coverage: { source: 'manual', topics: [
+        { title: 'PRIVATE-REPORT-TOPIC', covered: true, comment: 'PRIVATE-REPORT-COMMENT' },
+      ] },
+    }, cookie);
+    assert.equal(filed.status, 200);
     const student = await studentSession(baseUrl, family, booked.portal.code);
 
     for (const { url, session } of [
@@ -231,7 +237,29 @@ test('no report reaches the family', async () => {
       { url: `${baseUrl}/app/student?s=${booked.portal.code}`, session: student },
     ]) {
       const text = await (await fetch(url, { headers: { Cookie: session } })).text();
-      assert.doesNotMatch(text, /הערה פנימית/, `${url} leaked the report note`);
+      assert.doesNotMatch(text, /הערה פנימית|PRIVATE-REPORT-(TOPIC|COMMENT)/, `${url} leaked private report data`);
     }
+  } finally { await stop(); }
+});
+
+test('manual coverage re-filing rejects stale forms and keeps coverage tutor-only', async () => {
+  const { baseUrl, dbPath, stop } = await startServer();
+  try {
+    const { cookie, bookingId } = await pastLesson(baseUrl, dbPath);
+    const url = `${baseUrl}/api/reports`;
+    const report = { bookingId, expectedFiling: 0, entries: [],
+      coverage: { source: 'manual', topics: [
+        { title: 'חזקות', covered: false, comment: 'PRIVATE-COVERAGE-EXAMPLE' },
+      ] },
+    };
+    assert.equal((await post(url, report, cookie)).status, 200);
+    assert.equal((await post(url, report, cookie)).status, 409);
+    assert.equal((await post(url, report)).status, 401);
+    const pageUrl = `${baseUrl}/app/report/${bookingId}`;
+    const tutor = await fetch(pageUrl, { headers: { Cookie: cookie } });
+    assert.match(await tutor.text(), /PRIVATE-COVERAGE-EXAMPLE/);
+    const publicPage = await fetch(pageUrl, { redirect: 'manual' });
+    assert.equal(publicPage.status, 302);
+    assert.doesNotMatch(await publicPage.text(), /PRIVATE-COVERAGE-EXAMPLE/);
   } finally { await stop(); }
 });

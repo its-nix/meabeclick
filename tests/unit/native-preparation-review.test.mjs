@@ -17,13 +17,81 @@ const hash=s=>createHash('sha256').update(s).digest('hex');
 let serial=0;
 function booking(){serial++;const account=E.createAccount({name:'Synthetic',credential:'review-account-'+serial}),student=E.createStudent({code:'review-'+serial,name:'Private synthetic name',accountId:account.id,credential:'review-'+serial}),enrollment=E.upsertEnrollment({studentId:student.id,subject:'מתמטיקה',level:'3 יחידות',teacherId:null});const bookingId=E.reserveBooking({studentId:student.id,enrollmentId:enrollment.id,start:`2028-11-${String(serial).padStart(2,'0')}T10:00:00.000Z`,end:`2028-11-${String(serial).padStart(2,'0')}T11:30:00.000Z`,durationMin:90});J.enqueueNativeLesson({bookingId,studentId:student.id});bindNativePreparation({bookingId,studentId:student.id,request:'להבין את השטח והאחוזים',priorKnowledge:'מבין ממוצע ומתקשה באחוזים'});return J.claimNativeLessonJob({bookingId});}
 const fields=['mathCorrect','studentAnswersHidden','teachingClear','brandConsistent','visualEvidenceReviewed','feedbackAddressed'];
-function report(input,status='pass'){return{version:1,status,model:input.model,provider:'openai',session:'fresh',contentHash:hash(JSON.stringify(input.bundle)),rulesHash:hash(nativeReviewRules()),evidenceHash:hash('rendered-evidence'),findings:status==='pass'?[]:[{severity:'major',target:'s1',issue:'המעבר לאחוזים אינו מוסבר.',requestedChange:'הוסיפו דוגמה פתורה לפני התרגול.'}],checks:Object.fromEntries(fields.map(k=>[k,status==='pass'])),reviewedImages:input.images.map(i=>i.name)};}
+function report(input,status='pass'){return{version:1,status,model:input.model,provider:'openai',session:'fresh',contentHash:hash(JSON.stringify(input.bundle)),rulesHash:hash(nativeReviewRules()),evidenceHash:hash('rendered-evidence'),findings:status==='pass'?[]:[{severity:'major',target:'lesson',issue:'המעבר לאחוזים אינו מוסבר.',requestedChange:'הוסיפו דוגמה פתורה לפני התרגול.'}],checks:Object.fromEntries(fields.map(k=>[k,status==='pass'])),reviewedImages:input.images.map(i=>i.name)};}
 function dependencies(overrides={}){let authored=0,reviewed=0,rendered=0;const dirs=[];const deps={generate:(job,feedback)=>authorNativeLesson(job,async input=>{authored++;assert.doesNotMatch(JSON.stringify(input.context),/Private synthetic name/);const bundle=structuredClone(visualDeckFixture());if(feedback)bundle.title+=' · מתוקן';return bundle;},()=>({model:'same-model',cliVersion:'fixture'}),feedback),render:async(_bundle,dir)=>{rendered++;dirs.push(dir);const path=join(dir,'slide.png');const bytes=Buffer.from('synthetic rendered evidence');await writeFile(path,bytes);return[{name:'slide.png',path,sha256:hash(bytes)}];},review:async input=>{reviewed++;return report(input);},...overrides};return{deps,dirs,counts:()=>({authored,reviewed,rendered})};}
 function retry(job){J.failNativeLessonJob({bookingId:job.bookingId,attempt:job.attempts,code:'quota'});bindNativePreparation({bookingId:job.bookingId,studentId:job.studentId,request:job.snapshot.brief.request,priorKnowledge:job.snapshot.brief.priorKnowledge});return J.claimNativeLessonJob({bookingId:job.bookingId});}
 
 test('native preparation passes only reviewed exact content, preserves concurrent snapshot fields and cached pass on retry',async()=>{const job=booking(),d=dependencies();const original=d.deps.render;d.deps.render=async(bundle,dir)=>{handle().prepare(`UPDATE native_lesson_jobs SET snapshot=json_set(snapshot,'$.collectorMarker','preserved') WHERE id=?`).run(job.id);return original(bundle,dir);};const first=await prepareReviewedNativeLesson(job,d.deps);assert.equal(first.validation.status,'pass');assert.equal(first.validation.contentHash,first.version);assert.equal(J.getNativeLessonJob(job.bookingId).snapshot.collectorMarker,'preserved');assert.equal(J.getNativeLessonJob(job.bookingId).snapshot.validation.status,'pass');assert.deepEqual(d.counts(),{authored:1,reviewed:1,rendered:1});for(const dir of d.dirs)await assert.rejects(access(dir));const restarted=retry(job);const second=await prepareReviewedNativeLesson(restarted,d.deps);assert.equal(second.version,first.version);assert.deepEqual(d.counts(),{authored:1,reviewed:1,rendered:1});});
 
-test('one creator repair uses the reviewer findings as data and preserves first candidate lineage',async()=>{const job=booking(),d=dependencies();let n=0;d.deps.review=async input=>report(input,n++===0?'revise':'pass');const firstGenerate=d.deps.generate;d.deps.generate=(current,feedback)=>authorNativeLesson(current,async input=>{const b=structuredClone(visualDeckFixture());if(feedback){const item=input.context.history.find(h=>h.kind==='independent-review-required-corrections');assert.equal(item.parentVersion,feedback.parentVersion);assert.deepEqual(item.findings,feedback.findings);assert.ok(item.parent.slides.length);b.title+=' · מתוקן';}return b;},()=>({model:'same-model',cliVersion:'fixture'}),feedback);const result=await prepareReviewedNativeLesson(job,d.deps);assert.equal(n,2);assert.equal(result.validation.status,'pass');const snapshot=J.getNativeLessonJob(job.bookingId).snapshot;assert.equal(snapshot.reviewRepair.count,1);assert.equal(snapshot.authoredParent.version,snapshot.reviewRepair.parentVersion);assert.equal(snapshot.reviewParentValidation.status,'revise');assert.equal(snapshot.reviewParentValidation.contentHash,snapshot.authoredParent.version);assert.equal(snapshot.reviewParentValidationBinding.contentHash,snapshot.authoredParent.version);assert.notEqual(snapshot.authored.version,snapshot.authoredParent.version);assert.equal(snapshot.validation.contentHash,snapshot.authored.version);});
+test('one creator repair uses the reviewer findings as data and preserves first candidate lineage',async()=>{const job=booking(),d=dependencies();let n=0;d.deps.review=async input=>report(input,n++===0?'revise':'pass');d.deps.generate=(current,feedback)=>authorNativeLesson(current,async input=>{const b=structuredClone(visualDeckFixture());if(feedback){const item=input.context.history.find(h=>h.kind==='independent-review-required-corrections');assert.equal(item.parentVersion,feedback.parentVersion);assert.deepEqual(item.findings,feedback.findings);assert.ok(item.parent.slides.length);b.title+=' · מתוקן';}return b;},()=>({model:'same-model',cliVersion:'fixture'}),feedback);const result=await prepareReviewedNativeLesson(job,d.deps);assert.equal(n,2);assert.equal(result.validation.status,'pass');const snapshot=J.getNativeLessonJob(job.bookingId).snapshot;assert.equal(snapshot.reviewRepair.count,1);assert.equal(snapshot.authoredParent.version,snapshot.reviewRepair.parentVersion);assert.equal(snapshot.reviewParentValidation.status,'revise');assert.equal(snapshot.reviewParentValidation.contentHash,snapshot.authoredParent.version);assert.equal(snapshot.reviewParentValidationBinding.contentHash,snapshot.authoredParent.version);assert.notEqual(snapshot.authored.version,snapshot.authoredParent.version);assert.equal(snapshot.validation.contentHash,snapshot.authored.version);});
+
+test('a slide-only repair re-reviews the corrected slide with every unrelated artifact intact',async()=>{
+ const job=booking(),parent=visualDeckFixture(),d=dependencies();
+ const corrected=structuredClone(parent.slides[1]);
+ corrected.prompt='אם בקבוצה יש 100 תלמידים, 19 אחוז הם 19 תלמידים.';
+ d.deps.generate=(current,feedback)=>authorNativeLesson(current,async input=>{
+  const proposal=structuredClone(parent);
+  if(feedback){
+   const correction=input.context.history.find(item=>item.kind==='independent-review-required-corrections');
+   assert.deepEqual(correction.replaceOnlySlideIds,['slide-2']);
+   proposal.slides[1]=corrected;
+   proposal.slides[19].presenterNotes.transition='נעבור לסיכום.';
+   proposal.slides.reverse();
+   proposal.homework[0].prompt='האם התחום כולל את הממוצע?';
+  }
+  return proposal;
+ },()=>({model:'same-model',cliVersion:'fixture'}),feedback);
+ let reviews=0;
+ const expected=structuredClone(parent);
+ expected.slides[1]=corrected;
+ d.deps.review=async input=>{
+  if(++reviews===1){
+   const revised=report(input,'revise');
+   revised.findings[0].target='slide-2';
+   return revised;
+  }
+  assert.deepEqual(input.bundle,expected);
+  assert.equal(input.feedback[0].target,'slide-2');
+  return report(input);
+ };
+ const result=await prepareReviewedNativeLesson(job,d.deps);
+ assert.equal(reviews,2);
+ assert.deepEqual(result.bundle,expected);
+ assert.equal(result.validation.contentHash,hash(JSON.stringify(expected)));
+ assert.deepEqual(J.getNativeLessonJob(job.bookingId).snapshot.authoredParent.bundle,parent);
+});
+
+test('a scoped repair cannot drop its target or introduce unresolved references',async()=>{
+ for(const mode of ['missing','duplicate','new-task']){
+  const job=booking(),d=dependencies();
+  d.deps.generate=(current,feedback)=>authorNativeLesson(current,async()=>{
+   const bundle=visualDeckFixture();
+   if(feedback){
+    const target=bundle.slides[1];
+    if(mode==='missing')target.id='renamed-slide';
+    else if(mode==='duplicate')bundle.slides[2].id=target.id;
+    else{
+     target.blocks=[];
+     target.taskId='replacement-task';
+     bundle.tasks.push({...structuredClone(bundle.tasks[0]),id:target.taskId});
+    }
+   }
+   return bundle;
+  },()=>({model:'same-model',cliVersion:'fixture'}),feedback);
+  let reviews=0;
+  d.deps.review=async input=>{
+   reviews++;
+   const revised=report(input,'revise');
+   revised.findings[0].target='slide-2';
+   return revised;
+  };
+  await assert.rejects(prepareReviewedNativeLesson(job,d.deps),/native_authoring_invalid/);
+  assert.equal(reviews,1);
+  const snapshot=J.getNativeLessonJob(job.bookingId).snapshot;
+  assert.equal(snapshot.authored.version,snapshot.authoredParent.version);
+  assert.equal(snapshot.reviewRepair.count,1);
+ }
+});
 
 test('a second unsuccessful review cannot trigger another repair, including manual retry',async()=>{const job=booking(),d=dependencies();let calls=0;d.deps.review=async input=>{calls++;return report(input,'revise');};await assert.rejects(prepareReviewedNativeLesson(job,d.deps),/native_review_revise/);assert.equal(calls,2);assert.equal(J.getNativeLessonJob(job.bookingId).snapshot.reviewRepair.count,1);const restarted=retry(job);await assert.rejects(prepareReviewedNativeLesson(restarted,d.deps),/native_review_revise/);assert.equal(calls,2);assert.equal(d.counts().authored,2);});
 

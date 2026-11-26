@@ -222,11 +222,9 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: staging
-    concurrency:
-      group: vps-staging
-      cancel-in-progress: false
+    # The VPS serializes staging and checks main under the deployment lock.
+    # A shared Actions queue can drop the current run when an older build finishes late.
     permissions:
-      contents: read
       packages: read
     steps:
       - name: Deploy and verify the published digest in staging
@@ -237,15 +235,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tip=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
-          if ! [[ "$tip" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Could not verify the current main commit."
-            exit 1
-          fi
-          if [[ "$tip" != "$GITHUB_SHA" ]]; then
-            echo "::notice::A newer main commit superseded this staging deployment."
-            exit 0
-          fi
           [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
           umask 077
           key="$RUNNER_TEMP/staging_key"
@@ -254,7 +243,7 @@ jobs:
           printf '%s\n' "$STAGING_KEY" > "$key"
           printf '%s\n' '76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR' > "$known_hosts"
           for attempt in 1 2 3 4 5; do
-            if printf '%s\n' "$IMAGE_DIGEST" "$GITHUB_ACTOR" "$GH_TOKEN" | ssh -T -i "$key" \
+            if printf '%s\n' "$GITHUB_SHA" "$IMAGE_DIGEST" "$GITHUB_ACTOR" "$GH_TOKEN" | ssh -T -i "$key" \
                 -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
                 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" \
                 meabeclick-stage@76.13.59.4; then

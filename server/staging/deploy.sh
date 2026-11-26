@@ -3,6 +3,10 @@ set -euo pipefail
 
 # Forced SSH command. Read deploy inputs from stdin and ignore the SSH command.
 cd /srv/meabeclick-staging
+if ! IFS= read -r -n 41 -t 5 commit || [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+  echo 'Expected a full Git commit SHA' >&2
+  exit 2
+fi
 if ! IFS= read -r -n 72 -t 5 digest || [[ ! "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]; then
   echo 'Expected one sha256 image digest' >&2
   exit 2
@@ -20,6 +24,18 @@ fi
 
 exec 9>/run/lock/meabeclick-staging-deploy.lock
 flock --exclusive 9
+
+main_ref=refs/heads/main
+ref=$(timeout 15s git ls-remote --exit-code https://github.com/its-nix/meabeclick.git "$main_ref")
+IFS=$'\t' read -r tip branch <<< "$ref"
+if ! [[ "$tip" =~ ^[0-9a-f]{40}$ && "$branch" == "$main_ref" ]]; then
+  echo 'Could not verify the current main commit' >&2
+  exit 1
+fi
+if [[ "$tip" != "$commit" ]]; then
+  printf 'Skipped staging commit %s because main is %s\n' "$commit" "$tip"
+  exit 0
+fi
 
 export STAGING_IMAGE="ghcr.io/its-nix/meabeclick@$digest"
 compose=(docker compose --env-file /dev/null --project-name meabeclick-staging)

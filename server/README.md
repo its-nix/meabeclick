@@ -468,13 +468,15 @@ project uses its own `data/` and `staging.env`, including freshly generated
 tutor and session secrets. The app listens on its own loopback and CI runs its
 checks inside the container. Use synthetic records in staging.
 
-After publishing the release image, the `staging` job sends the registry
-digest to the VPS. The environment secret `STAGING_DEPLOY_SSH_KEY` connects
+After publishing the release image, the `staging` job sends the commit SHA
+and registry digest to the VPS. The environment secret `STAGING_DEPLOY_SSH_KEY` connects
 as `meabeclick-stage` and can only invoke the root-owned
 `/usr/local/sbin/meabeclick-staging-deploy` (source in `server/staging/deploy.sh`).
 The job provides a short-lived registry token if the digest needs pulling.
-The deploy command checks the running image ID and verifies startup, the
-booking page and tutor sign-in. Deployments to the GitHub `staging`
+The VPS serializes staging requests with a lock. While holding it, the deploy
+command checks the current tip of `main` and skips superseded requests. For
+the current request, it checks the running image ID and verifies startup,
+the booking page and tutor sign-in. Deployments to the GitHub `staging`
 environment are restricted to `main`.
 
 For a new VPS, create `meabeclick-stage` as a dedicated account with a shell

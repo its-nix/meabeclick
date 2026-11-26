@@ -1,0 +1,11 @@
+services:
+  caddy:
+    volumes:
+      - /srv/meabeclick-staging/proxy:/etc/caddy/staging:ro
+    networks:
+      - staging-ingress
+
+networks:
+  staging-ingress:
+    external: true
+    name: meabeclick-staging-ingress

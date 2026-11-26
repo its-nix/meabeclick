@@ -31,3 +31,6 @@ meabeclick.com {
 		format console
 	}
 }
+
+# On the VPS, the optional staging proxy is mounted from a private directory.
+import /etc/caddy/staging/*.caddy

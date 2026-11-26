@@ -272,6 +272,12 @@ test('a GitHub API error cannot masquerade as a superseding commit',()=>{
 });
 
 
+test('build exposes both the image name and the published digest', () => {
+  const buildJob = workflow.slice(workflow.indexOf('\n  build:'), workflow.indexOf('\n  staging:'));
+  assert.match(buildJob, /outputs:\n      image: \$\{\{ steps\.image\.outputs\.name \}\}\n      digest: \$\{\{ steps\.publish\.outputs\.digest \}\}/);
+  assert.match(stagingJob, /IMAGE_DIGEST: \$\{\{ needs\.build\.outputs\.digest \}\}/);
+});
+
 test('late staging builds cannot displace or overwrite the current main run', () => {
   const stagingDeploy = readFileSync(join(root, 'server/staging/deploy.sh'), 'utf8');
   assert.doesNotMatch(stagingJob, /^\s*concurrency:/m,

@@ -36,6 +36,7 @@ jobs:
       contents: read
       packages: write
     outputs:
+      image: ${{ steps.image.outputs.name }}
       digest: ${{ steps.publish.outputs.digest }}
     steps:
       - uses: actions/checkout@v4

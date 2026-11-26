@@ -12,6 +12,27 @@ import type{NativeValidation}from'./validation.ts';
 export interface AuthoredLesson{bundle:VisualLesson;version:string;kind?:string;model?:string;rulesHash?:string;contextHash?:string;cliVersion?:string;authoringFingerprint?:string;sources?:Array<{id:string;sha256:string}>;feedbackPolicyHash?:string;validation?:NativeValidation}
 export interface NativeRepairFeedback{parentVersion:string;findings:NativeValidation['findings']}
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
+
+function slideRepairIds(parent:VisualLesson,feedback:NativeRepairFeedback):string[]{
+ const slideIds=new Set(parent.slides.map(slide=>slide.id));
+ const otherArtifacts=[...parent.objectives,...parent.tasks,...parent.homework,
+  ...parent.games.flatMap(game=>[game,...game.rounds])];
+ const otherIds=new Set(['lesson','evidence',...otherArtifacts.map(item=>item.id)]);
+ const targets=[...new Set(feedback.findings.map(finding=>finding.target))];
+ return targets.every(id=>slideIds.has(id)&&!otherIds.has(id))?targets:[];
+}
+
+function applySlideRepair(parent:VisualLesson,proposal:VisualLesson,targets:string[]):VisualLesson{
+ const replacements=new Map<string,VisualLesson['slides'][number]>();
+ for(const slide of proposal.slides){
+  if(!targets.includes(slide.id))continue;
+  if(replacements.has(slide.id))throw Error('native_authoring_invalid');
+  replacements.set(slide.id,slide);
+ }
+ if(replacements.size!==targets.length)throw Error('native_authoring_invalid');
+ return {...parent,slides:parent.slides.map(slide=>replacements.get(slide.id)??slide)};
+}
+
 /** A stale caller may never replace the current authored candidate or its review state. */
 export function currentAuthoringJob(job:NativeLessonJob):NativeLessonJob{
  const now=new Date().toISOString();
@@ -41,8 +62,27 @@ export async function authorNativeLesson(job:NativeLessonJob,generate:typeof gen
   const r=handle().prepare(`UPDATE native_lesson_jobs SET snapshot=json_set(snapshot,'$.authoredParent',json(?),'$.reviewRepair',json(?),'$.reviewParentValidation',json(?),'$.reviewParentValidationBinding',json(?)),updated_at=? WHERE id=? AND state='preparing' AND attempts=? AND lease_until>? AND bundle IS NULL AND json_extract(snapshot,'$.authored.version')=? AND COALESCE(json_extract(snapshot,'$.reviewRepair.count'),0)=0 AND json_extract(snapshot,'$.validation.status')='revise' AND json_extract(snapshot,'$.validation.contentHash')=? AND EXISTS(SELECT 1 FROM bookings_v2 b WHERE b.id=booking_id AND b.student_id=native_lesson_jobs.student_id AND b.status='confirmed')`).run(JSON.stringify(cached),JSON.stringify(lineage),JSON.stringify(snapshot.validation),JSON.stringify((snapshot as any).validationBinding??null),now,job.id,job.attempts,now,cached!.version,cached!.version);
   if(!r.changes)throw Error('paused');
  }
- const context={purpose:'booking' as const,subject:brief.subject??'',level:brief.level??'',durationMin:brief.durationMin!,request:brief.request+(reviewFeedback?'\nתקנו את ממצאי הבדיקה העצמאית שבהיסטוריה. שמרו על מטרת השיעור והרמה. הפיקו חבילה מלאה ומתוקנת.':''),history:[...(brief.observations??[]),...(brief.practice??[]).map(p=>({kind:'practice',...p,mastery:'not-inferred'})),...(brief.previousAssignedSourceIds??[]).map(sourceId=>({kind:'previous-assignment-source',sourceId,use:'not-confirmed'})),...(policy.guidance.length?[{kind:'human-approved-generation-guidance',hash:policy.hash,guidance:policy.guidance}]:[]),...(reviewFeedback?[{kind:'independent-review-required-corrections',parentVersion:cached!.version,parent:cached!.bundle,findings:reviewFeedback.findings}]:[])],readiness:brief.priorKnowledge};
- const bundle=await generate({context,sourceIds:[],model});
+ const repairSlides=reviewFeedback?slideRepairIds(cached!.bundle,reviewFeedback):[];
+ let request=brief.request;
+ if(reviewFeedback)request+='\nתקנו את ממצאי הבדיקה העצמאית שבהיסטוריה. שמרו על מטרת השיעור והרמה. הפיקו חבילה מלאה ומתוקנת.';
+ if(repairSlides.length)request+=' שנו רק את השקפים המסומנים לתיקון בהיסטוריה. שמרו על מזהי השקפים, סדרם וכל תוכן אחר בחבילה.';
+ const context={
+  purpose:'booking' as const,subject:brief.subject??'',level:brief.level??'',durationMin:brief.durationMin!,
+  request,
+  history:[
+   ...(brief.observations??[]),
+   ...(brief.practice??[]).map(p=>({kind:'practice',...p,mastery:'not-inferred'})),
+   ...(brief.previousAssignedSourceIds??[]).map(sourceId=>({kind:'previous-assignment-source',sourceId,use:'not-confirmed'})),
+   ...(policy.guidance.length?[{kind:'human-approved-generation-guidance',hash:policy.hash,guidance:policy.guidance}]:[]),
+   ...(reviewFeedback?[{kind:'independent-review-required-corrections',parentVersion:cached!.version,
+    parent:cached!.bundle,findings:reviewFeedback.findings,
+    ...(repairSlides.length?{replaceOnlySlideIds:repairSlides}:{})}]:[])
+  ],
+  readiness:brief.priorKnowledge
+ };
+ const proposal=await generate({context,sourceIds:[],model});
+ // Keep the full response schema, but only take replacements at trusted parent slide IDs.
+ const bundle=repairSlides.length?applySlideRepair(cached!.bundle,proposal,repairSlides):proposal;
  if(visualLessonProblems(bundle,{durationMin:context.durationMin}).length)throw Error('native_authoring_invalid');
  const authored={bundle,version:hash(JSON.stringify(bundle)),kind:'fresh-booking-generation',model,cliVersion,authoringFingerprint:manifest.fingerprint,sources:[],rulesHash:hash(JSON.stringify({base:visualAuthoringRules(context),acceptedFeedback:policy})),contextHash:hash(JSON.stringify(context)),feedbackPolicyHash:policy.hash};
  if(reviewFeedback&&authored.version===cached!.version)throw Error('native_review_revise');

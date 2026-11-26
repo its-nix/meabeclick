@@ -21,6 +21,7 @@ node_modules/
 /.claude/worktrees/
 /.superpowers/
 /.env
+/server/staging/staging.env
 /service-account.json
 
 # Live Codex credentials, mounted into the container as $CODEX_HOME

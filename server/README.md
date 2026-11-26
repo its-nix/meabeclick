@@ -472,7 +472,9 @@ After publishing the release image, the `staging` job sends the commit SHA
 and registry digest to the VPS. The environment secret `STAGING_DEPLOY_SSH_KEY` connects
 as `meabeclick-stage` and can only invoke the root-owned
 `/usr/local/sbin/meabeclick-staging-deploy` (source in `server/staging/deploy.sh`).
-The job provides a short-lived registry token if the digest needs pulling.
+The job provides a short-lived registry token. The deploy command uses
+Docker Buildx to verify the digest against the commit tag in GHCR, including
+when the image is cached.
 The VPS serializes staging requests with a lock. While holding it, the deploy
 command checks the current tip of `main` and skips superseded requests. For
 the current request, it checks the running image ID and verifies startup,

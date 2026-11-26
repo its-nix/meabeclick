@@ -42,14 +42,22 @@ if [[ "$tip" != "$commit" ]]; then
   exit 0
 fi
 
-export STAGING_IMAGE="ghcr.io/its-nix/meabeclick@$digest"
+repository=ghcr.io/its-nix/meabeclick
+export DOCKER_CONFIG
+DOCKER_CONFIG=$(mktemp -d)
+trap 'find "$DOCKER_CONFIG" -depth -delete' EXIT
+export BUILDX_CONFIG="$DOCKER_CONFIG/buildx"
+printf '%s\n' "$registry_token" | bounded 15s docker login ghcr.io --username "$registry_user" --password-stdin
+unset registry_token
+published_digest=$(bounded 20s docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$repository:$commit")
+if [[ "$published_digest" != "$digest" ]]; then
+  printf 'Published digest for commit %s does not match the staging request\n' "$commit" >&2
+  exit 1
+fi
+
+export STAGING_IMAGE="$repository@$digest"
 compose=(docker compose --env-file /dev/null --project-name meabeclick-staging)
 if ! bounded 5s docker image inspect "$STAGING_IMAGE" >/dev/null 2>&1; then
-  export DOCKER_CONFIG
-  DOCKER_CONFIG=$(mktemp -d)
-  trap 'test ! -f "$DOCKER_CONFIG/config.json" || unlink "$DOCKER_CONFIG/config.json"; rmdir "$DOCKER_CONFIG"' EXIT
-  printf '%s\n' "$registry_token" | bounded 15s docker login ghcr.io --username "$registry_user" --password-stdin
-  unset registry_token
   bounded 75s "${compose[@]}" pull app
 fi
 bounded 25s "${compose[@]}" up --detach --no-build --pull never

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
+import { on, once } from 'node:events';
 import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -25,12 +25,19 @@ printf 'waiting for deployment lock\\n'
 exec /usr/bin/flock "$@"
 `, { mode: 0o755 });
   await writeFile(join(directory, 'docker'), `#!/bin/bash
-printf '%s %s\\n' "$STAGING_IMAGE" "$*" >> "$DOCKER_LOG"
+printf '%s %s\\n' "\${STAGING_IMAGE:-}" "$*" >> "$DOCKER_LOG"
 case "$1" in
+  login) IFS= read -r token; [[ "$token" == synthetic-token ]] ;;
+  buildx) printf '%s\\n' '${currentDigest}' ;;
   image|inspect) printf 'test-image\\n' ;;
   compose)
     if [[ " $* " == *' ps '* ]]; then printf 'stage-container\\n'; fi
-    if [[ " $* " == *' up '* && "\${STALL_STARTUP:-}" == 1 ]]; then exec sleep 30; fi
+    if [[ " $* " == *' up '* && "\${STALL_STARTUP:-}" == 1 ]]; then
+      trap 'printf "stalled startup received SIGTERM\\n" >> "$DOCKER_LOG"; exit 143' TERM
+      printf 'stalled Compose startup entered\\n'
+      sleep 30 &
+      wait $!
+    fi
     ;;
   exec) cat >/dev/null ;;
   *) exit 1 ;;
@@ -39,7 +46,8 @@ esac
   await writeFile(join(directory, 'timeout'), `#!/bin/bash
 if [[ "\${STALL_STARTUP:-}" == 1 && " $* " == *' up '* ]]; then
   shift 2
-  exec /usr/bin/timeout --kill-after=1s 0.1s "$@"
+  printf '%s\\n' "$$" > "$TIMEOUT_PID"
+  exec /usr/bin/timeout --kill-after=1s 25s "$@"
 fi
 exec /usr/bin/timeout "$@"
 `, { mode: 0o755 });
@@ -47,7 +55,7 @@ exec /usr/bin/timeout "$@"
   function start(command, args, env = {}) {
     const child = spawn(command, args, {
       cwd: directory,
-      env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, DOCKER_LOG: log, ...env },
+      env: { ...process.env, PATH: `${directory}:${process.env.PATH}`, DOCKER_LOG: log, TIMEOUT_PID: join(directory, 'timeout.pid'), ...env },
     });
     let stdout = '';
     let stderr = '';
@@ -64,15 +72,18 @@ exec /usr/bin/timeout "$@"
     return run;
   }
 
-  return { start, request, log };
+  return { start, request, log, timeoutPid: join(directory, 'timeout.pid') };
 }
 
 async function waitForLine(run, text) {
-  await Promise.race([
-    once(run.child.stdout, 'data', { signal: AbortSignal.timeout(3000) })
-      .then(([chunk]) => assert.match(chunk, text)),
-    run.result.then(({ stderr }) => assert.fail('Command exited before reporting ' + text + '. ' + stderr)),
-  ]);
+  const chunks = on(run.child.stdout, 'data', { signal: AbortSignal.timeout(3000), close: ['end'] });
+  let stdout = '';
+  for await (const [chunk] of chunks) {
+    stdout += chunk;
+    if (text.test(stdout)) return;
+  }
+  const { stderr } = await run.result;
+  assert.fail('Command exited before reporting ' + text + '. ' + stderr);
 }
 
 test('staging verifies the current digest even when an older request arrives while it waits',
@@ -98,14 +109,33 @@ test('staging verifies the current digest even when an older request arrives whi
     assert.ok(!dockerLog.includes(olderDigest));
   });
 
+test('staging rejects a cached digest that differs from the published commit tag',
+  { skip: process.platform !== 'linux', timeout: 10_000 }, async (t) => {
+    const { request, log } = await fixture(t);
+    const mismatch = await request(currentCommit, olderDigest).result;
+    assert.equal(mismatch.code, 1);
+    assert.match(mismatch.stderr, /Published digest .* does not match the staging request/);
+    const dockerLog = await readFile(log, 'utf8');
+    assert.ok(dockerLog.includes(`ghcr.io/its-nix/meabeclick:${currentCommit}`));
+    assert.doesNotMatch(dockerLog, /image inspect|compose/);
+  });
+
 test('a timed-out Compose startup releases the staging lock',
   { skip: process.platform !== 'linux', timeout: 10_000 }, async (t) => {
-    const { request } = await fixture(t);
+    const { request, log, timeoutPid } = await fixture(t);
     const stalled = request(currentCommit, currentDigest, { STALL_STARTUP: '1' });
-    await waitForLine(stalled, /waiting for deployment lock/);
+    await waitForLine(stalled, /stalled Compose startup entered/);
     const next = request(currentCommit, currentDigest);
+    await waitForLine(next, /waiting for deployment lock/);
+    assert.equal(stalled.child.exitCode, null);
+    assert.equal(next.child.exitCode, null);
+    process.kill(Number(await readFile(timeoutPid, 'utf8')), 'SIGALRM');
+
     const [timeout, recovered] = await Promise.all([stalled.result, next.result]);
     assert.equal(timeout.code, 124, timeout.stderr);
     assert.equal(recovered.code, 0, recovered.stderr);
     assert.match(recovered.stdout, /Verified staging startup/);
+    const dockerLog = await readFile(log, 'utf8');
+    const interrupted = dockerLog.indexOf('stalled startup received SIGTERM');
+    assert.ok(interrupted >= 0 && interrupted < dockerLog.lastIndexOf(' up --detach'));
   });

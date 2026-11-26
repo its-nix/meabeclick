@@ -9,8 +9,10 @@ import { json } from '@sveltejs/kit';
 import { apiAuthDenied } from '$server/auth.ts';
 import { readJson } from '$server/http.ts';
 import { STATUSES, type SkillStatus } from '$lib/plan-status.ts';
-import { fileReport, reportForBooking, bookingForReport } from '$server/reports/store.ts';
-import { planForEnrollment, planData, nodeInPlan, lastLessonAt } from '$server/plans/store.ts';
+import { nativeReportSource } from '$server/reports/native-source.ts';
+import { coverageInput, ReportConflict } from '$server/reports/coverage.ts';
+import { fileReport, reportForBooking, bookingForReport, planForReport } from '$server/reports/store.ts';
+import { planData, nodeInPlan, lastLessonAt } from '$server/plans/store.ts';
 import { buildTree } from '$server/plans/view.ts';
 import { emailFamilyAfterReport } from '$server/notices.ts';
 import type { RequestHandler } from './$types';
@@ -41,15 +43,16 @@ export const POST: RequestHandler = async (event) => {
   const note = body.note == null ? null : String(body.note);
   if (note !== null && note.length > MAX_NOTE) return json({ error: 'ההערה ארוכה מדי' }, { status: 400 });
 
-  const plan = booking.enrollment_id ? planForEnrollment(booking.enrollment_id) : null;
+  const plan = planForReport(booking);
 
   const raw = Array.isArray(body.entries) ? body.entries : [];
-  // Migration 006 leaves enrollment_id NULL for a student with more than one
-  // subject; the controller ruling on that is a note-only report still
-  // lands (§ below never runs for entries.length === 0), but a skill claim
-  // has no plan to check itself against and is a 400, not the 404 a
-  // wrong-plan node id gets — this is a different failure than "not found".
-  if (raw.length > 0 && !plan) {
+  const coveredSkillIds = body.coveredSkillIds;
+  if (coveredSkillIds !== undefined &&
+      (!Array.isArray(coveredSkillIds) || !coveredSkillIds.every(id => Number.isSafeInteger(id) && id > 0))) {
+    return json({ error: 'רשימת היכולות שנלמדו אינה תקינה' }, { status: 400 });
+  }
+  // Legacy bookings can have no enrollment. Free-text reports still work.
+  if ((raw.length > 0 || (coveredSkillIds?.length ?? 0) > 0) && !plan) {
     return json({ error: 'לשיעור הזה אין תכנית לימודים — אפשר לדווח רק הערה' }, { status: 400 });
   }
 
@@ -69,14 +72,23 @@ export const POST: RequestHandler = async (event) => {
     entries.push({ nodeId: id, status: String(status) as SkillStatus });
   }
 
-  // fileReport can still refuse (a non-skill node id, or — for a direct
-  // store caller rather than this validated route — a booking/plan
-  // mismatch this route already checked above). Its error messages carry
-  // booking and plan ids for the log, which must never reach the tutor's
-  // browser as a raw 500; map every failure to a 400 with a fixed message.
+  for (const id of coveredSkillIds ?? []) {
+    const node = plan && nodeInPlan(plan.id, id);
+    if (!node) return json(NOT_FOUND, { status: 404 });
+    if (node.kind !== 'skill') return json({ error: 'אפשר לסמן רק יכולת מהתכנית' }, { status: 400 });
+  }
+
   try {
-    fileReport({ bookingId: booking.id, note, entries });
+    const selection = body.coverage === undefined ? null : coverageInput(body.coverage);
+    const verifiedNative = selection?.source === 'native' && selection.selection === 'current' &&
+      selection.confirmed === true && typeof selection.token === 'string' && /^[a-f0-9]{64}$/.test(selection.token)
+      ? await nativeReportSource(booking) : undefined;
+    fileReport({ bookingId: booking.id, note, entries, coveredSkillIds, expectedFiling: body.expectedFiling,
+      coverage: body.coverage, verifiedNative });
   } catch (err) {
+    if (err instanceof ReportConflict) {
+      return json({ error: 'הדיווח או גרסת המצגת השתנו או אינם זמינים. העתיקו את השינויים ורעננו את העמוד.' }, { status: 409 });
+    }
     console.error('[reports] file failed:', (err as Error).message);
     return json({ error: 'אי אפשר לשמור את הדיווח הזה' }, { status: 400 });
   }

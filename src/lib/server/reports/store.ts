@@ -11,7 +11,10 @@
  * a record that lies.
  */
 import { handle } from '../db.ts';
+import { enrollmentsForStudent } from '../entities.ts';
 import { nodeInPlan, planForEnrollment } from '../plans/store.ts';
+import { coverageInput, decodeCoverage, validateCoverage, ReportConflict } from './coverage.ts';
+import { nativeReportBundle, type NativeReportSource } from './native-source.ts';
 import type { SkillStatus } from '../../plan-status.ts';
 
 export type ReportRow = {
@@ -101,6 +104,21 @@ export function bookingForReport(bookingId: number): BookingRow | null {
   ).get(bookingId) as BookingRow) ?? null;
 }
 
+export function planForReport(booking: BookingRow) {
+  const enrollment = enrollmentsForStudent(booking.student_id).find(e => e.id === booking.enrollment_id);
+  if (!enrollment) return null;
+  const plan = planForEnrollment(enrollment.id);
+  return plan?.student_id === booking.student_id ? plan : null;
+}
+
+export function coveredSkillsForReport(planId: number, reportId: number) {
+  return handle().prepare(
+    `SELECT pe.id, pe.node_id FROM plan_events pe
+      WHERE pe.plan_id = ? AND pe.report_id = ? AND pe.type = 'covered' AND pe.corrects IS NULL
+        AND NOT EXISTS (SELECT 1 FROM plan_events correction WHERE correction.corrects = pe.id)`
+  ).all(planId, reportId) as { id: number; node_id: number }[];
+}
+
 export function reportForBooking(bookingId: number): ReportRow | null {
   return (handle().prepare(`SELECT * FROM lesson_reports WHERE booking_id = ?`).get(bookingId) as ReportRow) ?? null;
 }
@@ -114,12 +132,32 @@ export function notesForReport(reportId: number): ReportNoteRow[] {
   ).all(reportId) as ReportNoteRow[];
 }
 
+/** Tutor-only coverage snapshots, oldest first. Legacy rows retain their original data. */
+export function coverageHistory(reportId: number) {
+  const rows = handle().prepare(
+    `SELECT id, at, teaching_coverage FROM lesson_report_notes WHERE report_id = ? ORDER BY id`
+  ).all(reportId) as { id: number; at: string; teaching_coverage: string | null }[];
+  return rows.flatMap(({ id, at, teaching_coverage }) => {
+    const coverage = decodeCoverage(teaching_coverage);
+    return coverage ? [{ id, at, coverage }] : [];
+  });
+}
+
+function latestFiling(reportId: number) {
+  return handle().prepare(
+    `SELECT id, teaching_coverage FROM lesson_report_notes WHERE report_id = ? ORDER BY id DESC LIMIT 1`
+  ).get(reportId);
+}
+
+export function lastReportFiling(reportId: number): number {
+  return Number(latestFiling(reportId)?.id ?? 0);
+}
+
 /**
  * Files a report, or corrects one. Returns the report id.
  *
- * A correction updates the row's note and APPENDS its events — the plan's
- * history is what she thought then and what she thinks now, never a rewrite.
- * Every event carries evidence 'lesson': the tutor watched it happen.
+ * A correction updates the report note and appends plan events. Status
+ * events carry lesson evidence, and coverage events record what was taught.
  *
  * A booking with no enrollment (migration 006's ambiguous-subject case) is
  * accepted as long as no entries are given — a note-only report has no
@@ -131,25 +169,55 @@ export function notesForReport(reportId: number): ReportNoteRow[] {
 export function fileReport(input: {
   bookingId: number; note: string | null;
   entries: { nodeId: number; status: SkillStatus }[];
+  coveredSkillIds?: number[];
+  expectedFiling?: unknown; coverage?: unknown; verifiedNative?: NativeReportSource;
 }): number {
   const db = handle();
-  const booking = bookingForReport(input.bookingId);
-  if (!booking) throw new Error(`no booking ${input.bookingId}`);
-
-  db.exec('BEGIN');
+  db.exec('BEGIN IMMEDIATE');
   try {
+    const booking = bookingForReport(input.bookingId);
+    if (!booking) throw new Error(`no booking ${input.bookingId}`);
     const at = now();
+    const existing = reportForBooking(input.bookingId);
+    if (existing && existing.student_id !== booking.student_id) throw new ReportConflict();
+    const priorFiling = existing ? latestFiling(existing.id) : null;
+    const currentFiling = Number(priorFiling?.id ?? 0);
+    const priorCoverage = decodeCoverage(priorFiling?.teaching_coverage);
+    if ((input.coverage !== undefined || input.coveredSkillIds !== undefined || input.expectedFiling !== undefined || priorCoverage) &&
+        input.expectedFiling !== currentFiling) throw new ReportConflict();
+    if (priorCoverage && input.coverage === undefined) throw new ReportConflict();
+    if (booking.status !== 'confirmed' || Date.parse(booking.end) > Date.now()) throw new ReportConflict();
+    if (!existing && input.coverage === undefined && nativeReportBundle(booking)) throw new ReportConflict();
 
-    // If entries are provided, enrollment must exist and have a plan.
-    // A note-only report (entries.length === 0) needs neither.
-    let plan = null;
-    if (input.entries.length > 0) {
-      if (!booking.enrollment_id) throw new Error(`booking ${input.bookingId} has no enrollment`);
-      plan = planForEnrollment(booking.enrollment_id);
-      if (!plan) throw new Error(`enrollment ${booking.enrollment_id} has no plan`);
+    let bundle: NativeReportSource | undefined;
+    if (input.coverage !== undefined) {
+      const { source, selection, token, confirmed } = coverageInput(input.coverage);
+      if (source === 'native') {
+        if (selection === 'saved' && priorCoverage?.source === 'native') {
+          bundle = priorCoverage.bundle;
+        } else if (selection === 'current' && confirmed === true && input.verifiedNative &&
+            input.verifiedNative.binding === nativeReportBundle(booking)?.binding) {
+          bundle = input.verifiedNative;
+        }
+        if (!bundle || bundle.token !== token) throw new ReportConflict();
+      }
+    }
+    const coverage = input.coverage === undefined ? null : validateCoverage(input.coverage, bundle);
+
+    const explicitSkills = input.coveredSkillIds;
+    // Older callers that only send assessments retain their additive coverage.
+    const coveredIds = new Set(explicitSkills ?? (coverage ? [] : input.entries.map(entry => entry.nodeId)));
+    const skillIds = new Set([...coveredIds, ...input.entries.map(entry => entry.nodeId)]);
+    const plan = skillIds.size || explicitSkills !== undefined ? planForReport(booking) : null;
+    if (skillIds.size && !plan) throw new Error('report skills require a plan for this enrollment');
+    if (existing && (skillIds.size || explicitSkills !== undefined) &&
+        existing.enrollment_id !== booking.enrollment_id) throw new ReportConflict();
+    for (const id of skillIds) {
+      if (!plan || nodeInPlan(plan.id, id)?.kind !== 'skill') {
+        throw new Error(`node ${id} is not a skill in this lesson's plan`);
+      }
     }
 
-    const existing = reportForBooking(input.bookingId);
     let reportId: number;
 
     if (existing) {
@@ -170,52 +238,33 @@ export function fileReport(input: {
     // The note's own history — a row per filing, appended never rewritten
     // (spec §4/§3 apply to the note the same way they apply to skill status).
     db.prepare(
-      `INSERT INTO lesson_report_notes (report_id, note, at) VALUES (?, ?, ?)`
-    ).run(reportId, input.note, at);
+      `INSERT INTO lesson_report_notes (report_id, note, at, teaching_coverage) VALUES (?, ?, ?, ?)`
+    ).run(reportId, input.note, at, coverage ? JSON.stringify({ schema: 'drive-report-v1', coverage }) : null);
 
-    // For each entry, verify it belongs to this lesson's plan before writing.
-    // plan is guaranteed non-null here because we only reach this if entries is non-empty
-    for (const entry of input.entries) {
-      const node = nodeInPlan(plan!.id, entry.nodeId);
-      if (!node) throw new Error(`node ${entry.nodeId} not in plan ${plan!.id}`);
-      if (node.kind !== 'skill') throw new Error(`node ${entry.nodeId} is not a skill`);
-
-      // The event carries this filing's note too, so the plan's own history
-      // explains itself without a reader having to cross-reference report_id
-      // back to lesson_reports (or lesson_report_notes) to see what she wrote.
-      db.prepare(
+    if (plan) {
+      const addStatus = db.prepare(
         `INSERT INTO plan_events (plan_id, node_id, type, status, note, evidence, source, report_id, at)
          VALUES (?, ?, 'status', ?, ?, 'lesson', 'report', ?, ?)`
-      ).run(plan!.id, entry.nodeId, entry.status, input.note, reportId, at);
+      );
+      for (const entry of input.entries) {
+        addStatus.run(plan.id, entry.nodeId, entry.status, input.note, reportId, at);
+      }
 
-      /* And the separate fact that it was TAUGHT.
-       
-         A report entry is the tutor saying she assessed this skill in this
-         lesson, which means it was taught or practised — and that is a
-         different claim from how it went. Migration 011 added `covered`
-         for exactly this, and the plan page already renders
-         «נלמד, טרם נבדק» from it, but nothing on this path ever wrote one:
-         addCoveredEvent was reachable only from the plan's own events API,
-         a separate action a tutor has no reason to take after filing a
-         report. So the fact the design rests on was never recorded, and
-         "suggest only from material actually taught" was unreachable — a
-         plan knows what was PLANNED; only a report knows what happened.
-       
-         Guarded per (report, node) rather than appended blindly: re-filing
-         is a CORRECTION of the same lesson. Its status history appends,
-         which is the point of a correction, but the child was not taught it
-         twice and a second row would say she was. */
-      const alreadyCovered = db.prepare(
-        `SELECT 1 FROM plan_events
-          WHERE plan_id = ? AND node_id = ? AND type = 'covered' AND report_id = ?
-          LIMIT 1`
-      ).get(plan!.id, entry.nodeId, reportId);
-
-      if (!alreadyCovered) {
-        db.prepare(
-          `INSERT INTO plan_events (plan_id, node_id, type, note, source, report_id, at)
-           VALUES (?, ?, 'covered', NULL, 'report', ?, ?)`
-        ).run(plan!.id, entry.nodeId, reportId, at);
+      const active = coveredSkillsForReport(plan.id, reportId);
+      const previouslyCovered = new Set(active.map(event => event.node_id));
+      const recordCoverage = db.prepare(
+        `INSERT INTO plan_events (plan_id, node_id, type, source, report_id, corrects, at)
+         VALUES (?, ?, 'covered', 'report', ?, ?, ?)`
+      );
+      // An explicit list replaces this report's coverage. A correction event
+      // retracts the original observation while preserving the plan's history.
+      if (explicitSkills !== undefined) {
+        for (const event of active) {
+          if (!coveredIds.has(event.node_id)) recordCoverage.run(plan.id, event.node_id, reportId, event.id, at);
+        }
+      }
+      for (const id of coveredIds) {
+        if (!previouslyCovered.has(id)) recordCoverage.run(plan.id, id, reportId, null, at);
       }
     }
 

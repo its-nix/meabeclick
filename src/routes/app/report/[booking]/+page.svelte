@@ -7,9 +7,8 @@
    *
    * Every write here follows the plan page's "never optimistic" rule: POST,
    * then navigate only once the server has confirmed the write. Nothing on
-   * this screen is pre-ticked, and a ticked skill starts with no status —
-   * a hurried submit must never record a judgement she did not make, so
-   * the button stays disabled until every ticked row has one.
+   * a new report is preselected. Corrections start with the saved coverage
+   * and leave assessments blank for the tutor to record any new judgment.
    */
   import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
@@ -43,9 +42,7 @@
   let rest = $derived((data.reportable ? data.rest : []) as SkillRow[]);
   let filedEntries = $derived((data.reportable ? data.filedEntries : []) as FiledEntry[]);
 
-  // Seeded for every skill in the plan (not just the ones on screen), so
-  // opening the search disclosure later never meets an unseeded id.
-  let ticked = $state<Record<number, boolean>>({});
+  let coveredSkillIds = $state<number[]>(untrack(() => data.reportable ? [...data.coveredSkillIds] : []));
   let statusChoice = $state<Record<number, SkillStatus | ''>>({});
   // `note` MUST have a real value on the very first render, server-side
   // included, where no $effect ever runs (same reasoning as the plan
@@ -56,6 +53,16 @@
   // below, so the server rendered a blank textarea and only client-side
   // hydration ever wrote the real value into it.
   let note = $state(untrack(() => (data.reportable ? data.report?.note : null) ?? ''));
+  let history = $derived(data.reportable ? data.coverageHistory : []);
+  let priorCoverage = $derived(history.at(-1)?.coverage);
+  type CoverageMode = '' | 'manual' | 'current' | 'saved';
+  let nativeSource = $derived(data.reportable ? data.nativeSource : null);
+  let pinned = $derived(priorCoverage?.source === 'native' ? priorCoverage.bundle : null);
+  let mode = $state<CoverageMode>(untrack(() => pinned ? 'saved' : priorCoverage ? 'manual' : ''));
+  let confirmed = $state(false);
+  let topics = $state<{ objectiveId?: string; title: string; covered: boolean | ''; comment: string | null }[]>(
+    untrack(() => priorCoverage?.topics.map(topic => ({ ...topic })) ?? []),
+  );
   let saving = $state(false);
   let formError = $state<string | null>(null);
   let searchOpen = $state(false);
@@ -68,52 +75,50 @@
   // its own synchronous initial value.
   $effect(() => {
     if (!data.reportable) return;
-    const all = [...data.suggested, ...data.rest] as SkillRow[];
-    ticked = Object.fromEntries(all.map(s => [s.id, false]));
-    statusChoice = Object.fromEntries(all.map(s => [s.id, '']));
+    coveredSkillIds = [...data.coveredSkillIds];
+    statusChoice = {};
     note = data.report?.note ?? '';
+    resetCoverage(pinned ? 'saved' : priorCoverage ? 'manual' : '');
     saving = false;
     formError = null;
     searchOpen = false;
     searchTerm = '';
   });
 
+  function resetCoverage(selected: CoverageMode) {
+    mode = selected;
+    confirmed = false;
+    if (selected === 'saved' || (selected === 'manual' && priorCoverage?.source === 'manual')) {
+      topics = priorCoverage?.topics.map(topic => ({ ...topic })) ?? [];
+    } else if (selected === 'current') {
+      topics = nativeSource?.objectives.map(({ id, title }) => ({ objectiveId: id, title, covered: '', comment: null })) ?? [];
+    } else {
+      topics = [];
+    }
+  }
+
   let filteredRest = $derived(
     searchTerm.trim() ? rest.filter(s => s.title.includes(searchTerm.trim())) : [],
   );
 
-  let tickedIds = $derived(
-    Object.entries(ticked).filter(([, on]) => on).map(([id]) => Number(id)),
-  );
-  // Item 1: a lesson with no plan (no enrollment resolved, or an enrollment
-  // with no plan yet) has nothing to validate a skill claim against — the
-  // store refuses an entry there, so ticking one here must never reach
-  // submit as though it could succeed. A note-only submit is unaffected.
-  let noPlanToRecordAgainst = $derived((!data.reportable || data.planId === null) && tickedIds.length > 0);
   let canSubmit = $derived(
-    !saving && !noPlanToRecordAgainst && tickedIds.every(id => !!statusChoice[id]),
+    !saving &&
+    (!data.reportable || !data.requiresCoverage || !!mode) &&
+    (mode !== 'current' || confirmed) &&
+    (!mode || topics.every(topic => topic.title.trim() && topic.covered !== '')),
   );
 
-  function toggle(id: number) {
-    ticked[id] = !ticked[id];
-    if (!ticked[id]) statusChoice[id] = '';
+  function toggleCovered(id: number) {
+    coveredSkillIds = coveredSkillIds.includes(id)
+      ? coveredSkillIds.filter(selected => selected !== id)
+      : [...coveredSkillIds, id];
   }
 
   function setStatus(id: number, e: Event) {
     statusChoice[id] = (e.currentTarget as HTMLSelectElement).value as SkillStatus | '';
   }
 
-  /* The ONLY route from a draft into the form, and it is a click.
-
-     Nothing preselects a draft and nothing ticks a skill because one
-     exists. The approval gate is the feature (spec §7): a tutor confirming
-     the system's opinion rather than recording her own is precisely the
-     inference this work removes, and a preselected draft is that with an
-     extra step. Ticking here too is deliberate — accepting a suggestion
-     means "yes, record this", and leaving the row unticked would drop it
-     silently at submit. */
   function acceptDraft(id: number, status: SkillStatus) {
-    ticked[id] = true;
     statusChoice[id] = status;
   }
 
@@ -133,7 +138,7 @@
   }
 
   async function submit() {
-    if (!canSubmit) return;
+    if (!canSubmit || !data.reportable) return;
     saving = true;
     formError = null;
     try {
@@ -142,8 +147,15 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: data.booking.id,
+          expectedFiling: data.expectedFiling,
+          coverage: mode === 'manual' ? { source: 'manual', topics } : mode ? {
+            source: 'native', selection: mode, token: mode === 'saved' ? pinned?.token : nativeSource?.token,
+            confirmed, topics,
+          } : undefined,
           note: note.trim() ? note.trim() : null,
-          entries: tickedIds.map(id => ({ nodeId: id, status: statusChoice[id] })),
+          coveredSkillIds: data.planId === null ? undefined : coveredSkillIds,
+          entries: Object.entries(statusChoice).filter(([, status]) => status)
+            .map(([id, status]) => ({ nodeId: Number(id), status })),
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -183,6 +195,96 @@
     <p class="banner error" role="alert">{formError}</p>
   {/if}
 
+  {#if data.reportable}
+    <fieldset class="coverage">
+      <legend class="section-title">נושאים שנלמדו</legend>
+      <label class="field">
+        <span>חומר השיעור</span>
+        <select value={mode} onchange={(event) => resetCoverage(event.currentTarget.value as CoverageMode)} disabled={saving}>
+          <option value="" disabled={data.requiresCoverage}>{data.requiresCoverage ? 'בחרו חומר לשיעור' : 'דיווח ללא פירוט נושאים'}</option>
+          <option value="manual">דיווח נושאים ידני</option>
+          {#if pinned}<option value="saved">גרסת המצגת שנשמרה בדיווח</option>{/if}
+          {#if nativeSource && nativeSource.token !== pinned?.token}
+            <option value="current">הגרסה הנוכחית של המצגת ב־Drive</option>
+          {/if}
+        </select>
+      </label>
+      {#if data.nativeUnavailable}
+        <p class="empty">אימות גרסת המצגת הנוכחית ב־Drive אינו זמין כרגע.</p>
+      {/if}
+      {#if mode === 'current' && nativeSource}
+        <p><a href={nativeSource.url} target="_blank" rel="noreferrer"><bdi>{nativeSource.slides.name}</bdi></a>
+          · גרסה <bdi>{nativeSource.slides.version}</bdi> · {fmtDate(nativeSource.slides.modifiedAt)} {fmtTime(nativeSource.slides.modifiedAt)}</p>
+        <label class="skill-check">
+          <input type="checkbox" bind:checked={confirmed} disabled={saving} />
+          לימדתי מהגרסה הזו של המצגת
+        </label>
+        <p class="empty">הנושאים המוצעים מבוססים על התכנון המקורי של השיעור. אפשר להוסיף נושאים שעלו בשיעור.</p>
+      {:else if mode === 'saved' && pinned}
+        <p><bdi>{pinned.slides.name}</bdi> · גרסה <bdi>{pinned.slides.version}</bdi></p>
+      {/if}
+      {#if mode}
+        {#each topics as topic, i}
+          <div class="coverage-topic">
+            {#if topic.objectiveId}
+              <strong><bdi>{topic.title}</bdi></strong>
+            {:else}
+              <label class="field">
+                <span>שם הנושא</span>
+                <input type="text" maxlength="200" dir="auto" bind:value={topic.title} disabled={saving} />
+              </label>
+            {/if}
+            <label class="field">
+              <span>כיסוי הנושא</span>
+              <select bind:value={topic.covered} disabled={saving}>
+                <option value="">בחרו</option>
+                <option value={true}>נלמד</option>
+                <option value={false}>לא נלמד</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>הערה פרטית למורה (לא חובה)</span>
+              <textarea rows="2" maxlength="2000" dir="auto" bind:value={topic.comment} disabled={saving}></textarea>
+            </label>
+            {#if !topic.objectiveId}
+              <button type="button" class="search-toggle" disabled={saving}
+                onclick={() => topics.splice(i, 1)}>הסרת נושא</button>
+            {/if}
+          </div>
+        {/each}
+        {#if topics.length === 0}
+          <p class="empty">הדיווח יישמר עם אפס נושאים שנלמדו.</p>
+        {/if}
+        <button type="button" class="search-toggle" disabled={saving || topics.length >= 40}
+          onclick={() => topics.push({ title: '', covered: '', comment: null })}>הוספת נושא</button>
+      {/if}
+      {#if history.length}
+        <details class="coverage-history">
+          <summary>דיווחי כיסוי קודמים</summary>
+          <ul>
+            {#each history as filing (filing.id)}
+              <li>
+                <time datetime={filing.at}>{fmtDate(filing.at)} · {fmtTime(filing.at)}</time>
+                {#if filing.coverage.source === 'native'}
+                  · <bdi>{filing.coverage.bundle.slides.name}</bdi> · גרסה <bdi>{filing.coverage.bundle.slides.version}</bdi>
+                {/if}
+                {#if filing.coverage.topics.length}
+                  <ul>
+                    {#each filing.coverage.topics as topic}
+                      <li><bdi>{topic.title}</bdi> · {topic.covered ? 'נלמד' : 'לא נלמד'}{#if topic.comment} · <bdi>{topic.comment}</bdi>{/if}</li>
+                    {/each}
+                  </ul>
+                {:else}
+                  · אפס נושאים שנלמדו
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        </details>
+      {/if}
+    </fieldset>
+  {/if}
+
   {#if !data.reportable}
     <!-- Item 4: the loader used to check only that the booking exists, so
          a lesson cancelled after the prompt email went out (or a stale
@@ -199,35 +301,35 @@
     </p>
   {:else}
     {#if data.report && filedEntries.length}
-      <!-- Read-only: shows what the previous filing recorded, but ticks
-           nothing. Pre-ticking here would mean an unchanged re-submit
-           appends a second, identical judgement to the plan's history —
-           a correction should record only what she actively changes now. -->
+      <!-- Assessments stay blank so re-filing records only new judgments. -->
       <p class="filed-summary">
         בדיווח הקודם: {filedEntries.map(e => `${e.title} — ${STATUS_LABEL[e.status]}`).join(' · ')}
       </p>
     {/if}
 
-    <h2 class="section-title">מה עברתם?</h2>
+    <h2 class="section-title">מה עברתם בתכנית הלימודים?</h2>
+    <p class="empty">סמנו את היכולות שנלמדו בשיעור. אפשר גם להוסיף הערכת הבנה לכל יכולת.</p>
+    <p class="empty" aria-live="polite">יכולות שסומנו כנלמדות: {coveredSkillIds.length}</p>
 
     {#if suggested.length}
       <div class="skill-list">
         {#each suggested as s (s.id)}
           <div class="skill-row">
             <label class="skill-check">
-              <input type="checkbox" checked={!!ticked[s.id]} onchange={() => toggle(s.id)} disabled={saving} />
+              <input type="checkbox" checked={coveredSkillIds.includes(s.id)} onchange={() => toggleCovered(s.id)}
+                aria-label="נלמד בשיעור: {s.title}" disabled={saving} />
               <span class="skill-text">
                 <span class="skill-title">{s.title}</span>
                 <span class="skill-branch">{s.branch}</span>
               </span>
             </label>
             <select
-              value={statusChoice[s.id]}
-              disabled={saving || !ticked[s.id]}
+              value={statusChoice[s.id] ?? ''}
+              disabled={saving}
               onchange={(e) => setStatus(s.id, e)}
-              aria-label="מצב עבור {s.title}"
+              aria-label="הערכת הבנה עבור {s.title}"
             >
-              <option value="">בחרו מצב</option>
+              <option value="">הערכת הבנה (לא חובה)</option>
               {#each STATUSES as st (st)}
                 <option value={st}>{STATUS_LABEL[st]}</option>
               {/each}
@@ -271,19 +373,20 @@
             {#each filteredRest as s (s.id)}
               <div class="skill-row">
                 <label class="skill-check">
-                  <input type="checkbox" checked={!!ticked[s.id]} onchange={() => toggle(s.id)} disabled={saving} />
+                  <input type="checkbox" checked={coveredSkillIds.includes(s.id)} onchange={() => toggleCovered(s.id)}
+                    aria-label="נלמד בשיעור: {s.title}" disabled={saving} />
                   <span class="skill-text">
                     <span class="skill-title">{s.title}</span>
                     <span class="skill-branch">{s.topic} · {s.branch}</span>
                   </span>
                 </label>
                 <select
-                  value={statusChoice[s.id]}
-                  disabled={saving || !ticked[s.id]}
+                  value={statusChoice[s.id] ?? ''}
+                  disabled={saving}
                   onchange={(e) => setStatus(s.id, e)}
-                  aria-label="מצב עבור {s.title}"
+                  aria-label="הערכת הבנה עבור {s.title}"
                 >
-                  <option value="">בחרו מצב</option>
+                  <option value="">הערכת הבנה (לא חובה)</option>
                   {#each STATUSES as st (st)}
                     <option value={st}>{STATUS_LABEL[st]}</option>
                   {/each}
@@ -318,10 +421,6 @@
       ></textarea>
     </label>
 
-    {#if noPlanToRecordAgainst}
-      <p class="banner error" role="alert">אי אפשר לרשום יכולות בלי תכנית לימודים לשיעור הזה — אפשר לשלוח הערה בלבד.</p>
-    {/if}
-
     <button class="submit-btn" disabled={!canSubmit} onclick={submit}>
       {saving ? 'שולח…' : (data.report ? 'תיקון הדיווח' : 'שליחת הדיווח')}
     </button>
@@ -339,6 +438,22 @@
   }
   .title { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin: 6px 0 2px; }
   .lesson-time { font-size: .85rem; color: var(--text-muted); margin-bottom: 14px; }
+
+  .coverage {
+    min-inline-size: 0;
+    margin-block: 1rem;
+    padding: .75rem;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+  .coverage-topic {
+    display: grid;
+    gap: .5rem;
+    padding-block: .75rem;
+    border-block-end: 1px solid var(--border);
+  }
+  .coverage-topic input { min-inline-size: 0; }
+  .coverage-history { margin-block-start: .75rem; overflow-wrap: anywhere; }
 
   .banner { border-radius: 12px; padding: 10px 14px; font-size: .86rem; margin-bottom: 12px; }
   .banner.error { background: rgba(220,38,38,0.08); border: 1.5px solid var(--danger); color: var(--danger); }
@@ -406,7 +521,7 @@
 
   .search-block { margin-bottom: 16px; }
   .search-toggle {
-    min-height: 44px; width: 100%; text-align: right; background: none; border: none;
+    min-height: 44px; width: 100%; text-align: end; background: none; border: none;
     font-family: inherit; font-size: .85rem; font-weight: 700; color: var(--accent); cursor: pointer;
   }
   .search-input {

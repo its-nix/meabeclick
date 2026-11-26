@@ -258,3 +258,29 @@ The boundary now accepts dotted identifier segments while rejecting path/query
 characters and dot-only segments. A regression covers real-shape IDs and unsafe
 alternatives. The disposable integration probe uses only private archive files,
 never customer bookings or scores.
+
+## 2026-11-26 — Scoped slide repair for fresh native drafts
+
+PR #104's independent critique is already present in native preparation. It checks
+the complete lesson against rendered evidence in a fresh same-model session.
+Native preparation records one automatic reviewer-driven repair and reviews the
+result again. The legacy critic, artifact catalog, classic game engine and
+candidate gallery were retired. Native games use ten to twelve ordered rounds
+with difficulty recorded per result (#141). PR #104's answer- and hint-driven
+selection of the next unseen question has no native equivalent.
+
+In the synthetic native preparation test, the reviewer requests a change to
+`slide-2`. The author supplies the corrected slide but also reverses slide order,
+changes another slide's private notes and rewrites a homework prompt. Previously
+those changes reached the second review. Now, when every finding names an
+unambiguous slide ID, the authoring step takes only those slides from the response
+and retains the parent order and related artifacts. The complete assembled draft
+must pass validation and independent review. Missing or duplicate replacements
+and broken references fail before re-review. Other findings retain whole-bundle
+repair, including findings that span slides and homework. The model still returns
+a complete proposal using the existing schema.
+
+Evidence: `tests/unit/native-preparation-review.test.mjs` uses an isolated synthetic
+booking, stubbed creator and reviewer, and checks the full bundle received at
+the second review. This local check does not establish teaching quality or native
+Google conversion behavior.

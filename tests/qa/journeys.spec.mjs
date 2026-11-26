@@ -2,7 +2,7 @@ import { test, expect } from './fixtures.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {seedRetired,receipt as nativeReceipt} from '../learning-archive-fixture.mjs';
 import {visualDeckFixture} from '../visual-deck-fixture.mjs';
-import {exportGamesFile} from '../../src/lib/server/native-learning/games.ts';
+import {exportGamesFile} from '../../src/lib/server/native-learning/games-file.ts';
 import {familySession} from '../characterization/harness.mjs';
 import {STUDENT_GAMES_PATH} from '../../src/lib/native-links.ts';
 import {REMOVED_ROUTES} from '../../scripts/pr-qa/removed-routes.mjs';

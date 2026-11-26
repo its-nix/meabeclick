@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {workspaceTables,workspaceSiteColumns,workspaceHeader,workspaceProblems,type WorkspaceSnapshot,type WorkspaceRow} from '../../learning/workspace.ts';
 import type {NativeLessonJob} from './jobs.ts';
-import {exportGamesFile,gamesFileText} from './games.ts';
+import {exportGamesFile,gamesFileText} from './games-file.ts';
 import type {VisualLesson} from '../../learning/deck/model.ts';
 import type {CentralArtifact} from '../central-drive/source.ts';
 import {centralFileUrl,type CentralFile} from '../central-drive/api.ts';

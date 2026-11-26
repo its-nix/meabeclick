@@ -476,7 +476,8 @@ The job provides a short-lived registry token if the digest needs pulling.
 The VPS serializes staging requests with a lock. While holding it, the deploy
 command checks the current tip of `main` and skips superseded requests. For
 the current request, it checks the running image ID and verifies startup,
-the booking page and tutor sign-in. Deployments to the GitHub `staging`
+the booking page and tutor sign-in. Lock waits, registry operations and
+container checks have server-side deadlines. Deployments to the GitHub `staging`
 environment are restricted to `main`.
 
 For a new VPS, create `meabeclick-stage` as a dedicated account with a shell
@@ -490,8 +491,9 @@ restrict,command="sudo -n /usr/local/sbin/meabeclick-staging-deploy" ssh-ed25519
 ```
 
 `restrict` disables forwarding, PTY allocation and user startup scripts.
-Install the root-owned deploy script with mode 0755. Use
-`visudo -f /etc/sudoers.d/meabeclick-staging` to grant only the fixed command
+Install the root-owned deploy script as `/srv/meabeclick-staging/deploy.sh`
+with mode 0755 and symlink `/usr/local/sbin/meabeclick-staging-deploy` to it.
+Use `visudo -f /etc/sudoers.d/meabeclick-staging` to grant only the fixed command
 with no arguments:
 
 ```sudoers

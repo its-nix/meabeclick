@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Forced SSH command. Read deploy inputs from stdin and ignore the SSH command.
-cd /srv/meabeclick-staging
+cd "$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")"
 if ! IFS= read -r -n 41 -t 5 commit || [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
   echo 'Expected a full Git commit SHA' >&2
   exit 2
@@ -22,11 +22,16 @@ if ! IFS= read -r -n 4096 -t 5 registry_token || [[ -z "$registry_token" || ${#r
   exit 2
 fi
 
-exec 9>/run/lock/meabeclick-staging-deploy.lock
-flock --exclusive 9
+exec 9>.deploy.lock
+flock --exclusive --wait 240 9
+
+bounded() {
+  # Keep the lock in this shell even if a child starts other processes.
+  timeout --kill-after=5s "$@" 9>&-
+}
 
 main_ref=refs/heads/main
-ref=$(timeout 15s git ls-remote --exit-code https://github.com/its-nix/meabeclick.git "$main_ref")
+ref=$(bounded 15s git ls-remote --exit-code https://github.com/its-nix/meabeclick.git "$main_ref" </dev/null)
 IFS=$'\t' read -r tip branch <<< "$ref"
 if ! [[ "$tip" =~ ^[0-9a-f]{40}$ && "$branch" == "$main_ref" ]]; then
   echo 'Could not verify the current main commit' >&2
@@ -39,28 +44,28 @@ fi
 
 export STAGING_IMAGE="ghcr.io/its-nix/meabeclick@$digest"
 compose=(docker compose --env-file /dev/null --project-name meabeclick-staging)
-if ! docker image inspect "$STAGING_IMAGE" >/dev/null 2>&1; then
+if ! bounded 5s docker image inspect "$STAGING_IMAGE" >/dev/null 2>&1; then
   export DOCKER_CONFIG
   DOCKER_CONFIG=$(mktemp -d)
   trap 'test ! -f "$DOCKER_CONFIG/config.json" || unlink "$DOCKER_CONFIG/config.json"; rmdir "$DOCKER_CONFIG"' EXIT
-  printf '%s\n' "$registry_token" | docker login ghcr.io --username "$registry_user" --password-stdin
+  printf '%s\n' "$registry_token" | bounded 15s docker login ghcr.io --username "$registry_user" --password-stdin
   unset registry_token
-  "${compose[@]}" pull app
+  bounded 75s "${compose[@]}" pull app
 fi
-"${compose[@]}" up --detach --no-build --pull never
-container=$("${compose[@]}" ps --quiet app)
-expected=$(docker image inspect "$STAGING_IMAGE" --format '{{.Id}}')
-running=$(docker inspect "$container" --format '{{.Image}}')
+bounded 25s "${compose[@]}" up --detach --no-build --pull never
+container=$(bounded 5s "${compose[@]}" ps --quiet app)
+expected=$(bounded 5s docker image inspect "$STAGING_IMAGE" --format '{{.Id}}')
+running=$(bounded 5s docker inspect "$container" --format '{{.Image}}')
 test "$expected" = "$running"
 
-docker exec -i "$container" node --input-type=module - <<'JS'
+bounded 45s docker exec -i "$container" node --input-type=module - <<'JS'
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const app = 'http://127.0.0.1:3000';
 const origin = process.env.ORIGIN;
 const request = (path, options) => fetch(app + path, {
-  signal: AbortSignal.timeout(3000), ...options,
+  redirect: 'manual', signal: AbortSignal.timeout(3000), ...options,
 });
 
 let ready = false;
@@ -73,7 +78,9 @@ for (let attempt = 0; attempt < 20; attempt++) {
 }
 assert.ok(ready, 'staging app started');
 assert.deepEqual(await (await request('/api/me')).json(), { authenticated: false });
-assert.equal((await request('/booking')).status, 200, 'booking page responds');
+const booking = await request('/booking');
+assert.equal(booking.status, 200, 'booking page responds directly');
+assert.ok(/<h1(?:\s[^>]*)?>הזמנת שיעור<\/h1>/.test(await booking.text()), 'booking page heading renders');
 
 const login = await request('/api/login', {
   method: 'POST',

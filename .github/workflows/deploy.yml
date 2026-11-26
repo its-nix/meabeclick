@@ -229,7 +229,7 @@ jobs:
       packages: read
     steps:
       - name: Deploy and verify the published digest in staging
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
           STAGING_KEY: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}

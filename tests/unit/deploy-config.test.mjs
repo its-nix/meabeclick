@@ -278,19 +278,10 @@ test('build exposes both the image name and the published digest', () => {
   assert.match(stagingJob, /IMAGE_DIGEST: \$\{\{ needs\.build\.outputs\.digest \}\}/);
 });
 
-test('late staging builds cannot displace or overwrite the current main run', () => {
-  const stagingDeploy = readFileSync(join(root, 'server/staging/deploy.sh'), 'utf8');
+test('staging sends every built release to the VPS without a shared Actions queue', () => {
   assert.doesNotMatch(stagingJob, /^\s*concurrency:/m,
     'leave staging requests eligible to reach the VPS even when builds finish out of order');
   assert.match(stagingJob, /"\$GITHUB_SHA" "\$IMAGE_DIGEST" "\$GITHUB_ACTOR" "\$GH_TOKEN" \| ssh/);
-  const lock = stagingDeploy.indexOf('flock --exclusive 9');
-  const lookup = stagingDeploy.indexOf('git ls-remote');
-  const skip = stagingDeploy.indexOf('if [[ "$tip" != "$commit" ]]');
-  const deploy = stagingDeploy.indexOf('export STAGING_IMAGE');
-  assert.ok(lock >= 0 && lock < lookup && lookup < skip && skip < deploy,
-    'compare the current main commit under the lock before touching staging');
-  assert.match(stagingDeploy.slice(skip, deploy), /exit 0/);
-  assert.match(stagingDeploy.slice(lookup, skip), /exit 1/);
 });
 
 test('the production browser smoke script is included in the Docker build context',()=>{

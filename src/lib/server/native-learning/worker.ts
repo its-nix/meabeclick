@@ -7,6 +7,7 @@ import {type AuthoredLesson} from './authoring.ts';
 import {prepareReviewedNativeLesson} from './preparation-review.ts';
 import type {VisualLesson} from '../../learning/deck/model.ts';
 import {claimNativeLessonJob,cacheNativePublication,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
+import {nativeStudentFolder,placeHomeworkDoc} from './homework-placement.ts';
 import {nativeDraftRecords,appendNativeDraftRecords,validateNativeDraftFiles,writeNativeGamesFile} from './register.ts';
 
 interface Receipt {version:1;state:'draft';sourceHash:string;reviewFolderId:string;slides:{id:string;url:string;mimeType:string};notesLocation?:'slides';tutorNotes?:{id:string;url:string;mimeType:string};homework:{id:string;url:string;mimeType:string};activities:{id:string;title:string;url:string}[];provenance?:{kind:string;bundleVersion:string;sourceIds:string[];context:Record<string,unknown>;generation?:Omit<AuthoredLesson,'bundle'>}}
@@ -94,14 +95,12 @@ export function nativeLearningWorker(){return worker??=nativeLessonWorker({
   const student=getStudentById(job.studentId);if(!student)throw Error('ownership');
   const api=centralDriveApi({access,checkpoint:{read:()=>null,write:()=>{}}});
   await api.prepare();
-  await validateNativeDraftFiles(api,workspace,receipt,access.config);
+  const folder=await nativeStudentFolder(api,access.config.learningFolderId,workspace,student);
+  await validateNativeDraftFiles(api,workspace,receipt,access.config,folder.id);
+  await placeHomeworkDoc(api,receipt.homework.id,receipt.reviewFolderId,folder.id);
   const index=await api.json(`https://www.googleapis.com/drive/v3/files/${workspace.indexId}?fields=id,mimeType,owners(emailAddress),permissions(type),trashed,appProperties`);
   if(index.id!==workspace.indexId||index.mimeType!=='application/vnd.google-apps.spreadsheet'||index.trashed||index.appProperties?.meaCentralScope!==api.scope||!index.owners?.some((o:{emailAddress?:string})=>o.emailAddress?.toLowerCase()===access.config.ownerEmail.toLowerCase()))throw Error('ownership');
   if(!Array.isArray(index.permissions)||index.permissions.some((p:{type?:string})=>!['user','group'].includes(p.type??'')))throw Error('privacy');
-  const site=await api.folder('site','02 תלמידים ומעקב',access.config.learningFolderId);
-  const students=await api.folder('students','02 תיקי תלמידים',site.id);
-  if(students.id!==workspace.studentsId)throw Error('conflict');
-  const folder=await api.folder(`student:${student.id}`,student.name,students.id);
   const profile=await api.profile({id:student.id,code:student.code,name:student.name,goals:student.goals,style:student.style,notes:student.notes,progress:student.progress,progress_note:student.progress_note,subjects:enrollmentsForStudent(student.id).map(e=>e.subject).join(', ')},folder.id,workspace.indexId);
   const gamesFile=bundle?await writeNativeGamesFile(api,receipt.reviewFolderId,bundle,job.bookingId):null;
   await appendNativeDraftRecords(api,workspace.indexId,nativeDraftRecords(job,receipt,student.name,{profileUrl:centralFileUrl(profile.file),folderUrl:centralFileUrl(folder)},gamesFile));

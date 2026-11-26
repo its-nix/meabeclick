@@ -1,3 +1,5 @@
+import {nativeStudentFolder} from '../native-learning/homework-placement.ts';
+import {getStudentById} from '../entities.ts';
 /** Google is the review surface; SQLite leases and immutable proposals make retries safe. */
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
@@ -173,7 +175,39 @@ let singleton:ReturnType<typeof feedbackWorkflow>|undefined;
 export function learningFeedbackWorker(){
  if(singleton)return singleton;
  let api:ReturnType<typeof centralDriveApi>,access:CentralAccess,workspace:NativeWorkspace;
- const verify=async(source:FeedbackSource)=>{access.assertCurrent();if(source.bookingId!==null&&getNativeLessonJob(source.bookingId)?.state!=='review')throw Error('paused');if(source.kind==='sheet'){let child=source.parentId,found=false;for(let depth=0;depth<8;depth++){if(child===access.config.learningFolderId){found=true;break;}const meta=await api.json(`https://www.googleapis.com/drive/v3/files/${child}?fields=id,parents`);if(meta.parents?.length!==1)throw Error('conflict');await api.privateFolder(child,meta.parents[0]);child=meta.parents[0];}if(!found)throw Error('conflict');}else{await api.privateFolder(workspace.workspaceId,access.config.learningFolderId);await api.privateFolder(workspace.reviewId,workspace.workspaceId);await api.privateFolder(source.parentId,workspace.reviewId);}await G.verifyFeedbackFile(api,source.fileId,source.parentId,access.config.ownerEmail);};
+ const verify=async(source:FeedbackSource)=>{
+  access.assertCurrent();
+  const job=source.bookingId===null?null:getNativeLessonJob(source.bookingId);
+  if(source.bookingId!==null&&job?.state!=='review')throw Error('paused');
+  let parent=source.parentId;
+  if(source.kind==='sheet'){
+   let child=parent,found=false;
+   for(let depth=0;depth<8;depth++){
+    if(child===access.config.learningFolderId){found=true;break;}
+    const meta=await api.json(`https://www.googleapis.com/drive/v3/files/${child}?fields=id,parents`);
+    if(meta.parents?.length!==1)throw Error('conflict');
+    await api.privateFolder(child,meta.parents[0]);
+    child=meta.parents[0];
+   }
+   if(!found)throw Error('conflict');
+  }else{
+   await api.privateFolder(workspace.workspaceId,access.config.learningFolderId);
+   await api.privateFolder(workspace.reviewId,workspace.workspaceId);
+   await api.privateFolder(parent,workspace.reviewId);
+   if(source.kind==='homework'&&job){
+    const meta=await api.json(`https://www.googleapis.com/drive/v3/files/${source.fileId}?fields=id,parents`);
+    if(meta.parents?.length!==1)throw Error('conflict');
+    if(meta.parents[0]!==parent){
+     const student=getStudentById(job.studentId);
+     if(!student)throw Error('ownership');
+     const folder=await nativeStudentFolder(api,access.config.learningFolderId,workspace,student,true);
+     if(meta.parents[0]!==folder.id)throw Error('conflict');
+     parent=folder.id;
+    }
+   }
+  }
+  await G.verifyFeedbackFile(api,source.fileId,parent,access.config.ownerEmail);
+ };
  singleton=feedbackWorkflow({
   enabled:()=>process.env.LEARNING_FEEDBACK_ENABLED==='true',assertCurrent(){access?.assertCurrent();if(workspace&&nativeWorkspace()?.archiveId!==workspace.archiveId)throw Error('paused');},
   async sources(){workspace=nativeWorkspace()!;if(!workspace)throw Error('workspace_unavailable');access=learningService().syncAccess();api=centralDriveApi({access,checkpoint:{read:()=>null,write:()=>{}}});await api.prepare();const sources=await registeredSources(workspace,api);const index=sources.find(s=>s.fileId===workspace.indexId&&s.kind==='sheet');if(!index)throw Error('conflict');await verify(index);return sources;},

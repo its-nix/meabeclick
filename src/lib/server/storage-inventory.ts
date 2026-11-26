@@ -95,8 +95,10 @@ export const STORAGE: Record<string, TableFact> = {
   lesson_materials:   { status: 'draining', note: 'Published plans and slides of lessons made before the Drive-native pipeline. Read by the native preparation brief and the Drive archive; nothing writes it. Done once the archive is verified and the brief no longer needs it.' },
   native_games: { status: 'live', note: 'Validated copies of tutor-approved Drive game files, written by the Sheet sync; students read only these.' },
   native_results: { status: 'live', note: 'Runtime store for native game results; Progress rows are appended from it.' },
-  native_homework_shares: { status: 'live', note: 'Which approved homework Docs are shared with which student Google account, so withdrawal revokes exactly that grant.' },
-  native_homework_revocations: { status: 'live', note: 'Homework Doc grants whose revoke failed after the Doc was shared with a newer address; retried until revoked.' },
+  native_homework_delivery: { status: 'live', note: 'Approved homework Docs and the access mode confirmed by the Drive reconciliation worker.' },
+  native_homework_grants: { status: 'live', note: 'Homework grants managed by the site, including writes whose Google response may have been lost.' },
+  native_homework_shares: { status: 'draining', note: 'Legacy grant history imported by migration 053. Remove only after the migration and rollback window are complete.' },
+  native_homework_revocations: { status: 'draining', note: 'Legacy revoke retries imported by migration 053. Remove only after the migration and rollback window are complete.' },
   native_lesson_jobs: { status: 'live', note: 'Durable booking/student-scoped native draft jobs, retry leases and artifact IDs; review never authorizes delivery.' },
   learning_archive:   { status: 'live', note: 'One frozen archive job and its verified native-workspace receipt; source content stays in Drive and historical material storage.' },
 

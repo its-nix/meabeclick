@@ -15,9 +15,10 @@
 import { redirect } from '@sveltejs/kit';
 import { resolveFamilyAccess, studentInScope, defaultStudent } from '$server/family.ts';
 import { googleEnabled, hasGoogleIdentity } from '$server/google-login.ts';
+import { studentHomeworkLinks } from '$server/native-learning/homework-share.ts';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = ({ locals, url }) => {
+export const load: PageServerLoad = ({ locals, url, setHeaders }) => {
   const access = locals.family ? resolveFamilyAccess(locals.family) : null;
   if (!access) redirect(303, '/portal');
 
@@ -31,7 +32,10 @@ export const load: PageServerLoad = ({ locals, url }) => {
   if (!student) redirect(303, access.canSeeParentView ? '/app/parent' : '/portal');
   if (student.code !== requested) redirect(303, `/app/student?s=${encodeURIComponent(student.code)}`);
 
+  const nativeHomework=studentHomeworkLinks(access, student.id);
+  if(nativeHomework.length)setHeaders({'cache-control':'private, no-store'});
   return {
+    nativeHomework,
     googleEnabled: googleEnabled(),
     googleLinked: hasGoogleIdentity(access.identity),
     code: student.code,

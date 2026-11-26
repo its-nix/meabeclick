@@ -4,7 +4,10 @@ import type {GamesDrive} from './games.ts';
 import {appendNativeResultsToProgress,type ProgressSheet,type NativeResult} from './results.ts';
 import {handle} from '../db.ts';
 import {syncHomeworkShares} from './homework-share.ts';
-import {shareHomeworkWithStudent,revokeHomeworkShare} from '../central-drive/share.ts';
+import {homeworkDeliveryPermissions} from '../central-drive/share.ts';
+import {nativeStudentFolder,placeHomeworkDoc} from './homework-placement.ts';
+import {getStudentById} from '../entities.ts';
+import type {HomeworkShareApi} from './homework-share.ts';
 
 /** The slice of the central Drive client these adapters need (centralDriveApi satisfies it). */
 export interface GoogleApi {scope:string;ownerEmail:string;json:(url:string,init?:RequestInit)=>Promise<any>;request:(url:string,init?:RequestInit,allowed?:number[])=>Promise<Response>}
@@ -107,13 +110,12 @@ export async function syncNativeProgress(sheet:ProgressSheet){
 
 let running:Promise<unknown>|null=null;
 /** One pass of the approval sync over the live central Drive; single-flight. Returns null when no native workspace is connected. */
-export async function runNativeGameApprovals(deps?:{api:()=>Promise<{api:GoogleApi;indexId:string}|null>}) {
+export async function runNativeGameApprovals(deps?:{api:()=>Promise<{api:GoogleApi;indexId:string;homeworkApi?:HomeworkShareApi}|null>}) {
  if(running)return null;
  const job=(async()=>{
   const ctx=await(deps?.api??liveApi)();if(!ctx)return null;
   const sheet=googleApprovalSheet(ctx.api,ctx.indexId),games=await syncNativeGameApprovals({sheet,drive:googleGamesDrive(ctx.api)});
-  // Homework Docs are shared by named user only; a failure here never undoes the game approvals above.
-  const homework=await syncHomeworkShares({sheet,api:{share:(doc,email)=>shareHomeworkWithStudent(ctx.api,doc,email),revoke:(doc,email)=>revokeHomeworkShare(ctx.api,doc,email)}}).catch(e=>({error:String((e as Error)?.message??'error').replace(/[^\w :;,.-]/g,'').slice(0,80)||'error'}));
+  const homework=ctx.homeworkApi?await syncHomeworkShares({sheet,api:ctx.homeworkApi}):null;
   const progress=await syncNativeProgress(googleProgressSheet(ctx.api,ctx.indexId)).catch(e=>({appended:0,error:String((e as Error)?.message??'error').replace(/[^\w :;,.-]/g,'').slice(0,80)||'error'}));
   return {...games,homework,progress};
  })();
@@ -125,5 +127,20 @@ async function liveApi(){
  const workspace=nativeWorkspace();if(!workspace)return null;
  const service=learningService();if(!service.status().automaticSyncEnabled)return null;
  const access=service.syncAccess(),api=centralDriveApi({access,checkpoint:{read:()=>null,write:()=>{}}});
- return {api:api as unknown as GoogleApi,indexId:workspace.indexId};
+ let prepared=false;
+ const homeworkApi:HomeworkShareApi={
+  ...homeworkDeliveryPermissions(api),
+  async place(target){
+   if(!prepared){await api.prepare();prepared=true;}
+   const student=getStudentById(target.studentId);
+   if(!student)throw Error('ownership');
+   await api.privateFolder(workspace.workspaceId,access.config.learningFolderId);
+   await api.privateFolder(workspace.reviewId,workspace.workspaceId);
+   await api.privateFolder(target.reviewFolderId,workspace.reviewId);
+   const folder=await nativeStudentFolder(api,access.config.learningFolderId,workspace,student,true);
+   await placeHomeworkDoc(api,target.docId,target.reviewFolderId,folder.id);
+   return folder.id;
+  },
+ };
+ return {api:api as unknown as GoogleApi,indexId:workspace.indexId,homeworkApi};
 }

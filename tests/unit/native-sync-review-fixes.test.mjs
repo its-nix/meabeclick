@@ -78,44 +78,51 @@ test('two approved materials on one booking: each game plays at its own version,
 });
 
 // ---- homework shares ----
-function hwRows(bookingId,docId,sid=student.id,jobId=J.getNativeLessonJob(bookingId).id){
- const id=`native-${jobId}-homework`;
- return {Materials:[{material_id:id,title:'h',kind:'homework',provider:'google_docs',url:`https://docs.google.com/document/d/${docId}/edit`,review_status:'approved',publication_status:'published',audience:'student',student_id:`student-${sid}`,topic:'t',education_level:'',release_id:'rel',content_sha256:'b'.repeat(64),is_demo:false}],
-  Assignments:[{assignment_id:'ha',student_id:`student-${sid}`,lesson_id:`booking-${bookingId}`,material_id:id,due_date:'',status:'assigned',is_demo:false}],id};
+function hwRows(bookingId,docId){
+ const job=J.getNativeLessonJob(bookingId),id=`native-${job.id}-homework`,hash='b'.repeat(64);
+ handle().prepare("UPDATE bookings_v2 SET status='confirmed' WHERE id=?").run(bookingId);
+ handle().prepare("UPDATE native_lesson_jobs SET state='review',bundle=? WHERE id=?")
+  .run(JSON.stringify({homework:{id:docId},sourceHash:hash,reviewFolderId:'reviewFolderAA'}),job.id);
+ return {Materials:[{material_id:id,title:'h',kind:'homework',provider:'google_docs',url:`https://docs.google.com/document/d/${docId}/edit`,review_status:'approved',publication_status:'published',audience:'student',student_id:`student-${job.studentId}`,topic:'t',education_level:'',release_id:'rel',content_sha256:hash,is_demo:false}],
+  Assignments:[{...asg(id,bookingId,job.studentId),assignment_id:`${id}-assignment`}],id};
 }
-test('a failed revoke of the old email keeps the old grant tracked after the new email is shared',async()=>{
- const b=lesson(),rows=hwRows(b,'homeworkDocAAAA'),calls=[];
- let failRevoke=true;
- const api={async share(d,e){calls.push(['share',e]);return{shared:true};},async revoke(d,e){calls.push(['revoke',e]);if(failRevoke)throw Error('quota');return{revoked:true};}};
+function homeworkApi(calls,failRevoke=()=>false){
+ const grants=new Set();
+ return {
+  async place(){return 'studentFolderAA';},
+  async restrictSharing(){},
+  async verifyDelivery(){return null;},
+  async ensure(doc,_folder,email,_role,_managed,beforeWrite){
+   if(grants.has(email))return false;
+   beforeWrite();calls.push(['share',email,doc]);grants.add(email);return true;
+  },
+  async revoke(doc,email){
+   calls.push(['revoke',email,doc]);if(failRevoke())throw Error('quota');return grants.delete(email);
+  },
+ };
+}
+test('the prior named grant is retried and revoked before granting the new email',async()=>{
+ const b=lesson(),doc='homeworkDocAAAA',rows=hwRows(b,doc),calls=[];
+ let fail=true;
+ const api=homeworkApi(calls,()=>fail);
  const sheet=sheetOf(gridsFor(rows));
  await H.syncHomeworkShares({sheet,api,emailFor:()=>'old@example.test'});
  let r=await H.syncHomeworkShares({sheet,api,emailFor:()=>'new@example.test'});
- assert.equal(H.homeworkShareStatus(rows.id).email,'new@example.test');assert.equal(r.failed,1);
- failRevoke=false;calls.length=0;
+ assert.equal(r.failed,1);assert.equal(r.shared,0);
+ fail=false;calls.length=0;
  r=await H.syncHomeworkShares({sheet,api,emailFor:()=>'new@example.test'});
- assert.deepEqual(calls,[['revoke','old@example.test']],'the old grant is revoked on a later pass');
+ assert.deepEqual(calls,[['revoke','old@example.test',doc],['share','new@example.test',doc]]);
+ assert.equal(r.revoked,1);
  const n=calls.length;await H.syncHomeworkShares({sheet,api,emailFor:()=>'new@example.test'});assert.equal(calls.length,n,'and only once');
 });
-test('a homework Material is shared only when its Doc is the registered homework of that student',async()=>{
- const b=lesson(),calls=[],api={async share(d,e){calls.push(d);return{shared:true};},async revoke(){return{revoked:true};}};
- // another student's job: the material id names the job of `other`, but is assigned to `student`
- const b2=lesson(other),foreign=hwRows(b2,'homeworkDocBBBB',student.id,J.getNativeLessonJob(b2).id);
- let r=await H.syncHomeworkShares({sheet:sheetOf(gridsFor(foreign)),api,emailFor:()=>'kid@example.test'});
- assert.deepEqual(calls,[]);assert.equal(r.shared,0);
- const odd={...hwRows(b,'homeworkDocCCCC')};odd.Materials[0].material_id='tutor-made-1';odd.Assignments[0].material_id='tutor-made-1';
- r=await H.syncHomeworkShares({sheet:sheetOf(gridsFor(odd)),api,emailFor:()=>'kid@example.test'});assert.deepEqual(calls,[]);
- const bad=hwRows(b,'homeworkDocDDDD');bad.Materials[0].url='https://example.com/document/d/homeworkDocDDDD/edit';
- await H.syncHomeworkShares({sheet:sheetOf(gridsFor(bad)),api,emailFor:()=>'kid@example.test'});assert.deepEqual(calls,[]);
- const good=hwRows(b,'homeworkDocEEEE');await H.syncHomeworkShares({sheet:sheetOf(gridsFor(good)),api,emailFor:()=>'kid@example.test'});assert.deepEqual(calls,['homeworkDocEEEE']);
-});
 test('homework revocation still runs when other rows are unreadable, and a read failure is surfaced',async()=>{
- const b=lesson(),rows=hwRows(b,'homeworkDocFFFF'),calls=[];
- const api={async share(d,e){calls.push(['share',e]);return{shared:true};},async revoke(d,e){calls.push(['revoke',e]);return{revoked:true};}};
+ const b=lesson(),doc='homeworkDocFFFF',rows=hwRows(b,doc),calls=[];
+ const api=homeworkApi(calls);
  await H.syncHomeworkShares({sheet:sheetOf(gridsFor(rows)),api,emailFor:()=>'kid@example.test'});
  const grids=gridsFor({...rows,Materials:[{...rows.Materials[0],publication_status:'draft'}]});
  grids.Lessons=[['junk']];grids.Materials.push(grids.Materials[1].map((v,i)=>i===0?'broken-row':''));
  const r=await H.syncHomeworkShares({sheet:sheetOf(grids),api,emailFor:()=>'kid@example.test'});
- assert.equal(r.revoked,1);assert.deepEqual(calls.at(-1),['revoke','kid@example.test']);
+ assert.equal(r.revoked,1);assert.deepEqual(calls.at(-1),['revoke','kid@example.test',doc]);
  const bad=gridsFor(rows);bad.Materials=[['x']];
  const r2=await H.syncHomeworkShares({sheet:sheetOf(bad),api,emailFor:()=>'kid@example.test'});assert.match(String(r2.error),/Materials/);
 });

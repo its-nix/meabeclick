@@ -72,7 +72,7 @@ exec /usr/bin/timeout "$@"
     return run;
   }
 
-  return { start, request, log, timeoutPid: join(directory, 'timeout.pid') };
+  return { directory, start, request, log, timeoutPid: join(directory, 'timeout.pid') };
 }
 
 async function waitForLine(run, text) {
@@ -138,4 +138,87 @@ test('a timed-out Compose startup releases the staging lock',
     const dockerLog = await readFile(log, 'utf8');
     const interrupted = dockerLog.indexOf('stalled startup received SIGTERM');
     assert.ok(interrupted >= 0 && interrupted < dockerLog.lastIndexOf(' up --detach'));
+  });
+
+test('staging verifies HTTPS basic auth, booking page, and tutor login when https.compose.yml is present',
+  { skip: process.platform !== 'linux', timeout: 15_000 }, async (t) => {
+    const { createServer } = await import('node:http');
+    const { directory, request, log } = await fixture(t);
+    await writeFile(join(directory, 'https.compose.yml'), 'services: {}\n');
+    await writeFile(join(directory, 'proxy-password'), 'stage-proxy-secret\n');
+    await writeFile(join(directory, 'staging.env'), 'ADMIN_PASSWORD=stage-admin-secret\n');
+
+    const expectedAuth = 'Basic ' + Buffer.from('operator:stage-proxy-secret').toString('base64');
+    const server = createServer((req, res) => {
+      if (req.headers.authorization !== expectedAuth) {
+        res.writeHead(401, { 'www-authenticate': 'Basic realm="restricted"' });
+        res.end();
+        return;
+      }
+      if (req.url === '/booking') {
+        res.writeHead(200, {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'x-robots-tag': 'noindex, nofollow',
+        });
+        res.end('<html><body><h1>הזמנת שיעור</h1></body></html>');
+        return;
+      }
+      if (req.url === '/api/login' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => { body += chunk; });
+        req.on('end', () => {
+          const parsed = JSON.parse(body);
+          if (parsed.password === 'stage-admin-secret') {
+            res.writeHead(200, { 'set-cookie': 'session=valid-stage; Path=/; HttpOnly' });
+            res.end('{}');
+          } else {
+            res.writeHead(401);
+            res.end('{}');
+          }
+        });
+        return;
+      }
+      if (req.url === '/api/me') {
+        const authenticated = (req.headers.cookie || '').includes('session=valid-stage');
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ authenticated }));
+        return;
+      }
+      res.writeHead(404).end();
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => new Promise(resolve => server.close(resolve)));
+    const { port } = server.address();
+
+    const run = await request(currentCommit, currentDigest, {
+      STAGING_PUBLIC_URL: `http://127.0.0.1:${port}`,
+    }).result;
+    assert.equal(run.code, 0, run.stderr);
+    assert.match(run.stdout, new RegExp(`Verified staging startup, booking page, tutor session, and HTTPS ingress for ${currentDigest}`));
+    const dockerLog = await readFile(log, 'utf8');
+    assert.ok(dockerLog.includes('-f compose.yml -f https.compose.yml up '));
+  });
+
+test('staging HTTPS probe fails if unauthenticated requests are not rejected with 401',
+  { skip: process.platform !== 'linux', timeout: 20_000 }, async (t) => {
+    const { createServer } = await import('node:http');
+    const { directory, request } = await fixture(t);
+    await writeFile(join(directory, 'https.compose.yml'), 'services: {}\n');
+    await writeFile(join(directory, 'proxy-password'), 'stage-proxy-secret\n');
+    await writeFile(join(directory, 'staging.env'), 'ADMIN_PASSWORD=stage-admin-secret\n');
+
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{"authenticated":false}');
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => new Promise(resolve => server.close(resolve)));
+    const { port } = server.address();
+
+    const run = await request(currentCommit, currentDigest, {
+      STAGING_PUBLIC_URL: `http://127.0.0.1:${port}`,
+    }).result;
+    assert.equal(run.code, 1);
+    assert.match(run.stderr, /without credentials to return 401, got 200/);
   });

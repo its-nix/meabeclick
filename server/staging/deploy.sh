@@ -43,9 +43,11 @@ if [[ "$tip" != "$commit" ]]; then
 fi
 
 repository=ghcr.io/its-nix/meabeclick
-export DOCKER_CONFIG
-DOCKER_CONFIG=$(mktemp -d)
-trap 'find "$DOCKER_CONFIG" -depth -delete' EXIT
+umask 077
+work_dir=$(mktemp -d)
+trap 'find "$work_dir" -depth -delete' EXIT
+export DOCKER_CONFIG="$work_dir/docker"
+mkdir -p "$DOCKER_CONFIG"
 export BUILDX_CONFIG="$DOCKER_CONFIG/buildx"
 printf '%s\n' "$registry_token" | bounded 15s docker login ghcr.io --username "$registry_user" --password-stdin
 unset registry_token
@@ -103,5 +105,87 @@ const cookie = login.headers.get('set-cookie')?.split(';', 1)[0];
 assert.ok(cookie, 'staging returned a session');
 assert.deepEqual(await (await request('/api/me', { headers: { cookie } })).json(), { authenticated: true });
 JS
+
+if [[ -f https.compose.yml ]]; then
+  if [[ ! -r proxy-password || ! -r staging.env ]]; then
+    echo 'Staging HTTPS is enabled but proxy-password or staging.env is missing' >&2
+    exit 1
+  fi
+  proxy_password=$(tr -d '\r\n' < proxy-password)
+  admin_password=$(awk -F= '$1 == "ADMIN_PASSWORD" { sub(/^[^=]*=/, ""); sub(/\r$/, ""); print; exit }' staging.env)
+  if [[ -z "$proxy_password" || -z "$admin_password" ]]; then
+    echo 'Staging HTTPS credentials could not be read from proxy-password or staging.env' >&2
+    exit 1
+  fi
+
+  public_url=${STAGING_PUBLIC_URL:-https://staging.meabeclick.com}
+  public_url=${public_url%/}
+  escaped_proxy_pass=${proxy_password//\\/\\\\}
+  escaped_proxy_pass=${escaped_proxy_pass//\"/\\\"}
+  printf 'user = "operator:%s"\n' "$escaped_proxy_pass" > "$work_dir/curl-auth.cfg"
+  escaped_admin_pass=${admin_password//\\/\\\\}
+  escaped_admin_pass=${escaped_admin_pass//\"/\\\"}
+  printf '{"password":"%s"}' "$escaped_admin_pass" > "$work_dir/login.json"
+  unset proxy_password admin_password escaped_proxy_pass escaped_admin_pass
+
+  unauth_status=''
+  for _ in 1 2 3 4 5; do
+    unauth_status=$(bounded 15s curl --silent --show-error --max-time 10 \
+      --output /dev/null --write-out '%{http_code}' "$public_url/api/me" || true)
+    if [[ "$unauth_status" == 401 ]]; then break; fi
+    sleep 2
+  done
+  if [[ "$unauth_status" != 401 ]]; then
+    printf 'Expected staging HTTPS %s/api/me without credentials to return 401, got %s\n' \
+      "$public_url" "${unauth_status:-error}" >&2
+    exit 1
+  fi
+
+  booking_status=$(bounded 15s curl --silent --show-error --max-time 10 \
+    --config "$work_dir/curl-auth.cfg" \
+    --dump-header "$work_dir/booking.hdr" \
+    --output "$work_dir/booking.html" \
+    --write-out '%{http_code}' "$public_url/booking")
+  if [[ "$booking_status" != 200 ]]; then
+    printf 'Expected authenticated staging /booking to return 200, got %s\n' "$booking_status" >&2
+    exit 1
+  fi
+  if ! grep -qi '^x-robots-tag:.*noindex' "$work_dir/booking.hdr"; then
+    echo 'Staging HTTPS /booking is missing X-Robots-Tag: noindex' >&2
+    exit 1
+  fi
+  if ! grep -qi '^cache-control:.*no-store' "$work_dir/booking.hdr"; then
+    echo 'Staging HTTPS /booking is missing Cache-Control: no-store' >&2
+    exit 1
+  fi
+  if ! grep -qE '<h1([[:space:]][^>]*)?>הזמנת שיעור</h1>' "$work_dir/booking.html"; then
+    echo 'Staging HTTPS /booking did not render the booking heading' >&2
+    exit 1
+  fi
+
+  login_status=$(bounded 15s curl --silent --show-error --max-time 10 \
+    --config "$work_dir/curl-auth.cfg" \
+    --cookie-jar "$work_dir/cookies.txt" \
+    --header 'content-type: application/json' \
+    --header "origin: $public_url" \
+    --data-binary "@$work_dir/login.json" \
+    --output /dev/null --write-out '%{http_code}' "$public_url/api/login")
+  if [[ "$login_status" != 200 ]]; then
+    printf 'Expected authenticated staging /api/login to return 200, got %s\n' "$login_status" >&2
+    exit 1
+  fi
+
+  me_body=$(bounded 15s curl --silent --show-error --fail --max-time 10 \
+    --config "$work_dir/curl-auth.cfg" \
+    --cookie "$work_dir/cookies.txt" \
+    "$public_url/api/me")
+  if [[ "$me_body" != '{"authenticated":true}' ]]; then
+    printf 'Expected authenticated staging /api/me over HTTPS, got %s\n' "$me_body" >&2
+    exit 1
+  fi
+
+  printf 'Verified staging startup, booking page, tutor session, and HTTPS ingress for %s\n' "$digest"
+  exit 0
+fi
 
 printf 'Verified staging startup, booking page, and tutor session for %s\n' "$digest"

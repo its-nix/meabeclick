@@ -21,6 +21,7 @@ node_modules/
 /.claude/worktrees/
 /.superpowers/
 /.env
+/docker-compose.override.yml
 /server/staging/staging.env
 /service-account.json
 

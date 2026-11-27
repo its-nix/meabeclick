@@ -69,7 +69,8 @@ test('only main publishes and deploys the image', () => {
   for (const gated of [publish, deployJob]) {
     assert.match(gated, /if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'/);
   }
-  assert.match(deployJob, /needs: build/);
+  assert.match(deployJob, /needs:\s*\[build,\s*staging\]/);
+  assert.match(deployJob, /needs\.staging\.outputs\.deployed == 'true'/);
 });
 
 function step(name) {
@@ -290,4 +291,34 @@ test('the production browser smoke script is included in the Docker build contex
  const docker=readFileSync(join(root,'Dockerfile'),'utf8');
  assert.match(docker,/COPY --chown=node:node scripts\/check-native-browser\.mjs/);
  assert.match(docker,/USER node[\s\S]*RUN node scripts\/check-native-browser\.mjs/);
+});
+
+test('code and UI verification run in parallel and both gate the required build job', () => {
+  const buildJob = workflow.slice(workflow.indexOf('\n  build:'), workflow.indexOf('\n  staging:'));
+  assert.match(workflow, /^\s{2}verify-code:/m);
+  assert.match(workflow, /^\s{2}verify-ui:/m);
+  assert.match(buildJob, /needs:\s*\[verify-code,\s*verify-ui\]/);
+});
+
+test('PR runs cancel superseded runs without cancelling or queuing main runs', () => {
+  const top = workflow.slice(0, workflow.indexOf('\njobs:'));
+  assert.match(top, /concurrency:/);
+  assert.match(top, /cancel-in-progress:\s*\$\{\{\s*github\.event_name == 'pull_request'\s*\}\}/);
+  assert.match(top, /github\.run_id/);
+});
+
+test('a dirty VPS checkout fails fast instead of blaming the firewall', () => {
+  const guard = /grep -q 'Your local changes to the following files would be overwritten'/.exec(productionJob);
+  assert.ok(guard, 'dirty checkout must be classified separately from connectivity failures');
+  const branch = productionJob.slice(guard.index, guard.index + 700);
+  assert.match(branch, /exit 1/);
+  assert.doesNotMatch(branch.slice(0, branch.indexOf('exit 1')), /firewall/);
+});
+
+test('production deploy verifies the live site after SSH rollout succeeds', () => {
+  const verify = step('Verify production after deploy');
+  assert.match(verify, /if: steps\.ssh_deploy\.outputs\.deployed == 'true'/);
+  assert.match(verify, /https:\/\/meabeclick\.com\/api\/me/);
+  assert.match(verify, /https:\/\/meabeclick\.com\/booking/);
+  assert.match(verify, /הזמנת שיעור/);
 });

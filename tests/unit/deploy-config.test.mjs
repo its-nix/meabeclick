@@ -260,10 +260,15 @@ test('rollback and restore smoke tests name APP_TAG explicitly', () => {
 
 test('the documented forced command satisfies Compose\'s APP_TAG contract', () => {
   const forcedCommand = runbook.match(/^command="([^"]+)"$/m)?.[1] ?? '';
-  assert.match(forcedCommand, /git pull --ff-only && export APP_TAG=\$\(git rev-parse HEAD\)/,
-    'the forced command must derive APP_TAG only after updating the checkout');
-  assert.match(forcedCommand, /docker compose pull app && docker compose up -d --no-build$/,
-    'the same exported APP_TAG must select both the pulled and started image');
+  assert.equal(forcedCommand, '/usr/local/sbin/meabeclick-production-deploy',
+    'the production forced command must invoke the pinned production deploy script');
+  const prodScript = readFileSync(join(root, 'server', 'deploy-production.sh'), 'utf8');
+  assert.match(prodScript, /git merge --ff-only "\$commit"/,
+    'production deploy must fast-forward strictly to the verified commit');
+  assert.match(prodScript, /export APP_TAG="\$commit"/,
+    'production deploy must set APP_TAG to the verified commit');
+  assert.match(prodScript, /docker compose up -d --no-build --pull never/,
+    'production deploy must start Compose with --pull never after verifying the digest');
 });
 
 test('a GitHub API error cannot masquerade as a superseding commit',()=>{
@@ -293,11 +298,16 @@ test('the production browser smoke script is included in the Docker build contex
  assert.match(docker,/USER node[\s\S]*RUN node scripts\/check-native-browser\.mjs/);
 });
 
-test('code and UI verification run in parallel and both gate the required build job', () => {
+test('code and UI verification run in parallel and both gate the required build job without skipping it', () => {
   const buildJob = workflow.slice(workflow.indexOf('\n  build:'), workflow.indexOf('\n  staging:'));
   assert.match(workflow, /^\s{2}verify-code:/m);
   assert.match(workflow, /^\s{2}verify-ui:/m);
   assert.match(buildJob, /needs:\s*\[verify-code,\s*verify-ui\]/);
+  assert.match(buildJob, /if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/,
+    'required build must not be skipped when a verification dependency fails');
+  const gateStep = step('Require code and UI verification');
+  assert.match(gateStep, /needs\.verify-code\.result != 'success' \|\| needs\.verify-ui\.result != 'success'/);
+  assert.match(gateStep, /exit 1/);
 });
 
 test('PR runs cancel superseded runs without cancelling or queuing main runs', () => {
@@ -305,6 +315,12 @@ test('PR runs cancel superseded runs without cancelling or queuing main runs', (
   assert.match(top, /concurrency:/);
   assert.match(top, /cancel-in-progress:\s*\$\{\{\s*github\.event_name == 'pull_request'\s*\}\}/);
   assert.match(top, /github\.run_id/);
+});
+
+test('production deploy pins the VPS to the staging-verified SHA and digest', () => {
+  assert.match(productionJob, /IMAGE_DIGEST: \$\{\{ needs\.build\.outputs\.digest \}\}/);
+  assert.match(productionJob, /"\$GITHUB_SHA" "\$IMAGE_DIGEST" \| ssh/);
+  assert.match(productionJob, /Deployed and verified production commit \$\{GITHUB_SHA\} \(\$\{IMAGE_DIGEST\}\)/);
 });
 
 test('a dirty VPS checkout fails fast instead of blaming the firewall', () => {

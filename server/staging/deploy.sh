@@ -107,6 +107,17 @@ assert.deepEqual(await (await request('/api/me', { headers: { cookie } })).json(
 JS
 
 if [[ -f https.compose.yml ]]; then
+  public_url=${STAGING_PUBLIC_URL:-https://staging.meabeclick.com}
+  public_url=${public_url%/}
+  if [[ ! "$public_url" =~ ^https://[^[:space:]]+$ ]]; then
+    printf 'Staging public URL must use https://, got %s\n' "$public_url" >&2
+    exit 1
+  fi
+  curl_tls=()
+  if [[ -n "${STAGING_CA_CERT:-}" ]]; then
+    curl_tls=(--cacert "$STAGING_CA_CERT")
+  fi
+
   if [[ ! -r proxy-password || ! -r staging.env ]]; then
     echo 'Staging HTTPS is enabled but proxy-password or staging.env is missing' >&2
     exit 1
@@ -118,8 +129,6 @@ if [[ -f https.compose.yml ]]; then
     exit 1
   fi
 
-  public_url=${STAGING_PUBLIC_URL:-https://staging.meabeclick.com}
-  public_url=${public_url%/}
   escaped_proxy_pass=${proxy_password//\\/\\\\}
   escaped_proxy_pass=${escaped_proxy_pass//\"/\\\"}
   printf 'user = "operator:%s"\n' "$escaped_proxy_pass" > "$work_dir/curl-auth.cfg"
@@ -130,7 +139,7 @@ if [[ -f https.compose.yml ]]; then
 
   unauth_status=''
   for _ in 1 2 3 4 5; do
-    unauth_status=$(bounded 15s curl --silent --show-error --max-time 10 \
+    unauth_status=$(bounded 15s curl --silent --show-error --max-time 10 "${curl_tls[@]}" \
       --output /dev/null --write-out '%{http_code}' "$public_url/api/me" || true)
     if [[ "$unauth_status" == 401 ]]; then break; fi
     sleep 2
@@ -141,7 +150,7 @@ if [[ -f https.compose.yml ]]; then
     exit 1
   fi
 
-  booking_status=$(bounded 15s curl --silent --show-error --max-time 10 \
+  booking_status=$(bounded 15s curl --silent --show-error --max-time 10 "${curl_tls[@]}" \
     --config "$work_dir/curl-auth.cfg" \
     --dump-header "$work_dir/booking.hdr" \
     --output "$work_dir/booking.html" \
@@ -163,7 +172,7 @@ if [[ -f https.compose.yml ]]; then
     exit 1
   fi
 
-  login_status=$(bounded 15s curl --silent --show-error --max-time 10 \
+  login_status=$(bounded 15s curl --silent --show-error --max-time 10 "${curl_tls[@]}" \
     --config "$work_dir/curl-auth.cfg" \
     --cookie-jar "$work_dir/cookies.txt" \
     --header 'content-type: application/json' \
@@ -175,7 +184,7 @@ if [[ -f https.compose.yml ]]; then
     exit 1
   fi
 
-  me_body=$(bounded 15s curl --silent --show-error --fail --max-time 10 \
+  me_body=$(bounded 15s curl --silent --show-error --fail --max-time 10 "${curl_tls[@]}" \
     --config "$work_dir/curl-auth.cfg" \
     --cookie "$work_dir/cookies.txt" \
     "$public_url/api/me")

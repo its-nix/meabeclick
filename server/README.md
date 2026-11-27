@@ -591,23 +591,20 @@ the container images and no more.
 day 91, and the failure reads as a registry problem rather than an expired
 token. Either set no expiration or diary the renewal.
 
-**2. The deploy runs CI's image instead of rebuilding.** ✅ The forced
-command in `meabeclick`'s `~/.ssh/authorized_keys` is:
+**2. The deploy runs CI's exact staging-verified image instead of rebuilding.** ✅
+Install `server/deploy-production.sh` as `/usr/local/sbin/meabeclick-production-deploy`
+(root-owned, mode `0755`). The forced command in `meabeclick`'s `~/.ssh/authorized_keys` is:
 
 ```
-command="cd /home/meabeclick/mea-beclick && git pull --ff-only && export APP_TAG=$(git rev-parse HEAD) && docker compose pull app && docker compose up -d --no-build"
+command="/usr/local/sbin/meabeclick-production-deploy"
 ```
 
-Three things in that line are load-bearing:
-
-- `--ff-only` — a plain `git pull` on a diverged checkout tries to merge, and
-  a deploy that quietly writes a merge commit on the box is worse than one
-  that stops.
-- `APP_TAG` — the commit just fetched. `docker-compose.yml` interpolates it,
-  so the box runs the image built from exactly that checkout rather than
-  whatever `:latest` happens to point at.
-- `--no-build` — stops compose rebuilding from source and defeating the
-  point.
+CI pipes the commit SHA and staging-verified `sha256` digest on stdin. Under an
+exclusive lock, the script checks `origin/main`, fast-forwards strictly to that
+commit (`git merge --ff-only "$commit"`), pulls the verified digest and commit
+tag and confirms their image IDs match, starts Compose with `APP_TAG="$commit"`
+and `--pull never`, and verifies both the running container image ID and
+loopback readiness before reporting success.
 
 A backup of the previous file is kept alongside it as
 `authorized_keys.bak-<timestamp>`.

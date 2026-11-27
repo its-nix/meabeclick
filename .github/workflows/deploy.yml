@@ -204,6 +204,7 @@ jobs:
 
   build:
     needs: [verify-code, verify-ui]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -212,6 +213,12 @@ jobs:
       image: ${{ steps.image.outputs.name }}
       digest: ${{ steps.publish.outputs.digest }}
     steps:
+      - name: Require code and UI verification
+        if: needs.verify-code.result != 'success' || needs.verify-ui.result != 'success'
+        run: |
+          echo "::error::Verification did not succeed (verify-code=${{ needs.verify-code.result }}, verify-ui=${{ needs.verify-ui.result }})." >&2
+          exit 1
+
       - uses: actions/checkout@v4
 
       - name: Compute lowercase image name
@@ -354,35 +361,20 @@ jobs:
         id: ssh_deploy
         env:
           GH_TOKEN: ${{ github.token }}
+          IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           set -euo pipefail
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          umask 077
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           echo "76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR" > ~/.ssh/known_hosts
 
-          # Is this run still the tip of main?
-          #
-          # The forced command derives APP_TAG from the box's HEAD after
-          # `git pull` — whatever main points at by the time it runs, not the
-          # commit that triggered this run. So when two PRs merge close
-          # together, the earlier run's deploy pulls the LATER commit and asks
-          # GHCR for an image that is still being built.
-          #
-          # That is not hypothetical: on 2026-09-18, #71 and #72 merged
-          # moments apart, and #71's deploy failed five times over three
-          # minutes on `failed to resolve reference ...:de1fff95...` — #72's
-          # image, not yet pushed. It then reported the VPS firewall as the
-          # likely cause, which was wrong and would have cost someone an
-          # afternoon. Production was fine throughout: #72's own run deployed.
-          #
-          # The concurrency group above serialises deploys; it cannot stop
-          # main moving between merge and deploy. So skip rather than fail:
-          # the newer commit's run is queued behind us and will deploy it.
-          # No actions/checkout in this job, so ask the API rather than a
-          # local repo. An empty answer (API hiccup) falls through to the
-          # deploy — skipping on an unknown is how you skip a real one.
+          # Skip early if main has already moved past this commit; the VPS
+          # forced script also re-checks origin/main under its deploy lock so
+          # a newer commit can never reach production without passing staging.
           tip=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha 2>/dev/null || true)
           if [[ "$tip" =~ ^[0-9a-f]{40}$ ]] && [ "$tip" != "${{ github.sha }}" ]; then
             echo "::notice::Superseded — main is now $tip, this run is for ${{ github.sha }}."
@@ -390,56 +382,44 @@ jobs:
             echo "deployed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # The actual command run here doesn't matter — the server-side
-          # forced command overrides whatever we pass. It reads, as of
-          # 2026-09-20 (confirmed against the running container, which is
-          # a GHCR image tagged with a full commit SHA):
-          #
-          #   cd /home/meabeclick/mea-beclick && git pull --ff-only
-          #     && export APP_TAG=$(git rev-parse HEAD)
-          #     && docker compose pull app && docker compose up -d --no-build
-          #
-          # The two manual VPS steps this comment used to say were undone —
-          # `docker login ghcr.io` as meabeclick, and replacing the old
-          # build-from-source forced command — are both done. server/README.md
-          # has the detail.
-          #
-          # Note what that forced command derives APP_TAG from: the box's own
-          # HEAD after `git pull`, not the commit this workflow run is for.
-          # That is the race the "superseded" check above exists for.
+
+          # Pipe the exact verified commit SHA and staging-verified image
+          # digest to the VPS forced command (/usr/local/sbin/meabeclick-production-deploy).
+          # The server verifies origin/main, fast-forwards strictly to this
+          # commit, confirms the commit tag matches this digest, starts the
+          # container with --pull never, and verifies the running image ID.
+          expected_confirm="Deployed and verified production commit ${GITHUB_SHA} (${IMAGE_DIGEST})"
           attempt=0
           while true; do
             # Capture rather than stream, so the failure can be classified.
             # Still shown in full either way.
-            if out=$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=20 meabeclick@76.13.59.4 deploy 2>&1); then
+            if out=$(printf '%s\n' "$GITHUB_SHA" "$IMAGE_DIGEST" | ssh -T -i ~/.ssh/deploy_key \
+                -o BatchMode=yes -o IdentitiesOnly=yes \
+                -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+                meabeclick@76.13.59.4 2>&1); then
               echo "$out"
-              echo "deployed=true" >> "$GITHUB_OUTPUT"
-              break
+              if printf '%s\n' "$out" | grep -Fqx "$expected_confirm"; then
+                echo "deployed=true" >> "$GITHUB_OUTPUT"
+                break
+              fi
+              if printf '%s\n' "$out" | grep -Fq "Skipped production commit ${GITHUB_SHA} "; then
+                echo "deployed=false" >> "$GITHUB_OUTPUT"
+                break
+              fi
+              echo "::error::Production SSH exited 0 without confirming commit ${GITHUB_SHA} (${IMAGE_DIGEST})." >&2
+              exit 1
             fi
             echo "$out"
 
             # An image GHCR does not have is not a connectivity problem, and
-            # retrying cannot conjure it. It means the box's HEAD is a commit
-            # whose image has not been published — i.e. main moved on and the
-            # superseded check above raced us. Say so instead of sending
-            # someone to the firewall, and let the newer run deploy.
+            # retrying cannot conjure it.
             if printf '%s' "$out" | grep -q 'failed to resolve reference'; then
               echo "::error::The box resolved APP_TAG to a commit whose image is not in GHCR yet." >&2
               echo "::error::main moved ahead mid-deploy; the run for that newer commit will deploy it." >&2
               exit 1
             fi
 
-            # A diverged checkout is not transient either, and this one
-            # cost seven minutes and a firewall hunt on 2026-09-22 before
-            # anyone read past the retry message. `main` had been rewritten
-            # by `git filter-repo` to purge student records from history, so
-            # every commit hash changed and the box's `git pull --ff-only`
-            # aborted — correctly. Retrying a rewrite is retrying a fact.
-            #
-            # The box needs one manual reset; after that it fast-forwards
-            # normally again. Print the command rather than describing the
-            # situation, because the person reading this at the time is
-            # looking for something to run.
+            # A diverged checkout is not transient either.
             if printf '%s' "$out" | grep -q 'Not possible to fast-forward'; then
               echo "::error::The box's checkout has diverged from main — history was rewritten, so it cannot fast-forward." >&2
               echo "::error::Run once on the VPS, as meabeclick:" >&2
@@ -448,14 +428,19 @@ jobs:
               exit 1
             fi
 
-            # Local uncommitted edits on the VPS checkout are also non-transient
-            # (e.g. a hand-edited tracked file like server/Caddyfile). Retrying
-            # cannot clear them — surface the exact remediation immediately.
+            # Local uncommitted edits on the VPS checkout are also non-transient.
             if printf '%s' "$out" | grep -q 'Your local changes to the following files would be overwritten'; then
-              echo "::error::The box's checkout has local edits to tracked files that block git pull --ff-only." >&2
+              echo "::error::The box's checkout has local edits to tracked files that block git merge --ff-only." >&2
               echo "::error::Inspect and reconcile them on the VPS, as meabeclick:" >&2
               echo "::error::  cd /home/meabeclick/mea-beclick && git status && git diff" >&2
               echo "::error::Commit/track needed changes in Git, clear local edits, and re-run this job. Nothing is wrong with the network." >&2
+              exit 1
+            fi
+
+            # A digest mismatch between the commit tag and the staging-verified
+            # digest is never transient.
+            if printf '%s' "$out" | grep -q 'does not match verified'; then
+              echo "::error::Production VPS refused rollout because image digest verification failed." >&2
               exit 1
             fi
 
@@ -468,10 +453,6 @@ jobs:
               echo "::error::If every attempt timed out before sshd answered, check the VPS's edge/cloud firewall, not just ufw." >&2
               exit 1
             fi
-            # Five attempts across ~3 minutes rather than three across ~70
-            # seconds. The observed failures were TCP connect timeouts with
-            # nothing reaching sshd at all, so the fix for a transient one is
-            # a wider window, not a shorter timeout.
             echo "SSH attempt $attempt failed, retrying in 30s..."
             sleep 30
           done

@@ -140,16 +140,31 @@ test('a timed-out Compose startup releases the staging lock',
     assert.ok(interrupted >= 0 && interrupted < dockerLog.lastIndexOf(' up --detach'));
   });
 
-test('staging verifies HTTPS basic auth, booking page, and tutor login when https.compose.yml is present',
+async function makeLocalTls(directory) {
+  const { execFileSync } = await import('node:child_process');
+  const keyPath = join(directory, 'tls-key.pem');
+  const certPath = join(directory, 'tls-cert.pem');
+  execFileSync('openssl', [
+    'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+    '-keyout', keyPath, '-out', certPath, '-days', '1',
+    '-subj', '/CN=127.0.0.1',
+    '-addext', 'subjectAltName=IP:127.0.0.1',
+  ], { stdio: 'ignore' });
+  const [key, cert] = await Promise.all([readFile(keyPath), readFile(certPath)]);
+  return { key, cert, certPath };
+}
+
+test('staging verifies HTTPS basic auth, booking page, and tutor login over real TLS when https.compose.yml is present',
   { skip: process.platform !== 'linux', timeout: 15_000 }, async (t) => {
-    const { createServer } = await import('node:http');
+    const { createServer } = await import('node:https');
     const { directory, request, log } = await fixture(t);
     await writeFile(join(directory, 'https.compose.yml'), 'services: {}\n');
     await writeFile(join(directory, 'proxy-password'), 'stage-proxy-secret\n');
     await writeFile(join(directory, 'staging.env'), 'ADMIN_PASSWORD=stage-admin-secret\n');
+    const tls = await makeLocalTls(directory);
 
     const expectedAuth = 'Basic ' + Buffer.from('operator:stage-proxy-secret').toString('base64');
-    const server = createServer((req, res) => {
+    const server = createServer({ key: tls.key, cert: tls.cert }, (req, res) => {
       if (req.headers.authorization !== expectedAuth) {
         res.writeHead(401, { 'www-authenticate': 'Basic realm="restricted"' });
         res.end();
@@ -170,7 +185,7 @@ test('staging verifies HTTPS basic auth, booking page, and tutor login when http
         req.on('end', () => {
           const parsed = JSON.parse(body);
           if (parsed.password === 'stage-admin-secret') {
-            res.writeHead(200, { 'set-cookie': 'session=valid-stage; Path=/; HttpOnly' });
+            res.writeHead(200, { 'set-cookie': 'session=valid-stage; Path=/; HttpOnly; Secure' });
             res.end('{}');
           } else {
             res.writeHead(401);
@@ -192,7 +207,8 @@ test('staging verifies HTTPS basic auth, booking page, and tutor login when http
     const { port } = server.address();
 
     const run = await request(currentCommit, currentDigest, {
-      STAGING_PUBLIC_URL: `http://127.0.0.1:${port}`,
+      STAGING_PUBLIC_URL: `https://127.0.0.1:${port}`,
+      STAGING_CA_CERT: tls.certPath,
     }).result;
     assert.equal(run.code, 0, run.stderr);
     assert.match(run.stdout, new RegExp(`Verified staging startup, booking page, tutor session, and HTTPS ingress for ${currentDigest}`));
@@ -202,15 +218,41 @@ test('staging verifies HTTPS basic auth, booking page, and tutor login when http
 
 test('staging HTTPS probe fails if unauthenticated requests are not rejected with 401',
   { skip: process.platform !== 'linux', timeout: 20_000 }, async (t) => {
+    const { createServer } = await import('node:https');
+    const { directory, request } = await fixture(t);
+    await writeFile(join(directory, 'https.compose.yml'), 'services: {}\n');
+    await writeFile(join(directory, 'proxy-password'), 'stage-proxy-secret\n');
+    await writeFile(join(directory, 'staging.env'), 'ADMIN_PASSWORD=stage-admin-secret\n');
+    const tls = await makeLocalTls(directory);
+
+    const server = createServer({ key: tls.key, cert: tls.cert }, (_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{"authenticated":false}');
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    t.after(() => new Promise(resolve => server.close(resolve)));
+    const { port } = server.address();
+
+    const run = await request(currentCommit, currentDigest, {
+      STAGING_PUBLIC_URL: `https://127.0.0.1:${port}`,
+      STAGING_CA_CERT: tls.certPath,
+    }).result;
+    assert.equal(run.code, 1);
+    assert.match(run.stderr, /without credentials to return 401, got 200/);
+  });
+
+test('staging HTTPS probe refuses plaintext http:// URLs without sending credentials',
+  { skip: process.platform !== 'linux', timeout: 10_000 }, async (t) => {
     const { createServer } = await import('node:http');
     const { directory, request } = await fixture(t);
     await writeFile(join(directory, 'https.compose.yml'), 'services: {}\n');
     await writeFile(join(directory, 'proxy-password'), 'stage-proxy-secret\n');
     await writeFile(join(directory, 'staging.env'), 'ADMIN_PASSWORD=stage-admin-secret\n');
 
+    let received = 0;
     const server = createServer((_req, res) => {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end('{"authenticated":false}');
+      received += 1;
+      res.writeHead(200).end();
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     t.after(() => new Promise(resolve => server.close(resolve)));
@@ -220,5 +262,6 @@ test('staging HTTPS probe fails if unauthenticated requests are not rejected wit
       STAGING_PUBLIC_URL: `http://127.0.0.1:${port}`,
     }).result;
     assert.equal(run.code, 1);
-    assert.match(run.stderr, /without credentials to return 401, got 200/);
+    assert.match(run.stderr, /Staging public URL must use https:\/\//);
+    assert.equal(received, 0, 'must never transmit credentials or requests over plaintext HTTP');
   });

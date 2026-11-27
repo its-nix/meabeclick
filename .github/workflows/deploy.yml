@@ -296,13 +296,14 @@ jobs:
           trap 'rm -f "$key" "$out_file"' EXIT
           printf '%s\n' "$STAGING_KEY" > "$key"
           printf '%s\n' '76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR' > "$known_hosts"
+          expected_confirm="Verified staging startup, booking page, tutor session, and HTTPS ingress for ${IMAGE_DIGEST}"
           for attempt in 1 2 3 4 5; do
             if printf '%s\n' "$GITHUB_SHA" "$IMAGE_DIGEST" "$GITHUB_ACTOR" "$GH_TOKEN" | ssh -T -i "$key" \
                 -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
                 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" \
                 meabeclick-stage@76.13.59.4 >"$out_file" 2>&1; then
               cat "$out_file"
-              if grep -q '^Verified staging ' "$out_file"; then
+              if grep -Fqx "$expected_confirm" "$out_file"; then
                 echo "deployed=true" >> "$GITHUB_OUTPUT"
                 {
                   echo "### Staging verified"
@@ -310,11 +311,11 @@ jobs:
                   echo "- Digest: \`$IMAGE_DIGEST\`"
                   echo "- URL: https://staging.meabeclick.com"
                 } >> "$GITHUB_STEP_SUMMARY"
-              elif grep -q '^Skipped staging commit ' "$out_file"; then
+              elif grep -Fq "Skipped staging commit ${GITHUB_SHA} " "$out_file"; then
                 echo "deployed=false" >> "$GITHUB_OUTPUT"
                 echo "### Staging skipped (superseded by newer main commit)" >> "$GITHUB_STEP_SUMMARY"
               else
-                echo "::error::Staging deploy exited 0 without reporting verification or skip status." >&2
+                echo "::error::Staging deploy did not confirm HTTPS ingress verification for ${IMAGE_DIGEST}." >&2
                 exit 1
               fi
               exit 0

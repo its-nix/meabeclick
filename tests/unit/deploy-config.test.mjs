@@ -338,3 +338,17 @@ test('production deploy verifies the live site after SSH rollout succeeds', () =
   assert.match(verify, /https:\/\/meabeclick\.com\/booking/);
   assert.match(verify, /הזמנת שיעור/);
 });
+
+test('staging requires exact HTTPS ingress verification for the digest before authorizing promotion', () => {
+  const match = stagingJob.match(/expected_confirm="([^"]+)"/);
+  assert.ok(match, 'staging job must pin the exact confirmation line');
+  const template = match[1];
+  assert.equal(template, 'Verified staging startup, booking page, tutor session, and HTTPS ingress for ${IMAGE_DIGEST}');
+  assert.match(stagingJob, /grep -Fqx "\$expected_confirm" "\$out_file"/,
+    'staging must match the exact HTTPS confirmation line, not a broad prefix');
+  const sampleDigest = 'sha256:' + 'a'.repeat(64);
+  const expected = template.replace('${IMAGE_DIGEST}', sampleDigest);
+  const containerOnly = `Verified staging startup, booking page, and tutor session for ${sampleDigest}`;
+  assert.notEqual(containerOnly, expected,
+    'container-only staging output must never authorize production promotion');
+});

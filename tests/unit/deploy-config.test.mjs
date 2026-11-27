@@ -259,9 +259,11 @@ test('rollback and restore smoke tests name APP_TAG explicitly', () => {
 });
 
 test('the documented forced command satisfies Compose\'s APP_TAG contract', () => {
-  const forcedCommand = runbook.match(/^command="([^"]+)"$/m)?.[1] ?? '';
+  const forcedCommand = runbook.match(/^restrict,command="([^"]+)" ssh-ed25519 <production-public-key>$/m)?.[1] ?? '';
   assert.equal(forcedCommand, '/usr/local/sbin/meabeclick-production-deploy',
-    'the production forced command must invoke the pinned production deploy script');
+    'the production forced command must invoke the pinned production deploy script with restrict');
+  assert.match(runbook, /PRODUCTION_DEPLOY_SSH_KEY/,
+    'the runbook must document the dedicated PRODUCTION_DEPLOY_SSH_KEY secret');
   const prodScript = readFileSync(join(root, 'server', 'deploy-production.sh'), 'utf8');
   assert.match(prodScript, /git merge --ff-only "\$commit"/,
     'production deploy must fast-forward strictly to the verified commit');
@@ -317,10 +319,24 @@ test('PR runs cancel superseded runs without cancelling or queuing main runs', (
   assert.match(top, /github\.run_id/);
 });
 
-test('production deploy pins the VPS to the staging-verified SHA and digest', () => {
+test('production deploy pins the VPS to the staging-verified SHA and digest and fails closed with a dedicated key', () => {
   assert.match(productionJob, /IMAGE_DIGEST: \$\{\{ needs\.build\.outputs\.digest \}\}/);
+  assert.match(productionJob, /PRODUCTION_DEPLOY_SSH_KEY: \$\{\{ secrets\.PRODUCTION_DEPLOY_SSH_KEY \}\}/);
+  assert.doesNotMatch(productionJob, /secrets\.DEPLOY_SSH_KEY/,
+    'production deploy must not reuse the legacy DEPLOY_SSH_KEY that could trigger an unpinned forced command');
+  assert.match(productionJob, /if \[\[ -z "\$\{PRODUCTION_DEPLOY_SSH_KEY:-\}" \]\]; then[\s\S]*?exit 1/);
   assert.match(productionJob, /"\$GITHUB_SHA" "\$IMAGE_DIGEST" \| ssh/);
   assert.match(productionJob, /Deployed and verified production commit \$\{GITHUB_SHA\} \(\$\{IMAGE_DIGEST\}\)/);
+});
+
+test('release builds bake BUILD_SHA and staging Compose passes STAGING_IMAGE for live HTTPS verification', () => {
+  const buildStep = step('Build release image');
+  assert.match(buildStep, /BUILD_SHA=\$\{\{\s*github\.sha\s*\}\}/);
+  const docker = readFileSync(join(root, 'Dockerfile'), 'utf8');
+  assert.match(docker, /^ARG BUILD_SHA=unknown$/m);
+  assert.match(docker, /^ENV BUILD_SHA=\$BUILD_SHA$/m);
+  const stagingCompose = readFileSync(join(root, 'server', 'staging', 'compose.yml'), 'utf8');
+  assert.match(stagingCompose, /^\s*STAGING_IMAGE:\s*\$\{STAGING_IMAGE\}$/m);
 });
 
 test('a dirty VPS checkout fails fast instead of blaming the firewall', () => {

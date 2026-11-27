@@ -140,13 +140,37 @@ if [[ -f https.compose.yml ]]; then
   unauth_status=''
   for _ in 1 2 3 4 5; do
     unauth_status=$(bounded 15s curl --silent --show-error --max-time 10 "${curl_tls[@]}" \
+      --dump-header "$work_dir/unauth-me.hdr" \
       --output /dev/null --write-out '%{http_code}' "$public_url/api/me" || true)
-    if [[ "$unauth_status" == 401 ]]; then break; fi
+    if [[ "$unauth_status" == 401 ]] && grep -qi '^www-authenticate:[[:space:]]*basic' "$work_dir/unauth-me.hdr"; then
+      break
+    fi
     sleep 2
   done
-  if [[ "$unauth_status" != 401 ]]; then
-    printf 'Expected staging HTTPS %s/api/me without credentials to return 401, got %s\n' \
+  if [[ "$unauth_status" != 401 ]] || ! grep -qi '^www-authenticate:[[:space:]]*basic' "$work_dir/unauth-me.hdr"; then
+    printf 'Expected staging HTTPS %s/api/me without credentials to return 401 Basic challenge, got %s\n' \
       "$public_url" "${unauth_status:-error}" >&2
+    exit 1
+  fi
+
+  unauth_booking_status=$(bounded 15s curl --silent --show-error --max-time 10 "${curl_tls[@]}" \
+    --dump-header "$work_dir/unauth-booking.hdr" \
+    --output /dev/null --write-out '%{http_code}' "$public_url/booking" || true)
+  if [[ "$unauth_booking_status" != 401 ]] || ! grep -qi '^www-authenticate:[[:space:]]*basic' "$work_dir/unauth-booking.hdr"; then
+    printf 'Expected staging HTTPS %s/booking without credentials to return 401 Basic challenge, got %s\n' \
+      "$public_url" "${unauth_booking_status:-error}" >&2
+    exit 1
+  fi
+
+  unauth_login_status=$(bounded 15s curl --silent --show-error --max-time 10 "${curl_tls[@]}" \
+    --dump-header "$work_dir/unauth-login.hdr" \
+    --header 'content-type: application/json' \
+    --header "origin: $public_url" \
+    --data '{}' \
+    --output /dev/null --write-out '%{http_code}' "$public_url/api/login" || true)
+  if [[ "$unauth_login_status" != 401 ]] || ! grep -qi '^www-authenticate:[[:space:]]*basic' "$work_dir/unauth-login.hdr" || grep -qi '^set-cookie:' "$work_dir/unauth-login.hdr"; then
+    printf 'Expected staging HTTPS %s/api/login without credentials to return 401 Basic challenge, got %s\n' \
+      "$public_url" "${unauth_login_status:-error}" >&2
     exit 1
   fi
 
@@ -187,9 +211,18 @@ if [[ -f https.compose.yml ]]; then
   me_body=$(bounded 15s curl --silent --show-error --fail --max-time 10 "${curl_tls[@]}" \
     --config "$work_dir/curl-auth.cfg" \
     --cookie "$work_dir/cookies.txt" \
+    --dump-header "$work_dir/me.hdr" \
     "$public_url/api/me")
   if [[ "$me_body" != '{"authenticated":true}' ]]; then
     printf 'Expected authenticated staging /api/me over HTTPS, got %s\n' "$me_body" >&2
+    exit 1
+  fi
+
+  expected_release="${commit} ${STAGING_IMAGE}"
+  actual_release=$(awk -F: 'tolower($1) == "x-meabeclick-release" { sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); print; exit }' "$work_dir/me.hdr")
+  if [[ "$actual_release" != "$expected_release" ]]; then
+    printf 'Expected staging HTTPS /api/me x-meabeclick-release %s, got %s\n' \
+      "$expected_release" "${actual_release:-missing}" >&2
     exit 1
   fi
 

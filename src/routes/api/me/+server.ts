@@ -6,4 +6,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = ({ locals }) => json({ authenticated: locals.authenticated });
+export const GET: RequestHandler = ({ locals }) => {
+  const headers: Record<string, string> = {};
+  if (locals.authenticated) {
+    const release = [process.env.BUILD_SHA, process.env.STAGING_IMAGE].filter(Boolean).join(' ');
+    if (release) headers['x-meabeclick-release'] = release;
+  }
+  return json({ authenticated: locals.authenticated }, { headers });
+};

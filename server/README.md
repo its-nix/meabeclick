@@ -530,8 +530,10 @@ then run the staging deployment to apply the HTTPS origin and bridge. Apply
 the production Caddy Compose override after validating both configurations.
 When `https.compose.yml` is present, `/srv/meabeclick-staging/deploy.sh`
 automatically verifies the live HTTPS route after the container probe:
-unauthenticated requests receive `401`, authenticated `/booking` returns `200`
-with `noindex` and `no-store`, and authenticated tutor login works over HTTPS.
+unauthenticated requests to `/api/me`, `/booking`, and `/api/login` receive `401`
+with a `WWW-Authenticate: Basic` challenge, authenticated `/booking` returns
+`200` with `noindex` and `no-store`, and authenticated tutor login + `/api/me`
+over HTTPS confirms `x-meabeclick-release` matches the deployed commit and digest.
 The Google OAuth redirect URI for the staging project is
 `https://staging.meabeclick.com/auth/google/callback`. The ingress bridge
 allows local proxy traffic. Google integration requires separate staging
@@ -593,11 +595,17 @@ token. Either set no expiration or diary the renewal.
 
 **2. The deploy runs CI's exact staging-verified image instead of rebuilding.** ✅
 Install `server/deploy-production.sh` as `/usr/local/sbin/meabeclick-production-deploy`
-(root-owned, mode `0755`). The forced command in `meabeclick`'s `~/.ssh/authorized_keys` is:
+(root-owned, mode `0755`). Provision a dedicated SSH keypair stored only in the
+GitHub `production` environment secret `PRODUCTION_DEPLOY_SSH_KEY`, and authorize
+its public key in `meabeclick`'s `~/.ssh/authorized_keys` as:
 
+```text
+restrict,command="/usr/local/sbin/meabeclick-production-deploy" ssh-ed25519 <production-public-key>
 ```
-command="/usr/local/sbin/meabeclick-production-deploy"
-```
+
+Using a dedicated `PRODUCTION_DEPLOY_SSH_KEY` (and retiring the legacy
+`DEPLOY_SSH_KEY` entry on the VPS) makes activation fail closed: an un-migrated
+host rejects the connection rather than running an old unpinned forced command.
 
 CI pipes the commit SHA and staging-verified `sha256` digest on stdin. Under an
 exclusive lock, the script checks `origin/main`, fast-forwards strictly to that

@@ -233,6 +233,8 @@ jobs:
           context: .
           load: true
           tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -363,15 +365,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
+          PRODUCTION_DEPLOY_SSH_KEY: ${{ secrets.PRODUCTION_DEPLOY_SSH_KEY }}
         run: |
           set -euo pipefail
           [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          if [[ -z "${PRODUCTION_DEPLOY_SSH_KEY:-}" ]]; then
+            echo "::error::PRODUCTION_DEPLOY_SSH_KEY is not configured in the production environment." >&2
+            exit 1
+          fi
           umask 077
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          echo "76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR" > ~/.ssh/known_hosts
+          key="$RUNNER_TEMP/production_deploy_key"
+          known_hosts="$RUNNER_TEMP/production_known_hosts"
+          trap 'rm -f "$key" "$known_hosts"' EXIT
+          printf '%s\n' "$PRODUCTION_DEPLOY_SSH_KEY" > "$key"
+          printf '%s\n' '76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR' > "$known_hosts"
 
           # Skip early if main has already moved past this commit; the VPS
           # forced script also re-checks origin/main under its deploy lock so
@@ -386,17 +393,18 @@ jobs:
 
           # Pipe the exact verified commit SHA and staging-verified image
           # digest to the VPS forced command (/usr/local/sbin/meabeclick-production-deploy).
-          # The server verifies origin/main, fast-forwards strictly to this
-          # commit, confirms the commit tag matches this digest, starts the
-          # container with --pull never, and verifies the running image ID.
+          # The dedicated PRODUCTION_DEPLOY_SSH_KEY is authorized ONLY for that
+          # forced command, so activation fails closed if a host still carries
+          # an unpinned legacy deploy key.
           expected_confirm="Deployed and verified production commit ${GITHUB_SHA} (${IMAGE_DIGEST})"
           attempt=0
           while true; do
             # Capture rather than stream, so the failure can be classified.
             # Still shown in full either way.
-            if out=$(printf '%s\n' "$GITHUB_SHA" "$IMAGE_DIGEST" | ssh -T -i ~/.ssh/deploy_key \
+            if out=$(printf '%s\n' "$GITHUB_SHA" "$IMAGE_DIGEST" | ssh -T -i "$key" \
                 -o BatchMode=yes -o IdentitiesOnly=yes \
-                -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+                -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" \
+                -o ConnectTimeout=20 \
                 meabeclick@76.13.59.4 2>&1); then
               echo "$out"
               if printf '%s\n' "$out" | grep -Fqx "$expected_confirm"; then

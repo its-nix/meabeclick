@@ -154,60 +154,75 @@ async function makeLocalTls(directory) {
   return { key, cert, certPath };
 }
 
-test('staging verifies HTTPS basic auth, booking page, and tutor login over real TLS when https.compose.yml is present',
-  { skip: process.platform !== 'linux', timeout: 15_000 }, async (t) => {
-    const { createServer } = await import('node:https');
-    const { directory, request, log } = await fixture(t);
-    await writeFile(join(directory, 'https.compose.yml'), 'services: {}\n');
-    await writeFile(join(directory, 'proxy-password'), 'stage-proxy-secret\n');
-    await writeFile(join(directory, 'staging.env'), 'ADMIN_PASSWORD=stage-admin-secret\n');
-    const tls = await makeLocalTls(directory);
+async function startStagingTlsBackend(t, directory, {
+  exposeBooking = false,
+  exposeLogin = false,
+  releaseHeader = `${currentCommit} ghcr.io/its-nix/meabeclick@${currentDigest}`,
+} = {}) {
+  const { createServer } = await import('node:https');
+  await writeFile(join(directory, 'https.compose.yml'), 'services: {}\n');
+  await writeFile(join(directory, 'proxy-password'), 'stage-proxy-secret\n');
+  await writeFile(join(directory, 'staging.env'), 'ADMIN_PASSWORD=stage-admin-secret\n');
+  const tls = await makeLocalTls(directory);
 
-    const expectedAuth = 'Basic ' + Buffer.from('operator:stage-proxy-secret').toString('base64');
-    const server = createServer({ key: tls.key, cert: tls.cert }, (req, res) => {
-      if (req.headers.authorization !== expectedAuth) {
-        res.writeHead(401, { 'www-authenticate': 'Basic realm="restricted"' });
-        res.end();
-        return;
-      }
-      if (req.url === '/booking') {
-        res.writeHead(200, {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-store',
-          'x-robots-tag': 'noindex, nofollow',
-        });
-        res.end('<html><body><h1>הזמנת שיעור</h1></body></html>');
-        return;
-      }
-      if (req.url === '/api/login' && req.method === 'POST') {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
-          const parsed = JSON.parse(body);
-          if (parsed.password === 'stage-admin-secret') {
-            res.writeHead(200, { 'set-cookie': 'session=valid-stage; Path=/; HttpOnly; Secure' });
-            res.end('{}');
-          } else {
-            res.writeHead(401);
-            res.end('{}');
-          }
-        });
-        return;
-      }
-      if (req.url === '/api/me') {
-        const authenticated = (req.headers.cookie || '').includes('session=valid-stage');
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ authenticated }));
-        return;
-      }
-      res.writeHead(404).end();
-    });
-    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    t.after(() => new Promise(resolve => server.close(resolve)));
-    const { port } = server.address();
+  const expectedAuth = 'Basic ' + Buffer.from('operator:stage-proxy-secret').toString('base64');
+  const server = createServer({ key: tls.key, cert: tls.cert }, (req, res) => {
+    const bypassAuth =
+      (exposeBooking && req.url === '/booking') ||
+      (exposeLogin && req.url === '/api/login');
+    if (!bypassAuth && req.headers.authorization !== expectedAuth) {
+      res.writeHead(401, { 'www-authenticate': 'Basic realm="restricted"' });
+      res.end();
+      return;
+    }
+    if (req.url === '/booking') {
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'x-robots-tag': 'noindex, nofollow',
+      });
+      res.end('<html><body><h1>הזמנת שיעור</h1></body></html>');
+      return;
+    }
+    if (req.url === '/api/login' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        const parsed = JSON.parse(body || '{}');
+        if (parsed.password === 'stage-admin-secret') {
+          res.writeHead(200, { 'set-cookie': 'session=valid-stage; Path=/; HttpOnly; Secure' });
+          res.end('{}');
+        } else {
+          // Simulates SvelteKit's 401 wrong-password response (no WWW-Authenticate: Basic).
+          res.writeHead(401, { 'content-type': 'application/json' });
+          res.end('{"error":"סיסמה שגויה"}');
+        }
+      });
+      return;
+    }
+    if (req.url === '/api/me') {
+      const authenticated = (req.headers.cookie || '').includes('session=valid-stage');
+      const headers = { 'content-type': 'application/json' };
+      if (authenticated && releaseHeader) headers['x-meabeclick-release'] = releaseHeader;
+      res.writeHead(200, headers);
+      res.end(JSON.stringify({ authenticated }));
+      return;
+    }
+    res.writeHead(404).end();
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const { port } = server.address();
+  return { url: `https://127.0.0.1:${port}`, certPath: tls.certPath };
+}
+
+test('staging verifies HTTPS basic auth, booking page, tutor login, and release header over real TLS when https.compose.yml is present',
+  { skip: process.platform !== 'linux', timeout: 15_000 }, async (t) => {
+    const { directory, request, log } = await fixture(t);
+    const tls = await startStagingTlsBackend(t, directory);
 
     const run = await request(currentCommit, currentDigest, {
-      STAGING_PUBLIC_URL: `https://127.0.0.1:${port}`,
+      STAGING_PUBLIC_URL: tls.url,
       STAGING_CA_CERT: tls.certPath,
     }).result;
     assert.equal(run.code, 0, run.stderr);
@@ -238,7 +253,47 @@ test('staging HTTPS probe fails if unauthenticated requests are not rejected wit
       STAGING_CA_CERT: tls.certPath,
     }).result;
     assert.equal(run.code, 1);
-    assert.match(run.stderr, /without credentials to return 401, got 200/);
+    assert.match(run.stderr, /without credentials to return 401 Basic challenge, got 200/);
+  });
+
+test('staging HTTPS probe fails when /api/me is protected but /booking is exposed anonymously',
+  { skip: process.platform !== 'linux', timeout: 15_000 }, async (t) => {
+    const { directory, request } = await fixture(t);
+    const tls = await startStagingTlsBackend(t, directory, { exposeBooking: true });
+
+    const run = await request(currentCommit, currentDigest, {
+      STAGING_PUBLIC_URL: tls.url,
+      STAGING_CA_CERT: tls.certPath,
+    }).result;
+    assert.equal(run.code, 1);
+    assert.match(run.stderr, /\/booking without credentials to return 401 Basic challenge, got 200/);
+  });
+
+test('staging HTTPS probe fails when /api/me and /booking are protected but /api/login is exposed anonymously',
+  { skip: process.platform !== 'linux', timeout: 15_000 }, async (t) => {
+    const { directory, request } = await fixture(t);
+    const tls = await startStagingTlsBackend(t, directory, { exposeLogin: true });
+
+    const run = await request(currentCommit, currentDigest, {
+      STAGING_PUBLIC_URL: tls.url,
+      STAGING_CA_CERT: tls.certPath,
+    }).result;
+    assert.equal(run.code, 1);
+    assert.match(run.stderr, /\/api\/login without credentials to return 401 Basic challenge, got 401/);
+  });
+
+test('staging HTTPS probe rejects a healthy backend serving a stale or wrong release identifier',
+  { skip: process.platform !== 'linux', timeout: 15_000 }, async (t) => {
+    const { directory, request } = await fixture(t);
+    const staleRelease = `${olderCommit} ghcr.io/its-nix/meabeclick@${olderDigest}`;
+    const tls = await startStagingTlsBackend(t, directory, { releaseHeader: staleRelease });
+
+    const run = await request(currentCommit, currentDigest, {
+      STAGING_PUBLIC_URL: tls.url,
+      STAGING_CA_CERT: tls.certPath,
+    }).result;
+    assert.equal(run.code, 1);
+    assert.match(run.stderr, /Expected staging HTTPS \/api\/me x-meabeclick-release/);
   });
 
 test('staging HTTPS probe refuses plaintext http:// URLs without sending credentials',

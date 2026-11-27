@@ -13,7 +13,7 @@ const chrome = process.env.CHROME_BIN ?? '/Applications/Google Chrome.app/Conten
 const chromium = { browserName: 'chromium', launchOptions: existsSync(chrome) ? { executablePath: chrome } : {} };
 export default defineConfig({
   testDir: './tests/qa', testMatch: '**/*.spec.mjs',
-  fullyParallel: true, workers: process.env.CI ? 2 : 2,
+  fullyParallel: true, workers: process.env.CI ? 3 : 2,
   retries: 0, forbidOnly: !!process.env.CI, timeout: 45_000,
   expect: { timeout: 8_000 },
   grep: new RegExp(`(?:^|\\s)(?:${plan.journeys.join('|')}):`),

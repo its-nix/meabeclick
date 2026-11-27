@@ -26,6 +26,27 @@ test('harness can log in and return a usable cookie', async () => {
   }
 });
 
+test('/api/me emits x-meabeclick-release only for authenticated sessions', async () => {
+  const buildSha = 'a'.repeat(40);
+  const stagingImage = `ghcr.io/its-nix/meabeclick@sha256:${'b'.repeat(64)}`;
+  const { baseUrl, stop } = await startServer({
+    env: { BUILD_SHA: buildSha, STAGING_IMAGE: stagingImage },
+  });
+  try {
+    const anon = await fetch(`${baseUrl}/api/me`);
+    assert.equal(anon.headers.get('x-meabeclick-release'), null,
+      'unauthenticated /api/me must not expose release metadata');
+    assert.deepEqual(await anon.json(), { authenticated: false });
+
+    const cookie = await login(baseUrl);
+    const authed = await fetch(`${baseUrl}/api/me`, { headers: { Cookie: cookie } });
+    assert.equal(authed.headers.get('x-meabeclick-release'), `${buildSha} ${stagingImage}`);
+    assert.deepEqual(await authed.json(), { authenticated: true });
+  } finally {
+    await stop();
+  }
+});
+
 test('the harness keeps lesson generation switched off', async () => {
   // The guard this asserts is easy to lose and expensive to lose quietly.
   // Generation used to be disabled purely by deleting CLAUDE_CODE_OAUTH_TOKEN

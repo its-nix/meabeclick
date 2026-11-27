@@ -69,5 +69,7 @@ COPY --chown=node:node scripts/check-native-browser.mjs ./scripts/check-native-b
 USER node
 # Prove the production browser can launch as the actual runtime user before publishing.
 RUN node scripts/check-native-browser.mjs
+ARG BUILD_SHA=unknown
+ENV BUILD_SHA=$BUILD_SHA
 EXPOSE 3000
 CMD ["node", "build/index.js"]

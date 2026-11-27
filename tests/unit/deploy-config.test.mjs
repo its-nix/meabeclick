@@ -69,7 +69,8 @@ test('only main publishes and deploys the image', () => {
   for (const gated of [publish, deployJob]) {
     assert.match(gated, /if: github\.event_name != 'pull_request' && github\.ref == 'refs\/heads\/main'/);
   }
-  assert.match(deployJob, /needs: build/);
+  assert.match(deployJob, /needs:\s*\[build,\s*staging\]/);
+  assert.match(deployJob, /needs\.staging\.outputs\.deployed == 'true'/);
 });
 
 function step(name) {
@@ -258,11 +259,22 @@ test('rollback and restore smoke tests name APP_TAG explicitly', () => {
 });
 
 test('the documented forced command satisfies Compose\'s APP_TAG contract', () => {
-  const forcedCommand = runbook.match(/^command="([^"]+)"$/m)?.[1] ?? '';
-  assert.match(forcedCommand, /git pull --ff-only && export APP_TAG=\$\(git rev-parse HEAD\)/,
-    'the forced command must derive APP_TAG only after updating the checkout');
-  assert.match(forcedCommand, /docker compose pull app && docker compose up -d --no-build$/,
-    'the same exported APP_TAG must select both the pulled and started image');
+  const forcedCommand = runbook.match(/^restrict,command="([^"]+)" ssh-ed25519 <production-public-key>$/m)?.[1] ?? '';
+  assert.equal(forcedCommand, '/usr/local/sbin/meabeclick-production-deploy',
+    'the production forced command must invoke the pinned production deploy script with restrict');
+  assert.match(runbook, /PRODUCTION_DEPLOY_SSH_KEY/,
+    'the runbook must document the dedicated PRODUCTION_DEPLOY_SSH_KEY secret');
+  const prodScript = readFileSync(join(root, 'server', 'deploy-production.sh'), 'utf8');
+  assert.match(prodScript, /git merge --ff-only "\$commit"/,
+    'production deploy must fast-forward strictly to the verified commit');
+  assert.match(prodScript, /export APP_TAG="\$commit"/,
+    'production deploy must set APP_TAG to the verified commit');
+  assert.match(prodScript, /pin_compose="\$work_dir\/pin-image\.compose\.yml"/,
+    'production deploy must pin the effective Compose app image to the verified digest');
+  assert.match(prodScript, /"\$\{compose\[@\]\}" config --format json/,
+    'production deploy must verify the effective Compose app image before starting Compose');
+  assert.match(prodScript, /"\$\{compose\[@\]\}" up -d --no-build --pull never/,
+    'production deploy must start Compose with --pull never after verifying the digest');
 });
 
 test('a GitHub API error cannot masquerade as a superseding commit',()=>{
@@ -290,4 +302,73 @@ test('the production browser smoke script is included in the Docker build contex
  const docker=readFileSync(join(root,'Dockerfile'),'utf8');
  assert.match(docker,/COPY --chown=node:node scripts\/check-native-browser\.mjs/);
  assert.match(docker,/USER node[\s\S]*RUN node scripts\/check-native-browser\.mjs/);
+});
+
+test('code and UI verification run in parallel and both gate the required build job without skipping it', () => {
+  const buildJob = workflow.slice(workflow.indexOf('\n  build:'), workflow.indexOf('\n  staging:'));
+  assert.match(workflow, /^\s{2}verify-code:/m);
+  assert.match(workflow, /^\s{2}verify-ui:/m);
+  assert.match(buildJob, /needs:\s*\[verify-code,\s*verify-ui\]/);
+  assert.match(buildJob, /if:\s*\$\{\{\s*!cancelled\(\)\s*\}\}/,
+    'required build must not be skipped when a verification dependency fails');
+  const gateStep = step('Require code and UI verification');
+  assert.match(gateStep, /needs\.verify-code\.result != 'success' \|\| needs\.verify-ui\.result != 'success'/);
+  assert.match(gateStep, /exit 1/);
+});
+
+test('PR runs cancel superseded runs without cancelling or queuing main runs', () => {
+  const top = workflow.slice(0, workflow.indexOf('\njobs:'));
+  assert.match(top, /concurrency:/);
+  assert.match(top, /cancel-in-progress:\s*\$\{\{\s*github\.event_name == 'pull_request'\s*\}\}/);
+  assert.match(top, /github\.run_id/);
+});
+
+test('production deploy pins the VPS to the staging-verified SHA and digest and fails closed with a dedicated key', () => {
+  assert.match(productionJob, /IMAGE_DIGEST: \$\{\{ needs\.build\.outputs\.digest \}\}/);
+  assert.match(productionJob, /PRODUCTION_DEPLOY_SSH_KEY: \$\{\{ secrets\.PRODUCTION_DEPLOY_SSH_KEY \}\}/);
+  assert.doesNotMatch(productionJob, /secrets\.DEPLOY_SSH_KEY/,
+    'production deploy must not reuse the legacy DEPLOY_SSH_KEY that could trigger an unpinned forced command');
+  assert.match(productionJob, /if \[\[ -z "\$\{PRODUCTION_DEPLOY_SSH_KEY:-\}" \]\]; then[\s\S]*?exit 1/);
+  assert.match(productionJob, /"\$GITHUB_SHA" "\$IMAGE_DIGEST" \| ssh/);
+  assert.match(productionJob, /Deployed and verified production commit \$\{GITHUB_SHA\} \(\$\{IMAGE_DIGEST\}\)/);
+});
+
+test('release builds bake BUILD_SHA and staging Compose passes STAGING_IMAGE for live HTTPS verification', () => {
+  const buildStep = step('Build release image');
+  assert.match(buildStep, /BUILD_SHA=\$\{\{\s*github\.sha\s*\}\}/);
+  const docker = readFileSync(join(root, 'Dockerfile'), 'utf8');
+  assert.match(docker, /^ARG BUILD_SHA=unknown$/m);
+  assert.match(docker, /^ENV BUILD_SHA=\$BUILD_SHA$/m);
+  const stagingCompose = readFileSync(join(root, 'server', 'staging', 'compose.yml'), 'utf8');
+  assert.match(stagingCompose, /^\s*STAGING_IMAGE:\s*\$\{STAGING_IMAGE\}$/m);
+});
+
+test('a dirty VPS checkout fails fast instead of blaming the firewall', () => {
+  const guard = /grep -q 'Your local changes to the following files would be overwritten'/.exec(productionJob);
+  assert.ok(guard, 'dirty checkout must be classified separately from connectivity failures');
+  const branch = productionJob.slice(guard.index, guard.index + 700);
+  assert.match(branch, /exit 1/);
+  assert.doesNotMatch(branch.slice(0, branch.indexOf('exit 1')), /firewall/);
+});
+
+test('production deploy verifies the live site after SSH rollout succeeds', () => {
+  const verify = step('Verify production after deploy');
+  assert.match(verify, /if: steps\.ssh_deploy\.outputs\.deployed == 'true'/);
+  assert.match(verify, /https:\/\/meabeclick\.com\/api\/me/);
+  assert.match(verify, /https:\/\/meabeclick\.com\/booking/);
+  assert.match(verify, /הזמנת שיעור/);
+});
+
+test('staging requires exact HTTPS ingress verification for the digest before authorizing promotion', () => {
+  const match = stagingJob.match(/expected_confirm="([^"]+)"/);
+  assert.ok(match, 'staging job must pin the exact confirmation line');
+  const template = match[1];
+  assert.equal(template, 'Verified staging startup, booking page, tutor session, and HTTPS ingress for ${IMAGE_DIGEST}');
+  assert.match(stagingJob, /grep -Fqx "\$expected_confirm" "\$out_file"/,
+    'staging must match the exact HTTPS confirmation line, not a broad prefix');
+  const sampleDigest = 'sha256:' + 'a'.repeat(64);
+  const expected = template.replace('${IMAGE_DIGEST}', sampleDigest);
+  const containerOnly = `Verified staging startup, booking page, and tutor session for ${sampleDigest}`;
+  assert.notEqual(containerOnly, expected,
+    'container-only staging output must never authorize production promotion');
 });

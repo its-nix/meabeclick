@@ -5,23 +5,29 @@ name: Deploy to VPS
 # server-side (see meabeclick's ~/.ssh/authorized_keys), so a leaked key
 # can only ever trigger a redeploy of this repo, nothing else.
 #
-# CI builds and tests the image here, pushes it to GHCR, and only then
-# tells the VPS to deploy — the VPS no longer builds from git itself. This
-# means a broken build/test fails in CI, not on the box serving real
-# bookings.
+# CI verifies code and UI in parallel, builds and smokes the release image,
+# publishes the verified digest to GHCR on main, deploys and verifies that
+# exact digest in staging, and only then promotes the release to production.
 on:
   push:
     branches: [main]
-  # Pull requests run the same gates — tests, type-check, AND a real image
-  # build — but never push an image or deploy. Without this the checks only
-  # ever ran after merge, so "no checks reported" was the honest state of
-  # every PR and each one had to be verified by hand. Building the image here
-  # is deliberate: a Dockerfile or .dockerignore fault (a runtime bind mount
-  # left in the build context, say) fails no test and no type-check, and
-  # would otherwise surface as a broken deploy.
+  # Pull requests run the same gates — tests, type-check, UI journeys, AND a
+  # real image build + smoke — but never push an image or deploy.
   pull_request:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: Promote to production after staging verification passes (main branch only)
+        type: boolean
+        default: true
+
+# Cancel superseded PR runs immediately to speed up iteration, while never
+# cancelling or queuing main runs against each other (staging serializes on
+# the VPS lock, and production serializes in the deploy job below).
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # GHCR requires an all-lowercase image path. Derive it from
@@ -30,14 +36,44 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  verify-code:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
-    outputs:
-      image: ${{ steps.image.outputs.name }}
-      digest: ${{ steps.publish.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # tests/characterization/harness.mjs spawns build/index.js (the
+      # adapter-node production build) for every characterization test, so
+      # the build must exist before npm test runs.
+      - name: Build
+        run: npm run build
+
+      # Must be green BEFORE the image is built — a broken build must fail
+      # here, not on the VPS serving users. svelte-check is the
+      # sveltekit-side type/template check.
+      - name: Run tests
+        run: npm test
+
+      # Runs svelte-check and enforces a ceiling on WARNINGS as well as
+      # errors. `npm run check` alone ignored warnings, so the count drifted
+      # and each new one joined a pile nobody read — a pile that turned out
+      # to hold a real bug (see the script's header, and #79).
+      - name: Type-check
+        run: node scripts/check-warnings.mjs
+
+  verify-ui:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,29 +101,21 @@ jobs:
           PR_QA_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_QA_EVENT: ${{ github.event_name }}
 
-      # tests/characterization/harness.mjs spawns build/index.js (the
-      # adapter-node production build) for every characterization test, so
-      # the build must exist before npm test runs. Through Task 23 the
-      # suite could also spawn server/app.mjs (the pre-migration Express
-      # app) via a TARGET env var, needing no build step for that side;
-      # Task 24 deleted server/app.mjs once SvelteKit was cut over, so
-      # build/index.js is the only target left and this step is no longer
-      # optional.
       - name: Build
+        if: steps.pr_qa_select.outputs.run_ui == 'true'
         run: npm run build
 
-      # Must be green BEFORE the image is built — a broken build must fail
-      # here, not on the VPS serving users. svelte-check is the
-      # sveltekit-side type/template check.
-      - name: Run tests
-        run: npm test
+      - name: Resolve Playwright version
+        id: playwright_version
+        if: steps.pr_qa_select.outputs.run_ui == 'true'
+        run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      # Runs svelte-check and enforces a ceiling on WARNINGS as well as
-      # errors. `npm run check` alone ignored warnings, so the count drifted
-      # and each new one joined a pile nobody read — a pile that turned out
-      # to hold a real bug (see the script's header, and #79).
-      - name: Type-check
-        run: node scripts/check-warnings.mjs
+      - name: Cache Playwright browsers
+        if: steps.pr_qa_select.outputs.run_ui == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright_version.outputs.version }}
 
       # The native player runtime is serialized into standalone HTML. Only a real
       # browser exercises it.
@@ -174,6 +202,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  build:
+    needs: [verify-code, verify-ui]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.publish.outputs.digest }}
+    steps:
+      - name: Require code and UI verification
+        if: needs.verify-code.result != 'success' || needs.verify-ui.result != 'success'
+        run: |
+          echo "::error::Verification did not succeed (verify-code=${{ needs.verify-code.result }}, verify-ui=${{ needs.verify-ui.result }})." >&2
+          exit 1
+
+      - uses: actions/checkout@v4
+
       - name: Compute lowercase image name
         id: image
         run: echo "name=${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
@@ -186,6 +233,8 @@ jobs:
           context: .
           load: true
           tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -222,13 +271,18 @@ jobs:
     needs: build
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: staging
+    environment:
+      name: staging
+      url: https://staging.meabeclick.com
+    outputs:
+      deployed: ${{ steps.deploy_staging.outputs.deployed }}
     # The VPS serializes staging and checks main under the deployment lock.
     # A shared Actions queue can drop the current run when an older build finishes late.
     permissions:
       packages: read
     steps:
       - name: Deploy and verify the published digest in staging
+        id: deploy_staging
         timeout-minutes: 10
         env:
           IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
@@ -240,27 +294,49 @@ jobs:
           umask 077
           key="$RUNNER_TEMP/staging_key"
           known_hosts="$RUNNER_TEMP/staging_known_hosts"
-          trap 'unlink "$key"' EXIT
+          out_file="$RUNNER_TEMP/staging-deploy.log"
+          trap 'rm -f "$key" "$out_file"' EXIT
           printf '%s\n' "$STAGING_KEY" > "$key"
           printf '%s\n' '76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR' > "$known_hosts"
+          expected_confirm="Verified staging startup, booking page, tutor session, and HTTPS ingress for ${IMAGE_DIGEST}"
           for attempt in 1 2 3 4 5; do
             if printf '%s\n' "$GITHUB_SHA" "$IMAGE_DIGEST" "$GITHUB_ACTOR" "$GH_TOKEN" | ssh -T -i "$key" \
                 -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
                 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" \
-                meabeclick-stage@76.13.59.4; then
+                meabeclick-stage@76.13.59.4 >"$out_file" 2>&1; then
+              cat "$out_file"
+              if grep -Fqx "$expected_confirm" "$out_file"; then
+                echo "deployed=true" >> "$GITHUB_OUTPUT"
+                {
+                  echo "### Staging verified"
+                  echo "- Commit: \`$GITHUB_SHA\`"
+                  echo "- Digest: \`$IMAGE_DIGEST\`"
+                  echo "- URL: https://staging.meabeclick.com"
+                } >> "$GITHUB_STEP_SUMMARY"
+              elif grep -Fq "Skipped staging commit ${GITHUB_SHA} " "$out_file"; then
+                echo "deployed=false" >> "$GITHUB_OUTPUT"
+                echo "### Staging skipped (superseded by newer main commit)" >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::error::Staging deploy did not confirm HTTPS ingress verification for ${IMAGE_DIGEST}." >&2
+                exit 1
+              fi
               exit 0
             else
               status=$?
+              cat "$out_file" >&2 || true
               if [[ "$status" != 255 || "$attempt" == 5 ]]; then exit "$status"; fi
               sleep 30
             fi
           done
 
   deploy:
-    needs: build
-    # Never on a pull request: this job triggers a real production deploy.
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [build, staging]
+    # Never on a pull request, and never before staging verifies the same commit.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.staging.outputs.deployed == 'true' && (github.event_name != 'workflow_dispatch' || inputs.deploy_production)
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://meabeclick.com
     # One deploy touches the box at a time.
     #
     # Not a nicety. The forced command is `git pull && export
@@ -285,92 +361,74 @@ jobs:
       contents: read
     steps:
       - name: Deploy over SSH
+        id: ssh_deploy
         env:
           GH_TOKEN: ${{ github.token }}
+          IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
+          PRODUCTION_DEPLOY_SSH_KEY: ${{ secrets.PRODUCTION_DEPLOY_SSH_KEY }}
         run: |
           set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          echo "76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR" > ~/.ssh/known_hosts
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          if [[ -z "${PRODUCTION_DEPLOY_SSH_KEY:-}" ]]; then
+            echo "::error::PRODUCTION_DEPLOY_SSH_KEY is not configured in the production environment." >&2
+            exit 1
+          fi
+          umask 077
+          key="$RUNNER_TEMP/production_deploy_key"
+          known_hosts="$RUNNER_TEMP/production_known_hosts"
+          trap 'rm -f "$key" "$known_hosts"' EXIT
+          printf '%s\n' "$PRODUCTION_DEPLOY_SSH_KEY" > "$key"
+          printf '%s\n' '76.13.59.4 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMbxyAgHjitpKzLCMUz3H0k4nnJ8o2XYJb7t2MEEDfJR' > "$known_hosts"
 
-          # Is this run still the tip of main?
-          #
-          # The forced command derives APP_TAG from the box's HEAD after
-          # `git pull` — whatever main points at by the time it runs, not the
-          # commit that triggered this run. So when two PRs merge close
-          # together, the earlier run's deploy pulls the LATER commit and asks
-          # GHCR for an image that is still being built.
-          #
-          # That is not hypothetical: on 2026-09-18, #71 and #72 merged
-          # moments apart, and #71's deploy failed five times over three
-          # minutes on `failed to resolve reference ...:de1fff95...` — #72's
-          # image, not yet pushed. It then reported the VPS firewall as the
-          # likely cause, which was wrong and would have cost someone an
-          # afternoon. Production was fine throughout: #72's own run deployed.
-          #
-          # The concurrency group above serialises deploys; it cannot stop
-          # main moving between merge and deploy. So skip rather than fail:
-          # the newer commit's run is queued behind us and will deploy it.
-          # No actions/checkout in this job, so ask the API rather than a
-          # local repo. An empty answer (API hiccup) falls through to the
-          # deploy — skipping on an unknown is how you skip a real one.
+          # Skip early if main has already moved past this commit; the VPS
+          # forced script also re-checks origin/main under its deploy lock so
+          # a newer commit can never reach production without passing staging.
           tip=$(gh api "repos/${{ github.repository }}/commits/main" --jq .sha 2>/dev/null || true)
           if [[ "$tip" =~ ^[0-9a-f]{40}$ ]] && [ "$tip" != "${{ github.sha }}" ]; then
             echo "::notice::Superseded — main is now $tip, this run is for ${{ github.sha }}."
             echo "::notice::Skipping; the run for $tip deploys both."
+            echo "deployed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # The actual command run here doesn't matter — the server-side
-          # forced command overrides whatever we pass. It reads, as of
-          # 2026-09-20 (confirmed against the running container, which is
-          # a GHCR image tagged with a full commit SHA):
-          #
-          #   cd /home/meabeclick/mea-beclick && git pull --ff-only
-          #     && export APP_TAG=$(git rev-parse HEAD)
-          #     && docker compose pull app && docker compose up -d --no-build
-          #
-          # The two manual VPS steps this comment used to say were undone —
-          # `docker login ghcr.io` as meabeclick, and replacing the old
-          # build-from-source forced command — are both done. server/README.md
-          # has the detail.
-          #
-          # Note what that forced command derives APP_TAG from: the box's own
-          # HEAD after `git pull`, not the commit this workflow run is for.
-          # That is the race the "superseded" check above exists for.
+
+          # Pipe the exact verified commit SHA and staging-verified image
+          # digest to the VPS forced command (/usr/local/sbin/meabeclick-production-deploy).
+          # The dedicated PRODUCTION_DEPLOY_SSH_KEY is authorized ONLY for that
+          # forced command, so activation fails closed if a host still carries
+          # an unpinned legacy deploy key.
+          expected_confirm="Deployed and verified production commit ${GITHUB_SHA} (${IMAGE_DIGEST})"
           attempt=0
           while true; do
             # Capture rather than stream, so the failure can be classified.
             # Still shown in full either way.
-            if out=$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=20 meabeclick@76.13.59.4 deploy 2>&1); then
+            if out=$(printf '%s\n' "$GITHUB_SHA" "$IMAGE_DIGEST" | ssh -T -i "$key" \
+                -o BatchMode=yes -o IdentitiesOnly=yes \
+                -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$known_hosts" \
+                -o ConnectTimeout=20 \
+                meabeclick@76.13.59.4 2>&1); then
               echo "$out"
-              break
+              if printf '%s\n' "$out" | grep -Fqx "$expected_confirm"; then
+                echo "deployed=true" >> "$GITHUB_OUTPUT"
+                break
+              fi
+              if printf '%s\n' "$out" | grep -Fq "Skipped production commit ${GITHUB_SHA} "; then
+                echo "deployed=false" >> "$GITHUB_OUTPUT"
+                break
+              fi
+              echo "::error::Production SSH exited 0 without confirming commit ${GITHUB_SHA} (${IMAGE_DIGEST})." >&2
+              exit 1
             fi
             echo "$out"
 
             # An image GHCR does not have is not a connectivity problem, and
-            # retrying cannot conjure it. It means the box's HEAD is a commit
-            # whose image has not been published — i.e. main moved on and the
-            # superseded check above raced us. Say so instead of sending
-            # someone to the firewall, and let the newer run deploy.
+            # retrying cannot conjure it.
             if printf '%s' "$out" | grep -q 'failed to resolve reference'; then
               echo "::error::The box resolved APP_TAG to a commit whose image is not in GHCR yet." >&2
               echo "::error::main moved ahead mid-deploy; the run for that newer commit will deploy it." >&2
               exit 1
             fi
 
-            # A diverged checkout is not transient either, and this one
-            # cost seven minutes and a firewall hunt on 2026-09-22 before
-            # anyone read past the retry message. `main` had been rewritten
-            # by `git filter-repo` to purge student records from history, so
-            # every commit hash changed and the box's `git pull --ff-only`
-            # aborted — correctly. Retrying a rewrite is retrying a fact.
-            #
-            # The box needs one manual reset; after that it fast-forwards
-            # normally again. Print the command rather than describing the
-            # situation, because the person reading this at the time is
-            # looking for something to run.
+            # A diverged checkout is not transient either.
             if printf '%s' "$out" | grep -q 'Not possible to fast-forward'; then
               echo "::error::The box's checkout has diverged from main — history was rewritten, so it cannot fast-forward." >&2
               echo "::error::Run once on the VPS, as meabeclick:" >&2
@@ -379,19 +437,63 @@ jobs:
               exit 1
             fi
 
+            # Local uncommitted edits on the VPS checkout are also non-transient.
+            if printf '%s' "$out" | grep -q 'Your local changes to the following files would be overwritten'; then
+              echo "::error::The box's checkout has local edits to tracked files that block git merge --ff-only." >&2
+              echo "::error::Inspect and reconcile them on the VPS, as meabeclick:" >&2
+              echo "::error::  cd /home/meabeclick/mea-beclick && git status && git diff" >&2
+              echo "::error::Commit/track needed changes in Git, clear local edits, and re-run this job. Nothing is wrong with the network." >&2
+              exit 1
+            fi
+
+            # A digest mismatch between the commit tag and the staging-verified
+            # digest is never transient.
+            if printf '%s' "$out" | grep -q 'does not match verified'; then
+              echo "::error::Production VPS refused rollout because image digest verification failed." >&2
+              exit 1
+            fi
+
             attempt=$((attempt + 1))
             if [ "$attempt" -ge 5 ]; then
-              # Two non-transient causes are classified above. Anything
-              # reaching here really did fail to connect five times, so the
-              # firewall is a fair first guess — but say it is a guess.
+              # Non-transient causes are classified above. Anything reaching
+              # here really did fail five times, so the firewall is a fair
+              # first guess — but say it is a guess.
               echo "::error::Deploy failed after 5 attempts over ~3 minutes, with no recognised cause in the output." >&2
               echo "::error::If every attempt timed out before sshd answered, check the VPS's edge/cloud firewall, not just ufw." >&2
               exit 1
             fi
-            # Five attempts across ~3 minutes rather than three across ~70
-            # seconds. The observed failures were TCP connect timeouts with
-            # nothing reaching sshd at all, so the fix for a transient one is
-            # a wider window, not a shorter timeout.
             echo "SSH attempt $attempt failed, retrying in 30s..."
             sleep 30
           done
+
+      - name: Verify production after deploy
+        if: steps.ssh_deploy.outputs.deployed == 'true'
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          body_file="$RUNNER_TEMP/prod-booking.html"
+          trap 'rm -f "$body_file"' EXIT
+
+          ok=false
+          for attempt in 1 2 3 4 5 6; do
+            me=$(curl --silent --show-error --max-time 10 https://meabeclick.com/api/me || true)
+            code=$(curl --silent --show-error --max-time 10 --output "$body_file" --write-out '%{http_code}' https://meabeclick.com/booking || true)
+            if [[ "$me" == '{"authenticated":false}' && "$code" == 200 ]] && grep -qE '<h1([[:space:]][^>]*)?>הזמנת שיעור</h1>' "$body_file"; then
+              ok=true
+              break
+            fi
+            echo "Waiting for production health ($attempt/6): /api/me=${me:-error} /booking=$code"
+            sleep 5
+          done
+
+          if [[ "$ok" != true ]]; then
+            echo "::error::Production post-deploy verification failed for https://meabeclick.com" >&2
+            exit 1
+          fi
+
+          {
+            echo "### Production deployed and verified"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Image digest: \`${{ needs.build.outputs.digest }}\`"
+            echo "- URL: https://meabeclick.com"
+          } >> "$GITHUB_STEP_SUMMARY"

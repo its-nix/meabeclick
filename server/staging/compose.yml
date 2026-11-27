@@ -12,6 +12,7 @@ services:
       DATA_DIR: /app/data
       PORTAL_DIR: /app/data/portal
       CODEX_HOME: /app/data/codex-home
+      STAGING_IMAGE: ${STAGING_IMAGE}
     volumes:
       - ./data:/app/data
     logging:

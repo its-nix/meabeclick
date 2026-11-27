@@ -503,11 +503,10 @@ meabeclick-stage ALL=(root) NOPASSWD: /usr/local/sbin/meabeclick-staging-deploy 
 ```
 
 When updating this configuration, install the Compose file and deploy script
-on the VPS before running CI. Keep `staging.env` outside the checkout with
-mode 0600. The staging app uses test settings with lesson authoring disabled.
-A dedicated Google sandbox, test-only access over HTTPS, and the real
-lesson workflow verification are required before staging becomes a production
-promotion gate.
+on the VPS before running CI. Keep `staging.env` and `proxy-password` outside
+the checkout with mode 0600. The staging app uses test settings with lesson
+authoring disabled until dedicated Google staging credentials and an outbound
+network are attached.
 
 ### Staging HTTPS
 
@@ -518,34 +517,46 @@ Only the edge Caddy and the staging app join this bridge. The staging app
 has no published port.
 
 Install `server/staging/proxy.compose.yml` as `docker-compose.override.yml`
-next to the VPS production Compose file. Install `server/staging/proxy.caddy`
-as `/srv/meabeclick-staging/proxy/staging.caddy`. In the same private
-directory, create `users` with one `operator <bcrypt-hash>` line. Generate a
-dedicated staging proxy password and use Caddy's `hash-password` command.
-Keep the cleartext password out of deployment files and Git.
+next to the VPS production Compose file (git-ignored). Install
+`server/staging/proxy.caddy` as `/srv/meabeclick-staging/proxy/staging.caddy`.
+In the same private directory, create `users` with one
+`operator <bcrypt-hash>` line. Generate a dedicated staging proxy password
+stored in `/srv/meabeclick-staging/proxy-password` (mode 0600) and hash it with
+Caddy's `hash-password` command. Keep the cleartext password out of deployment
+files and Git.
 
 Install `server/staging/https.compose.yml` next to the staging Compose file,
 then run the staging deployment to apply the HTTPS origin and bridge. Apply
 the production Caddy Compose override after validating both configurations.
-Verify that unauthenticated staging requests receive 401 and that an
-authenticated `/booking` request returns the booking page. The Google OAuth
-redirect URI for the staging project is
+When `https.compose.yml` is present, `/srv/meabeclick-staging/deploy.sh`
+automatically verifies the live HTTPS route after the container probe:
+unauthenticated requests to `/api/me`, `/booking`, and `/api/login` receive `401`
+with a `WWW-Authenticate: Basic` challenge, authenticated `/booking` returns
+`200` with `noindex` and `no-store`, and authenticated tutor login + `/api/me`
+over HTTPS confirms `x-meabeclick-release` matches the deployed commit and digest.
+The Google OAuth redirect URI for the staging project is
 `https://staging.meabeclick.com/auth/google/callback`. The ingress bridge
 allows local proxy traffic. Google integration requires separate staging
 credentials and an outbound network before authoring is enabled.
 
 ## Deploy
 
-CI (`.github/workflows/deploy.yml`) runs the test suite, type checks and
-browser checks, then boots the release image in an isolated container. The
-image smoke check signs in as a synthetic tutor, books a synthetic lesson and
-verifies that the native preparation job stays private. The container uses
-scratch data, a loopback calendar feed and no external network.
+CI (`.github/workflows/deploy.yml`) runs code checks (`verify-code`) and
+impact-selected Playwright browser suites (`verify-ui`) in parallel, cancelling
+superseded PR runs automatically. Once both pass, the required `build` job
+builds and boots the release image in an isolated container. The image smoke
+check signs in as a synthetic tutor, books a synthetic lesson and verifies that
+the native preparation job stays private. The container uses scratch data, a
+loopback calendar feed and no external network.
 
 Only a successful `main` run publishes that same image to GHCR, tagged with
-the commit SHA and `latest`, before telling the VPS to deploy. To run the
-image check locally, use `bash scripts/smoke-release-image.sh IMAGE` with
-an image already built or loaded in Docker.
+the commit SHA and `latest`, then deploys and verifies that exact digest in the
+`staging` environment (`https://staging.meabeclick.com`). Production (`deploy`)
+is gated on `staging` passing and verifies `https://meabeclick.com` after SSH
+rollout. Manual `workflow_dispatch` runs on `main` can set
+`deploy_production=false` to re-verify staging without promoting to production.
+To run the image check locally, use `bash scripts/smoke-release-image.sh IMAGE`
+with an image already built or loaded in Docker.
 
 Pushing to `main` then triggers the SSH step, which connects to the VPS as
 `meabeclick`. That SSH key is forced (via `command=` in `meabeclick`'s
@@ -582,23 +593,28 @@ the container images and no more.
 day 91, and the failure reads as a registry problem rather than an expired
 token. Either set no expiration or diary the renewal.
 
-**2. The deploy runs CI's image instead of rebuilding.** ✅ The forced
-command in `meabeclick`'s `~/.ssh/authorized_keys` is:
+**2. The deploy runs CI's exact staging-verified image instead of rebuilding.** ✅
+Install `server/deploy-production.sh` as `/usr/local/sbin/meabeclick-production-deploy`
+(root-owned, mode `0755`). Provision a dedicated SSH keypair stored only in the
+GitHub `production` environment secret `PRODUCTION_DEPLOY_SSH_KEY`, and authorize
+its public key in `meabeclick`'s `~/.ssh/authorized_keys` as:
 
+```text
+restrict,command="/usr/local/sbin/meabeclick-production-deploy" ssh-ed25519 <production-public-key>
 ```
-command="cd /home/meabeclick/mea-beclick && git pull --ff-only && export APP_TAG=$(git rev-parse HEAD) && docker compose pull app && docker compose up -d --no-build"
-```
 
-Three things in that line are load-bearing:
+Using a dedicated `PRODUCTION_DEPLOY_SSH_KEY` (and retiring the legacy
+`DEPLOY_SSH_KEY` entry on the VPS) makes activation fail closed: an un-migrated
+host rejects the connection rather than running an old unpinned forced command.
 
-- `--ff-only` — a plain `git pull` on a diverged checkout tries to merge, and
-  a deploy that quietly writes a merge commit on the box is worse than one
-  that stops.
-- `APP_TAG` — the commit just fetched. `docker-compose.yml` interpolates it,
-  so the box runs the image built from exactly that checkout rather than
-  whatever `:latest` happens to point at.
-- `--no-build` — stops compose rebuilding from source and defeating the
-  point.
+CI pipes the commit SHA and staging-verified `sha256` digest on stdin. Under an
+exclusive lock, the script checks `origin/main`, fast-forwards strictly to that
+commit (`git merge --ff-only "$commit"`), pulls the verified digest and commit
+tag and confirms their image IDs match, pins the effective Compose `app` image
+to the verified immutable digest (verified via `docker compose config` before
+startup so a host-local `docker-compose.override.yml` cannot substitute another
+image), starts Compose with `--pull never`, and verifies both the running
+container image ID and loopback readiness before reporting success.
 
 A backup of the previous file is kept alongside it as
 `authorized_keys.bak-<timestamp>`.

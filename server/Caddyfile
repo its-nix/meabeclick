@@ -13,7 +13,14 @@ meabeclick.com {
 	# Express port). Caddy sets X-Forwarded-Proto/X-Forwarded-Host by
 	# default via reverse_proxy, which is what PROTOCOL_HEADER/HOST_HEADER
 	# in docker-compose.yml tell adapter-node to trust.
-	reverse_proxy app:3000
+	# Serve approved content-machine exports from the dedicated media service.
+	handle_path /content-media/* {
+		reverse_proxy content-machine-media:8080
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
 
 	# The app derives the session cookie's Secure flag from ORIGIN/
 	# PROTOCOL_HEADER (adapter-node), which works because the app trusts

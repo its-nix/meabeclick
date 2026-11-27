@@ -47,8 +47,12 @@ if [[ "$head_sha" != "$commit" ]]; then
   exit 1
 fi
 
+umask 077
+work_dir=$(mktemp -d)
+trap 'rm -rf "$work_dir"' EXIT
+
 # Pull the immutable staging-verified digest and the commit tag, and verify
-# both resolve to the exact same image ID before Compose starts APP_TAG.
+# both resolve to the exact same image ID before Compose starts the app.
 digest_ref="$repository@$digest"
 tag_ref="$repository:$commit"
 if ! bounded 5s docker image inspect "$digest_ref" >/dev/null 2>&1; then
@@ -68,10 +72,32 @@ if [[ "$tag_id" != "$expected_id" ]]; then
   exit 1
 fi
 
-export APP_TAG="$commit"
-bounded 45s docker compose up -d --no-build --pull never
+# Pin the effective Compose app image to the immutable verified digest in a
+# final override file so a host-local docker-compose.override.yml cannot
+# substitute another cached image when Compose starts.
+pin_compose="$work_dir/pin-image.compose.yml"
+printf 'services:\n  app:\n    image: %s\n' "$digest_ref" > "$pin_compose"
+compose=(docker compose -f docker-compose.yml)
+if [[ -f docker-compose.override.yml ]]; then
+  compose+=(-f docker-compose.override.yml)
+fi
+compose+=(-f "$pin_compose")
 
-container=$(bounded 5s docker compose ps --quiet app)
+export APP_TAG="$commit"
+effective_image=$(bounded 15s "${compose[@]}" config --format json | node --input-type=module -e '
+  import fs from "node:fs";
+  const cfg = JSON.parse(fs.readFileSync(0, "utf8"));
+  process.stdout.write(cfg?.services?.app?.image ?? "");
+')
+if [[ "$effective_image" != "$digest_ref" ]]; then
+  printf 'Effective Compose app image %s does not match verified digest %s\n' \
+    "${effective_image:-missing}" "$digest_ref" >&2
+  exit 1
+fi
+
+bounded 45s "${compose[@]}" up -d --no-build --pull never
+
+container=$(bounded 5s "${compose[@]}" ps --quiet app)
 running_id=$(bounded 5s docker inspect "$container" --format '{{.Image}}')
 if [[ "$running_id" != "$expected_id" ]]; then
   printf 'Running production container image %s does not match verified image %s\n' \

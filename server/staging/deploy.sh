@@ -118,24 +118,29 @@ if [[ -f https.compose.yml ]]; then
     curl_tls=(--cacert "$STAGING_CA_CERT")
   fi
 
-  if [[ ! -r proxy-password || ! -r staging.env ]]; then
-    echo 'Staging HTTPS is enabled but proxy-password or staging.env is missing' >&2
+  if [[ ! -r proxy-password ]]; then
+    echo 'Staging HTTPS is enabled but proxy-password is missing' >&2
     exit 1
   fi
   proxy_password=$(tr -d '\r\n' < proxy-password)
-  admin_password=$(awk -F= '$1 == "ADMIN_PASSWORD" { sub(/^[^=]*=/, ""); sub(/\r$/, ""); print; exit }' staging.env)
-  if [[ -z "$proxy_password" || -z "$admin_password" ]]; then
-    echo 'Staging HTTPS credentials could not be read from proxy-password or staging.env' >&2
+  if [[ -z "$proxy_password" ]]; then
+    echo 'Staging HTTPS proxy-password is empty' >&2
     exit 1
   fi
 
   escaped_proxy_pass=${proxy_password//\\/\\\\}
   escaped_proxy_pass=${escaped_proxy_pass//\"/\\\"}
   printf 'user = "operator:%s"\n' "$escaped_proxy_pass" > "$work_dir/curl-auth.cfg"
-  escaped_admin_pass=${admin_password//\\/\\\\}
-  escaped_admin_pass=${escaped_admin_pass//\"/\\\"}
-  printf '{"password":"%s"}' "$escaped_admin_pass" > "$work_dir/login.json"
-  unset proxy_password admin_password escaped_proxy_pass escaped_admin_pass
+  unset proxy_password escaped_proxy_pass
+
+  # Read the effective ADMIN_PASSWORD directly from the running container so
+  # quoted/escaped staging.env values always match Docker Compose's env_file parsing.
+  if ! bounded 10s docker exec "$container" node -e \
+      'const p = process.env.ADMIN_PASSWORD; if (!p) process.exit(1); process.stdout.write(JSON.stringify({ password: p }));' \
+      > "$work_dir/login.json" || [[ ! -s "$work_dir/login.json" ]]; then
+    echo 'Staging HTTPS ADMIN_PASSWORD could not be read from the running container' >&2
+    exit 1
+  fi
 
   unauth_status=''
   for _ in 1 2 3 4 5; do

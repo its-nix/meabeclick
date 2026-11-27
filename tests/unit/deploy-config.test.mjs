@@ -269,7 +269,11 @@ test('the documented forced command satisfies Compose\'s APP_TAG contract', () =
     'production deploy must fast-forward strictly to the verified commit');
   assert.match(prodScript, /export APP_TAG="\$commit"/,
     'production deploy must set APP_TAG to the verified commit');
-  assert.match(prodScript, /docker compose up -d --no-build --pull never/,
+  assert.match(prodScript, /pin_compose="\$work_dir\/pin-image\.compose\.yml"/,
+    'production deploy must pin the effective Compose app image to the verified digest');
+  assert.match(prodScript, /"\$\{compose\[@\]\}" config --format json/,
+    'production deploy must verify the effective Compose app image before starting Compose');
+  assert.match(prodScript, /"\$\{compose\[@\]\}" up -d --no-build --pull never/,
     'production deploy must start Compose with --pull never after verifying the digest');
 });
 

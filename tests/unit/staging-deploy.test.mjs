@@ -39,7 +39,18 @@ case "$1" in
       wait $!
     fi
     ;;
-  exec) cat >/dev/null ;;
+  exec)
+    if [[ "$2" == "-i" ]]; then
+      cat >/dev/null
+    else
+      shift 2
+      if [[ -f staging.env ]]; then
+        node --env-file=staging.env "\${@:2}"
+      else
+        "$@"
+      fi
+    fi
+    ;;
   *) exit 1 ;;
 esac
 `, { mode: 0o755 });
@@ -158,11 +169,12 @@ async function startStagingTlsBackend(t, directory, {
   exposeBooking = false,
   exposeLogin = false,
   releaseHeader = `${currentCommit} ghcr.io/its-nix/meabeclick@${currentDigest}`,
+  stagingEnv = "ADMIN_PASSWORD='stage-admin-secret'\n",
 } = {}) {
   const { createServer } = await import('node:https');
   await writeFile(join(directory, 'https.compose.yml'), 'services: {}\n');
   await writeFile(join(directory, 'proxy-password'), 'stage-proxy-secret\n');
-  await writeFile(join(directory, 'staging.env'), 'ADMIN_PASSWORD=stage-admin-secret\n');
+  await writeFile(join(directory, 'staging.env'), stagingEnv);
   const tls = await makeLocalTls(directory);
 
   const expectedAuth = 'Basic ' + Buffer.from('operator:stage-proxy-secret').toString('base64');
@@ -216,10 +228,12 @@ async function startStagingTlsBackend(t, directory, {
   return { url: `https://127.0.0.1:${port}`, certPath: tls.certPath };
 }
 
-test('staging verifies HTTPS basic auth, booking page, tutor login, and release header over real TLS when https.compose.yml is present',
+test('staging verifies HTTPS basic auth, booking page, tutor login (including quoted staging.env), and release header over real TLS when https.compose.yml is present',
   { skip: process.platform !== 'linux', timeout: 15_000 }, async (t) => {
     const { directory, request, log } = await fixture(t);
-    const tls = await startStagingTlsBackend(t, directory);
+    const tls = await startStagingTlsBackend(t, directory, {
+      stagingEnv: "ADMIN_PASSWORD='stage-admin-secret'\n",
+    });
 
     const run = await request(currentCommit, currentDigest, {
       STAGING_PUBLIC_URL: tls.url,
@@ -229,6 +243,7 @@ test('staging verifies HTTPS basic auth, booking page, tutor login, and release 
     assert.match(run.stdout, new RegExp(`Verified staging startup, booking page, tutor session, and HTTPS ingress for ${currentDigest}`));
     const dockerLog = await readFile(log, 'utf8');
     assert.ok(dockerLog.includes('-f compose.yml -f https.compose.yml up '));
+    assert.ok(dockerLog.includes('exec stage-container node -e '));
   });
 
 test('staging HTTPS probe fails if unauthenticated requests are not rejected with 401',

@@ -10,12 +10,24 @@ const currentCommit = 'a'.repeat(40);
 const currentDigest = 'sha256:' + 'b'.repeat(64);
 const newerCommit = 'c'.repeat(40);
 
-async function fixture(t, { mainTip = currentCommit, tagImageId = 'sha256:verified-id', runningImageId = 'sha256:verified-id' } = {}) {
+async function fixture(t, {
+  mainTip = currentCommit,
+  tagImageId = 'sha256:verified-id',
+  runningImageId = 'sha256:verified-id',
+  overrideImage = null,
+  forcedConfigImage = null,
+} = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'prod-deploy-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const script = join(directory, 'deploy-production.sh');
   const log = join(directory, 'ops.log');
   await copyFile(new URL('../../server/deploy-production.sh', import.meta.url), script);
+  await writeFile(join(directory, 'docker-compose.yml'),
+    'services:\n  app:\n    image: ghcr.io/its-nix/meabeclick:${APP_TAG}\n');
+  if (overrideImage) {
+    await writeFile(join(directory, 'docker-compose.override.yml'),
+      `services:\n  app:\n    image: ${overrideImage}\n`);
+  }
 
   await writeFile(join(directory, 'git'), `#!/bin/bash
 printf 'git %s\\n' "$*" >> "$OPS_LOG"
@@ -41,6 +53,32 @@ case "$1" in
     fi
     ;;
   compose)
+    if [[ " $* " == *' config --format json'* ]]; then
+      if [[ -n '${forcedConfigImage ?? ''}' ]]; then
+        printf '{"services":{"app":{"image":"%s"}}}\\n' '${forcedConfigImage ?? ''}'
+        exit 0
+      fi
+      # Resolve services.app.image across -f files in Compose merge order (last wins).
+      shift
+      files=()
+      while [[ $# -gt 0 ]]; do
+        if [[ "$1" == "-f" ]]; then
+          files+=("$2")
+          shift 2
+        else
+          shift
+        fi
+      done
+      resolved=""
+      for f in "\${files[@]}"; do
+        img=$(awk '/^[[:space:]]*image:[[:space:]]*/ { sub(/^[[:space:]]*image:[[:space:]]*/, ""); print; exit }' "$f")
+        if [[ -n "$img" ]]; then
+          resolved="\${img//\\$\\{APP_TAG\\}/\${APP_TAG:-}}"
+        fi
+      done
+      printf '{"services":{"app":{"image":"%s"}}}\\n' "$resolved"
+      exit 0
+    fi
     if [[ " $* " == *' ps '* ]]; then printf 'prod-container\\n'; fi
     ;;
   inspect)
@@ -82,7 +120,30 @@ test('production deploy pins checkout and container to the exact verified SHA an
     assert.match(result.stdout, new RegExp(`^Deployed and verified production commit ${currentCommit} \\(${currentDigest}\\)$`, 'm'));
     const opsLog = await readFile(log, 'utf8');
     assert.ok(opsLog.includes(`git merge --ff-only ${currentCommit}`));
-    assert.ok(opsLog.includes(`docker APP_TAG=${currentCommit} compose up -d --no-build --pull never`));
+    assert.match(opsLog, new RegExp(`docker APP_TAG=${currentCommit} compose -f docker-compose\\.yml -f .+pin-image\\.compose\\.yml config --format json`));
+    assert.match(opsLog, new RegExp(`docker APP_TAG=${currentCommit} compose -f docker-compose\\.yml -f .+pin-image\\.compose\\.yml up -d --no-build --pull never`));
+  });
+
+test('a host-local docker-compose.override.yml setting another app image cannot bypass the verified digest pin',
+  { skip: process.platform !== 'linux', timeout: 10_000 }, async (t) => {
+    const { run, log } = await fixture(t, { overrideImage: 'ghcr.io/its-nix/meabeclick:unverified-cached' });
+    const result = await run(currentCommit, currentDigest);
+    assert.equal(result.code, 0, result.stderr);
+    const opsLog = await readFile(log, 'utf8');
+    // The generated pin file must follow docker-compose.override.yml so the
+    // effective app image resolves to the verified immutable digest before up.
+    assert.match(opsLog, /compose -f docker-compose\.yml -f docker-compose\.override\.yml -f .+pin-image\.compose\.yml config --format json/);
+    assert.match(opsLog, /compose -f docker-compose\.yml -f docker-compose\.override\.yml -f .+pin-image\.compose\.yml up -d --no-build --pull never/);
+  });
+
+test('production deploy aborts before starting Compose if effective app image differs from the verified digest',
+  { skip: process.platform !== 'linux', timeout: 10_000 }, async (t) => {
+    const { run, log } = await fixture(t, { forcedConfigImage: 'ghcr.io/its-nix/meabeclick:unverified-cached' });
+    const result = await run(currentCommit, currentDigest);
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /Effective Compose app image .* does not match verified digest/);
+    const opsLog = await readFile(log, 'utf8');
+    assert.doesNotMatch(opsLog, / up -d /);
   });
 
 test('production deploy skips without mutating the box when main moved ahead',

@@ -610,9 +610,11 @@ host rejects the connection rather than running an old unpinned forced command.
 CI pipes the commit SHA and staging-verified `sha256` digest on stdin. Under an
 exclusive lock, the script checks `origin/main`, fast-forwards strictly to that
 commit (`git merge --ff-only "$commit"`), pulls the verified digest and commit
-tag and confirms their image IDs match, starts Compose with `APP_TAG="$commit"`
-and `--pull never`, and verifies both the running container image ID and
-loopback readiness before reporting success.
+tag and confirms their image IDs match, pins the effective Compose `app` image
+to the verified immutable digest (verified via `docker compose config` before
+startup so a host-local `docker-compose.override.yml` cannot substitute another
+image), starts Compose with `--pull never`, and verifies both the running
+container image ID and loopback readiness before reporting success.
 
 A backup of the previous file is kept alongside it as
 `authorized_keys.bak-<timestamp>`.

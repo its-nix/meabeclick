@@ -5,6 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { setTimeout as delay } from 'node:timers/promises';
+import { canAccessDocument, effectivePermissions } from './drive-access-fixture.mjs';
 import { config, provider } from './central-drive-fixture.mjs';
 import { receipt, seedRetired } from './learning-archive-fixture.mjs';
 import { login } from './characterization/harness.mjs';
@@ -45,11 +46,12 @@ async function until(check, description) {
 export async function simulatedGoogle(t) {
   const google = provider();
   for (const [id, parent, key] of [
+    [config.projectFolderId, null, 'project'], [config.learningFolderId, config.projectFolderId, 'learning'],
     [receipt.workspaceId, config.learningFolderId, 'workspace'], [receipt.reviewId, receipt.workspaceId, 'review'],
     ['fixtureSiteFolder', config.learningFolderId, 'folder:site'], [receipt.studentsId, 'fixtureSiteFolder', 'folder:students'],
     [receipt.indexId, receipt.workspaceId, 'register'],
   ]) {
-    google.files.set(id, { id, parents: [parent], version: '1', owners: [owner], permissions: [owner],
+    google.files.set(id, { id, parents: parent ? [parent] : [], version: '1', owners: [owner], permissions: [owner],
       appProperties: { meaCentralScope: scope, meaCentralKey: hash(key) },
       mimeType: 'application/vnd.google-apps.' + (id === receipt.indexId ? 'spreadsheet' : 'folder') });
   }
@@ -60,7 +62,7 @@ export async function simulatedGoogle(t) {
     const [, , , , fileId, resource, permissionId] = url.pathname.split('/');
     const file = google.files.get(fileId);
     if (file && resource === 'permissions') {
-      if (method === 'GET') return Response.json({ permissions: file.permissions });
+      if (method === 'GET') return Response.json({ permissions: effectivePermissions(google.files, fileId) });
       if (method === 'POST') {
         const grant = { ...JSON.parse(body), id: 'grant-' + randomBytes(6).toString('hex') };
         file.permissions.push(grant);
@@ -96,7 +98,7 @@ export async function simulatedGoogle(t) {
       }
     }
     for (const f of google.files.values()) {
-      if (f.permissions?.length === 1 && !f.permissions[0].id) f.permissions = [owner];
+      if (f.permissions?.length === 1 && f.permissions[0].type === 'user' && Object.keys(f.permissions[0]).length === 1) f.permissions = [owner];
       f.version ??= '1';
     }
     return response;
@@ -181,8 +183,7 @@ export async function simulatedGoogle(t) {
           const target = new URL(link);
           assert.equal(target.origin, homeworkUrl.origin);
           assert.deepEqual(target.pathname.split('/').slice(0,4), homeworkUrl.pathname.split('/').slice(0,4));
-          const grant = doc.permissions.find(p => p.type === 'anyone' || p.emailAddress === email);
-          if (!grant || (edit !== undefined && grant.role !== 'writer')) return { status: 403 };
+          if (!canAccessDocument(google.files, doc.id, email, edit !== undefined)) return { status: 403 };
           if (edit !== undefined) doc.worksheet = edit;
           return { status: 200, text: doc.worksheet };
         },

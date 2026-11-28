@@ -135,12 +135,13 @@ for a in "$@"; do
     *) target="$a" ;;
   esac
 done
-canon="$(realpath -m -- "$target")"
+canon="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$target")"
 ok=0
 while IFS= read -r prefix; do
   [ -n "$prefix" ] || continue
+  prefix_canon="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$prefix")"
   case "$canon" in
-    "$prefix"|"$prefix"/*) ok=1 ;;
+    "$prefix_canon"|"$prefix_canon"/*) ok=1 ;;
   esac
 done <<< "$RM_ALLOW"
 if [ "$ok" -eq 1 ]; then
@@ -202,6 +203,16 @@ function previousRestore(dir) {
   mkdirSync(join(target, 'data'), { recursive: true });
   writeFileSync(join(target, 'data', 'KEEP'), 'previous');
   return target;
+}
+
+function packArchive(archive, stage, names) {
+  return spawnSync('python3', ['-c', `
+import sys, tarfile
+archive, stage, *names = sys.argv[1:]
+with tarfile.open(archive, 'w:gz') as tar:
+    for name in names:
+        tar.add(f'{stage}/{name}', arcname=name)
+`, archive, stage, ...names], { encoding: 'utf8' });
 }
 
 function skipWithoutSqlite(t) {
@@ -406,6 +417,19 @@ describe('restore-db.sh', { concurrency: false }, () => {
     }
   });
 
+  test('an unset HOME is safe when BACKUP_DIR is configured', (t) => {
+    if (skipWithoutSqlite(t)) return;
+    const h = harness();
+    const target = join(h.work, 'out');
+    try {
+      const r = run(h, [STAMP, target], { extraEnv: { HOME: undefined } });
+      assert.equal(r.status, 0, r.stderr);
+      assert.ok(existsSync(join(target, 'data', 'results.db')));
+    } finally {
+      rmSync(h.work, { recursive: true, force: true });
+    }
+  });
+
   test('DATA_DIR and a directory inside it are refused', (t) => {
     if (skipWithoutSqlite(t)) return;
     const h = harness();
@@ -502,13 +526,46 @@ with tarfile.open(archive, 'w:gz') as tar:
     }
   });
 
+  test('a zero-byte files archive fails closed and leaves the previous restore in place', (t) => {
+    if (skipWithoutSqlite(t)) return;
+    const h = harness();
+    const parent = join(h.work, 'parent');
+    const target = previousRestore(parent);
+    writeFileSync(join(h.backups, `files-${STAMP}.tar.gz`), '');
+    try {
+      const r = run(h, [STAMP, target]);
+      assert.equal(r.status, 1, r.stderr);
+      assert.match(r.stderr, /files archive is (unsafe|corrupt)/);
+      assert.equal(readFileSync(join(target, 'data', 'KEEP'), 'utf8'), 'previous');
+      assert.doesNotMatch(r.rmLog, /previous-restore/);
+    } finally {
+      rmSync(h.work, { recursive: true, force: true });
+    }
+  });
+
+  test('a corrupt archive under a ? and # parent fails before the swap', (t) => {
+    if (skipWithoutSqlite(t)) return;
+    const h = harness('broken-index');
+    const parent = join(h.work, 'parent?query#fragment');
+    const target = previousRestore(parent);
+    try {
+      const r = run(h, [STAMP, target]);
+      assert.notEqual(r.status, 0);
+      assert.match(r.stderr, /integrity check failed/);
+      assert.equal(readFileSync(join(target, 'data', 'KEEP'), 'utf8'), 'previous');
+      assert.doesNotMatch(r.rmLog, /previous-restore/);
+    } finally {
+      rmSync(h.work, { recursive: true, force: true });
+    }
+  });
+
   test('a files archive is unpacked into the restore that gets swapped in', (t) => {
     if (skipWithoutSqlite(t)) return;
     const h = harness();
     const stage = join(h.work, 'stage');
     mkdirSync(join(stage, 'portal'), { recursive: true });
     writeFileSync(join(stage, 'portal', 'board.json'), '{"fake":true}\n');
-    const packed = spawnSync('tar', ['-czf', join(h.backups, `files-${STAMP}.tar.gz`), '-C', stage, 'portal'], { encoding: 'utf8' });
+    const packed = packArchive(join(h.backups, `files-${STAMP}.tar.gz`), stage, ['portal']);
     assert.equal(packed.status, 0, packed.stderr);
     const parent = join(h.work, 'parent');
     const target = previousRestore(parent);
@@ -543,8 +600,8 @@ with tarfile.open(archive, 'w:gz') as tar:
     writeFileSync(badPath, buf);
     writeFileSync(join(stage, 'results.db-wal'), 'wal-garbage');
     writeFileSync(join(stage, 'results.db-shm'), 'shm-garbage');
-    const packed = spawnSync('tar', ['-czf', join(h.backups, `files-${STAMP}.tar.gz`), '-C', stage,
-      './results.db', './results.db-wal', './results.db-shm', './portal'], { encoding: 'utf8' });
+    const packed = packArchive(join(h.backups, `files-${STAMP}.tar.gz`), stage,
+      ['results.db', 'results.db-wal', 'results.db-shm', 'portal']);
     assert.equal(packed.status, 0, packed.stderr);
     const parent = join(h.work, 'parent');
     const target = previousRestore(parent);
@@ -654,4 +711,27 @@ with tarfile.open(archive, 'w:gz') as tar:
       rmSync(h.work, { recursive: true, force: true });
     }
   });
+
+  for (const protectedPath of ['server', '.git']) {
+    test(`a symlinked restore-drill pointing to ${protectedPath} is refused`, (t) => {
+      if (skipWithoutSqlite(t)) return;
+      const h = harness();
+      const layout = repoLayout(h.work);
+      mkdirSync(join(layout.repo, protectedPath), { recursive: true });
+      rmSync(layout.drill, { force: true });
+      symlinkSync(protectedPath, layout.drill);
+      const keep = join(layout.repo, protectedPath, 'KEEP');
+      writeFileSync(keep, protectedPath);
+      try {
+        const r = run(h, [STAMP], { script: layout.script });
+        assert.equal(r.status, 1, r.stderr);
+        assert.match(r.stderr, /restore-drill.*symlink/);
+        assert.equal(readFileSync(keep, 'utf8'), protectedPath);
+        assert.ok(existsSync(layout.drill));
+        assert.equal(r.rmLog, '');
+      } finally {
+        rmSync(h.work, { recursive: true, force: true });
+      }
+    });
+  }
 });

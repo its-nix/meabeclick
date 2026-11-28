@@ -24,7 +24,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-SRC="${BACKUP_DIR:-$HOME/backups}"
+if [ -n "${BACKUP_DIR:-}" ]; then
+  SRC="$BACKUP_DIR"
+elif [ -n "${HOME:-}" ]; then
+  SRC="$HOME/backups"
+else
+  echo "BACKUP_DIR or HOME must be set" >&2
+  exit 1
+fi
 STAMP="${1:-}"
 # An explicit empty target is a refusal, not a request for the default.
 # `${2:-...}` would treat "" as unset and restore into ./restore-drill.
@@ -33,6 +40,7 @@ if [ "$#" -ge 2 ]; then
 else
   TARGET="$PWD/restore-drill"
 fi
+TARGET_INPUT="$TARGET"
 
 if [ -z "$STAMP" ]; then
   newest="$(ls -1 "$SRC"/results-*.db 2>/dev/null | tail -1 || true)"
@@ -47,6 +55,30 @@ FILES="$SRC/files-$STAMP.tar.gz"
 refuse() {
   echo "refusing restore target '$TARGET': $*" >&2
   exit 1
+}
+
+# GNU realpath has -m; macOS does not. Python's realpath has the same
+# missing-component behavior and keeps the safety checks portable.
+realpath_m() {
+  if realpath -m -- "$1" 2>/dev/null; then
+    return 0
+  fi
+  python3 - "$1" <<'PY'
+import os
+import sys
+print(os.path.realpath(sys.argv[1]))
+PY
+}
+
+# SQLite URI filenames need path punctuation escaped before the query string.
+# Keep "/" readable as a path separator; quote() percent-encodes %, ?, #, and
+# the other URI-significant characters.
+readonly_db_uri() {
+  python3 - "$1" <<'PY'
+from urllib.parse import quote
+import sys
+print("file:" + quote(sys.argv[1], safe="/"))
+PY
 }
 
 # sqlite3 exits 0 when this pragma runs. A broken index comes back as text,
@@ -72,16 +104,22 @@ require_integrity() {
 if [ -z "$TARGET" ]; then
   refuse "a restore target must not be empty"
 fi
+if [ -L "$TARGET_INPUT" ]; then
+  refuse "the restore target must not be a symlink"
+fi
 
 # -m so a target that does not exist yet still canonicalises. Symlink
 # components are resolved, so a link to ./data is judged as ./data.
-CANON="$(realpath -m -- "$TARGET")" || refuse "could not resolve the path"
+CANON="$(realpath_m "$TARGET")" || refuse "could not resolve the path"
 [ -n "$CANON" ] || refuse "could not resolve the path"
 TARGET="$CANON"
 
 REPO="$(pwd -P)"
-REPO_DATA="$(realpath -m -- "$REPO/data")"
-HOME_CANON="$(realpath -m -- "$HOME")"
+REPO_DATA="$(realpath_m "$REPO/data")"
+HOME_CANON=""
+if [ -n "${HOME:-}" ]; then
+  HOME_CANON="$(realpath_m "$HOME")"
+fi
 
 # $1 protected path, $2 label, $3 "inside" to also refuse descendants.
 # ./restore-drill is the one path inside the repo a restore may replace;
@@ -106,7 +144,7 @@ guard "$HOME_CANON" "HOME"
 guard "$REPO" "the repo root"
 guard "$REPO_DATA" "the repo data directory" inside
 if [ -n "${DATA_DIR:-}" ]; then
-  DATA_CANON="$(realpath -m -- "$DATA_DIR")"
+    DATA_CANON="$(realpath_m "$DATA_DIR")"
   if [ "$DATA_CANON" != "$REPO_DATA" ]; then
     guard "$DATA_CANON" "DATA_DIR" inside
   fi
@@ -114,12 +152,15 @@ fi
 
 # Anything inside the checkout would take the script with it. ./restore-drill
 # is the documented default and the only exception; a path under it is not.
-DRILL="$(realpath -m -- "$REPO/restore-drill")"
+DRILL="$REPO/restore-drill"
+if [ -L "$DRILL" ]; then
+  refuse "the restore-drill path must not be a symlink"
+fi
 if [ "$TARGET" != "$DRILL" ] && [ "${TARGET#"$REPO"/}" != "$TARGET" ]; then
   refuse "it is inside the repo ($REPO); only $DRILL may be replaced there"
 fi
 
-SRC_CANON="$(realpath -m -- "$SRC")"
+SRC_CANON="$(realpath_m "$SRC")"
 guard "$SRC_CANON" "the backup directory" inside
 
 # Beside the target, not under /tmp, so the final mv is a rename on the
@@ -128,10 +169,14 @@ guard "$SRC_CANON" "the backup directory" inside
 # interrupted after the old directory had been moved aside.
 mkdir -p -- "$(dirname -- "$TARGET")"
 aside=""
+aside_dir=""
 scratch="$(mktemp -d "$(dirname -- "$TARGET")/.restore-scratch.XXXXXX")"
 cleanup() {
   if [ -n "$aside" ] && [ -e "$aside" ] && [ ! -e "$TARGET" ]; then
     mv -- "$aside" "$TARGET" || true
+  fi
+  if [ -n "$aside_dir" ] && [ -d "$aside_dir" ] && [ ! -e "$aside" ]; then
+    rmdir -- "$aside_dir" || true
   fi
   if [ -d "$scratch" ]; then
     rm -rf "$scratch"
@@ -141,19 +186,22 @@ trap cleanup EXIT
 mkdir -p "$scratch/data"
 cp "$DB" "$scratch/data/results.db"
 # Read-only, so the check cannot modify the copy that will be installed.
-ro="file:${scratch}/data/results.db?mode=ro"
+ro="$(readonly_db_uri "$scratch/data/results.db")"
 require_integrity "$ro" "$DB"
-fk_src="$(sqlite3 "$ro" 'PRAGMA foreign_key_check;' | wc -l)" || {
+fk_src="$(sqlite3 "$ro" 'PRAGMA foreign_key_check;' | wc -l | tr -d '[:space:]')" || {
   echo "foreign key check failed for $DB" >&2
   exit 1
 }
 [ "$fk_src" = "0" ] || { echo "FOREIGN KEY VIOLATIONS IN BACKUP" >&2; exit 1; }
 
-if [ -s "$FILES" ]; then
+if [ -e "$FILES" ] || [ -L "$FILES" ]; then
   # Validate the same private archive copy that will be extracted. Fail closed
   # on links (including hardlinks), special files, traversal and unknown roots.
   # Python's tar parser handles long/PAX names without line-oriented parsing.
-  cp -- "$FILES" "$scratch/files.tar.gz"
+  cp -- "$FILES" "$scratch/files.tar.gz" || {
+    echo "files archive is corrupt: $FILES" >&2
+    exit 1
+  }
   FILES="$scratch/files.tar.gz"
   if ! python3 - "$FILES" <<'PY'
 import sys
@@ -240,7 +288,7 @@ mkdir -p "$scratch/data/portal"
 # Re-check before the swap. The excludes above are what stop a tarball from
 # replacing results.db; these two checks are what stop the swap if it did.
 require_integrity "$ro" "$DB"
-fk_src="$(sqlite3 "$ro" 'PRAGMA foreign_key_check;' | wc -l)" || {
+fk_src="$(sqlite3 "$ro" 'PRAGMA foreign_key_check;' | wc -l | tr -d '[:space:]')" || {
   echo "foreign key check failed for $DB" >&2
   exit 1
 }
@@ -251,15 +299,20 @@ echo "restoring $STAMP into $TARGET"
 # rm-then-mv would drop the previous restore if the rename failed.
 chmod 755 "$scratch"
 if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then
-  aside="$(mktemp -u "$(dirname -- "$TARGET")/.restore-aside.XXXXXX")"
+  aside_dir="$(mktemp -d "$(dirname -- "$TARGET")/.restore-aside.XXXXXX")"
+  aside="$aside_dir/$(basename -- "$TARGET")"
   mv -- "$TARGET" "$aside"
   if ! mv -- "$scratch" "$TARGET"; then
     mv -- "$aside" "$TARGET"
+    rmdir -- "$aside_dir" || true
+    aside=""
+    aside_dir=""
     echo "failed to swap the checked restore into $TARGET" >&2
     exit 1
   fi
-  rm -rf "$aside"
+  rm -rf "$aside_dir"
   aside=""
+  aside_dir=""
 else
   mv -- "$scratch" "$TARGET"
 fi
@@ -269,9 +322,10 @@ fi
 mkdir -p "$TARGET/data/portal"
 
 echo "--- integrity ---"
-require_integrity "$TARGET/data/results.db" "restored database" show
+restored_ro="$(readonly_db_uri "$TARGET/data/results.db")"
+require_integrity "$restored_ro" "restored database" show
 echo "--- foreign keys ---"
-fk="$(sqlite3 "$TARGET/data/results.db" 'PRAGMA foreign_key_check;' | wc -l)"
+fk="$(sqlite3 "$restored_ro" 'PRAGMA foreign_key_check;' | wc -l | tr -d '[:space:]')"
 echo "violations: $fk"
 [ "$fk" = "0" ] || { echo "FOREIGN KEY VIOLATIONS IN RESTORE" >&2; exit 1; }
 

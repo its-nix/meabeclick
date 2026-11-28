@@ -61,6 +61,9 @@ export STAGING_IMAGE="$repository@$digest"
 compose=(docker compose --env-file /dev/null --project-name meabeclick-staging -f compose.yml)
 if [[ -f https.compose.yml ]]; then
   compose+=(-f https.compose.yml)
+  if [[ -f learning.compose.yml ]]; then
+    compose+=(-f learning.compose.yml)
+  fi
 fi
 if ! bounded 5s docker image inspect "$STAGING_IMAGE" >/dev/null 2>&1; then
   bounded 300s "${compose[@]}" pull app

@@ -535,9 +535,37 @@ with a `WWW-Authenticate: Basic` challenge, authenticated `/booking` returns
 `200` with `noindex` and `no-store`, and authenticated tutor login + `/api/me`
 over HTTPS confirms `x-meabeclick-release` matches the deployed commit and digest.
 The Google OAuth redirect URI for the staging project is
-`https://staging.meabeclick.com/auth/google/callback`. The ingress bridge
-allows local proxy traffic. Google integration requires separate staging
-credentials and an outbound network before authoring is enabled.
+`https://staging.meabeclick.com/auth/google/callback`. The ingress bridge handles local proxy traffic.
+
+### Staging Google lessons
+
+Install `learning.compose.yml` and `learning-squid.conf` from `server/staging/`
+alongside the staging Compose file. Before deploying, pull the exact Squid image
+digest named in the overlay. The deploy script loads the learning overlay when
+both it and the HTTPS overlay are installed. The app uses the internal client
+bridge. Only the proxy has an outbound bridge and its ACL permits HTTPS CONNECT
+to the listed Google and lesson-authoring hosts.
+
+Use a private staging Drive folder, a staging-owned workspace configuration and
+a web OAuth client from `meabeclick-stage` with the redirect URI above.
+Set `LEARNING_GOOGLE_CLIENT_ID`, `LEARNING_GOOGLE_CLIENT_SECRET`,
+`LEARNING_GOOGLE_WORKSPACE_FILE`, a fresh 64-hex-character
+`LEARNING_GOOGLE_TOKEN_KEY` and a dedicated `CRON_KEY` in `staging.env`.
+Keep the workspace file inside the staging data volume, readable by the app
+user, with mode 0600. Recreate the staging app to apply changes.
+Sign in as the staging tutor, open `/app/library/connection`, authorize the
+workspace owner, select the staging learning folder and enable automatic sync.
+Provision the author login in the staging container's own `CODEX_HOME` before
+enabling lesson authoring.
+
+Install the two `meabeclick-staging-learning-sync.*` units in
+`/etc/systemd/system/`, run `systemctl daemon-reload` and enable the timer
+with `systemctl enable --now meabeclick-staging-learning-sync.timer`.
+The timer calls the staging container's sync endpoint every five minutes.
+A successful timer invocation verifies the HTTP call. To verify the lesson
+workflow, book a synthetic lesson, inspect the generated Slides and homework
+Doc, approve the bundle in its staging Sheet, and check release, student and
+parent access, and the tutor's filed Slides version.
 
 ## Deploy
 

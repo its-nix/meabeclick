@@ -10,9 +10,11 @@ else
   image=${1:?Pass --staging or a release image}
 fi
 export COPYFILE_DISABLE=1
-git ls-files -z -- src tests server/drive package.json |
+git ls-files -z -- tests/characterization/{student-games.test,harness}.mjs \
+  tests/{simulated-lesson-review,visual-deck-fixture,central-drive-fixture}.mjs \
+  tests/unit/native-homework-share.test.mjs |
   tar -czf - --null -T - |
-  docker run --rm -i --network none --tmpfs /tmp:exec "$image" sh -ec '
+  docker run --rm -i --env TEST_RELEASE_IMAGE=1 --network none --tmpfs /tmp:exec "$image" sh -ec '
     mkdir /tmp/lesson && cd /tmp/lesson
     tar xzf -
     for dir in node_modules build static templates; do ln -s "/app/$dir" "$dir"; done

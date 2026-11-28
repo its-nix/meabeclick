@@ -3,14 +3,13 @@
 import assert from 'node:assert/strict';
 import { provider, config } from './central-drive-fixture.mjs';
 import { visualDeckFixture } from './visual-deck-fixture.mjs';
-import { workspaceHeader, workspaceTables, workspaceSiteColumns } from '../src/lib/learning/workspace.ts';
 
 export async function simulatedReview({ bookingId, studentId, dbPath }) {
   process.env.DB_PATH = dbPath;
-  const { enqueueNativeLesson } = await import('../src/lib/server/native-learning/jobs.ts');
-  const { publishNativeReviewBundle } = await import('../src/lib/server/native-learning/bundle.ts');
-  const { nativeDraftRecords, writeNativeGamesFile } = await import('../src/lib/server/native-learning/register.ts');
-  const { syncNativeGameApprovals } = await import('../src/lib/server/native-learning/approval-sync.ts');
+  const {
+    enqueueNativeLesson, publishNativeReviewBundle, nativeDraftRecords,
+    writeNativeGamesFile, syncNativeGameApprovals, workspaceHeader, workspaceTables, workspaceSiteColumns,
+  } = await import('../build/server/lesson-release.js');
   const job = enqueueNativeLesson({ bookingId, studentId });
   const bundle = visualDeckFixture();
   const google = provider();

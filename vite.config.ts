@@ -4,6 +4,15 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  environments: {
+    ssr: {
+      build: {
+        rolldownOptions: {
+          input: { 'lesson-release': 'src/lib/server/native-learning/release-entry.ts' },
+        },
+      },
+    },
+  },
   plugins: [
     sveltekit({
       preprocess: vitePreprocess(),

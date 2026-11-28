@@ -167,11 +167,13 @@ export async function simulatedGoogle(t) {
         await until(() => expected === 'approved'
           ? doc.permissions.some(p => p.emailAddress === homeworkAccounts.parent && p.role === 'reader')
           : doc.permissions.every(p => p.role === 'owner'), 'homework permission sync');
-        const deliveryDb = new DatabaseSync(dbPath, { readOnly: true });
-        try {
-          const ready = deliveryDb.prepare('SELECT ready FROM native_homework_delivery WHERE doc_id=?');
-          await until(() => Boolean(ready.get(doc.id)?.ready) === (expected === 'approved'), 'portal delivery state');
-        } finally { deliveryDb.close(); }
+        await until(() => {
+          const db = new DatabaseSync(dbPath, { readOnly: true });
+          try {
+            const row = db.prepare('SELECT ready FROM native_homework_delivery WHERE doc_id=?').get(doc.id);
+            return Boolean(row?.ready) === (expected === 'approved');
+          } finally { db.close(); }
+        }, 'portal delivery state');
         assert.deepEqual(errors, []);
       }
       return { version: game.get('content_sha256'), homeworkUrl: homeworkUrl.href,

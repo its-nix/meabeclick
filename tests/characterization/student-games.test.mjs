@@ -67,6 +67,10 @@ test('approved homework and games reach the correct family sessions until withdr
     const parentBoard = await homeworkBoard(parent, homeworkAccounts.parent);
     await studentBoard(false);
     await parentBoard(false);
+    for (const email of [homeworkAccounts.student, homeworkAccounts.parent, 'unrelated@example.test']) {
+      assert.equal(review.documentRequest(review.homeworkUrl, email).status, 403,
+        `The draft homework must be private before tutor approval (${email})`);
+    }
     await review.approve();
     const studentDoc = await studentBoard(true);
     const parentDoc = await parentBoard(true);

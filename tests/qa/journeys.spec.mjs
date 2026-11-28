@@ -221,7 +221,7 @@ test('workspace: verified retirement opens the native library and the legacy end
  await expect(page.getByRole('link',{name:'פתיחת המרחב ב־Drive'})).toHaveAttribute('href',`https://drive.google.com/drive/folders/${nativeReceipt.workspaceId}`);
  await page.locator('details.archive summary').focus();await page.keyboard.press('Enter');await expect(page.getByRole('link',{name:'פתיחת רישום הארכיון'})).toBeVisible();
  for(const path of ['/api/library/prepare','/api/library/import'])expect((await qa.request(path,{method:'POST',json:{template:'math-8',skill:'synthetic'}})).status).toBe(404);
- expect((await qa.request('/api/central-drive-sync',{method:'POST'})).status).toBe(401);
+ expect((await qa.request('/api/central-drive-sync',{method:'POST',json:{}})).status).toBe(401);
  expect((await qa.request('/api/library/due')).status).toBe(404);expect(qa.row('SELECT count(*) n FROM homework').n).toBe(homework);
  await page.locator('details.archive summary').evaluate(el=>el.blur());await page.evaluate(()=>scrollTo(0,0));await qa.evidence(page,'native-workspace');
 });

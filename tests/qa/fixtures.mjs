@@ -52,7 +52,7 @@ export const test = base.extend({
       const learner = await seedLearning(server, 'qa', { sessionForLink });
       const request = async (path, { method = 'GET', cookie = tutor, json } = {}) => {
         const response = await fetch(server.baseUrl + path, {
-          method, redirect: 'manual', headers: { Cookie: cookie, Origin: browserUrl, ...(json === undefined ? {} : { 'Content-Type': 'application/json' }) },
+          method, redirect: 'manual', headers: { Cookie: cookie, ...(json === undefined ? {} : { 'Content-Type': 'application/json' }) },
           ...(json === undefined ? {} : { body: JSON.stringify(json) }),
         });
         return response;

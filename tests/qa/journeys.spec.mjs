@@ -58,7 +58,7 @@ test('public-booking: plan keyboard navigation and availability failure recovery
   await expect(page.locator('#inp-name')).toBeVisible();
   await qa.evidence(page, 'booking-details');
   for (const path of ['/privacy', '/terms']) {
-    expect((await page.goto(path)).status()).toBe(200);
+    expect((await page.goto(path, { waitUntil: 'networkidle' })).status()).toBe(200);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   }
 });
@@ -221,7 +221,7 @@ test('workspace: verified retirement opens the native library and the legacy end
  await expect(page.getByRole('link',{name:'פתיחת המרחב ב־Drive'})).toHaveAttribute('href',`https://drive.google.com/drive/folders/${nativeReceipt.workspaceId}`);
  await page.locator('details.archive summary').focus();await page.keyboard.press('Enter');await expect(page.getByRole('link',{name:'פתיחת רישום הארכיון'})).toBeVisible();
  for(const path of ['/api/library/prepare','/api/library/import'])expect((await qa.request(path,{method:'POST',json:{template:'math-8',skill:'synthetic'}})).status).toBe(404);
- expect((await qa.request('/api/central-drive-sync',{method:'POST',json:{}})).status).toBe(401);
+ expect((await qa.request('/api/central-drive-sync',{method:'POST'})).status).toBe(401);
  expect((await qa.request('/api/library/due')).status).toBe(404);expect(qa.row('SELECT count(*) n FROM homework').n).toBe(homework);
  await page.locator('details.archive summary').evaluate(el=>el.blur());await page.evaluate(()=>scrollTo(0,0));await qa.evidence(page,'native-workspace');
 });
@@ -315,7 +315,7 @@ test('workspace: before the cutover the teaching page explains setup and tutor s
   await expect(page.getByRole('link', { name: 'מרחב Google', exact: true })).toHaveAttribute('href', '/app/library/connection');
   await qa.evidence(page, 'library-setup');
   for (const path of ['/app/marketing', '/app/metrics']) {
-    expect((await page.goto(path)).status()).toBe(200);
+    expect((await page.goto(path, { waitUntil: 'networkidle' })).status()).toBe(200);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
   }
 });

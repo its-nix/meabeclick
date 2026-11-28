@@ -41,18 +41,28 @@ export const test = base.extend({
     });
     await new Promise(resolve => proxy.listen(0, '127.0.0.1', resolve));
     const browserUrl = `https://127.0.0.1:${proxy.address().port}`;
+    // adapter-node uses ORIGIN (browserUrl) as event.url.origin for all requests,
+    // including direct HTTP requests to server.baseUrl, so same-origin CSRF checks
+    // expect this exact origin on bodyless mutations.
+    const serverOrigin = new URL(browserUrl).origin;
     const contexts = [];
     const errors = [];
     try {
-      server = await startServer({ fakeGoogle:learningConnection,env: { NODE_ENV: 'production', SITE_URL: browserUrl, ORIGIN: browserUrl,NATIVE_LESSON_AUTHORING_ENABLED:String(nativeAuthoring),LEARNING_FEEDBACK_ENABLED:String(learningFeedback),...learningEnv } });
+      server = await startServer({ fakeGoogle:learningConnection,env: { NODE_ENV: 'production', SITE_URL: serverOrigin, ORIGIN: serverOrigin,NATIVE_LESSON_AUTHORING_ENABLED:String(nativeAuthoring),LEARNING_FEEDBACK_ENABLED:String(learningFeedback),...learningEnv } });
       // Seed helpers use HTTP on the private backend; browsers use the HTTPS
       // entry point, preserving the app's real production cookie semantics.
       const sessionForLink = link => familySession(link.replace(browserUrl, server.baseUrl));
       const tutor = await login(server.baseUrl);
       const learner = await seedLearning(server, 'qa', { sessionForLink });
       const request = async (path, { method = 'GET', cookie = tutor, json } = {}) => {
+        const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
         const response = await fetch(server.baseUrl + path, {
-          method, redirect: 'manual', headers: { Cookie: cookie, ...(json === undefined ? {} : { 'Content-Type': 'application/json' }) },
+          method, redirect: 'manual',
+          headers: {
+            Cookie: cookie,
+            ...(isMutation && json === undefined ? { Origin: serverOrigin } : {}),
+            ...(json === undefined ? {} : { 'Content-Type': 'application/json' }),
+          },
           ...(json === undefined ? {} : { body: JSON.stringify(json) }),
         });
         return response;

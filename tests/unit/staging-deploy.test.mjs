@@ -335,3 +335,30 @@ test('staging HTTPS probe refuses plaintext http:// URLs without sending credent
     assert.match(run.stderr, /Staging public URL must use https:\/\//);
     assert.equal(received, 0, 'must never transmit credentials or requests over plaintext HTTP');
   });
+
+test('staging ignores the learning overlay without HTTPS', { skip: process.platform !== 'linux' }, async t => {
+  const { directory, request, log } = await fixture(t);
+  await writeFile(join(directory, 'learning.compose.yml'), 'services: {}\n');
+  const run = await request(currentCommit, currentDigest).result;
+  assert.equal(run.code, 0, run.stderr);
+  const commands = await readFile(log, 'utf8');
+  assert.match(commands, /-f compose\.yml up /);
+  assert.doesNotMatch(commands, /learning\.compose\.yml/);
+});
+
+test('staging loads the learning overlay over HTTPS only with a proxy configuration',
+  { skip: process.platform !== 'linux' }, async t => {
+    const { directory, request, log } = await fixture(t);
+    const tls = await startStagingTlsBackend(t, directory);
+    await writeFile(join(directory, 'learning.compose.yml'), 'services: {}\n');
+    const env = { STAGING_PUBLIC_URL: tls.url, STAGING_CA_CERT: tls.certPath };
+    const missing = await request(currentCommit, currentDigest, env).result;
+    assert.equal(missing.code, 1);
+    assert.match(missing.stderr, /learning-squid\.conf/);
+    assert.doesNotMatch(await readFile(log, 'utf8'), / compose /);
+
+    await writeFile(join(directory, 'learning-squid.conf'), 'http_access deny all\n');
+    const run = await request(currentCommit, currentDigest, env).result;
+    assert.equal(run.code, 0, run.stderr);
+    assert.match(await readFile(log, 'utf8'), /-f compose\.yml -f https\.compose\.yml -f learning\.compose\.yml up /);
+  });

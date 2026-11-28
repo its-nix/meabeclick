@@ -1,0 +1,27 @@
+services:
+  app:
+    environment:
+      HTTPS_PROXY: http://learning-proxy:3128
+      HTTP_PROXY: http://learning-proxy:3128
+      NO_PROXY: localhost,127.0.0.1,::1
+      NODE_USE_ENV_PROXY: "1"
+    networks:
+      - learning-client
+    depends_on:
+      - learning-proxy
+
+  learning-proxy:
+    image: ubuntu/squid@sha256:6a097f68bae708cedbabd6188d68c7e2e7a38cedd05a176e1cc0ba29e3bbe029
+    restart: unless-stopped
+    volumes:
+      - ./learning-squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - learning-client
+      - learning-out
+
+networks:
+  learning-client:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.gateway_mode_ipv4: isolated
+  learning-out: {}

@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply staging learning register approvals
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=45
+ExecStart=/usr/bin/docker exec meabeclick-staging-app-1 node --input-type=module -e "const key = process.env.CRON_KEY; if (!key) throw Error('Missing staging cron key'); const response = await fetch('http://127.0.0.1:3000/api/central-drive-sync', { headers: { 'x-cron-key': key }, signal: AbortSignal.timeout(30000) }); if (!response.ok) throw Error('Staging sync HTTP ' + response.status);"

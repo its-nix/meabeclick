@@ -57,7 +57,7 @@ test('logout clears the cookie', async () => {
   const { baseUrl, stop } = await startServer();
   try {
     const cookie = await login(baseUrl);
-    const r = await fetch(`${baseUrl}/api/logout`, { method: 'POST', headers: { Cookie: cookie } });
+    const r = await fetch(`${baseUrl}/api/logout`, { method: 'POST', headers: { Cookie: cookie, Origin: baseUrl } });
     assert.equal(r.status, 200);
     const cleared = r.headers.getSetCookie().find(c => c.startsWith('maab_session='));
     assert.match(cleared, /Max-Age=0/);

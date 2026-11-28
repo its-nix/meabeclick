@@ -31,7 +31,7 @@ test('roles-smoke: anonymous guards and three authenticated dashboards', async (
     await qa.evidence(page, role);
     await page.getByRole('button', { name: role === 'tutor' ? 'יציאה מהחשבון' : 'יציאה', exact: true }).click();
     await expect(page).toHaveURL(qa.browserUrl + '/');
-    await page.waitForLoadState('load');
+    await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await page.goto(path);
     await expect(page).toHaveURL(role === 'tutor' ? /\/login/ : /\/portal/);
@@ -58,7 +58,7 @@ test('public-booking: plan keyboard navigation and availability failure recovery
   await expect(page.locator('#inp-name')).toBeVisible();
   await qa.evidence(page, 'booking-details');
   for (const path of ['/privacy', '/terms']) {
-    expect((await page.goto(path)).status()).toBe(200);
+    expect((await page.goto(path, { waitUntil: 'networkidle' })).status()).toBe(200);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   }
 });
@@ -315,7 +315,7 @@ test('workspace: before the cutover the teaching page explains setup and tutor s
   await expect(page.getByRole('link', { name: 'מרחב Google', exact: true })).toHaveAttribute('href', '/app/library/connection');
   await qa.evidence(page, 'library-setup');
   for (const path of ['/app/marketing', '/app/metrics']) {
-    expect((await page.goto(path)).status()).toBe(200);
+    expect((await page.goto(path, { waitUntil: 'networkidle' })).status()).toBe(200);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
   }
 });

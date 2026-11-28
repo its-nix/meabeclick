@@ -27,7 +27,7 @@ async function ageLesson(dbPath) {
 }
 
 const prompt = (baseUrl, key) => fetch(`${baseUrl}/api/reports/prompt`, {
-  method: 'POST', headers: key ? { 'X-Cron-Key': key } : {},
+  method: 'POST', headers: { 'Content-Type': 'application/json', ...(key ? { 'X-Cron-Key': key } : {}) },
 });
 
 test('the prompt endpoint refuses anyone without the key', async () => {
@@ -37,7 +37,7 @@ test('the prompt endpoint refuses anyone without the key', async () => {
     assert.equal((await prompt(baseUrl, 'wrong')).status, 401);
     // A tutor session is not a substitute: this endpoint is for the timer.
     const cookie = await login(baseUrl);
-    const asTutor = await fetch(`${baseUrl}/api/reports/prompt`, { method: 'POST', headers: { Cookie: cookie } });
+    const asTutor = await fetch(`${baseUrl}/api/reports/prompt`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' } });
     assert.equal(asTutor.status, 401);
   } finally { await stop(); }
 });

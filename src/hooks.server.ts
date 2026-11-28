@@ -1,5 +1,5 @@
-import type { Handle } from '@sveltejs/kit';
-import { dev } from '$app/environment';
+import type { Handle } from '@sveltejs/kit/hooks';
+import { dev } from '$app/env';
 import { checkEnv, checkDataDir, checkPortalDir, checkGoogleLogin, checkLessonEngine, checkPlanTemplates } from '$server/boot-checks.ts';
 
 // Boot checks apply in production only. `npm run dev` must stay usable for
@@ -65,7 +65,7 @@ export const handle: Handle = async ({ event, resolve }) => {
   const response = await resolve(event);
   // Every response, pages and API alike. The Content-Security-Policy is
   // NOT set here: SvelteKit adds it per page with the hydration script's
-  // nonce (svelte.config.js), and the two document endpoints set their own.
+  // nonce (vite.config.ts), and the two document endpoints set their own.
   response.headers.set('Permissions-Policy', PERMISSIONS_POLICY);
   return response;
 };

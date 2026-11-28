@@ -50,7 +50,7 @@ try {
   const payload = `p.${pending.id}.${Date.parse(pending.expires_at)}`;
   const confirmationToken = payload + '.' + createHmac('sha256', 'test-secret-not-a-real-one').update(payload).digest('base64url');
   db.close();
-  const setup = await (await fetch(server.baseUrl + '/api/teachers/1/setup-link', { method: 'POST', headers: { Cookie: admin } })).json();
+  const setup = await (await fetch(server.baseUrl + '/api/teachers/1/setup-link', { method: 'POST', headers: { Cookie: admin, Origin: server.baseUrl } })).json();
   const setupPath = new URL(setup.link).pathname;
   for (const [role, cookie] of [['public', null], ['tutor', admin], ['parent', parent], ['student', student]]) {
     for (const appearance of baseline ? ['light'] : ['light', 'dark']) {

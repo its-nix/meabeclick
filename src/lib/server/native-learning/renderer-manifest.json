@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "rendererHash": "cb1ede8f18dc4a4dd4c294fc2f5ce5f1c29efbbc4e363966cd92dd6db60397ba",
+  "rendererHash": "a9fa181672ad246923359350e2d453360d08fb972582662c430b2a32b784a020",
   "files": {
     "Dockerfile": "068b0e24d95f51cfe6c1019da373c3ff868886e83a51e112ba8d7a2d05cdef36",
-    "package-lock.json": "9684bec27da525fe3cc1669b764bf70efa475297575177584112a293ae6cd6cc",
+    "package-lock.json": "1730b53a1ee40091dcfa5078b0624bc47ebd46542ab3c666b73f02fc7701c6e1",
     "src/lib/brand.ts": "354f37bcbf0eb760732af67d0694e607e1183bdde4b983510c14e42cb469b9cd",
     "src/lib/learning/deck/model.ts": "47cd2ed03ad0366d109feb4cc21e13c67d4377442e173099dcac89bbd66523c7",
     "src/lib/learning/deck/normal.ts": "55bbcde5a9b72349154b2e79e33b124725d79f1225345bbb01da1b421bc77c5c",

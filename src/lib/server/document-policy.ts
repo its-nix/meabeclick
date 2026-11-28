@@ -3,7 +3,7 @@
  * endpoints: the activity players (/app/native-review-activities,
  * /app/student/games/..., /sample-game).
  *
- * SvelteKit's own CSP (svelte.config.js) only covers pages it renders. A
+ * SvelteKit's own CSP (vite.config.ts) only covers pages it renders. A
  * player is a complete HTML file with its runtime inlined by the renderers in
  * src/lib/server. So it needs its own policy, and that
  * policy has to allow inline script and style for THAT document — the one

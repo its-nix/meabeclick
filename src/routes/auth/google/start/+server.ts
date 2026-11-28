@@ -25,5 +25,5 @@ export const POST: RequestHandler = async ({ request, cookies, locals, getClient
   }
   const flow = startGoogleFlow(options);
   cookies.set(GOOGLE_FLOW_COOKIE, flow.browser, { path: '/auth/google', httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 600 });
-  redirect(303, flow.url);
+  redirect(303, flow.url, { external: ['https://accounts.google.com'] });
 };

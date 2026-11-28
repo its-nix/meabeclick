@@ -26,7 +26,7 @@ export const actions:Actions={
   try{started=learningService().start(event.cookies.get(COOKIE_NAME)??'');}
   catch(e){const reason=e instanceof Error&&e.message==='busy'?'busy':'setup';return fail(reason==='busy'?429:503,{message:LEARNING_GOOGLE_ERRORS[reason]});}
   event.cookies.set(LEARNING_FLOW_COOKIE,started.browser,{path:'/auth/google',httpOnly:true,sameSite:'lax',secure:event.url.protocol==='https:',maxAge:600});
-  redirect(303,started.url);
+  redirect(303,started.url,{external:['https://accounts.google.com']});
  },
  verify:async event=>{
   requireAuth(event);

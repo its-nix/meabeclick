@@ -14,6 +14,7 @@ test('the report-prompt unit calls the prompt endpoint with the key', () => {
   const unit = read('server/meabeclick-report-prompt.service');
   assert.match(unit, /\/api\/reports\/prompt/);
   assert.match(unit, /X-Cron-Key/);
+  assert.match(unit, /Content-Type: application\/json/);
   assert.match(unit, /\$\{?CRON_KEY\}?/, 'the key comes from the environment, never inline');
   assert.doesNotMatch(unit, /X-Cron-Key:\s*[A-Za-z0-9]{8,}/, 'no literal secret in a checked-in file');
   // Without --fail, curl exits 0 on a 401 response body — "the timer tells
@@ -62,6 +63,7 @@ test('the ops-health unit POSTs /api/health/ops with the key, fails loudly, and 
   assert.match(unit, /-X POST/);
   assert.match(unit, /http:\/\/127\.0\.0\.1:3000\/api\/health\/ops/);
   assert.match(unit, /X-Cron-Key: \$\{CRON_KEY\}/);
+  assert.match(unit, /Content-Type: application\/json/);
   assert.match(unit, /curl[^\n]*--fail/);
   assert.match(unit, /EnvironmentFile=%h\/mea-beclick\/\.cron-key\.env/);
   assert.doesNotMatch(unit, /EnvironmentFile=%h\/mea-beclick\/\.env\b/);

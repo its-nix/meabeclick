@@ -3,11 +3,9 @@
 export { createAccount, createStudent, reserveBooking } from '../entities.ts';
 export { handle } from '../db.ts';
 export { enqueueNativeLesson } from './jobs.ts';
-export { publishNativeReviewBundle } from './bundle.ts';
-export { nativeDraftRecords, writeNativeGamesFile } from './register.ts';
-export { syncNativeGameApprovals } from './approval-sync.ts';
+export { nativeDraftRecords } from './register.ts';
 export { studentHomeworkLinks, syncHomeworkShares } from './homework-share.ts';
 export { placeHomeworkDoc } from './homework-placement.ts';
 export { homeworkDeliveryPermissions } from '../central-drive/share.ts';
 export { verifyFeedbackFile } from '../learning-feedback/google.ts';
-export { workspaceHeader, workspaceTables, workspaceSiteColumns } from '../../learning/workspace.ts';
+export { workspaceHeader, workspaceTables } from '../../learning/workspace.ts';

@@ -11,7 +11,7 @@ else
 fi
 export COPYFILE_DISABLE=1
 git ls-files -z -- tests/characterization/{student-games.test,harness}.mjs \
-  tests/{simulated-lesson-review,visual-deck-fixture,central-drive-fixture}.mjs \
+  tests/{simulated-lesson-review,visual-deck-fixture,central-drive-fixture,lesson-provider-preload,lesson-author-fixture,learning-archive-fixture}.mjs \
   tests/unit/native-homework-share.test.mjs |
   tar -czf - --null -T - |
   docker run --rm -i --env TEST_RELEASE_IMAGE=1 --network none --tmpfs /tmp:exec "$image" sh -ec '

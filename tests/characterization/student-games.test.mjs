@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, familySession } from './harness.mjs';
-import { simulatedReview } from '../simulated-lesson-review.mjs';
+import { simulatedGoogle } from '../simulated-lesson-review.mjs';
 
 function book(baseUrl) {
   const start = new Date();
@@ -18,19 +18,21 @@ function book(baseUrl) {
   });
 }
 
-test('the games list and player serve a signed-in student only, and the answer endpoint trusts the session, not the body', async () => {
-  const { baseUrl, dbPath, stop } = await startServer();
+test('the games list and player serve a signed-in student only, and the answer endpoint trusts the session, not the body', async t => {
+  const google = await simulatedGoogle(t);
+  const { baseUrl, dbPath, dataDir, stop } = await startServer({ env: google.env });
+  const localLink = link => link.replace(google.env.SITE_URL, baseUrl);
   try {
     const first = await (await book(baseUrl)).json();
-    const parent = await familySession(first.portal.link);
+    const parent = await familySession(localLink(first.portal.link));
     const share = await (await fetch(`${baseUrl}/api/student-link`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: parent }, body: JSON.stringify({ code: first.portal.code }) })).json();
-    const child = await familySession(share.link);
+    const child = await familySession(localLink(share.link));
 
     const db = new DatabaseSync(dbPath);
     const { id: studentId } = db.prepare('SELECT id FROM students_v2 WHERE code=?').get(first.portal.code);
     const { id: bookingId } = db.prepare('SELECT id FROM bookings_v2 LIMIT 1').get();
     db.close();
-    const review = await simulatedReview({ bookingId, studentId, dbPath });
+    const review = await google.review({ bookingId, studentId, dbPath, baseUrl, dataDir });
     const get = (path, cookie) => fetch(`${baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {}, redirect: 'manual' });
     const gamePath = `/app/student/games/${bookingId}/axis-game`;
     assert.equal((await get(gamePath, child)).status, 404);

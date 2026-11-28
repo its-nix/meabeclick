@@ -243,7 +243,7 @@
       ניקול ניסימוב<br />
       דואר אלקטרוני:
       <a href="mailto:mea.beclick@gmail.com">mea.beclick@gmail.com</a><br />
-      וואטסאפ: 054-696-9891
+      וואטסאפ: <bdi class="phone-nowrap" dir="ltr">054-696-9891</bdi>
     </p>
   </div>
 </LegalPage>

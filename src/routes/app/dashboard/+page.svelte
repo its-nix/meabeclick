@@ -168,7 +168,10 @@
     const charges = (chargesFor[code] ?? []).filter(c => c.status !== 'void');
     const paid = charges.reduce((a, c) => a + (c.status === 'paid' ? c.amount_agorot : 0), 0) / 100;
     const owed = charges.reduce((a, c) => a + c.amount_agorot, 0) / 100;
-    return { paid, owed, balance: owed - paid, hwPending: ex.homework.filter(h => !h.submitted && !h.graded).length };
+    const due = dueAgorot(charges, israelToday()) / 100;
+    const balance = owed - paid;
+    const upcoming = Math.max(0, Math.round((balance - due) * 100) / 100);
+    return { paid, owed, balance, due, upcoming, hwPending: ex.homework.filter(h => !h.submitted && !h.graded).length };
   }
 
   // totalSessions / nextLessonsCount are declared further down, once
@@ -416,6 +419,8 @@
         body: JSON.stringify({ studentCode: code, date: f.date, kind: f.type.startsWith('כפול') ? 'double' : f.type.startsWith('משולש') ? 'triple' : 'single', amountAgorot: Math.round(+f.amount * 100), paid: f.paid === 'true', note: f.notes }) });
       if (!r.ok) throw new Error();
       await refreshLedger(code);
+      sessionForms[code] = { ...sessionForm(code), notes: '' };
+      openForms[`${code}:session`] = false;
     } catch { toast('לא ניתן לשמור את השיעור', { kind: 'error' }); }
     finally { ledgerBusy[code] = false; }
   }
@@ -462,6 +467,8 @@
       const r = await api(`/api/students/${code}/activity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'homework', task, date: f.date }) });
       if (!r.ok) throw new Error();
       await refreshActivity(code);
+      hwForms[code] = { task: '', date: israelToday() };
+      openForms[`${code}:hw`] = false;
     } catch { toast('לא ניתן לשמור את שיעורי הבית', { kind: 'error' }); }
   }
   async function toggleHw(code: string, hwId: string) {
@@ -938,12 +945,7 @@
 {/snippet}
 
 
-<svelte:head>
-  <title>{selectedStudentCode ? `${realStudents[0]?.name ?? 'תלמיד/ה'} — תיק תלמיד` : 'לוח בקרה — שיעורים פרטיים'}</title>
-</svelte:head>
-
-<main class="page workspace-page" id="workspace-content" tabindex="-1">
-  <span class="save-indicator" class:show={saveIndicatorVisible} role="status">{saveIndicatorVisible ? '✓ נשמר' : ''}</span>
+{#snippet nativePreparationsSection()}
   {#if pageData.nativePreparations?.length}
     <section class="workspace-notice" aria-label="הכנת שיעורים במרחב ההוראה">
       <h2>הכנת שיעורים</h2>
@@ -968,6 +970,9 @@
       {#if pageData.nativeWorkspace}<a class="workspace-button" href={`https://drive.google.com/drive/folders/${pageData.nativeWorkspace.reviewId}`} target="_blank" rel="noopener">פתיחת טיוטות לבדיקה ב־Drive</a>{/if}
     </section>
   {/if}
+{/snippet}
+
+{#snippet nativeResultsSection()}
   {#if selectedStudentCode && pageData.nativeResults}
     <section class="workspace-notice native-results" aria-labelledby="native-results-title">
       <h2 id="native-results-title">תוצאות משחקים</h2>
@@ -997,6 +1002,14 @@
       {#if nativeReviewMessage}<p role="status">{nativeReviewMessage}</p>{/if}
     </section>
   {/if}
+{/snippet}
+
+<svelte:head>
+  <title>{selectedStudentCode ? `${realStudents[0]?.name ?? 'תלמיד/ה'} — תיק תלמיד` : 'לוח בקרה — שיעורים פרטיים'}</title>
+</svelte:head>
+
+<main class="page workspace-page" id="workspace-content" tabindex="-1">
+  <span class="save-indicator" class:show={saveIndicatorVisible} role="status">{saveIndicatorVisible ? '✓ נשמר' : ''}</span>
   {#if !selectedStudentCode}
   <TutorPageHeader title="לוח בקרה" description={dashboardDate}>
     {#snippet actions()}
@@ -1007,6 +1020,7 @@
   {#if pageData.nativeWorkspace}
     <aside class="workspace-notice" role="status"><strong>מרחב ההוראה עבר ל־Google Drive</strong><p>החומרים הקודמים נשמרו בארכיון. עד לאישור היצירה החדשה, מכינים את השיעורים במרחב ההוראה.</p><a class="workspace-button" href="/app/library">פתיחת מרחב ההוראה</a>{#if pageData.learningFeedbackEnabled}<a class="workspace-button" href={`https://docs.google.com/spreadsheets/d/${pageData.nativeWorkspace.indexId}/edit`} target="_blank" rel="noopener">משוב ובדיקת חומרים</a>{/if}</aside>
   {:else}<EngineNotice alert={pageData.engineAlert} />{/if}
+  {@render nativePreparationsSection()}
 
   {#if calendarFailures.length}
     <div class="cf-banner">
@@ -1176,7 +1190,7 @@
             <td>{#if activityError[s.code]}לא מעודכן{:else if !serverExtras[s.code]}טוענים…{:else if next.date}<bdi>{formatDate(next.date)}</bdi><span class="roster-meta"><bdi>{next.time}</bdi></span>{:else}טרם נקבע{/if}</td>
           </tr>
         {:else}
-          <tr><td colspan="3">{studentSearch ? 'לא נמצאו תלמידים בחיפוש הזה.' : 'אין תלמידים עדיין — לחצו ״תלמיד חדש״ כדי להתחיל.'}</td></tr>
+          <tr><td colspan="3">{studentSearch ? 'לא נמצאו תלמידים בחיפוש הזה.' : 'אין תלמידים עדיין — לחצו ״תלמיד/ה חדש/ה״ כדי להתחיל.'}</td></tr>
         {/each}
       </tbody>
     </table>
@@ -1193,7 +1207,7 @@
   <ReportQueue lessons={pageData.pendingReports} />
   <div class="students-grid">
     {#if !realStudents.length}
-      <div class="empty">אין תלמידים עדיין — לחצו "תלמיד חדש" כדי להתחיל</div>
+      <div class="empty">אין תלמידים עדיין — לחצו ״תלמיד/ה חדש/ה״ כדי להתחיל</div>
     {:else}
       {#each realStudents as s (s.code)}
         {@const t = studentTotals(s.code)}
@@ -1216,8 +1230,10 @@
                   <span class="badge">היתרה אינה מעודכנת</span>
                 {:else if ledgerLoading[s.code] || !chargesFor[s.code]}
                   <span class="badge">טוענים יתרה…</span>
-                {:else if t.balance > 0}
-                  <span class="badge badge-warn">₪{t.balance} חוב</span>
+                {:else if t.due > 0}
+                  <span class="badge badge-warn">₪{t.due} חוב</span>
+                {:else if t.upcoming > 0}
+                  <span class="badge badge-upcoming">₪{t.upcoming} מתוכנן</span>
                 {:else}
                   <span class="badge badge-ok">שולם ✓</span>
                 {/if}
@@ -1480,6 +1496,9 @@
     {/if}
   </div>
 
+  {@render nativePreparationsSection()}
+  {@render nativeResultsSection()}
+
   <div class="sec-header" style="margin-top:2.2rem">
     <div>
       <div class="sec-label2">גישה</div>
@@ -1492,7 +1511,7 @@
     {:else if codesError}
       <div class="codes-msg">{codesError}</div>
     {:else if !realStudents.length}
-      <div class="codes-msg">עדיין אין תלמידים עם קוד. הוסיפו תלמיד חדש כדי לייצר קודים.</div>
+      <div class="codes-msg">עדיין אין תלמידים עם קוד. הוסיפו תלמיד/ה חדש/ה כדי לייצר קודים.</div>
     {:else}
       <table class="codes-table">
         <thead><tr><th>חשבון / תלמיד</th><th>כניסה</th></tr></thead>
@@ -1503,7 +1522,7 @@
               <td>
                 <span class="access-kind">חשבון</span>
                 <strong>{account.accountName}</strong>
-                <div class="rs-sub" dir="ltr">{account.email || '— אין מייל'}</div>
+                <div class="rs-sub">{#if account.email}<bdi dir="ltr">{account.email}</bdi>{:else}— אין מייל{/if}</div>
               </td>
               <td>
                 <div class="rs-scope">
@@ -1775,6 +1794,7 @@
   .badge { font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .04em; }
   .badge-style { background: var(--accent2-dim); border: 1px solid var(--accent2-strong); color: var(--accent2-strong); }
   .badge-ok    { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); color: var(--accent3-strong); }
+  .badge-upcoming { background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.28); color: var(--accent-deep); }
   .badge-warn  { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.28); color: var(--danger); }
 
   /* Tabs */
@@ -1818,16 +1838,34 @@
   .pay-mini-icon { min-width: 32px; padding: 0; color: var(--danger-text); }
   .payments-table tr.is-void td { opacity: .55; }
   .payment-summary { flex-wrap: wrap; }
-  @media (max-width: 700px) {
-    .payments-table th, .payments-table td { padding: 4px 4px; font-size: .78rem; }
-    .payments-table th:nth-child(3), .payments-table td:nth-child(3) { display: none; }
-    .claim-flag { margin-inline-start: 0; display: flex; width: max-content; margin-top: 2px; }
-  }
   .payments-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
   .payments-table th { text-align: right; padding: 8px 10px; color: var(--accent); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1.5px solid var(--border-strong); background: var(--accent-dim); }
   .payments-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-strong); color: var(--text-primary); }
   .payments-table tr:last-child td { border-bottom: none; }
   .payments-table tr:hover td { background: var(--accent-dim); }
+  @media (max-width: 700px) {
+    .payments-table, .payments-table tbody { display: block; width: 100%; }
+    .payments-table thead { display: none; }
+    .payments-table tbody { display: grid; gap: 10px; }
+    .payments-table tr {
+      display: grid; gap: 2px; padding: 12px;
+      border: 1px solid var(--border-strong); border-radius: var(--r-md);
+      background: var(--bg-surface);
+    }
+    .payments-table tr:hover td { background: transparent; }
+    .payments-table td {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+      gap: 6px 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .85rem;
+    }
+    .payments-table td:last-child { border-bottom: none; padding-top: 8px; padding-bottom: 0; justify-content: flex-end; }
+    .payments-table td::before { content: attr(data-label); color: var(--text-muted); font-size: .75rem; font-weight: 700; flex-shrink: 0; }
+    .payments-table td[data-label='פעולות']::before { display: none; }
+    .payments-table .charge-check { margin: 0; width: 22px; height: 22px; }
+    .payments-table .ledger-actions { width: 100%; justify-content: flex-end; }
+    .payments-table .pay-mini { min-height: 44px; padding: 0 14px; font-size: .82rem; }
+    .payments-table .pay-mini-icon { min-width: 44px; padding: 0; }
+    .claim-flag { margin-inline-start: 0; }
+  }
 
   .payment-summary { display: flex; gap: 20px; margin-bottom: 14px; padding: 12px 16px; background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.22); border-radius: var(--r-md); }
   .ps-item { text-align: center; }

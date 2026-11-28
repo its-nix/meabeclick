@@ -339,7 +339,7 @@
 
 
   <!-- ── STICKY BOOKING BUTTON ───────────────────────────── -->
-  <section id="signup-button" class:shown={showStickyBooking} aria-hidden={!showStickyBooking}>
+  <section id="signup-button" class:shown={showStickyBooking} aria-hidden={!showStickyBooking} inert={!showStickyBooking}>
     <div class="sticky-cta-row">
       <a
         href="/booking"

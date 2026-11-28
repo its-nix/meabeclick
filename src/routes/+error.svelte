@@ -14,7 +14,8 @@
   import { page } from '$app/state';
 
   const status = $derived(page.status);
-  const detail = $derived(page.error?.message ?? '');
+  const rawDetail = $derived(page.error?.message ?? '');
+  const detail = $derived(rawDetail && rawDetail !== 'Internal Error' ? rawDetail : '');
   const isFamily = $derived(/^\/app\/(parent|student)(\/|$)/.test(page.url.pathname));
   const recovery = $derived(isFamily
     ? { href: '/portal', label: 'חזרה לכניסה האישית' }

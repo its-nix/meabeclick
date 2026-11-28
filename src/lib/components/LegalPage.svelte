@@ -126,6 +126,7 @@
   }
   .prose :global(strong) { color: var(--text-primary); font-weight: 600; }
   .prose :global(a) { text-decoration: underline; }
+  .prose :global(.phone-nowrap) { white-space: nowrap; unicode-bidi: isolate; }
 
   .prose :global(.contact) {
     margin-top: 1.5rem;

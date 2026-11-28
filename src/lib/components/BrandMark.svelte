@@ -51,7 +51,7 @@
 {/snippet}
 
 {#if href}
-  <a class="brand-mark-link" {href}>{@render mark()}</a>
+  <a class="brand-mark-link" {href} aria-label={label ? undefined : 'מאה בקליק — עמוד הבית'}>{@render mark()}</a>
 {:else}
   {@render mark()}
 {/if}

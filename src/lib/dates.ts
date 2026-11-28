@@ -5,10 +5,18 @@
  * 22:00 Israel time (depending on DST) is the day BEFORE — how the tutor's
  * dashboard came to show a held task's release date a day early.
  */
+function validDate(iso?: string | null): Date | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function israelDay(iso: string): string {
+  const date = validDate(iso);
+  if (!date) return '';
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date(iso));
+  }).format(date);
 }
 
 /** Today in Israel, as 'YYYY-MM-DD'. The ISO string's own date is UTC's
@@ -20,18 +28,22 @@ export function israelToday(now: Date = new Date()): string {
 /** 'DD/MM/YYYY HH:MM' in Israel — for version history and the like, where
  *  the time of day matters and UTC would be two or three hours off. */
 export function formatDateTime(iso: string): string {
+  const date = validDate(iso);
+  if (!date) return '—';
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(new Date(iso)).map(x => [x.type, x.value]));
+  }).formatToParts(date).map(x => [x.type, x.value]));
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
 }
 
 /** 'HH:MM' in Israel. */
 export function israelTime(iso: string): string {
+  const date = validDate(iso);
+  if (!date) return '';
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date(iso));
+  }).format(date);
 }
 
 /**

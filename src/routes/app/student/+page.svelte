@@ -84,7 +84,7 @@
   const CHILD_NAV: NavItem[] = [
     { id: 'home',  label: 'בית',        icon: 'portal' },
     { id: 'hw',    label: 'שיעורי בית',  icon: 'homework' },
-    { id: 'games', label: 'משחקים',      icon: 'games' },
+    { id: 'games', label: 'משחקים',      icon: 'games', href: STUDENT_GAMES_PATH },
     { id: 'ask',   label: 'שאלה',        icon: 'message' },
   ];
   /* An adult learning for themselves is student AND payer: their one home
@@ -412,7 +412,7 @@
           <article class="continue-card">
             <p class="eyebrow">ממשיכים מכאן</p>
             <h2>התרגול הבא שלך</h2>
-            <p>{hwOpen} משימות מחכות לך</p>
+            <p>{hwOpen === 1 ? 'משימה אחת מחכה לך' : `${hwOpen} משימות מחכות לך`}</p>
             <button class="continue-action" type="button" onclick={() => selectView('hw')}>לשיעורי הבית <span aria-hidden="true">←</span></button>
           </article>
         {/if}

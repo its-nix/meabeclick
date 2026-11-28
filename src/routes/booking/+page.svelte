@@ -155,6 +155,7 @@
   let activeStep = $derived(step === 'duration' ? 1 : sheetOpen || step === 'success' ? 3 : 2);
   let pane = $state<1 | 2>(1);
   let sheetEl = $state<HTMLDivElement | null>(null);
+  let sheetBodyEl = $state<HTMLDivElement | null>(null);
   let firstFieldEl = $state<HTMLInputElement | null>(null);
   /** Restored on close so keyboard and screen-reader users land back on the
    *  slot they opened rather than at the top of the document. */
@@ -197,9 +198,12 @@
 
     const unlock = lockScroll();
 
-    // Focus lands on the first field, not the sheet, so a parent can start
-    // typing immediately. Deferred one frame so the element exists.
-    const raf = requestAnimationFrame(() => firstFieldEl?.focus());
+    // Focus lands on the first field without scrolling the Google sign-in
+    // button out of view on short mobile viewports.
+    const raf = requestAnimationFrame(() => {
+      if (sheetBodyEl) sheetBodyEl.scrollTop = 0;
+      firstFieldEl?.focus({ preventScroll: true });
+    });
 
     return () => {
       unlock();
@@ -406,7 +410,8 @@
       if (!validatePane1()) { focusFirstError(); return; }
       pane = 2;
       requestAnimationFrame(() => {
-        sheetEl?.querySelector<HTMLElement>('#inp-email')?.focus();
+        if (sheetBodyEl) sheetBodyEl.scrollTop = 0;
+        sheetEl?.querySelector<HTMLElement>('#inp-email')?.focus({ preventScroll: true });
       });
       return;
     }
@@ -843,7 +848,7 @@
         <button class="sheet-close" onclick={closeSheet} aria-label="סגירה"><Icon name="close" size={16} /></button>
       </div>
 
-      <div class="sheet-body">
+      <div class="sheet-body" bind:this={sheetBodyEl}>
         {#if data.googleEnabled && !data.known}
           <div class="booking-google">
             <GoogleSignIn next="/booking?resume=1" onStart={saveGoogleDraft} label="המשך עם Google" />
@@ -1064,7 +1069,7 @@
            submit. -->
       <div class="sheet-foot">
         {#if pane === 2}
-          <button class="btn-back" onclick={() => { pane = 1; submitError = ''; }} disabled={submitting}>→ חזרה</button>
+          <button class="btn-back" onclick={() => { pane = 1; submitError = ''; if (sheetBodyEl) sheetBodyEl.scrollTop = 0; }} disabled={submitting}>→ חזרה</button>
         {/if}
         <button class="btn-primary" onclick={onPrimary} disabled={submitting}>{primaryLabel}</button>
       </div>

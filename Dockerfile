@@ -53,6 +53,18 @@ RUN npm install -g @openai/codex@0.149.0
 # keeps that resolution working inside the image.
 COPY --chown=node:node templates ./templates
 
+# The synthetic release-test stack uses a guarded entrypoint and deterministic
+# seed from this directory. Production never invokes them. Pre-creating the
+# named-volume target as `node` makes Docker's first-mount ownership safe;
+# otherwise a fresh volume is root-owned and the non-root runtime cannot even
+# create its isolated database.
+COPY --chown=node:node synthetic ./synthetic
+# Synthetic tooling invokes the exact production credential issuer, not a clone.
+# Type-only family-auth imports are erased by Node's TS stripping.
+COPY --chown=node:node src/lib/server/access-credentials.ts src/lib/server/db.ts src/lib/server/singleton.ts ./src/lib/server/
+COPY --chown=node:node src/lib/server/migrations ./src/lib/server/migrations
+RUN mkdir /synthetic-data && chown node:node /synthetic-data
+
 COPY --from=builder --chown=node:node /app/build ./build
 COPY --chown=node:node static ./static
 

@@ -23,7 +23,7 @@ if ! IFS= read -r -n 4096 -t 5 registry_token || [[ -z "$registry_token" || ${#r
 fi
 
 exec 9>.deploy.lock
-flock --exclusive --wait 240 9
+flock --exclusive --wait 600 9
 
 bounded() {
   # Keep the lock in this shell even if a child starts other processes.
@@ -63,7 +63,7 @@ if [[ -f https.compose.yml ]]; then
   compose+=(-f https.compose.yml)
 fi
 if ! bounded 5s docker image inspect "$STAGING_IMAGE" >/dev/null 2>&1; then
-  bounded 75s "${compose[@]}" pull app
+  bounded 300s "${compose[@]}" pull app
 fi
 bounded 25s "${compose[@]}" up --detach --no-build --pull never
 container=$(bounded 5s "${compose[@]}" ps --quiet app)

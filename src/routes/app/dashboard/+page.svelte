@@ -338,8 +338,11 @@
 
   interface SessionForm { date: string; type: string; amount: number; paid: string; notes: string }
   let sessionForms = $state<Record<string, SessionForm>>({});
+  function defaultSessionForm(): SessionForm {
+    return { date: israelToday(), type: 'יחיד · 45 דק׳', amount: 120, paid: 'false', notes: '' };
+  }
   function sessionForm(sid: string): SessionForm {
-    return sessionForms[sid] ?? { date: israelToday(), type: 'יחיד · 45 דק׳', amount: 120, paid: 'true', notes: '' };
+    return sessionForms[sid] ?? defaultSessionForm();
   }
   function setSessionField<K extends keyof SessionForm>(sid: string, field: K, value: SessionForm[K]) {
     sessionForms[sid] = { ...sessionForm(sid), [field]: value };
@@ -419,7 +422,7 @@
         body: JSON.stringify({ studentCode: code, date: f.date, kind: f.type.startsWith('כפול') ? 'double' : f.type.startsWith('משולש') ? 'triple' : 'single', amountAgorot: Math.round(+f.amount * 100), paid: f.paid === 'true', note: f.notes }) });
       if (!r.ok) throw new Error();
       await refreshLedger(code);
-      sessionForms[code] = { ...sessionForm(code), notes: '' };
+      delete sessionForms[code];
       openForms[`${code}:session`] = false;
     } catch { toast('לא ניתן לשמור את השיעור', { kind: 'error' }); }
     finally { ledgerBusy[code] = false; }
@@ -467,7 +470,7 @@
       const r = await api(`/api/students/${code}/activity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'homework', task, date: f.date }) });
       if (!r.ok) throw new Error();
       await refreshActivity(code);
-      hwForms[code] = { task: '', date: israelToday() };
+      delete hwForms[code];
       openForms[`${code}:hw`] = false;
     } catch { toast('לא ניתן לשמור את שיעורי הבית', { kind: 'error' }); }
   }
@@ -945,65 +948,6 @@
 {/snippet}
 
 
-{#snippet nativePreparationsSection()}
-  {#if pageData.nativePreparations?.length}
-    <section class="workspace-notice" aria-label="הכנת שיעורים במרחב ההוראה">
-      <h2>הכנת שיעורים</h2>
-      <ul>
-        {#each pageData.nativePreparations as preparation (preparation.bookingId)}
-          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.error}<p>{preparation.error} <strong>{preparation.nextStep}</strong></p>{:else if preparation.reason}<p>{preparation.reason} <strong>{preparation.nextStep}</strong></p>{/if}{#if preparation.validationFindings?.length}<details><summary>מה צריך לתקן בטיוטה?</summary><ul>{#each preparation.validationFindings as finding}<li><p>{finding.issue}</p><p>{finding.requestedChange}</p></li>{/each}</ul></details>{/if}
-            {#if preparation.canBind && pageData.nativeAuthoringEnabled}
-              <details><summary>הכנת שיעור מותאם לבדיקה</summary>
-                <p>ניצור טיוטה פרטית חדשה (מצגת, שיעורי בית ומשחקים) לפי מקצוע <bdi>{preparation.brief?.subject}</bdi>, רמה <bdi>{preparation.brief?.level}</bdi> ומשך <bdi>{preparation.brief?.durationMin}</bdi> דקות מההזמנה, ולפי מטרת השיעור והידע הקודם שתתארו. הטיוטה נשארת פרטית עד לבדיקה ואישור שלכם.</p>
-                <label>מה מטרת השיעור? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeRequests[preparation.bookingId]} placeholder="למשל: להכיר את המספרים עד 20 ולחבר בעזרת ציור"></textarea></label>
-                <label>מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeKnowledge[preparation.bookingId]} placeholder="תארו מה נצפה בפועל; אפשר לציין שעדיין לא נבדק"></textarea></label>
-                <label><input type="checkbox" bind:checked={nativeContextConfirmed[preparation.bookingId]} /> בדקתי שהמקצוע, הרמה והמשך מתאימים לשיעור. תיארתי את הידע הקודם לפי מה שידוע לי. אני מבקש/ת טיוטה פרטית לבדיקה.</label>
-                <button class="workspace-button" type="button" disabled={!nativeContextConfirmed[preparation.bookingId] || !(nativeRequests[preparation.bookingId]?.trim().length>=3) || !(nativeKnowledge[preparation.bookingId]?.trim().length>=3) || nativePreparationBusy!==null} onclick={()=>prepareNativeReview(preparation.bookingId,preparation.studentId)}>{nativePreparationBusy===preparation.bookingId?'שומרים…':preparation.hasGenerated?'ניסיון נוסף לשמירת הטיוטה':'הכנת טיוטה לבדיקה'}</button>
-              </details>
-            {/if}
-            {#if preparation.links?.slides}<a class="workspace-button" href={preparation.links.slides.url} target="_blank" rel="noopener">מצגת והערות למורה</a>{/if}
-            {#if preparation.links?.homework}<a class="workspace-button" href={preparation.links.homework.url} target="_blank" rel="noopener">שיעורי בית לבדיקה</a>{/if}
-          </li>
-        {/each}
-      </ul>
-      {#if nativePreparationMessage}<p role="status">{nativePreparationMessage}</p>{/if}
-      {#if pageData.nativeWorkspace}<a class="workspace-button" href={`https://drive.google.com/drive/folders/${pageData.nativeWorkspace.reviewId}`} target="_blank" rel="noopener">פתיחת טיוטות לבדיקה ב־Drive</a>{/if}
-    </section>
-  {/if}
-{/snippet}
-
-{#snippet nativeResultsSection()}
-  {#if selectedStudentCode && pageData.nativeResults}
-    <section class="workspace-notice native-results" aria-labelledby="native-results-title">
-      <h2 id="native-results-title">תוצאות משחקים</h2>
-      {#each nativeResultGames as game (game.key)}
-        <h3>{game.gameTitle}</h3>
-        <ul class="native-results-list">
-          {#each game.rounds as round (round.id)}
-            <li class:awaiting={round.outcome==='awaiting-review'}>
-              <strong>{round.prompt || `שאלה ${round.roundId}`}</strong>
-              <span class="native-results-meta">{round.skillTitle ?? 'ללא מיומנות בתוכנית'}{#if round.difficulty} · רמה <bdi>{round.difficulty}</bdi>{/if} · <bdi>{round.attempts}</bdi> ניסיונות{#if round.seconds!==null} · <bdi>{round.seconds}</bdi> שניות{/if} · <bdi>{formatDateTime(round.at)}</bdi></span>
-              {#if round.outcome==='awaiting-review'}
-                <span class="native-results-outcome">ממתין לבדיקת המורה</span>
-                <span class="native-results-actions" role="group" aria-label="הכרעה בתשובה פתוחה">
-                  {#each [['correct','נכון'],['assisted','נכון בעזרה'],['incorrect','לא נכון']] as [value,label]}
-                    <button class="workspace-button" type="button" disabled={nativeReviewBusy!==null} onclick={()=>decideNativeReview(round.id,value)}>{label}</button>
-                  {/each}
-                </span>
-              {:else}
-                <span class="native-results-outcome">{({correct:'נכון',assisted:'נכון בעזרה',incorrect:'לא נכון'})[round.outcome]}</span>
-              {/if}
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p>עדיין אין תוצאות משחקים לתלמיד/ה זה/זו.</p>
-      {/each}
-      {#if nativeReviewMessage}<p role="status">{nativeReviewMessage}</p>{/if}
-    </section>
-  {/if}
-{/snippet}
-
 <svelte:head>
   <title>{selectedStudentCode ? `${realStudents[0]?.name ?? 'תלמיד/ה'} — תיק תלמיד` : 'לוח בקרה — שיעורים פרטיים'}</title>
 </svelte:head>
@@ -1020,7 +964,6 @@
   {#if pageData.nativeWorkspace}
     <aside class="workspace-notice" role="status"><strong>מרחב ההוראה עבר ל־Google Drive</strong><p>החומרים הקודמים נשמרו בארכיון. עד לאישור היצירה החדשה, מכינים את השיעורים במרחב ההוראה.</p><a class="workspace-button" href="/app/library">פתיחת מרחב ההוראה</a>{#if pageData.learningFeedbackEnabled}<a class="workspace-button" href={`https://docs.google.com/spreadsheets/d/${pageData.nativeWorkspace.indexId}/edit`} target="_blank" rel="noopener">משוב ובדיקת חומרים</a>{/if}</aside>
   {:else}<EngineNotice alert={pageData.engineAlert} />{/if}
-  {@render nativePreparationsSection()}
 
   {#if calendarFailures.length}
     <div class="cf-banner">
@@ -1496,9 +1439,6 @@
     {/if}
   </div>
 
-  {@render nativePreparationsSection()}
-  {@render nativeResultsSection()}
-
   <div class="sec-header" style="margin-top:2.2rem">
     <div>
       <div class="sec-label2">גישה</div>
@@ -1597,6 +1537,61 @@
       </table>
     {/if}
   </div>
+  {/if}
+
+  {#if pageData.nativePreparations?.length}
+    <section class="workspace-notice" aria-label="הכנת שיעורים במרחב ההוראה">
+      <h2>הכנת שיעורים</h2>
+      <ul>
+        {#each pageData.nativePreparations as preparation (preparation.bookingId)}
+          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.error}<p>{preparation.error} <strong>{preparation.nextStep}</strong></p>{:else if preparation.reason}<p>{preparation.reason} <strong>{preparation.nextStep}</strong></p>{/if}{#if preparation.validationFindings?.length}<details><summary>מה צריך לתקן בטיוטה?</summary><ul>{#each preparation.validationFindings as finding}<li><p>{finding.issue}</p><p>{finding.requestedChange}</p></li>{/each}</ul></details>{/if}
+            {#if preparation.canBind && pageData.nativeAuthoringEnabled}
+              <details><summary>הכנת שיעור מותאם לבדיקה</summary>
+                <p>ניצור טיוטה פרטית חדשה (מצגת, שיעורי בית ומשחקים) לפי מקצוע <bdi>{preparation.brief?.subject}</bdi>, רמה <bdi>{preparation.brief?.level}</bdi> ומשך <bdi>{preparation.brief?.durationMin}</bdi> דקות מההזמנה, ולפי מטרת השיעור והידע הקודם שתתארו. הטיוטה נשארת פרטית עד לבדיקה ואישור שלכם.</p>
+                <label>מה מטרת השיעור? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeRequests[preparation.bookingId]} placeholder="למשל: להכיר את המספרים עד 20 ולחבר בעזרת ציור"></textarea></label>
+                <label>מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeKnowledge[preparation.bookingId]} placeholder="תארו מה נצפה בפועל; אפשר לציין שעדיין לא נבדק"></textarea></label>
+                <label><input type="checkbox" bind:checked={nativeContextConfirmed[preparation.bookingId]} /> בדקתי שהמקצוע, הרמה והמשך מתאימים לשיעור. תיארתי את הידע הקודם לפי מה שידוע לי. אני מבקש/ת טיוטה פרטית לבדיקה.</label>
+                <button class="workspace-button" type="button" disabled={!nativeContextConfirmed[preparation.bookingId] || !(nativeRequests[preparation.bookingId]?.trim().length>=3) || !(nativeKnowledge[preparation.bookingId]?.trim().length>=3) || nativePreparationBusy!==null} onclick={()=>prepareNativeReview(preparation.bookingId,preparation.studentId)}>{nativePreparationBusy===preparation.bookingId?'שומרים…':preparation.hasGenerated?'ניסיון נוסף לשמירת הטיוטה':'הכנת טיוטה לבדיקה'}</button>
+              </details>
+            {/if}
+            {#if preparation.links?.slides}<a class="workspace-button" href={preparation.links.slides.url} target="_blank" rel="noopener">מצגת והערות למורה</a>{/if}
+            {#if preparation.links?.homework}<a class="workspace-button" href={preparation.links.homework.url} target="_blank" rel="noopener">שיעורי בית לבדיקה</a>{/if}
+          </li>
+        {/each}
+      </ul>
+      {#if nativePreparationMessage}<p role="status">{nativePreparationMessage}</p>{/if}
+      {#if pageData.nativeWorkspace}<a class="workspace-button" href={`https://drive.google.com/drive/folders/${pageData.nativeWorkspace.reviewId}`} target="_blank" rel="noopener">פתיחת טיוטות לבדיקה ב־Drive</a>{/if}
+    </section>
+  {/if}
+
+  {#if selectedStudentCode && pageData.nativeResults}
+    <section class="workspace-notice native-results" aria-labelledby="native-results-title">
+      <h2 id="native-results-title">תוצאות משחקים</h2>
+      {#each nativeResultGames as game (game.key)}
+        <h3>{game.gameTitle}</h3>
+        <ul class="native-results-list">
+          {#each game.rounds as round (round.id)}
+            <li class:awaiting={round.outcome==='awaiting-review'}>
+              <strong>{round.prompt || `שאלה ${round.roundId}`}</strong>
+              <span class="native-results-meta">{round.skillTitle ?? 'ללא מיומנות בתוכנית'}{#if round.difficulty} · רמה <bdi>{round.difficulty}</bdi>{/if} · <bdi>{round.attempts}</bdi> ניסיונות{#if round.seconds!==null} · <bdi>{round.seconds}</bdi> שניות{/if} · <bdi>{formatDateTime(round.at)}</bdi></span>
+              {#if round.outcome==='awaiting-review'}
+                <span class="native-results-outcome">ממתין לבדיקת המורה</span>
+                <span class="native-results-actions" role="group" aria-label="הכרעה בתשובה פתוחה">
+                  {#each [['correct','נכון'],['assisted','נכון בעזרה'],['incorrect','לא נכון']] as [value,label]}
+                    <button class="workspace-button" type="button" disabled={nativeReviewBusy!==null} onclick={()=>decideNativeReview(round.id,value)}>{label}</button>
+                  {/each}
+                </span>
+              {:else}
+                <span class="native-results-outcome">{({correct:'נכון',assisted:'נכון בעזרה',incorrect:'לא נכון'})[round.outcome]}</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p>עדיין אין תוצאות משחקים לתלמיד/ה זה/זו.</p>
+      {/each}
+      {#if nativeReviewMessage}<p role="status">{nativeReviewMessage}</p>{/if}
+    </section>
   {/if}
 </main>
 

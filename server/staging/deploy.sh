@@ -62,6 +62,10 @@ compose=(docker compose --env-file /dev/null --project-name meabeclick-staging -
 if [[ -f https.compose.yml ]]; then
   compose+=(-f https.compose.yml)
   if [[ -f learning.compose.yml ]]; then
+    if [[ ! -f learning-squid.conf ]]; then
+      echo 'Missing regular proxy configuration file: learning-squid.conf' >&2
+      exit 1
+    fi
     compose+=(-f learning.compose.yml)
   fi
 fi

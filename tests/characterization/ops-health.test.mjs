@@ -9,7 +9,10 @@ import { startServer, login } from './harness.mjs';
 
 const CRON_KEY = 'test-cron-key';
 const call = (baseUrl, method, key) => fetch(`${baseUrl}/api/health/ops`, {
-  method, headers: key ? { 'X-Cron-Key': key } : {},
+  method, headers: {
+    ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+    ...(key ? { 'X-Cron-Key': key } : {}),
+  },
 });
 
 test('the ops check refuses anyone without the key, tutor included', async () => {

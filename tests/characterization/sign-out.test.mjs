@@ -49,7 +49,7 @@ test('a family session can be ended, and is dead afterwards', async () => {
     const before = await fetch(`${baseUrl}/app/parent`, { headers: { Cookie: cookie }, redirect: 'manual' });
     assert.equal(before.status, 200, 'the session should reach the board to begin with');
 
-    const out = await fetch(`${baseUrl}/api/family`, { method: 'DELETE', headers: { Cookie: cookie } });
+    const out = await fetch(`${baseUrl}/api/family`, { method: 'DELETE', headers: { Cookie: cookie, Origin: baseUrl } });
     assert.equal(out.status, 200);
 
     // The response must actually expire the cookie, not merely say ok.
@@ -68,7 +68,7 @@ test('a tutor session can be ended, and is dead afterwards', async () => {
       { authenticated: true },
     );
 
-    const out = await fetch(`${baseUrl}/api/logout`, { method: 'POST', headers: { Cookie: cookie } });
+    const out = await fetch(`${baseUrl}/api/logout`, { method: 'POST', headers: { Cookie: cookie, Origin: baseUrl } });
     assert.equal(out.status, 200);
     const cleared = out.headers.getSetCookie().find(c => c.startsWith('maab_session='));
     assert.ok(cleared, 'sign-out must send a Set-Cookie that clears the session');

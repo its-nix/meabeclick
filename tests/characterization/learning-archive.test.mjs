@@ -18,7 +18,7 @@ test('the removed catalog, review pages and preparation endpoints answer 404, an
  for(const path of ['/api/library/prepare','/api/library/import']){
   const r=await fetch(server.baseUrl+path,{method:'POST',headers:{Cookie:cookie,'content-type':'application/json'},body:JSON.stringify({template:'math-8',skill:'synthetic'})});assert.equal(r.status,404,path);
  }
- assert.equal((await fetch(server.baseUrl+'/api/central-drive-sync',{method:'POST',headers:{Cookie:cookie}})).status,401);
- assert.equal((await fetch(server.baseUrl+'/api/central-drive-sync',{method:'POST',headers:{'x-cron-key':'synthetic-archive-cron'}})).status,202);
+ assert.equal((await fetch(server.baseUrl+'/api/central-drive-sync',{method:'POST',headers:{Cookie:cookie,'content-type':'application/json'}})).status,401);
+ assert.equal((await fetch(server.baseUrl+'/api/central-drive-sync',{method:'POST',headers:{'x-cron-key':'synthetic-archive-cron','content-type':'application/json'}})).status,202);
  const db=new DatabaseSync(server.dbPath,{readOnly:true});assert.equal(db.prepare('SELECT count(*) n FROM lesson_materials').get().n,0);assert.equal(db.prepare('SELECT count(*) n FROM lessons').get().n,1);db.close();
 });

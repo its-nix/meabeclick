@@ -18,5 +18,6 @@ Type=oneshot
 # as a 401 with no obvious cause.
 EnvironmentFile=%h/mea-beclick/.cron-key.env
 ExecStart=/usr/bin/curl -sS --fail --max-time 60 -X POST \
+  -H "Content-Type: application/json" \
   -H "X-Cron-Key: ${CRON_KEY}" \
   http://127.0.0.1:3000/api/reports/prompt

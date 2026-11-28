@@ -14,5 +14,6 @@ Type=oneshot
 # day is a 200 and sends nothing.
 EnvironmentFile=%h/mea-beclick/.cron-key.env
 ExecStart=/usr/bin/curl -sS --fail --max-time 120 -X POST \
+  -H "Content-Type: application/json" \
   -H "X-Cron-Key: ${CRON_KEY}" \
   http://127.0.0.1:3000/api/health/ops

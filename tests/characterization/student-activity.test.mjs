@@ -180,7 +180,7 @@ test('homework belonging to another student cannot be marked or deleted', async 
     assert.equal(patched.status, 404, 'B\'s path must not reach A\'s homework');
 
     const deleted = await fetch(`${baseUrl}/api/students/${b.portal.code}/activity?id=${idOfA}`, {
-      method: 'DELETE', headers: { Cookie: cookie },
+      method: 'DELETE', headers: { Cookie: cookie, Origin: baseUrl },
     });
     assert.equal(deleted.status, 404);
 

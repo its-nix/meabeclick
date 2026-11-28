@@ -432,7 +432,7 @@
       <div class="filters">
         <span class="filters-label">הצג:</span>
         {#each FILTERS as f (f.id)}
-          <button type="button" class="chip" class:active={filter === f.id} aria-pressed={filter === f.id} onclick={() => { filter = f.id; const url = new URL(page.url); url.searchParams.set('filter', f.id); replaceState(url, page.state); }}>{f.label}</button>
+          <button type="button" class="chip" class:active={filter === f.id} aria-pressed={filter === f.id} onclick={() => { filter = f.id; const url = new URL(page.url.href); url.searchParams.set('filter', f.id); replaceState(url, page.state); }}>{f.label}</button>
         {/each}
       </div>
 

@@ -110,7 +110,7 @@ test('deleting it removes it from the student page as well', async () => {
 
     const id = Number((await tutorView(baseUrl, a.portal.code, cookie)).homework[0].id);
     await fetch(`${baseUrl}/api/students/${a.portal.code}/activity?id=${id}`, {
-      method: 'DELETE', headers: { Cookie: cookie },
+      method: 'DELETE', headers: { Cookie: cookie, Origin: baseUrl },
     });
 
     const after = await portalView(baseUrl, a.portal.code, cookie);

@@ -12,7 +12,7 @@ import { startServer, login } from './harness.mjs';
 const GOOGLE = { GOOGLE_WEB_CLIENT_ID: 'test-client.example', GOOGLE_WEB_CLIENT_SECRET: 'test-secret' };
 
 async function mint(baseUrl, cookie, id = 1) {
-  const r = await fetch(`${baseUrl}/api/teachers/${id}/setup-link`, { method: 'POST', headers: { cookie } });
+  const r = await fetch(`${baseUrl}/api/teachers/${id}/setup-link`, { method: 'POST', headers: { cookie, Origin: baseUrl } });
   assert.equal(r.status, 200, await r.clone().text());
   return (await r.json()).link;
 }
@@ -22,9 +22,9 @@ const codeOf = (link) => link.split('/').at(-1);
 test('only a dashboard session mints a link; opening the link twice uses nothing up', async () => {
   const { baseUrl, stop } = await startServer({ env: GOOGLE });
   try {
-    assert.equal((await fetch(`${baseUrl}/api/teachers/1/setup-link`, { method: 'POST' })).status, 401);
+    assert.equal((await fetch(`${baseUrl}/api/teachers/1/setup-link`, { method: 'POST', headers: { Origin: baseUrl } })).status, 401);
     const cookie = await login(baseUrl);
-    assert.equal((await fetch(`${baseUrl}/api/teachers/999/setup-link`, { method: 'POST', headers: { cookie } })).status, 404);
+    assert.equal((await fetch(`${baseUrl}/api/teachers/999/setup-link`, { method: 'POST', headers: { cookie, Origin: baseUrl } })).status, 404);
     const link = await mint(baseUrl, cookie);
     assert.match(link, new RegExp(`^${baseUrl}/app/tutor-setup/[A-Za-z0-9_-]{43}$`));
     const first = await html(link);

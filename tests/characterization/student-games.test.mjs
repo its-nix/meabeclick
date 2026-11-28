@@ -1,17 +1,22 @@
 // A signed-in student lists and plays approved native games; everyone else is turned away.
-// Approved copies are seeded straight into SQLite: no Google is involved.
+// Simulate tutor review at the Google boundary, then exercise the production HTTP routes.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, familySession } from './harness.mjs';
-import { visualDeckFixture } from '../visual-deck-fixture.mjs';
-import { exportGamesFile } from '../../src/lib/server/native-learning/games-file.ts';
+import { simulatedReview } from '../simulated-lesson-review.mjs';
 
-const book = (baseUrl) => fetch(`${baseUrl}/api/book`, {
-  method: 'POST', headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'יובל כהן', subject: 'מתמטיקה', level: 'כיתה ט', phone: '0501234567', email: 'orit@example.com',
-    durationMin: 90, start: '2027-03-15T10:00:00+02:00', end: '2027-03-15T11:30:00+02:00' }),
-});
+function book(baseUrl) {
+  const start = new Date();
+  start.setUTCDate(start.getUTCDate() + 7 + (8 - start.getUTCDay()) % 7);
+  start.setUTCHours(8, 0, 0, 0);
+  const end = new Date(start.getTime() + 90 * 60_000);
+  return fetch(`${baseUrl}/api/book`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'יובל כהן', subject: 'מתמטיקה', level: 'כיתה ט', phone: '0501234567', email: 'orit@example.com',
+      durationMin: 90, start: start.toISOString(), end: end.toISOString() }),
+  });
+}
 
 test('the games list and player serve a signed-in student only, and the answer endpoint trusts the session, not the body', async () => {
   const { baseUrl, dbPath, stop } = await startServer();
@@ -24,12 +29,12 @@ test('the games list and player serve a signed-in student only, and the answer e
     const db = new DatabaseSync(dbPath);
     const { id: studentId } = db.prepare('SELECT id FROM students_v2 WHERE code=?').get(first.portal.code);
     const { id: bookingId } = db.prepare('SELECT id FROM bookings_v2 LIMIT 1').get();
-    const file = exportGamesFile(visualDeckFixture(), `booking-${bookingId}`);
-    for (const g of file.games) db.prepare(`INSERT INTO native_games (material_id,release_id,student_id,booking_id,game_id,kind,content_json,source_file_id,source_revision,content_sha256,approved_at)
-      VALUES ('m1','rel',?,?,?,?,?,'f','1',?,'2028-01-01T00:00:00Z')`).run(studentId, bookingId, g.id, g.kind, JSON.stringify(g), 'a'.repeat(64));
     db.close();
-
+    const review = await simulatedReview({ bookingId, studentId, dbPath });
     const get = (path, cookie) => fetch(`${baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {}, redirect: 'manual' });
+    const gamePath = `/app/student/games/${bookingId}/axis-game`;
+    assert.equal((await get(gamePath, child)).status, 404);
+    await review.approve();
     const list = await get('/app/student/games', child);
     assert.equal(list.status, 200);
     const html = await list.text();
@@ -52,12 +57,15 @@ test('the games list and player serve a signed-in student only, and the answer e
     assert.equal((await get(`/app/student/games/${bookingId}/nope`, child)).status, 404);
 
     const post = (cookie, body) => fetch(`${baseUrl}/api/student-games/${bookingId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body) });
-    const attempt = { version: 'a'.repeat(64), taskId: 'axis-1', action: 'attempt', input: '38', eventId: 'e1', studentId: 999 };
+    const attempt = { version: review.version, taskId: 'axis-1', action: 'attempt', input: '38', eventId: 'e1', studentId: 999 };
     assert.equal((await post(null, attempt)).status, 401);
     assert.equal((await post(parent, attempt)).status, 401, 'an adult session cannot record a child result');
     const ok = await post(child, attempt);
     assert.equal(ok.status, 200);
     assert.equal((await ok.json()).correct, true);
+
+    await review.withdraw();
+    assert.equal((await get(gamePath, child)).status, 404);
 
     const check = new DatabaseSync(dbPath);
     const rows = check.prepare('SELECT student_id, booking_id, outcome FROM native_results').all();

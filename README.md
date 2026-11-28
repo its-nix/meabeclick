@@ -77,3 +77,17 @@ npm test        # node --test על tests/**/*.test.mjs — כולל מבחני �
 ```
 
 להרצה בענן: [`server/README.md`](server/README.md) (Docker Compose + Caddy).
+
+### Staging lesson verification
+
+Run `bash scripts/test-staging-lesson.sh --staging` from a checkout matching the
+staging release. It uses the configured SSH host `mea` (or `DOCKER_HOST`) to
+run a disposable copy of the deployed image with a temporary database and
+loopback networking. CI runs the same check on each candidate image before
+publication. A failing check blocks promotion.
+
+A synthetic booking drives the lesson export, simulated Google review, student
+game access and withdrawal. Homework checks cover student editing and parent
+viewing. The test uses a fixture lesson and simulated Google services, so it
+needs no operator login or approval. Live Google consent and API availability
+are outside its coverage.

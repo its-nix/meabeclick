@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { setTimeout as delay } from 'node:timers/promises';
-import { canAccessDocument, effectivePermissions } from './drive-access-fixture.mjs';
+import { canAccessDocument, effectivePermissions, patchDriveFile } from './drive-access-fixture.mjs';
 import { config, provider } from './central-drive-fixture.mjs';
 import { receipt, seedRetired } from './learning-archive-fixture.mjs';
 import { login } from './characterization/harness.mjs';
@@ -73,15 +73,10 @@ export async function simulatedGoogle(t) {
         return new Response(null, { status: 204 });
       }
     }
-    if (file && method === 'PATCH' && body.length) {
-      Object.assign(file, JSON.parse(body));
-      return Response.json({ id: file.id, writersCanShare: file.writersCanShare });
+    if (file && !resource && method === 'PATCH') {
+      return patchDriveFile(google.files, file, url.searchParams, body.length ? JSON.parse(body) : {});
     }
     if (file && url.searchParams.get('alt') === 'media') return new Response(file.bytes);
-    if (file && method === 'PATCH' && url.searchParams.has('addParents')) {
-      file.parents = [url.searchParams.get('addParents')];
-      return Response.json({ id: file.id, parents: file.parents });
-    }
     if (url.pathname.endsWith('/values:batchUpdate')) {
       for (const { range, values } of JSON.parse(body).data) {
         const [, title, column, row] = /^'([^']+)'!([A-Z])(\d+)$/.exec(range);

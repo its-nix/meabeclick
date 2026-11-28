@@ -35,3 +35,28 @@ export function canAccessDocument(files, id, email, write) {
     return matches && (!write || ['writer', 'fileOrganizer', 'organizer', 'owner'].includes(grant.role));
   });
 }
+
+// The fixture models files in single-parent My Drive folders. Validate the
+// complete PATCH before changing either the file metadata or its ancestry.
+export function patchDriveFile(files, file, query, metadata) {
+  let parents = file.parents;
+  const invalid = () => Response.json({ error: 'invalid file update' }, { status: 400 });
+  if (Object.keys(metadata).some(key => key !== 'writersCanShare')) return invalid();
+  if ('writersCanShare' in metadata && typeof metadata.writersCanShare !== 'boolean') return invalid();
+  if (query.has('addParents') || query.has('removeParents')) {
+    const added = query.get('addParents');
+    const removed = query.get('removeParents');
+    if (query.getAll('addParents').length !== 1 || query.getAll('removeParents').length !== 1 ||
+        parents.length !== 1 || removed !== parents[0] || removed === added) return invalid();
+    const destination = files.get(added);
+    if (destination?.mimeType !== 'application/vnd.google-apps.folder' || destination.trashed) return invalid();
+    const seen = new Set([file.id]);
+    for (let folder = destination; folder; folder = files.get(folder.parents[0])) {
+      if (seen.has(folder.id)) return invalid();
+      seen.add(folder.id);
+    }
+    parents = parents.filter(id => id !== removed).concat(added);
+  }
+  Object.assign(file, metadata, { parents });
+  return Response.json({ id: file.id, parents, writersCanShare: file.writersCanShare });
+}

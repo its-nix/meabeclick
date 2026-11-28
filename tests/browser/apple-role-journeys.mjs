@@ -155,8 +155,9 @@ try {
         const nav = page.getByRole('navigation', { name: 'ניווט ראשי', exact: true });
         await nav.getByRole('button', { name: 'שיעורי בית', exact: true }).click();
         await page.getByRole('heading', { name: 'שיעורי הבית שלי', exact: true }).waitFor();
-        await nav.getByRole('button', { name: 'משחקים', exact: true }).click();
-        await page.getByRole('link', { name: 'למשחקים שלי', exact: true }).waitFor();
+        await nav.getByRole('link', { name: 'משחקים', exact: true }).click();
+        await page.getByRole('heading', { name: 'המשחקים שלי', exact: true }).waitFor();
+        assert.equal(await page.getByRole('navigation', { name: 'ניווט ראשי', exact: true }).isVisible(), true, 'bottom nav stays visible on /app/student/games');
       }
       if (role === 'student' || role === 'parent') {
         const destination = role === 'parent' ? `/app/parent?s=${first.portal.code}` : `/app/student?s=${first.portal.code}`;

@@ -168,7 +168,10 @@
     const charges = (chargesFor[code] ?? []).filter(c => c.status !== 'void');
     const paid = charges.reduce((a, c) => a + (c.status === 'paid' ? c.amount_agorot : 0), 0) / 100;
     const owed = charges.reduce((a, c) => a + c.amount_agorot, 0) / 100;
-    return { paid, owed, balance: owed - paid, hwPending: ex.homework.filter(h => !h.submitted && !h.graded).length };
+    const due = dueAgorot(charges, israelToday()) / 100;
+    const balance = owed - paid;
+    const upcoming = Math.max(0, Math.round((balance - due) * 100) / 100);
+    return { paid, owed, balance, due, upcoming, hwPending: ex.homework.filter(h => !h.submitted && !h.graded).length };
   }
 
   // totalSessions / nextLessonsCount are declared further down, once
@@ -335,8 +338,11 @@
 
   interface SessionForm { date: string; type: string; amount: number; paid: string; notes: string }
   let sessionForms = $state<Record<string, SessionForm>>({});
+  function defaultSessionForm(): SessionForm {
+    return { date: israelToday(), type: 'יחיד · 45 דק׳', amount: 120, paid: 'false', notes: '' };
+  }
   function sessionForm(sid: string): SessionForm {
-    return sessionForms[sid] ?? { date: israelToday(), type: 'יחיד · 45 דק׳', amount: 120, paid: 'true', notes: '' };
+    return sessionForms[sid] ?? defaultSessionForm();
   }
   function setSessionField<K extends keyof SessionForm>(sid: string, field: K, value: SessionForm[K]) {
     sessionForms[sid] = { ...sessionForm(sid), [field]: value };
@@ -416,6 +422,8 @@
         body: JSON.stringify({ studentCode: code, date: f.date, kind: f.type.startsWith('כפול') ? 'double' : f.type.startsWith('משולש') ? 'triple' : 'single', amountAgorot: Math.round(+f.amount * 100), paid: f.paid === 'true', note: f.notes }) });
       if (!r.ok) throw new Error();
       await refreshLedger(code);
+      delete sessionForms[code];
+      openForms[`${code}:session`] = false;
     } catch { toast('לא ניתן לשמור את השיעור', { kind: 'error' }); }
     finally { ledgerBusy[code] = false; }
   }
@@ -462,6 +470,8 @@
       const r = await api(`/api/students/${code}/activity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'homework', task, date: f.date }) });
       if (!r.ok) throw new Error();
       await refreshActivity(code);
+      delete hwForms[code];
+      openForms[`${code}:hw`] = false;
     } catch { toast('לא ניתן לשמור את שיעורי הבית', { kind: 'error' }); }
   }
   async function toggleHw(code: string, hwId: string) {
@@ -944,59 +954,6 @@
 
 <main class="page workspace-page" id="workspace-content" tabindex="-1">
   <span class="save-indicator" class:show={saveIndicatorVisible} role="status">{saveIndicatorVisible ? '✓ נשמר' : ''}</span>
-  {#if pageData.nativePreparations?.length}
-    <section class="workspace-notice" aria-label="הכנת שיעורים במרחב ההוראה">
-      <h2>הכנת שיעורים</h2>
-      <ul>
-        {#each pageData.nativePreparations as preparation (preparation.bookingId)}
-          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.error}<p>{preparation.error} <strong>{preparation.nextStep}</strong></p>{:else if preparation.reason}<p>{preparation.reason} <strong>{preparation.nextStep}</strong></p>{/if}{#if preparation.validationFindings?.length}<details><summary>מה צריך לתקן בטיוטה?</summary><ul>{#each preparation.validationFindings as finding}<li><p>{finding.issue}</p><p>{finding.requestedChange}</p></li>{/each}</ul></details>{/if}
-            {#if preparation.canBind && pageData.nativeAuthoringEnabled}
-              <details><summary>הכנת שיעור מותאם לבדיקה</summary>
-                <p>ניצור טיוטה פרטית חדשה (מצגת, שיעורי בית ומשחקים) לפי מקצוע <bdi>{preparation.brief?.subject}</bdi>, רמה <bdi>{preparation.brief?.level}</bdi> ומשך <bdi>{preparation.brief?.durationMin}</bdi> דקות מההזמנה, ולפי מטרת השיעור והידע הקודם שתתארו. הטיוטה נשארת פרטית עד לבדיקה ואישור שלכם.</p>
-                <label>מה מטרת השיעור? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeRequests[preparation.bookingId]} placeholder="למשל: להכיר את המספרים עד 20 ולחבר בעזרת ציור"></textarea></label>
-                <label>מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeKnowledge[preparation.bookingId]} placeholder="תארו מה נצפה בפועל; אפשר לציין שעדיין לא נבדק"></textarea></label>
-                <label><input type="checkbox" bind:checked={nativeContextConfirmed[preparation.bookingId]} /> בדקתי שהמקצוע, הרמה והמשך מתאימים לשיעור. תיארתי את הידע הקודם לפי מה שידוע לי. אני מבקש/ת טיוטה פרטית לבדיקה.</label>
-                <button class="workspace-button" type="button" disabled={!nativeContextConfirmed[preparation.bookingId] || !(nativeRequests[preparation.bookingId]?.trim().length>=3) || !(nativeKnowledge[preparation.bookingId]?.trim().length>=3) || nativePreparationBusy!==null} onclick={()=>prepareNativeReview(preparation.bookingId,preparation.studentId)}>{nativePreparationBusy===preparation.bookingId?'שומרים…':preparation.hasGenerated?'ניסיון נוסף לשמירת הטיוטה':'הכנת טיוטה לבדיקה'}</button>
-              </details>
-            {/if}
-            {#if preparation.links?.slides}<a class="workspace-button" href={preparation.links.slides.url} target="_blank" rel="noopener">מצגת והערות למורה</a>{/if}
-            {#if preparation.links?.homework}<a class="workspace-button" href={preparation.links.homework.url} target="_blank" rel="noopener">שיעורי בית לבדיקה</a>{/if}
-          </li>
-        {/each}
-      </ul>
-      {#if nativePreparationMessage}<p role="status">{nativePreparationMessage}</p>{/if}
-      {#if pageData.nativeWorkspace}<a class="workspace-button" href={`https://drive.google.com/drive/folders/${pageData.nativeWorkspace.reviewId}`} target="_blank" rel="noopener">פתיחת טיוטות לבדיקה ב־Drive</a>{/if}
-    </section>
-  {/if}
-  {#if selectedStudentCode && pageData.nativeResults}
-    <section class="workspace-notice native-results" aria-labelledby="native-results-title">
-      <h2 id="native-results-title">תוצאות משחקים</h2>
-      {#each nativeResultGames as game (game.key)}
-        <h3>{game.gameTitle}</h3>
-        <ul class="native-results-list">
-          {#each game.rounds as round (round.id)}
-            <li class:awaiting={round.outcome==='awaiting-review'}>
-              <strong>{round.prompt || `שאלה ${round.roundId}`}</strong>
-              <span class="native-results-meta">{round.skillTitle ?? 'ללא מיומנות בתוכנית'}{#if round.difficulty} · רמה <bdi>{round.difficulty}</bdi>{/if} · <bdi>{round.attempts}</bdi> ניסיונות{#if round.seconds!==null} · <bdi>{round.seconds}</bdi> שניות{/if} · <bdi>{formatDateTime(round.at)}</bdi></span>
-              {#if round.outcome==='awaiting-review'}
-                <span class="native-results-outcome">ממתין לבדיקת המורה</span>
-                <span class="native-results-actions" role="group" aria-label="הכרעה בתשובה פתוחה">
-                  {#each [['correct','נכון'],['assisted','נכון בעזרה'],['incorrect','לא נכון']] as [value,label]}
-                    <button class="workspace-button" type="button" disabled={nativeReviewBusy!==null} onclick={()=>decideNativeReview(round.id,value)}>{label}</button>
-                  {/each}
-                </span>
-              {:else}
-                <span class="native-results-outcome">{({correct:'נכון',assisted:'נכון בעזרה',incorrect:'לא נכון'})[round.outcome]}</span>
-              {/if}
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p>עדיין אין תוצאות משחקים לתלמיד/ה זה/זו.</p>
-      {/each}
-      {#if nativeReviewMessage}<p role="status">{nativeReviewMessage}</p>{/if}
-    </section>
-  {/if}
   {#if !selectedStudentCode}
   <TutorPageHeader title="לוח בקרה" description={dashboardDate}>
     {#snippet actions()}
@@ -1176,7 +1133,7 @@
             <td>{#if activityError[s.code]}לא מעודכן{:else if !serverExtras[s.code]}טוענים…{:else if next.date}<bdi>{formatDate(next.date)}</bdi><span class="roster-meta"><bdi>{next.time}</bdi></span>{:else}טרם נקבע{/if}</td>
           </tr>
         {:else}
-          <tr><td colspan="3">{studentSearch ? 'לא נמצאו תלמידים בחיפוש הזה.' : 'אין תלמידים עדיין — לחצו ״תלמיד חדש״ כדי להתחיל.'}</td></tr>
+          <tr><td colspan="3">{studentSearch ? 'לא נמצאו תלמידים בחיפוש הזה.' : 'אין תלמידים עדיין — לחצו ״תלמיד/ה חדש/ה״ כדי להתחיל.'}</td></tr>
         {/each}
       </tbody>
     </table>
@@ -1193,7 +1150,7 @@
   <ReportQueue lessons={pageData.pendingReports} />
   <div class="students-grid">
     {#if !realStudents.length}
-      <div class="empty">אין תלמידים עדיין — לחצו "תלמיד חדש" כדי להתחיל</div>
+      <div class="empty">אין תלמידים עדיין — לחצו ״תלמיד/ה חדש/ה״ כדי להתחיל</div>
     {:else}
       {#each realStudents as s (s.code)}
         {@const t = studentTotals(s.code)}
@@ -1216,8 +1173,10 @@
                   <span class="badge">היתרה אינה מעודכנת</span>
                 {:else if ledgerLoading[s.code] || !chargesFor[s.code]}
                   <span class="badge">טוענים יתרה…</span>
-                {:else if t.balance > 0}
-                  <span class="badge badge-warn">₪{t.balance} חוב</span>
+                {:else if t.due > 0}
+                  <span class="badge badge-warn">₪{t.due} חוב</span>
+                {:else if t.upcoming > 0}
+                  <span class="badge badge-upcoming">₪{t.upcoming} מתוכנן</span>
                 {:else}
                   <span class="badge badge-ok">שולם ✓</span>
                 {/if}
@@ -1492,7 +1451,7 @@
     {:else if codesError}
       <div class="codes-msg">{codesError}</div>
     {:else if !realStudents.length}
-      <div class="codes-msg">עדיין אין תלמידים עם קוד. הוסיפו תלמיד חדש כדי לייצר קודים.</div>
+      <div class="codes-msg">עדיין אין תלמידים עם קוד. הוסיפו תלמיד/ה חדש/ה כדי לייצר קודים.</div>
     {:else}
       <table class="codes-table">
         <thead><tr><th>חשבון / תלמיד</th><th>כניסה</th></tr></thead>
@@ -1503,7 +1462,7 @@
               <td>
                 <span class="access-kind">חשבון</span>
                 <strong>{account.accountName}</strong>
-                <div class="rs-sub" dir="ltr">{account.email || '— אין מייל'}</div>
+                <div class="rs-sub">{#if account.email}<bdi dir="ltr">{account.email}</bdi>{:else}— אין מייל{/if}</div>
               </td>
               <td>
                 <div class="rs-scope">
@@ -1578,6 +1537,61 @@
       </table>
     {/if}
   </div>
+  {/if}
+
+  {#if pageData.nativePreparations?.length}
+    <section class="workspace-notice" aria-label="הכנת שיעורים במרחב ההוראה">
+      <h2>הכנת שיעורים</h2>
+      <ul>
+        {#each pageData.nativePreparations as preparation (preparation.bookingId)}
+          <li><strong>{preparation.studentName}</strong> · <span>{formatDateTime(preparation.start)}</span> · {({queued:'בתור להכנה',preparing:'בהכנה',review:'טיוטה לבדיקה — טרם אושרה לתלמיד/ה',failed:'ההכנה נכשלה',cancelled:'השיעור בוטל','needs-preparation':'נדרשת הכנת מורה'})[preparation.state]}{#if preparation.error}<p>{preparation.error} <strong>{preparation.nextStep}</strong></p>{:else if preparation.reason}<p>{preparation.reason} <strong>{preparation.nextStep}</strong></p>{/if}{#if preparation.validationFindings?.length}<details><summary>מה צריך לתקן בטיוטה?</summary><ul>{#each preparation.validationFindings as finding}<li><p>{finding.issue}</p><p>{finding.requestedChange}</p></li>{/each}</ul></details>{/if}
+            {#if preparation.canBind && pageData.nativeAuthoringEnabled}
+              <details><summary>הכנת שיעור מותאם לבדיקה</summary>
+                <p>ניצור טיוטה פרטית חדשה (מצגת, שיעורי בית ומשחקים) לפי מקצוע <bdi>{preparation.brief?.subject}</bdi>, רמה <bdi>{preparation.brief?.level}</bdi> ומשך <bdi>{preparation.brief?.durationMin}</bdi> דקות מההזמנה, ולפי מטרת השיעור והידע הקודם שתתארו. הטיוטה נשארת פרטית עד לבדיקה ואישור שלכם.</p>
+                <label>מה מטרת השיעור? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeRequests[preparation.bookingId]} placeholder="למשל: להכיר את המספרים עד 20 ולחבר בעזרת ציור"></textarea></label>
+                <label>מה התלמיד/ה כבר יודע/ת ואיפה נתקע/ת? <textarea readonly={preparation.hasGenerated} maxlength="1500" bind:value={nativeKnowledge[preparation.bookingId]} placeholder="תארו מה נצפה בפועל; אפשר לציין שעדיין לא נבדק"></textarea></label>
+                <label><input type="checkbox" bind:checked={nativeContextConfirmed[preparation.bookingId]} /> בדקתי שהמקצוע, הרמה והמשך מתאימים לשיעור. תיארתי את הידע הקודם לפי מה שידוע לי. אני מבקש/ת טיוטה פרטית לבדיקה.</label>
+                <button class="workspace-button" type="button" disabled={!nativeContextConfirmed[preparation.bookingId] || !(nativeRequests[preparation.bookingId]?.trim().length>=3) || !(nativeKnowledge[preparation.bookingId]?.trim().length>=3) || nativePreparationBusy!==null} onclick={()=>prepareNativeReview(preparation.bookingId,preparation.studentId)}>{nativePreparationBusy===preparation.bookingId?'שומרים…':preparation.hasGenerated?'ניסיון נוסף לשמירת הטיוטה':'הכנת טיוטה לבדיקה'}</button>
+              </details>
+            {/if}
+            {#if preparation.links?.slides}<a class="workspace-button" href={preparation.links.slides.url} target="_blank" rel="noopener">מצגת והערות למורה</a>{/if}
+            {#if preparation.links?.homework}<a class="workspace-button" href={preparation.links.homework.url} target="_blank" rel="noopener">שיעורי בית לבדיקה</a>{/if}
+          </li>
+        {/each}
+      </ul>
+      {#if nativePreparationMessage}<p role="status">{nativePreparationMessage}</p>{/if}
+      {#if pageData.nativeWorkspace}<a class="workspace-button" href={`https://drive.google.com/drive/folders/${pageData.nativeWorkspace.reviewId}`} target="_blank" rel="noopener">פתיחת טיוטות לבדיקה ב־Drive</a>{/if}
+    </section>
+  {/if}
+
+  {#if selectedStudentCode && pageData.nativeResults}
+    <section class="workspace-notice native-results" aria-labelledby="native-results-title">
+      <h2 id="native-results-title">תוצאות משחקים</h2>
+      {#each nativeResultGames as game (game.key)}
+        <h3>{game.gameTitle}</h3>
+        <ul class="native-results-list">
+          {#each game.rounds as round (round.id)}
+            <li class:awaiting={round.outcome==='awaiting-review'}>
+              <strong>{round.prompt || `שאלה ${round.roundId}`}</strong>
+              <span class="native-results-meta">{round.skillTitle ?? 'ללא מיומנות בתוכנית'}{#if round.difficulty} · רמה <bdi>{round.difficulty}</bdi>{/if} · <bdi>{round.attempts}</bdi> ניסיונות{#if round.seconds!==null} · <bdi>{round.seconds}</bdi> שניות{/if} · <bdi>{formatDateTime(round.at)}</bdi></span>
+              {#if round.outcome==='awaiting-review'}
+                <span class="native-results-outcome">ממתין לבדיקת המורה</span>
+                <span class="native-results-actions" role="group" aria-label="הכרעה בתשובה פתוחה">
+                  {#each [['correct','נכון'],['assisted','נכון בעזרה'],['incorrect','לא נכון']] as [value,label]}
+                    <button class="workspace-button" type="button" disabled={nativeReviewBusy!==null} onclick={()=>decideNativeReview(round.id,value)}>{label}</button>
+                  {/each}
+                </span>
+              {:else}
+                <span class="native-results-outcome">{({correct:'נכון',assisted:'נכון בעזרה',incorrect:'לא נכון'})[round.outcome]}</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p>עדיין אין תוצאות משחקים לתלמיד/ה זה/זו.</p>
+      {/each}
+      {#if nativeReviewMessage}<p role="status">{nativeReviewMessage}</p>{/if}
+    </section>
   {/if}
 </main>
 
@@ -1775,6 +1789,7 @@
   .badge { font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .04em; }
   .badge-style { background: var(--accent2-dim); border: 1px solid var(--accent2-strong); color: var(--accent2-strong); }
   .badge-ok    { background: var(--accent3-dim); border: 1px solid var(--accent3-strong); color: var(--accent3-strong); }
+  .badge-upcoming { background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.28); color: var(--accent-deep); }
   .badge-warn  { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.28); color: var(--danger); }
 
   /* Tabs */
@@ -1818,16 +1833,34 @@
   .pay-mini-icon { min-width: 32px; padding: 0; color: var(--danger-text); }
   .payments-table tr.is-void td { opacity: .55; }
   .payment-summary { flex-wrap: wrap; }
-  @media (max-width: 700px) {
-    .payments-table th, .payments-table td { padding: 4px 4px; font-size: .78rem; }
-    .payments-table th:nth-child(3), .payments-table td:nth-child(3) { display: none; }
-    .claim-flag { margin-inline-start: 0; display: flex; width: max-content; margin-top: 2px; }
-  }
   .payments-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
   .payments-table th { text-align: right; padding: 8px 10px; color: var(--accent); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1.5px solid var(--border-strong); background: var(--accent-dim); }
   .payments-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-strong); color: var(--text-primary); }
   .payments-table tr:last-child td { border-bottom: none; }
   .payments-table tr:hover td { background: var(--accent-dim); }
+  @media (max-width: 700px) {
+    .payments-table, .payments-table tbody { display: block; width: 100%; }
+    .payments-table thead { display: none; }
+    .payments-table tbody { display: grid; gap: 10px; }
+    .payments-table tr {
+      display: grid; gap: 2px; padding: 12px;
+      border: 1px solid var(--border-strong); border-radius: var(--r-md);
+      background: var(--bg-surface);
+    }
+    .payments-table tr:hover td { background: transparent; }
+    .payments-table td {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+      gap: 6px 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .85rem;
+    }
+    .payments-table td:last-child { border-bottom: none; padding-top: 8px; padding-bottom: 0; justify-content: flex-end; }
+    .payments-table td::before { content: attr(data-label); color: var(--text-muted); font-size: .75rem; font-weight: 700; flex-shrink: 0; }
+    .payments-table td[data-label='פעולות']::before { display: none; }
+    .payments-table .charge-check { margin: 0; width: 22px; height: 22px; }
+    .payments-table .ledger-actions { width: 100%; justify-content: flex-end; }
+    .payments-table .pay-mini { min-height: 44px; padding: 0 14px; font-size: .82rem; }
+    .payments-table .pay-mini-icon { min-width: 44px; padding: 0; }
+    .claim-flag { margin-inline-start: 0; }
+  }
 
   .payment-summary { display: flex; gap: 20px; margin-bottom: 14px; padding: 12px 16px; background: var(--accent-dim); border: 1px solid rgba(37,99,235,0.22); border-radius: var(--r-md); }
   .ps-item { text-align: center; }

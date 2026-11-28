@@ -49,6 +49,9 @@ export const HEARD_FROM_VALUES: ReadonlySet<string> =
   new Set(HEARD_FROM_OPTIONS.map(o => o.value));
 
 /** value → Hebrew label, for a reader (the report) that only has the raw
- *  string a booking was stored with and needs to show a human something. */
-export const HEARD_FROM_LABELS: Readonly<Record<string, string>> =
-  Object.fromEntries(HEARD_FROM_OPTIONS.map(o => [o.value, o.label]));
+ *  string a booking was stored with and needs to show a human something.
+ *  Includes legacy stored keys (e.g. `social`) that predate the current enum. */
+export const HEARD_FROM_LABELS: Readonly<Record<string, string>> = {
+  ...Object.fromEntries(HEARD_FROM_OPTIONS.map(o => [o.value, o.label])),
+  social: 'פייסבוק/אינסטגרם',
+};

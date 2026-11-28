@@ -89,7 +89,8 @@ publication. A failing check blocks promotion.
 The tutor preparation endpoint starts the worker for a synthetic booking. The
 worker writes the draft register to a simulated Google service. The test edits
 those rows and calls the production timer endpoint to verify student game access
-after approval and withdrawal after cancellation. Homework checks cover student
-editing and parent viewing. The test uses a fixture lesson and simulated Google services, so it
+after approval and withdrawal after cancellation. Chromium opens the homework
+links from the student and parent boards, saves a student edit, checks that the
+parent can read it, and retries both links after withdrawal. The test uses a fixture lesson and simulated Google services, so it
 needs no operator login or approval. Live Google consent and API availability
 are outside its coverage.

@@ -156,15 +156,22 @@ export async function syncHomeworkShares(input:{sheet:ApprovalSheet;api:Homework
 
 /** The parent preview of the student board never receives forwardable links. */
 export function studentHomeworkLinks(access:FamilyAccess,studentId:number) {
- if(!access.students.some(student=>student.id===studentId)||access.identity.kind!=='student'&&!access.isSelf)return [];
+ if(!access.students.some(student=>student.id===studentId))return [];
+ const parentPreview=access.identity.kind!=='student'&&!access.isSelf;
+ const parentEmail=parentPreview?parentGoogleEmail(studentId)?.toLowerCase():null;
+ if(parentPreview&&!parentEmail)return [];
  return handle().prepare(`SELECT d.doc_id,d.access_mode,d.resource_key FROM native_homework_delivery d
   JOIN native_lesson_jobs j ON d.material_id='native-'||j.id||'-homework' AND j.student_id=d.student_id
   JOIN bookings_v2 b ON b.id=j.booking_id AND b.student_id=j.student_id
-  WHERE d.student_id=? AND d.ready=1 AND b.status='confirmed' AND j.state='review' AND json_extract(j.bundle,'$.homework.id')=d.doc_id ORDER BY j.id DESC`).all(studentId)
+  WHERE d.student_id=? AND d.ready=1 AND b.status='confirmed' AND j.state='review' AND json_extract(j.bundle,'$.homework.id')=d.doc_id
+  AND (?=0 OR (d.access_mode='named' AND EXISTS (
+    SELECT 1 FROM native_homework_grants g WHERE g.material_id=d.material_id AND g.doc_id=d.doc_id
+    AND g.grantee=? AND g.role='reader' AND g.permission_id IS NOT NULL
+  ))) ORDER BY j.id DESC`).all(studentId,Number(parentPreview),parentEmail??null)
   .filter(r=>idPattern.test(String(r.doc_id))&&(r.access_mode==='named')===Boolean(studentGoogleEmail(studentId)))
   .map(r=>{
    const forwardable=r.access_mode==='link';
-   const url=new URL(`https://docs.google.com/document/d/${r.doc_id}/edit`);
+   const url=new URL(`https://docs.google.com/document/d/${r.doc_id}/${parentPreview?'view':'edit'}`);
    if(forwardable&&typeof r.resource_key==='string')url.searchParams.set('resourcekey',r.resource_key);
    return {url:url.href,forwardable};
   });

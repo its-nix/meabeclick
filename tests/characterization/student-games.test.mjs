@@ -4,7 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { startServer, familySession } from './harness.mjs';
-import { simulatedGoogle } from '../simulated-lesson-review.mjs';
+import { chromium } from 'playwright-core';
+import { simulatedGoogle, homeworkAccounts } from '../simulated-lesson-review.mjs';
 
 function book(baseUrl) {
   const start = new Date();
@@ -18,7 +19,7 @@ function book(baseUrl) {
   });
 }
 
-test('the games list and player serve a signed-in student only, and the answer endpoint trusts the session, not the body', async t => {
+test('approved homework and games reach the correct family sessions until withdrawal', async t => {
   const google = await simulatedGoogle(t);
   const { baseUrl, dbPath, dataDir, stop } = await startServer({ env: google.env });
   const localLink = link => link.replace(google.env.SITE_URL, baseUrl);
@@ -36,7 +37,48 @@ test('the games list and player serve a signed-in student only, and the answer e
     const get = (path, cookie) => fetch(`${baseUrl}${path}`, { headers: cookie ? { Cookie: cookie } : {}, redirect: 'manual' });
     const gamePath = `/app/student/games/${bookingId}/axis-game`;
     assert.equal((await get(gamePath, child)).status, 404);
+    const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN ??
+      (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : '/usr/bin/google-chrome') });
+    t.after(() => browser.close());
+    async function homeworkBoard(cookie, email) {
+      const page = await browser.newPage();
+      await page.context().route('https://docs.google.com/document/**', async route => {
+        const req = route.request();
+        const edit = req.method() === 'POST' ? req.postData() : undefined;
+        const result = review.documentRequest(req.url(), email, edit);
+        await route.fulfill({ status: result.status, contentType: 'text/plain', body: result.text ?? (result.status === 403 ? 'Access denied' : 'Worksheet') });
+      });
+      const [name, value] = cookie.split('=');
+      await page.context().addCookies([{ name, value, url: baseUrl }]);
+      return async visible => {
+        await page.goto(baseUrl + '/app/student?s=' + encodeURIComponent(first.portal.code) + '&v=hw');
+        await page.getByRole('heading', { name: 'שיעורי הבית שלי' }).waitFor();
+        const link = page.getByRole('link', { name: 'פתיחת מטלה ב־Google Docs' });
+        assert.equal(await link.count(), Number(visible));
+        if (!visible) return;
+        const opened = page.waitForEvent('popup');
+        await link.click();
+        const doc = await opened;
+        await doc.waitForLoadState();
+        return doc;
+      };
+    }
+    const studentBoard = await homeworkBoard(child, homeworkAccounts.student);
+    const parentBoard = await homeworkBoard(parent, homeworkAccounts.parent);
+    await studentBoard(false);
+    await parentBoard(false);
     await review.approve();
+    const studentDoc = await studentBoard(true);
+    const parentDoc = await parentBoard(true);
+    assert.equal(studentDoc.url(), review.homeworkUrl);
+    assert.equal(parentDoc.url(), studentDoc.url().replace(/\/edit$/, '/view'));
+    const save = (page, text) => page.evaluate(async body =>
+      (await fetch(location.href, { method: 'POST', body })).status, text);
+    assert.equal(await save(studentDoc, 'Solved exercise'), 200);
+    assert.equal((await parentDoc.reload()).status(), 200);
+    assert.equal(await parentDoc.locator('body').innerText(), 'Solved exercise');
+    assert.equal(await save(parentDoc, 'Overwrite'), 403);
+    assert.equal(review.documentRequest(studentDoc.url(), 'unrelated@example.test').status, 403);
     const list = await get('/app/student/games', child);
     assert.equal(list.status, 200);
     const html = await list.text();
@@ -67,6 +109,10 @@ test('the games list and player serve a signed-in student only, and the answer e
     assert.equal((await ok.json()).correct, true);
 
     await review.withdraw();
+    await studentBoard(false);
+    await parentBoard(false);
+    assert.equal((await studentDoc.reload()).status(), 403);
+    assert.equal((await parentDoc.reload()).status(), 403);
     assert.equal((await get(gamePath, child)).status, 404);
 
     const check = new DatabaseSync(dbPath);

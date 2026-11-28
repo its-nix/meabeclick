@@ -14,6 +14,7 @@ const site = 'https://staging.meabeclick.com';
 const owner = { id: 'owner', type: 'user', role: 'owner', emailAddress: config.ownerEmail };
 const scope = hash(JSON.stringify(['meabeclick-central-v1', config.ownerEmail, config.learningFolderId]));
 const tokenKey = randomBytes(32);
+export const homeworkAccounts = { student: 'student@example.test', parent: 'parent@example.test' };
 const clientId = 'synthetic-client';
 const cronKey = 'fixture-cron-key';
 
@@ -56,7 +57,24 @@ export async function simulatedGoogle(t) {
   const tab = title => tabs().find(s => s.properties.title === title);
   const errors = [];
   async function respond(url, method, headers, body) {
-    const file = google.files.get(url.pathname.split('/').at(-1));
+    const [, , , , fileId, resource, permissionId] = url.pathname.split('/');
+    const file = google.files.get(fileId);
+    if (file && resource === 'permissions') {
+      if (method === 'GET') return Response.json({ permissions: file.permissions });
+      if (method === 'POST') {
+        const grant = { ...JSON.parse(body), id: 'grant-' + randomBytes(6).toString('hex') };
+        file.permissions.push(grant);
+        return Response.json(grant);
+      }
+      if (method === 'DELETE') {
+        file.permissions = file.permissions.filter(p => p.id !== permissionId);
+        return new Response(null, { status: 204 });
+      }
+    }
+    if (file && method === 'PATCH' && body.length) {
+      Object.assign(file, JSON.parse(body));
+      return Response.json({ id: file.id, writersCanShare: file.writersCanShare });
+    }
     if (file && url.searchParams.get('alt') === 'media') return new Response(file.bytes);
     if (file && method === 'PATCH' && url.searchParams.has('addParents')) {
       file.parents = [url.searchParams.get('addParents')];
@@ -78,7 +96,7 @@ export async function simulatedGoogle(t) {
       }
     }
     for (const f of google.files.values()) {
-      f.permissions = [owner];
+      if (f.permissions?.length === 1 && !f.permissions[0].id) f.permissions = [owner];
       f.version ??= '1';
     }
     return response;
@@ -110,7 +128,14 @@ export async function simulatedGoogle(t) {
     async review({ baseUrl, dataDir, dbPath, bookingId, studentId }) {
       connectFixture(dataDir);
       const db = new DatabaseSync(dbPath);
-      try { seedRetired(db); } finally { db.close(); }
+      try {
+        seedRetired(db);
+        const { account_id } = db.prepare('SELECT account_id FROM students_v2 WHERE id=?').get(studentId);
+        const link = db.prepare('INSERT INTO google_identities(subject,scope_kind,scope_id,email,created_at) VALUES (?,?,?,?,?)');
+        for (const [kind, id, email] of [['student',studentId,homeworkAccounts.student],['account',account_id,homeworkAccounts.parent]]) {
+          link.run('fixture-' + kind, kind, id, email, new Date().toISOString());
+        }
+      } finally { db.close(); }
       const cookie = await login(baseUrl);
       const jobUrl = baseUrl + '/api/native-lessons/' + bookingId;
       const prepared = await fetch(jobUrl, { method: 'POST', headers: { cookie, 'Content-Type': 'application/json' },
@@ -127,21 +152,46 @@ export async function simulatedGoogle(t) {
         assert.equal(google.files.get(new URL(url).pathname.split('/')[3]).mimeType, 'application/vnd.google-apps.' + mime);
       }
       const game = materials.find(m => m.get('kind') === 'game' && m.get('audience') === 'student');
-      const assignment = records('Assignments').find(a => a.get('material_id') === game.get('material_id'));
+      const homework = materials.find(m => m.get('kind') === 'homework');
+      const homeworkUrl = new URL(homework.get('url'));
+      const doc = google.files.get(homeworkUrl.pathname.split('/')[3]);
+      const releases = [game, homework].map(material => ({
+        material, assignment: records('Assignments').find(a => a.get('material_id') === material.get('material_id')),
+      }));
       assert.equal(game.get('review_status'), 'review');
-      assert.equal(assignment.get('status'), 'draft');
+      for (const { assignment } of releases) assert.equal(assignment.get('status'), 'draft');
       async function sync(expected) {
         const r = await fetch(baseUrl + '/api/central-drive-sync', { headers: { 'x-cron-key': cronKey } });
         assert.equal(r.status, 200);
         await until(() => game.get('site_status') === expected, 'timer to write ' + expected);
+        await until(() => expected === 'approved'
+          ? doc.permissions.some(p => p.emailAddress === homeworkAccounts.parent && p.role === 'reader')
+          : doc.permissions.every(p => p.role === 'owner'), 'homework permission sync');
+        const deliveryDb = new DatabaseSync(dbPath, { readOnly: true });
+        try {
+          const ready = deliveryDb.prepare('SELECT ready FROM native_homework_delivery WHERE doc_id=?');
+          await until(() => Boolean(ready.get(doc.id)?.ready) === (expected === 'approved'), 'portal delivery state');
+        } finally { deliveryDb.close(); }
         assert.deepEqual(errors, []);
       }
-      return { version: game.get('content_sha256'),
-        async approve() {
-          game.set('review_status','approved'); game.set('publication_status','published'); game.set('release_id','fixture-release');
-          assignment.set('status','assigned'); await sync('approved');
+      return { version: game.get('content_sha256'), homeworkUrl: homeworkUrl.href,
+        documentRequest(link, email, edit) {
+          const target = new URL(link);
+          assert.equal(target.origin, homeworkUrl.origin);
+          assert.deepEqual(target.pathname.split('/').slice(0,4), homeworkUrl.pathname.split('/').slice(0,4));
+          const grant = doc.permissions.find(p => p.type === 'anyone' || p.emailAddress === email);
+          if (!grant || (edit !== undefined && grant.role !== 'writer')) return { status: 403 };
+          if (edit !== undefined) doc.worksheet = edit;
+          return { status: 200, text: doc.worksheet };
         },
-        async withdraw() { assignment.set('status','cancelled'); await sync('withdrawn'); },
+        async approve() {
+          for (const { material, assignment } of releases) {
+            material.set('review_status','approved'); material.set('publication_status','published'); material.set('release_id','fixture-release');
+            assignment.set('status','assigned');
+          }
+          await sync('approved');
+        },
+        async withdraw() { for (const { assignment } of releases) assignment.set('status','cancelled'); await sync('withdrawn'); },
       };
     },
   };

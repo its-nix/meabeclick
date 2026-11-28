@@ -261,6 +261,9 @@ test('payments: teacher marks debt paid and parent balance follows persisted dat
   await tutor.goto(profilePath(qa) + '?tab=payments');
   await tutor.locator('.payments-table tbody tr').filter({ hasText: '2026' }).getByRole('checkbox', { name: /סימון כשולם/ }).check();
   await expect.poll(balance).toBe(0);
+  // The balance is committed before the tutor's three ledger reads finish.
+  // Wait for the updated control to be usable before navigating away.
+  await expect(tutor.getByRole('checkbox', { name: /סימון כלא שולם/ })).toBeEnabled();
   await tutor.reload();
   await expect(tutor.getByRole('checkbox', { name: /סימון כלא שולם/ })).toBeChecked();
   await parent.reload();

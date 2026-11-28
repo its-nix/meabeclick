@@ -4,7 +4,6 @@ import {learningService} from '../learning-google.ts';
 import {centralDriveApi,centralFileUrl,type CentralAccess} from '../central-drive/api.ts';
 import {getStudentById,enrollmentsForStudent} from '../entities.ts';
 import {type AuthoredLesson} from './authoring.ts';
-import {prepareReviewedNativeLesson} from './preparation-review.ts';
 import type {VisualLesson} from '../../learning/deck/model.ts';
 import {claimNativeLessonJob,cacheNativePublication,getNativeLessonJob,finishNativeLessonJob,failNativeLessonJob,reconcileNativeLessonJobs,type NativeLessonJob} from './jobs.ts';
 import {nativeStudentFolder,placeHomeworkDoc} from './homework-placement.ts';
@@ -88,7 +87,11 @@ export function nativeLessonWorker(options:Options){
 }
 let worker:ReturnType<typeof nativeLessonWorker>|undefined;
 export function nativeLearningWorker(){return worker??=nativeLessonWorker({
- enabled:()=>process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',workspace:nativeWorkspace,access:()=>learningService().syncAccess(),generate:prepareReviewedNativeLesson,
+ enabled:()=>process.env.NATIVE_LESSON_AUTHORING_ENABLED==='true',workspace:nativeWorkspace,access:()=>learningService().syncAccess(),
+ async generate(job){
+  const {prepareReviewedNativeLesson}=await import('./preparation-review.ts');
+  return prepareReviewedNativeLesson(job);
+ },
  activityBaseUrl:()=>new URL('/app/native-review-activities',process.env.SITE_URL).href,
  async publish(input,dependencies){const{publishNativeReviewBundle}=await import('./bundle.ts');return publishNativeReviewBundle(input,dependencies);},
  async register(access,workspace,job,receipt,bundle){

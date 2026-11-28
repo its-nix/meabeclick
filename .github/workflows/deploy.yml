@@ -244,6 +244,12 @@ jobs:
           IMAGE: ${{ steps.image.outputs.name }}:${{ github.sha }}
         run: bash scripts/smoke-release-image.sh "$IMAGE"
 
+      - name: Verify simulated lesson approval and student access on release image
+        timeout-minutes: 3
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}:${{ github.sha }}
+        run: bash scripts/test-staging-lesson.sh "$IMAGE"
+
       - name: Log in to GHCR
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
